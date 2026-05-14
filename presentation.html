@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Análise de Conversão — Conhecimento dos Cursos</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <style>
+    *,*::before,*::after { box-sizing: border-box }
+    :root {
+      --bg: #F5F5F7; --border: #E5E7EB; --white: #FFFFFF;
+      --gray: #4B5563; --gray2: #6B7280;
+      --purple: #7C3AED; --purple-bg: rgba(124,58,237,.10);
+      --green: #059669; --green-bg: rgba(5,150,105,.10);
+      --amber: #D97706; --amber-bg: rgba(217,119,6,.10);
+      --red: #DC2626; --red-bg: rgba(220,38,38,.10);
+    }
+    .reveal-viewport { background-color: var(--bg); }
+    .reveal { font-family:'Exo 2',system-ui,sans-serif; font-size:16px; color:#111827; }
+    .reveal .slides section { text-align:left; height:100%; top:0!important; padding:32px 56px 40px; display:flex!important; flex-direction:column; overflow:hidden; }
+
+    .badge { display:inline-flex; align-items:center; padding:3px 11px; border-radius:100px; font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; border:1px solid; }
+    .badge-p { color:var(--purple); border-color:var(--purple); }
+
+    h1.slide-title { font-family:'Exo 2',sans-serif; font-size:29px; font-weight:800; line-height:1.15; color:#111827; margin:6px 0 0; }
+    h1.slide-title em { color:var(--purple); font-style:normal; }
+
+    .c-p{color:var(--purple)} .c-g{color:var(--green)} .c-a{color:var(--amber)} .c-r{color:var(--red)} .c-w{color:#111827}
+
+    .mr { display:flex; border:1px solid rgba(0,0,0,.08); border-radius:10px; overflow:hidden; flex-shrink:0; background:var(--white); }
+    .mi { flex:1; padding:12px 13px; text-align:center; border-right:1px solid rgba(0,0,0,.08); }
+    .mi:last-child { border-right:none; }
+    .mv { font-size:24px; font-weight:900; margin-bottom:3px; }
+    .ml { font-size:10.5px; color:var(--gray); line-height:1.4; }
+
+    .def-bullets { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+    .def-bullets li { font-size:12px; color:var(--gray); line-height:1.5; padding-left:18px; position:relative; }
+    .def-bullets li::before { content:'—'; color:rgba(124,58,237,.5); position:absolute; left:0; top:0; }
+
+    .find-block { padding:14px 0; border-bottom:1px solid rgba(0,0,0,.08); }
+    .find-block:last-child { border-bottom:none; }
+    .find-tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:4px; display:inline-block; }
+    .find-tag-p{color:var(--purple)} .find-tag-g{color:var(--green)} .find-tag-a{color:var(--amber)} .find-tag-r{color:var(--red)}
+    .find-title { font-size:17px; font-weight:700; color:#111827; line-height:1.2; margin-bottom:8px; }
+    .find-divider { height:1px; background:rgba(0,0,0,.08); }
+
+    .find-note { font-size:12px; color:var(--gray); line-height:1.65; padding:10px 0 0 12px; }
+    .find-note strong { color:#111827; }
+    .find-note-a { border-left:2px solid rgba(217,119,6,.45); }
+    .find-note-g { border-left:2px solid rgba(5,150,105,.45); }
+
+    .chart-wrap { border-radius:10px; padding:4px 2px 0; }
+    .chart-title { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--gray2); margin-bottom:3px; }
+
+    .slide-hd { margin-bottom:18px; flex-shrink:0; }
+    .content { display:flex; flex-direction:column; flex:1; gap:10px; min-height:0; }
+    .row { display:flex; gap:12px; flex:1; min-height:0; }
+    .col { display:flex; flex-direction:column; gap:8px; min-width:0; }
+  </style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- SLIDE 1 ═══════════════════════════════ -->
+<section class="slide" id="slide-conhecimento-cursos-conversao">
+  <div class="slide-hd">
+    <div class="badge badge-p">ANÁLISE DE CONVERSÃO</div>
+    <h1 class="slide-title">Webinário converte quem <em>está em dúvida</em> — quem já decidiu comprar resiste à ativação</h1>
+  </div>
+  <div class="content">
+
+    <div class="mr">
+      <div class="mi"><div class="mv c-w">2.191</div><div class="ml">Leads (excl. alunas)</div></div>
+      <div class="mi"><div class="mv c-a">2,94%</div><div class="ml">Conversão global</div></div>
+      <div class="mi"><div class="mv c-g">14,29%</div><div class="ml">Pico: sem resposta<br>+ webinário</div></div>
+      <div class="mi"><div class="mv c-r">0,00%</div><div class="ml">"Fará com certeza"<br>+ webinário</div></div>
+    </div>
+
+    <div class="row">
+      <div class="col" style="flex:1.15">
+        <div class="chart-title">TAXA DE CONVERSÃO POR PERFIL DE CONHECIMENTO — SEM VS. COM WEBINÁRIO (%)</div>
+        <div class="chart-wrap" id="chart-conhec-conv"></div>
+        <div class="find-note find-note-a">
+          Único grupo onde webinário <strong>reduz a conversão</strong>: "Fará com certeza" vai de 2,72% → 0% com webinário (15 leads).
+        </div>
+      </div>
+      <div class="col" style="flex:.85">
+        <div class="find-block">
+          <div class="find-tag find-tag-g">Achado</div>
+          <div class="find-title">"Sem resposta" + webinário: <span class="c-g">14,29%</span> — maior taxa do universo</div>
+          <ul class="def-bullets" style="margin-top:8px">
+            <li>4,9× a média global — maior grupo (825 leads, 37% da base) e mais responsivo ao webinário</li>
+            <li>Sem webinário converte apenas 3,39% — o webinário é o diferencial decisivo para esse perfil</li>
+          </ul>
+        </div>
+        <div class="find-divider"></div>
+        <div class="find-block">
+          <div class="find-tag find-tag-a">Paradoxo</div>
+          <div class="find-title">"Fará com certeza" + webinário: <span class="c-a">0%</span> de conversão</div>
+          <ul class="def-bullets" style="margin-top:8px">
+            <li>Sem webinário converte 2,72%; com webinário, 0 em 15 leads converteram</li>
+            <li>Alta intenção declarada pode sinalizar perfil que prefere comprar no próprio tempo</li>
+          </ul>
+        </div>
+        <div class="find-divider"></div>
+        <div class="find-block">
+          <div class="find-tag find-tag-p">Oportunidade</div>
+          <div class="find-title">"Pensa em fazer": <span class="c-p">2,52%</span> → <span class="c-p">13,79%</span> com webinário</div>
+          <ul class="def-bullets" style="margin-top:8px">
+            <li>Maior lift relativo: 5,5× — incerteza combinada com webinário é a combinação mais ativável</li>
+            <li>426 leads (19% da base) com alto potencial de ativação via webinário</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({ hash:true, transition:'fade', transitionSpeed:'fast', controls:false, progress:false, center:false, width:1280, height:720, plugins:[RevealNotes] });
+
+  const chartDefs = {
+    'chart-conhec-conv': {
+      type: 'bar-horizontal',
+      height: 295,
+      series: [
+        { name: 'Sem Webinário', data: [3.39, 2.52, 2.72, 0.91, 0.59, 0.00] },
+        { name: 'Com Webinário', data: [14.29, 13.79, 0.00, 5.88, 0.00, 0.00] },
+      ],
+      categories: ['Sem resposta', 'Pensa em fazer', 'Fará com certeza', 'Sem interesse', 'Nunca ouviu / não quer', 'Nunca ouviu / quer'],
+      colors: ['#94A3B8', '#7C3AED'],
+      options: {
+        xaxis: { min:0, max:18, labels:{ formatter: v => v.toFixed(0)+'%', style:{ colors:'#6B7280', fontSize:'10px' } } },
+        yaxis: { labels:{ style:{ colors:'#374151', fontSize:'10.5px', fontFamily:'Exo 2, sans-serif', fontWeight:600 } } },
+        dataLabels: {
+          enabled: true,
+          formatter: v => v > 0 ? v.toFixed(1)+'%' : '',
+          style: { fontSize:'9.5px', fontWeight:700, colors:['#fff'] },
+          offsetX: -4,
+          dropShadow: { enabled:false },
+        },
+        plotOptions: { bar:{ horizontal:true, borderRadius:4, barHeight:'52%' } },
+        annotations: {
+          xaxis: [{ x:2.94, strokeDashArray:4, borderColor:'#D97706', borderWidth:1.5,
+            label:{ text:'Média 2,94%', position:'top', orientation:'horizontal', offsetY:-6,
+              style:{ color:'#D97706', background:'transparent', fontSize:'9px', fontWeight:700, fontFamily:'Exo 2, sans-serif', padding:{ top:0, bottom:0, left:3, right:3 } } } }],
+        },
+        tooltip: { y:{ formatter: v => v.toFixed(2)+'%' } },
+        legend: {
+          show:true, position:'top', horizontalAlign:'right',
+          labels:{ colors:'#4B5563' }, fontFamily:'Exo 2, sans-serif', fontSize:'11px', fontWeight:600,
+          markers:{ width:10, height:10, radius:3 }, itemMargin:{ horizontal:10 },
+        },
+      },
+    },
+  };
+
+  const chartBase = {
+    chart: { background:'transparent', toolbar:{ show:false }, animations:{ enabled:false } },
+    theme: { mode:'light' },
+    grid: { borderColor:'rgba(0,0,0,.08)', strokeDashArray:3, xaxis:{ lines:{ show:true } }, yaxis:{ lines:{ show:false } } },
+    tooltip: { theme:'light' },
+    xaxis: { labels:{ style:{ colors:'#6B7280', fontSize:'11px' } }, axisBorder:{ show:false }, axisTicks:{ show:false } },
+    yaxis: { labels:{ style:{ colors:'#6B7280', fontSize:'11px' } } },
+    dataLabels: { enabled:false },
+    legend: { labels:{ colors:'#4B5563' } },
+  };
+
+  function mergeDeep(target, source) {
+    for (const key of Object.keys(source)) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) && typeof source[key] !== 'function') {
+        target[key] = target[key] || {};
+        mergeDeep(target[key], source[key]);
+      } else { target[key] = source[key]; }
+    }
+    return target;
+  }
+
+  function buildOptions(def) {
+    const base = JSON.parse(JSON.stringify(chartBase));
+    const isHoriz = def.type === 'bar-horizontal';
+    const resolvedType = ['mixed','stacked'].includes(def.type) ? 'bar' : isHoriz ? 'bar' : def.type;
+    const opts = {
+      chart: { ...base.chart, type:resolvedType, height:def.height },
+      series: def.series,
+      colors: def.colors || ['#94A3B8','#7C3AED'],
+    };
+    if (isHoriz) {
+      opts.plotOptions = { bar:{ horizontal:true, borderRadius:4, barHeight:'55%' } };
+      opts.xaxis = { ...base.xaxis, categories:def.categories, min:0 };
+      opts.yaxis = { labels:{ style:{ colors:'#374151', fontSize:'11px' } } };
+    } else {
+      if (def.categories) opts.xaxis = { ...base.xaxis, categories:def.categories };
+      if (def.type === 'bar') { opts.plotOptions = { bar:{ borderRadius:4, columnWidth:'55%' } }; opts.yaxis = { ...base.yaxis, min:0 }; }
+    }
+    mergeDeep(opts, { chart:base.chart, grid:base.grid, tooltip:base.tooltip, dataLabels:base.dataLabels });
+    if (def.options) mergeDeep(opts, def.options);
+    return opts;
+  }
+
+  function renderChartsInSlide(slideEl) {
+    slideEl.querySelectorAll('[id^="chart-"]').forEach(el => {
+      if (chartDefs[el.id] && !el._chartRendered) { el._chartRendered = true; new ApexCharts(el, buildOptions(chartDefs[el.id])).render(); }
+    });
+  }
+  Reveal.on('slidechanged', e => renderChartsInSlide(e.currentSlide));
+  Reveal.on('ready', e => renderChartsInSlide(e.currentSlide));
+  function goToSlide(id) { const t=document.getElementById(id); if(!t)return; const s=[...document.querySelectorAll('.reveal .slides > section')]; const i=s.indexOf(t); if(i>=0)Reveal.slide(i); }
+</script>
+</body>
+</html>

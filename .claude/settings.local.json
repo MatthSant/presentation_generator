@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\slides.md\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\" && Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\REQUIREMENTS.md\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\")",
+      "Bash(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\template_presentation.html\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\" && Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\design-system\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\")",
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\")",
+      "PowerShell(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\slides.md\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\")",
+      "PowerShell(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\REQUIREMENTS.md\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\")",
+      "PowerShell(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\template_presentation.html\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\")",
+      "PowerShell(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\design-system\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\_source\\\\\")",
+      "Edit(/.claude/skills/plan-slides/**)",
+      "Edit(/.claude/skills/build-slides/**)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\.claude\\\\skills\\\\build-slides\\\\tools\\\\\" -File | Select-Object Name)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

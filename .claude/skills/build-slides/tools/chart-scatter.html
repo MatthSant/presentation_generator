@@ -1,0 +1,24 @@
+<!-- Chart snippet — paste into chartDefs object in shell.html -->
+<!--
+  chart-scatter.html — Dispersão (correlação entre duas variáveis)
+  Use quando: mostrar relação entre duas métricas por ponto (ex: ticket vs. retenção por grupo)
+  series: cada série = um grupo; data = array de [x, y] ou {x, y}
+  xaxis.title / yaxis.title: rótulo dos eixos
+-->
+'chart-{{id}}': {
+  type: 'scatter',
+  height: {{height}},
+  series: [
+    {
+      name: '{{series-name}}',
+      data: [{{xy-pairs}}],  // ex: [[120, 0.72], [85, 0.58], [200, 0.91]]
+    },
+  ],
+  categories: [],            // deixar vazio — eixo x é contínuo
+  colors: ['#8B5CF6'],
+  options: {
+    xaxis: { title: { text: '{{x-label}}', style: { color: '#9CA3AF', fontSize: '11px' } } },
+    yaxis: { title: { text: '{{y-label}}', style: { color: '#9CA3AF', fontSize: '11px' } } },
+    markers: { size: 6 },
+  },
+},

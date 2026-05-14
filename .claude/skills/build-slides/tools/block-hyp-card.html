@@ -1,0 +1,23 @@
+<div class="hyp-card hyp-card-{{card-color}}" style="display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;padding:10px 12px;border-radius:8px">
+  <div class="hyp-id hyp-id-{{card-color}}" style="width:22px;height:22px;border-radius:5px;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center">{{id}}</div>
+  <div class="hyp-body" style="font-size:12px;font-weight:600;color:#fff;line-height:1.4">
+    {{body-text}}<br><span style="font-size:11px;font-weight:400;color:var(--gray)">{{body-sub}}</span>
+  </div>
+  <div class="hyp-value {{value-color}}" style="font-size:12px;font-weight:700;white-space:nowrap">{{value}}</div>
+</div>
+
+<!--
+VARIANTES de cor:
+  {{card-color}}: r (vermelho/alta prioridade) | a (âmbar/média) | p (roxo/baixa)
+
+CONTEÚDO:
+  {{id}}: "H1", "H2", etc.
+  {{body-text}}: título do card — texto puro (sem <div> filhos)
+  {{body-sub}}: subtítulo — omitir <br><span> se não houver subtítulo
+  {{value}}: estimativa de impacto (ex: "~R$1,6M")
+  {{value-color}}: c-g | c-a | c-p
+
+REGRAS:
+- hyp-body sem <div> aninhados — apenas <span>, <br>, texto
+- Manter style="display:grid;grid-template-columns:28px 1fr auto" no hyp-card
+-->

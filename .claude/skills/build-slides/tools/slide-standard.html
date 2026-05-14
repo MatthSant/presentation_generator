@@ -1,0 +1,55 @@
+<!-- SLIDE {{N}} ═══════════════════════════════ -->
+<section class="slide" id="{{slide-id}}">
+  <div class="slide-hd">
+    <div class="badge badge-{{badge-color}}">{{badge-label}}</div>
+    <h1 class="slide-title">{{title}}</h1>
+  </div>
+  <div class="content">
+    {{CONTENT}}
+  </div>
+</section>
+
+<!--
+PLACEHOLDERS DO SHELL:
+  {{slide-id}}  → ID único do slide em kebab-case (ex: slide-crescimento-ticket)
+                  Necessário para que apêndices possam linkar de volta a este slide.
+                  Derivar do título: "Crescimento: Volume vs. Ticket" → "slide-crescimento-ticket"
+                  Se o slide não tem apêndice, ainda assim atribuir um id (boa prática).
+
+CONTENT é montado combinando blocos:
+
+Layout padrão (gráfico + find-blocks):
+──────────────────────────────────────
+[block-kpi-row]
+
+<div class="row">
+  <div class="col" style="flex:1.1">
+    <div class="chart-title">TÍTULO DO GRÁFICO</div>
+    <div class="chart-wrap" id="chart-id"></div>
+    [block-find-note]
+  </div>
+  <div class="col" style="flex:.9">
+    [block-find-block × 3]
+    (separar com <div class="find-divider"></div>)
+  </div>
+</div>
+
+Dois gráficos lado a lado:
+──────────────────────────
+<div class="g2">
+  <div>
+    <div class="chart-title">TÍTULO A</div>
+    <div class="chart-wrap" id="chart-a"></div>
+  </div>
+  <div>
+    <div class="chart-title">TÍTULO B</div>
+    <div class="chart-wrap" id="chart-b"></div>
+  </div>
+</div>
+
+Coluna única (sem row):
+──────────────────────
+[block-kpi-row]
+[block-def-step × N]
+[block-agenda]
+-->

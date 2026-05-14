@@ -1,0 +1,19 @@
+<!-- Chart snippet — paste into chartDefs object in shell.html -->
+<!--
+  chart-stacked.html — Barras empilhadas (composição ao longo do tempo ou categorias)
+  Use quando: mostrar como partes formam um todo ao longo de períodos (composição temporal)
+  stackType: '' (absoluto) | '100%' (normalizado — mostra proporção)
+  Atenção: cores por série, não distributed
+-->
+'chart-{{id}}': {
+  type: 'stacked',
+  height: {{height}},
+  stacked: true,
+  stackType: '',           // '' = absoluto | '100%' = normalizado
+  series: [
+    { name: '{{series-1-name}}', data: [{{data-1}}] },
+    { name: '{{series-2-name}}', data: [{{data-2}}] },
+  ],
+  categories: [{{categories}}],
+  colors: ['{{color-1}}', '{{color-2}}'],
+},

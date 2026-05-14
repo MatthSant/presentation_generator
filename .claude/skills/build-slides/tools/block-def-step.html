@@ -1,0 +1,35 @@
+<div class="def-step">
+  <div class="def-step-num">{{num}}</div>
+  <div class="def-step-body">
+    <div class="def-step-label">{{label}}</div>
+    <div class="def-step-title">{{title}}</div>
+    <div class="def-step-stats">
+      <div>
+        <div class="def-step-stat-n {{stat-color-1}}">{{stat-value-1}}</div>
+        <div class="def-step-stat-l">{{stat-label-1}}</div>
+      </div>
+      <div>
+        <div class="def-step-stat-n {{stat-color-2}}">{{stat-value-2}}</div>
+        <div class="def-step-stat-l">{{stat-label-2}}</div>
+      </div>
+    </div>
+    <ul class="def-bullets">
+      <li>{{bullet-1}}</li>
+      <li>{{bullet-2}}</li>
+    </ul>
+  </div>
+</div>
+
+<!--
+SEPARADOR entre etapas:
+<div class="def-divider"></div>
+
+REGRAS:
+- {{num}}: "01", "02", etc. — texto puro
+- {{label}}: rótulo acima do título (ex: "Base de dados") — texto puro, aparece em roxo
+- {{title}}: título da etapa — texto puro
+- {{stat-color-N}}: c-p | c-g | c-a | c-o | c-r | c-w | "" (sem cor)
+- Bloco def-step-stats é opcional — omitir se não houver estatísticas
+- bullets podem conter <strong>
+- Adicionar/remover <li> conforme necessário
+-->

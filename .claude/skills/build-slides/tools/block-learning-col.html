@@ -1,0 +1,49 @@
+<!--
+  block-learning-col.html — Coluna de aprendizados para slide tipo: aprendizados
+  Usar dentro de <div class="g3"> — uma coluna por categoria
+  Categorias: O que funcionou (g) | O que não funcionou (r) | Próximas hipóteses (a)
+
+  DESIGN: sem cards, sem border-left > 1px — itens como lista separada por linhas finas
+-->
+<div style="display:flex;flex-direction:column">
+
+  <!-- cabeçalho da categoria -->
+  <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.1)">
+    <div class="badge badge-{{cor}}">{{categoria}}</div>
+  </div>
+
+  <!-- item de aprendizado — repetir para cada item; separar com <div style="height:1px;background:rgba(255,255,255,.05);margin:8px 0"></div> -->
+  <div>
+    <div style="font-size:12px;font-weight:600;color:var(--white);line-height:1.4;margin-bottom:4px">{{título}}</div>
+    <div style="font-size:11px;font-weight:600;color:var(--{{dado-color}});margin-bottom:4px">{{dado}}</div>
+    <div style="font-size:10.5px;color:var(--gray);line-height:1.45">→ {{implicação}}</div>
+  </div>
+  <!-- separador entre itens: <div style="height:1px;background:rgba(255,255,255,.05);margin:8px 0"></div> -->
+  <!-- /repetir -->
+
+</div>
+
+<!--
+PLACEHOLDERS DO CABEÇALHO:
+  {{cor}}       → g | r | a
+  {{categoria}} → "O QUE FUNCIONOU" | "O QUE NÃO FUNCIONOU" | "PRÓXIMAS HIPÓTESES"
+
+PLACEHOLDERS POR ITEM:
+  {{título}}      → aprendizado em 1–2 linhas
+  {{dado}}        → métrica exata da campanha (ex: "CTR 8,2% vs. 4,1% baseline")
+  {{dado-color}}  → green | red | amber (sem var(--))
+  {{implicação}}  → decisão para o próximo ciclo
+
+MAPEAMENTO COR POR CATEGORIA:
+  O que funcionou     → cor: g | dado-color: green
+  O que não funcionou → cor: r | dado-color: red
+  Próximas hipóteses  → cor: a | dado-color: amber
+
+CONTAINER:
+  [block-kpi-row com métricas globais da campanha — opcional]
+  <div class="g3">
+    [block-learning-col × 3]
+  </div>
+
+REGRA: máx 3 itens por coluna. border-left > 1px é proibido — não adicionar stripe colorida.
+-->

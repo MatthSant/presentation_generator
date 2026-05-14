@@ -1,0 +1,16 @@
+<!-- Chart snippet — paste into chartDefs object in shell.html -->
+<!--
+  chart-radar.html — Radar / Spider (perfil multidimensional)
+  Use quando: comparar 1–3 grupos em 4–7 dimensões simultâneas
+  categories: dimensões do radar (eixos)
+  series: cada série = um grupo com score por dimensão
+-->
+'chart-{{id}}': {
+  type: 'radar',
+  height: {{height}},
+  series: [
+    { name: '{{series-1-name}}', data: [{{data-1}}] },
+  ],
+  categories: [{{categories}}],  // ex: ['Ativação', 'Retenção', 'Ticket', 'Frequência']
+  colors: ['#8B5CF6', '#10B981'],
+},

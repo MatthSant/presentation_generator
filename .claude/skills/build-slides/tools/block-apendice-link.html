@@ -1,0 +1,22 @@
+<!-- Inserir ao final do .content do slide principal, antes de fechar a .content div -->
+<div style="margin-top:auto;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0">
+  <a onclick="goToSlide('{{apendice-id}}')" style="font-size:11px;color:var(--gray2);text-decoration:none;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:color .12s" onmouseover="this.style.color='var(--purple)'" onmouseout="this.style.color='var(--gray2)'">
+    Ver detalhamento → Apêndice {{ref}}
+  </a>
+</div>
+
+<!--
+PLACEHOLDERS:
+  {{apendice-id}} → ID do section do slide de apêndice (ex: apendice-distribuicao-grupos)
+  {{ref}}         → rótulo do apêndice (ex: A1, A2, A3...)
+
+POSICIONAMENTO:
+  Inserir como último elemento dentro do <div class="content"> do slide principal,
+  APÓS todos os find-blocks e antes do </div> de fechamento do content.
+  O margin-top:auto empurra o link para o rodapé do slide.
+
+LINKAGEM CIRCULAR:
+  Slide principal → (este bloco) → slide-apendice.html (via onclick goToSlide)
+  Slide de apêndice → (link "← Voltar") → slide principal (via onclick goToSlide)
+  Ambos usam goToSlide(id) definido no shell.html — navega pelo id da section.
+-->

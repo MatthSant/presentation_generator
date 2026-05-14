@@ -1,0 +1,24 @@
+<div class="mdef-block">
+  <div class="mdef-tag">{{tag}}</div>
+  <div class="mdef-title">{{title}}</div>
+  <ul class="def-bullets">
+    <li>{{bullet-1}}</li>
+    <li>{{bullet-2}}</li>
+  </ul>
+  <div class="mdef-sub-label" style="margin-top:12px">{{sub-label}}</div>
+  <ul class="def-bullets">
+    <li>{{sub-bullet-1}}</li>
+  </ul>
+</div>
+
+<!--
+SEPARADOR entre blocos:
+<div class="mdef-divider"></div>
+
+REGRAS:
+- {{tag}}: rótulo de contexto (ex: "Comportamento no dia 1") — texto puro, aparece em roxo
+- {{title}}: nome do conceito/definição — texto puro
+- Bloco mdef-sub-label + sub-bullets é opcional — omitir se não houver sub-classificação
+- bullets e sub-bullets podem conter <strong>, <em>
+- Para dividir espaço igualmente: adicionar style="flex:1" na div.mdef-block
+-->

@@ -1,0 +1,21 @@
+'chart-{{id}}': {
+  type: 'bar',
+  height: {{height}},
+  series: [
+    { name: '{{series-name}}', data: [{{data}}] },
+  ],
+  categories: [{{categories}}],
+  colors: ['{{color}}'],
+},
+
+<!--
+REGRAS:
+- height: sempre número via JS (ex: 290). Nunca CSS height.
+- categories: array de strings (ex: ['2022', '2023', '2024', '2025'])
+- data: array de números (ex: 32.1, 37.4, 42.8, 48.8)
+- colors: array de hex do design system
+  purple: #8B5CF6 | green: #10B981 | amber: #F59E0B | orange: #F97316 | red: #EF4444
+- Múltiplas séries: adicionar objetos { name: '...', data: [...] } na array
+- Distributed (ranking por cor): adicionar  distributed: true,  após colors
+- O JS aplica automaticamente: borderRadius:4, yaxis.min:0, grid sutil, tooltip dark
+-->

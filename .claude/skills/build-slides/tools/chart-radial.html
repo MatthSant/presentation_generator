@@ -1,0 +1,14 @@
+<!-- Chart snippet — paste into chartDefs object in shell.html -->
+<!--
+  chart-radial.html — Barra radial (progresso circular, taxas, metas)
+  Use quando: mostrar 1–4 métricas como porcentagem de preenchimento de um arco
+  series: array de números (0–100, porcentagens)
+  labels: array de rótulos por arco
+-->
+'chart-{{id}}': {
+  type: 'radialBar',
+  height: {{height}},
+  series: [{{values}}],   // ex: [72, 45, 88]  — porcentagens
+  labels: [{{labels}}],   // ex: ['Retenção', 'Ativação', 'Conversão']
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+},

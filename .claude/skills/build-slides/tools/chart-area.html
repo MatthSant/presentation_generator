@@ -1,0 +1,16 @@
+'chart-{{id}}': {
+  type: 'area',
+  height: {{height}},
+  series: [
+    { name: '{{series-name}}', data: [{{data}}] },
+  ],
+  categories: [{{categories}}],
+  colors: ['{{color}}'],
+},
+
+<!--
+REGRAS:
+- O JS aplica: gradient fill (opacidade 0.35 → 0), stroke smooth, yaxis.min=0
+- Usar para visualizar volume/tendência com ênfase na magnitude
+- Múltiplas séries com cores diferentes: adicionar objetos na array
+-->

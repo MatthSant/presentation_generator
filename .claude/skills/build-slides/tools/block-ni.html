@@ -1,0 +1,42 @@
+<!--
+  block-ni.html — Card de hipótese/ação numerada (ni = note-item)
+  Quando usar: listar hipóteses ou iniciativas com ID, título, justificativa e ação concreta
+  Diferença de hyp-card: ni-v tem layout vertical compacto com seções Por que? / Acionável
+  Cor da borda: rgba(color, .2) — usar cor que reflita prioridade (vermelho=alta, âmbar=média, roxo=baixa)
+  ni-num background: usar rgba(color, .9) para contraste
+  Sections disponíveis: Por que? (ni-sl c-a), Acionável (ni-sl c-g), Impacto (ni-sl c-p)
+-->
+<div class="ni ni-v" style="border-color:rgba({{border-rgb}},.2)">
+  <div class="ni-head">
+    <div class="ni-num" style="background:rgba({{num-rgb}},.9)">{{id}}</div>
+    <div class="ni-title">{{title}} <span class="badge badge-{{badge-color}}">{{badge-value}}</span></div>
+  </div>
+  <div class="ni-section">
+    <div class="ni-sl c-a">Por que?</div>
+    <div class="ni-sb">{{rationale}}</div>
+  </div>
+  <div class="ni-section">
+    <div class="ni-sl c-g">Acionável</div>
+    <div class="ni-sb">{{action}}</div>
+  </div>
+</div>
+
+<!--
+PLACEHOLDERS:
+  {{border-rgb}}  → RGB da cor da borda (ex: 239,68,68 para vermelho | 245,158,11 para âmbar | 139,92,246 para roxo)
+  {{num-rgb}}     → RGB do badge numérico (geralmente igual ao border-rgb)
+  {{id}}          → Identificador: H1, H2, A1, etc.
+  {{title}}       → Título curto da hipótese (pode ter <span> para badge de impacto)
+  {{badge-color}} → Cor do badge de valor: g (verde) | a (âmbar) | r (vermelho)
+  {{badge-value}} → Texto do badge: ex: "~R$1,6M/ano"
+  {{rationale}}   → Por que esta iniciativa importa — dado que justifica
+  {{action}}      → O que fazer concretamente — ação, prazo, custo
+
+  Para adicionar seção extra (ex: Impacto):
+  <div class="ni-section">
+    <div class="ni-sl c-p">Impacto</div>
+    <div class="ni-sb">{{impact}}</div>
+  </div>
+
+  Para omitir badge de valor: remover <span class="badge ..."> do title
+-->

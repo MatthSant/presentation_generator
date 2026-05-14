@@ -1,0 +1,21 @@
+<div class="find-block">
+  <div class="find-tag find-tag-{{tag-color}}">{{tag}}</div>
+  <div class="find-title">{{title}}</div>
+  <ul class="def-bullets" style="margin-top:10px">
+    <li>{{bullet-1}}</li>
+    <li>{{bullet-2}}</li>
+    <li style="color:var(--gray2);font-size:10.5px">{{footnote}}</li>
+  </ul>
+</div>
+
+<!--
+REGRAS:
+- {{tag}}: Achado | Atenção | Paradoxo | Timing | Teto de CAC | Resultado por gênero |
+           Composição | Por grupo | Valor da ativação | Retenção | Janela de influência | Oportunidade
+- {{tag-color}}: p | g | a | r (sem "find-tag-" — a classe está no template)
+- {{title}}: pode conter HTML — <span class="c-X"> para números em destaque
+- Máx 2 bullets (sem contar o footnote)
+- Omitir o <li> de bullet-2 se não houver segundo bullet
+- Omitir o <li> de footnote se não houver estimativa/fonte externa
+- bullets podem conter <strong>, <em>, <span class="c-X">
+-->

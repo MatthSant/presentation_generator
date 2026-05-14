@@ -1,0 +1,24 @@
+'chart-{{id}}': {
+  type: 'mixed',
+  height: {{height}},
+  series: [
+    { name: '{{bar-series-name}}',  type: 'bar',  data: [{{bar-data}}] },
+    { name: '{{line-series-name}}', type: 'line', data: [{{line-data}}] },
+  ],
+  categories: [{{categories}}],
+  colors: ['{{bar-color}}', '{{line-color}}'],
+},
+
+<!--
+REGRAS:
+- type: 'mixed' → o JS inicializa como chart type 'bar' e usa o type por série
+- Cada série tem seu type: 'bar' | 'line'
+- Primeira série costuma ser barra (volume), segunda linha (taxa/média)
+- O JS não aplica yaxis automático em mixed — adicionar se precisar de eixo secundário:
+  options: {
+    yaxis: [
+      { min: 0, labels: { style: { colors: '#9CA3AF', fontSize: '11px' } } },
+      { opposite: true, min: 0, labels: { style: { colors: '#F59E0B', fontSize: '11px' } } },
+    ]
+  }
+-->

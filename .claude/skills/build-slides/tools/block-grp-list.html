@@ -1,0 +1,33 @@
+<div class="grp-label">{{label}}</div>
+<div class="grp-list">
+  <div class="grp-item">
+    <span class="grp-n">01</span>
+    <div>
+      <div class="grp-name">{{name-1}}</div>
+      <div class="grp-ex">{{example-1}}</div>
+    </div>
+  </div>
+  <div class="grp-item">
+    <span class="grp-n">02</span>
+    <div>
+      <div class="grp-name">{{name-2}}</div>
+      <div class="grp-ex">{{example-2}}</div>
+    </div>
+  </div>
+  <div class="grp-item">
+    <span class="grp-n">03</span>
+    <div>
+      <div class="grp-name">{{name-3}}</div>
+      <div class="grp-ex">{{example-3}}</div>
+    </div>
+  </div>
+</div>
+
+<!--
+REGRAS:
+- {{label}}: rótulo acima da lista (ex: "10 grupos de serviços") — texto puro, aparece em roxo
+- grp-n usa <span>, nunca <div>
+- grp-item sem style extra na abertura da tag
+- {{example-N}}: exemplos curtos — omitir <div class="grp-ex"> se não houver
+- Adicionar/remover <div class="grp-item"> conforme número de grupos
+-->

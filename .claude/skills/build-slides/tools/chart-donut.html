@@ -1,0 +1,18 @@
+'chart-{{id}}': {
+  type: 'donut',
+  height: {{height}},
+  series: [{{data}}],
+  labels: [{{labels}}],
+  colors: ['{{color-1}}', '{{color-2}}', '{{color-3}}'],
+},
+
+<!--
+REGRAS:
+- series: array PLANO de números (não objetos com name/data)
+  Ex: [67.8, 23.2, 9.0]
+- labels: array de strings correspondentes a cada fatia
+  Ex: ['Categoria A', 'Categoria B', 'Categoria C']
+- Máx 5–6 fatias para legibilidade
+- O JS aplica: legend position bottom, donut size 65%
+- Não usar "categories" em donut/pie — usar "labels"
+-->

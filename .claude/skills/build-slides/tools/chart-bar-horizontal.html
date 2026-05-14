@@ -1,0 +1,22 @@
+'chart-{{id}}': {
+  type: 'bar-horizontal',
+  height: {{height}},
+  series: [
+    { name: '{{series-name}}', data: [{{data}}] },
+  ],
+  categories: [{{categories}}],
+  colors: ['{{color}}'],
+},
+
+<!--
+ATENÇÃO — barras horizontais têm regras especiais:
+- yaxis = eixo de CATEGORIAS → sem formatter, sem min:0
+- xaxis = eixo de VALORES → com min:0, pode ter formatter
+- O JS configura isso automaticamente para type 'bar-horizontal'
+- Se precisar de formatter no valor: adicionar no options:
+  options: {
+    xaxis: { labels: { formatter: v => 'R$' + v.toFixed(0) } }
+  }
+- Para labels de barras curtas usar annotations (não dataLabels no yaxis)
+- O JS aplica: horizontal:true, barHeight:'60%', borderRadius:3
+-->

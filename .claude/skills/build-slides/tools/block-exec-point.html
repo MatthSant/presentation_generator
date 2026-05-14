@@ -1,0 +1,19 @@
+<div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+  <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.4">→ {{claim}}</div>
+  <ul class="def-bullets">
+    <li>{{suporte-1}}</li>
+    <li>{{suporte-2}}</li>
+  </ul>
+</div>
+
+<!--
+REGRAS:
+- {{claim}}: frase declarativa completa com o insight — este é o "bold" do bold-bullet format
+  Ex: "Faturamento cresceu 52% em 4 anos, mas por ticket médio — não por volume de clientes"
+- {{suporte-N}}: dado curto e concreto que prova o claim
+  Ex: "Base de clientes estável entre 160k–170k desde 2022"
+- Máx 3 bullets de suporte por claim (normalmente 2)
+- Bullets podem conter <strong> para número em destaque
+- Omitir o último <li> se houver apenas 1 bullet de suporte
+- O último block-exec-point da lista não precisa do border-bottom — remover o estilo inline
+-->

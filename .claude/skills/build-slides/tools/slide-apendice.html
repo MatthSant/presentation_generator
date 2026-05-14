@@ -1,0 +1,37 @@
+<!-- SLIDE {{N}} ═══════════════════════════════ -->
+<section class="slide" id="{{id}}">
+  <div class="slide-hd">
+    <div class="badge badge-p">APÊNDICE {{ref}}</div>
+    <h1 class="slide-title">{{título}}</h1>
+  </div>
+  <div class="content">
+
+    {{CONTENT}}
+
+    <!-- Link de volta ao slide principal (linkagem circular) -->
+    <div style="margin-top:auto;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0">
+      <a onclick="goToSlide('{{origem-id}}')" style="font-size:11px;color:var(--gray2);text-decoration:none;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:color .12s" onmouseover="this.style.color='var(--purple)'" onmouseout="this.style.color='var(--gray2)'">
+        ← Voltar — Slide {{origem-num}}: {{origem-título}}
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<!--
+PLACEHOLDERS:
+  {{N}}            → número sequencial do slide no documento
+  {{id}}           → ID único do apêndice (ex: apendice-distribuicao-grupos)
+  {{ref}}          → rótulo do apêndice (ex: A1, A2, A3...)
+  {{título}}       → action title descritivo do dado detalhado
+  {{CONTENT}}      → conteúdo do apêndice (gráficos, tabelas, grp-list, etc.)
+  {{origem-id}}    → ID do section do slide principal (ex: slide-crescimento)
+  {{origem-num}}   → número do slide principal (ex: 5)
+  {{origem-título}} → título curto do slide principal para contexto no link de volta
+
+CONTEÚDO:
+  O apêndice é auto-suficiente — quem navegar direto deve entender sem ver o slide principal.
+  Usar os mesmos componentes dos slides analíticos: chart-wrap, grp-list, def-bullets, find-note.
+  Pode ter mais dados que um slide normal (mais itens, mais séries, tabela completa).
+  Não precisa de find-blocks — o apêndice é detalhe, não argumentação.
+-->

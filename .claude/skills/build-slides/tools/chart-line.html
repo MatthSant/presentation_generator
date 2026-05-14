@@ -1,0 +1,18 @@
+'chart-{{id}}': {
+  type: 'line',
+  height: {{height}},
+  series: [
+    { name: '{{series-name}}', data: [{{data}}] },
+  ],
+  categories: [{{categories}}],
+  colors: ['{{color}}'],
+},
+
+<!--
+REGRAS:
+- O JS aplica: stroke.curve='smooth', width=2.5, markers.size=4, yaxis.min=0
+- Múltiplas séries: adicionar objetos na array
+- Para pontilhado em uma série: adicionar
+  options: { stroke: { dashArray: [0, 4] } }
+  (0 = sólido, 4 = tracejado — um valor por série)
+-->

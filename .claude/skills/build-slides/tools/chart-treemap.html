@@ -1,0 +1,27 @@
+<!-- Chart snippet — paste into chartDefs object in shell.html -->
+<!--
+  chart-treemap.html — Treemap (composição proporcional por área)
+  Use quando: mostrar participação relativa de muitas categorias simultaneamente (10+ itens)
+  data: array de {x: 'nome', y: valor}
+  Preferir donut se ≤6 categorias; treemap para 7+
+-->
+'chart-{{id}}': {
+  type: 'treemap',
+  height: {{height}},
+  series: [
+    {
+      data: [{{items}}],  // ex: [{x:'Grupo A',y:450},{x:'Grupo B',y:320}]
+    },
+  ],
+  categories: [],
+  colors: ['#8B5CF6'],
+  options: {
+    plotOptions: {
+      treemap: {
+        distributed: true,
+        enableShades: true,
+        shadeIntensity: 0.4,
+      },
+    },
+  },
+},
