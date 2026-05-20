@@ -11,11 +11,12 @@ Pipeline que transforma uma análise em um plano de slides pronto para o `/build
 ## Visão geral das fases
 
 ```
-Fase 0 → detectar input
-Fase 1 → entender audiência e tom
-Fase 2 → mensagem inescapável + gerar analise_summary.md
-Fase 3 → propor estrutura narrativa + horizontal flow test (iterar até aprovação)
-Fase 4 → gerar slides_plan.md (com autorização explícita)
+Fase 0  → detectar input
+Fase 1  → entender audiência e tom
+Fase 2  → mensagem inescapável + gerar analise_summary.md (+ passe de completude)
+Fase 3  → propor estrutura narrativa + horizontal flow test (iterar até aprovação)
+Fase 4a → mapeamento de cobertura (cada item do sumário → destino explícito)
+Fase 4  → gerar slides_plan.md + checklist de completude final (com autorização explícita)
 ```
 
 Use `TodoWrite` para marcar cada fase conforme avança. Só passe para a próxima após concluir a atual.
@@ -91,12 +92,22 @@ Sem limite de quantidade — incluir tudo que for materialmente relevante.]
 [O que falta, foi estimado ou precisa de fonte externa]
 
 ## Dados para apêndice
-[Dados relevantes da análise que são verdadeiros e importantes, mas detalhados demais para os slides principais.
-Incluir: tabelas completas de ranking, distribuições secundárias, metodologia detalhada, dados por subgrupo.
-Cada item deve indicar a qual slide principal se relaciona.]
+[Lista NUMERADA — cada item obrigatoriamente inclui:
+  1. Descrição do dado com valores exatos
+  2. Tópico do slide principal ao qual se relaciona (ex: "→ Slide: Crescimento de receita")
+Sem numeração não é válido. Sem linkage `→ Slide:` não é válido.
+Incluir: tabelas completas de ranking, distribuições secundárias, metodologia detalhada, dados por subgrupo.]
 ```
 
-Após salvar, informe o usuário que o sumário foi criado e mostre os principais achados no chat.
+### 2c. Passe de completude após salvar
+
+Após salvar `temp/analise_summary.md`, **leia o arquivo de volta** e verifique antes de informar o usuário:
+
+1. **KPIs:** cada valor numérico relevante de [CONTEUDO_ANALISE] aparece em "Métricas-chave" ou "Dados para apêndice"? Se não, adicione.
+2. **Achados:** cada achado material de [CONTEUDO_ANALISE] aparece em "Achados" ou "Hipóteses"? Se não, adicione.
+3. **Dados para apêndice numerados:** cada item tem número e linkage `→ Slide:`? Se não, corrija o arquivo.
+
+Só após o passe informe o usuário e mostre os principais achados no chat.
 
 ---
 
@@ -112,10 +123,9 @@ O deck deve sempre incluir, nesta ordem:
 1. **Capa** — título e subtítulo
 2. **Resumo executivo** — 3–4 claims em negrito com dados de suporte (slide independente; permite entender o deck sem ler o resto)
 3. **Agenda** — lista dos temas/seções que serão apresentados
-4. **Metodologia e Definições** — sempre dois slides consecutivos:
+4. **Metodologia e Definições** — sempre dois slides consecutivos, **sempre no início do deck** (após Agenda):
    - `tipo: metodologia-recorte` — universo analisado (base, período, fonte, exclusões) + critério de classificação + lista de grupos/segmentos se aplicável
    - `tipo: metodologia-metricas` — definições dos termos e métricas usados na análise (ex: LTV, Positivação, Taxa de Retorno)
-   - Para público C-Level: mover ambos para apêndice e referenciar na agenda como "M"
 5. **Slides analíticos** — agrupados por seção, cada um com uma única mensagem
 6. Breaks de seção quando mudar de bloco temático
 7. **Slide de encerramento** — escolher conforme o objetivo detectado em Fase 1:
@@ -146,7 +156,31 @@ Use `AskUserQuestion` para perguntar:
 - "Essa estrutura reflete o objetivo da apresentação?"
 - Opções: Aprovado / Ajustar ordem / Adicionar slide / Remover slide / Refazer do zero
 
-Se o usuário pedir ajustes, aplique, refaça o horizontal flow test e reproponha. **Só avance para Fase 4 com aprovação explícita.**
+Se o usuário pedir ajustes, aplique, refaça o horizontal flow test e reproponha. **Só avance para Fase 4a com aprovação explícita.**
+
+---
+
+## Fase 4a — Mapeamento de Cobertura
+
+Antes de escrever qualquer linha de `slides_plan.md`, construa mentalmente a **tabela de cobertura**. Nenhum item de `analise_summary.md` pode ficar sem destino explícito.
+
+Para cada seção do sumário, classifique cada item em uma de três categorias:
+
+| Item | Destino | ID / Slide |
+|------|---------|-----------|
+| Métrica ou achado X | slide principal N | Slide N |
+| Item de "Dados para apêndice" Y | apêndice Ax | apendice-[slug] |
+| Item sem encaixe possível | não incluído | documentar motivo |
+
+**Regras de classificação:**
+
+- **Métricas-chave e Achados:** devem ir para um slide principal. Se não couberem em nenhum slide aprovado, crie um novo slide analítico ou mescle ao mais próximo — não descarte silenciosamente.
+- **Dados para apêndice (itens numerados):** cada item numerado no sumário → gera exatamente um bloco `## Apêndice Ax`. Correspondência 1-para-1 obrigatória.
+- **Exec summary overflow (> 4 claims):** os excedentes vão para `## Apêndice A[x] — Dados de suporte — Resumo Executivo` com `referencia: slide 2` e campo `apendice:` no slide de exec summary.
+- **Plano de ação overflow (> 4 ações por horizonte):** excedentes vão para `## Apêndice A[x] — Ações adicionais — [Horizonte]` com referência ao slide de plano de ação.
+- **Itens não incluídos:** se um item genuinamente não tem encaixe (dado duplicado, irrelevante para a mensagem inescapável), documente-o na seção `## Dados não incluídos` ao final de `slides_plan.md` com uma frase de motivo por item.
+
+Só avance para Fase 4 após concluir o mapeamento completo.
 
 ---
 
@@ -182,6 +216,7 @@ tipo: capa
 título: "Título Principal"
 subtítulo: "Subtítulo em destaque"
 data: "MÊS/ANO"
+background: "backgrounds/cover.svg"
 ```
 
 **Resumo executivo:**
@@ -410,7 +445,7 @@ horizontes:
 **Regras do plano de ação:**
 - **Classificação obrigatória por impacto × esforço:** vitórias rápidas (alto impacto, baixo esforço) → Imediato; transformações estruturais (alto esforço) → Longo Prazo
 - **Esforço:** `baixo` (< 2 semanas, sem custo adicional), `médio` (1–3 meses, integração simples), `alto` (> 3 meses, mudança de processo ou sistema)
-- **Máximo 3–4 ações por horizonte** — se houver mais, priorize pelas de maior impacto/esforço e leve o excedente para o apêndice
+- **Máximo 3–4 ações por horizonte** — se houver mais, priorize pelas de maior impacto/esforço; excedentes vão obrigatoriamente para `## Apêndice Ax — Ações adicionais — [Horizonte]` (ver regras de overflow em Fase 4a)
 - O `racional` deve ser extraído dos achados da análise — não inventar justificativas
 - O `impacto` deve ter estimativa quando disponível na análise; se indisponível, indicar "não estimado"
 - **Quando há muitas ações:** usar um slide de visão geral (`tipo: plano-acao`) + slides de detalhe por horizonte (`tipo: analítico` com `block-ni.html`) — um por horizonte
@@ -485,7 +520,18 @@ dados:
 - Cada apêndice deve ter um `id` único em kebab-case começando com `apendice-`
 - A `referencia:` deve apontar para o número exato do slide principal
 - O apêndice é auto-suficiente: alguém que ir direto para ele deve entender o contexto sem ver o slide principal
-- Dados sem relevância para nenhum slide principal não vão para o apêndice — são descartados
+- Dados sem relevância para nenhum slide principal não vão para o apêndice — são descartados, mas documentados em `## Dados não incluídos`
 - Sequência de numeração: A1, A2, A3... (independente da seção)
 
-Após salvar, informe o usuário que `temp/slides_plan.md` foi criado e que pode executar `/build-slides` para gerar o HTML.
+### Checklist de completude — obrigatório antes de salvar
+
+Antes de fechar `slides_plan.md`, verifique cada item:
+
+- [ ] Cada item numerado em "Dados para apêndice" do sumário tem um bloco `## Apêndice Ax` correspondente no arquivo.
+- [ ] Cada slide com campo `apendice:` tem um bloco de apêndice com `id:` correspondente.
+- [ ] Nenhum valor em `métricas:` ou `dados para visualização:` é uma descrição vaga — todos são números reais extraídos da análise.
+- [ ] Se houver itens descartados, a seção `## Dados não incluídos` existe ao final do arquivo com motivo por item.
+
+Se algum item falhar, corrija antes de salvar.
+
+Após salvar, informe o usuário que `temp/slides_plan.md` foi criado. Se a seção `## Dados não incluídos` existir no arquivo, **liste-a explicitamente no chat** e pergunte ao usuário se concorda com os descartes ou se algum item deve ser incluído. Só então indique que pode executar `/build-slides`.

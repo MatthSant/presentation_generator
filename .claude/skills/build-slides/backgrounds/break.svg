@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720">
+  <rect width="1280" height="720" fill="#0d0d10"/>
+  <!-- faixa diagonal roxa — para slides de break/seção -->
+  <linearGradient id="diag" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%"   stop-color="#8B5CF6" stop-opacity="0.18"/>
+    <stop offset="50%"  stop-color="#8B5CF6" stop-opacity="0.06"/>
+    <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+  </linearGradient>
+  <rect width="1280" height="720" fill="url(#diag)"/>
+  <!-- borda esquerda com acento -->
+  <linearGradient id="edge" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%"   stop-color="#8B5CF6" stop-opacity="0"/>
+    <stop offset="40%"  stop-color="#8B5CF6" stop-opacity="0.6"/>
+    <stop offset="60%"  stop-color="#8B5CF6" stop-opacity="0.6"/>
+    <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+  </linearGradient>
+  <rect x="0" y="0" width="2" height="720" fill="url(#edge)"/>
+</svg>

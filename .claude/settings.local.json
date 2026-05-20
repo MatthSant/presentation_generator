@@ -11,7 +11,19 @@
       "Edit(/.claude/skills/plan-slides/**)",
       "Edit(/.claude/skills/build-slides/**)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\.claude\\\\skills\\\\build-slides\\\\tools\\\\\" -File | Select-Object Name)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "PowerShell($content = [System.IO.File]::ReadAllText\\('c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\input\\\\Análise\\\\Análise de LTV, Perfis e Conversão - Apresentação 35f1c16792fc800c89b9db80e058ed31.html'\\); $content -replace '<[^>]+>', '' | Where-Object { $_.Trim\\(\\) } | Select-Object -First 300)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\.claude\\\\skills\\\\build-slides\\\\backgrounds\")",
+      "Bash(Move-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\backgrounds\\\\*\" \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\.claude\\\\skills\\\\build-slides\\\\backgrounds\\\\\" && Remove-Item \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\backgrounds\" -Force)",
+      "Bash(grep -v '^$')",
+      "Bash(perl -ne 's/<[^>]+>//g; print if /\\\\S/' \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\input\\\\Análise\\\\Análise de LTV, Perfis e Conversão - Apresentação 35f1c16792fc800c89b9db80e058ed31.html\")",
+      "Bash(perl -ne 's/<[^>]+>//g; print if /\\\\S/')",
+      "Bash(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\analise_summary.md\" -Force)",
+      "PowerShell(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\analise_summary.md\" -Force)",
+      "PowerShell(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\slides_plan.md\" -Force)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Matheus\\Documents\\GitHub\\presentation_generator\\.claude\\skills\\build-slides"
     ]
   }
 }

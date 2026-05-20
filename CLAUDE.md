@@ -16,7 +16,9 @@ presentation_generator/
 │   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
 │   └── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
 │
-├── presentation.html                  ← output final gerado por /build-slides
+├── output/                            ← gerado por /build-slides (pasta autocontida)
+│   ├── presentation.html              ← abrir este arquivo no browser
+│   └── backgrounds/                   ← cópia dos backgrounds usados na apresentação
 │
 ├── _source/                           ← arquivos de referência (não editar)
 │   ├── design-system/index.html       ← design system visual completo
@@ -31,6 +33,16 @@ presentation_generator/
         └── build-slides/
             ├── SKILL.md               ← skill de geração HTML
             ├── tools-map.md           ← catálogo completo de componentes + regras de design
+            ├── backgrounds/           ← backgrounds SVG (copiados para output/ pelo build-slides)
+            │   ├── cover.svg          ← capa e contracapa (glow roxo forte + linha central)
+            │   ├── break.svg          ← slides de seção (faixa diagonal + borda esquerda)
+            │   ├── glow-purple.svg    ← destaque / resumo executivo (glow central)
+            │   ├── glow-split.svg     ← slides de dois painéis (roxo + verde nos cantos)
+            │   ├── grid-dots.svg      ← padrão analítico (dot grid neutro)
+            │   ├── grid-lines.svg     ← metodologia (grade técnica sutil)
+            │   ├── wave-flow.svg      ← dois fluxos cruzados (estilo flow field)
+            │   ├── wave-vortex.svg    ← linhas irradiando de ponto focal lateral
+            │   └── wave-arc.svg       ← arcos concêntricos do canto inferior esq
             └── tools/
                 ├── shell.html         ← wrapper HTML (CSS + Reveal.js + ApexCharts + buildOptions)
                 │
@@ -79,8 +91,8 @@ presentation_generator/
 1. Colocar análise em input/  (ou ter URL em mãos)
 2. /plan-slides               → pipeline conversacional de 4 fases
 3. Revisar temp/slides_plan.md se quiser ajustar manualmente
-4. /build-slides              → gera presentation.html
-5. Abrir presentation.html no browser
+4. /build-slides              → gera output/presentation.html + copia backgrounds/
+5. Abrir output/presentation.html no browser
 ```
 
 ---

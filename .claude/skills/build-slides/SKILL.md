@@ -1,6 +1,6 @@
 ---
 name: build-slides
-description: "Lê temp/slides_plan.md e constrói presentation.html do zero usando a biblioteca de componentes em tools/. Use quando o usuário invocar /build-slides ou pedir para gerar/construir o HTML da apresentação a partir do plano existente."
+description: "Lê temp/slides_plan.md e constrói output/presentation.html do zero usando a biblioteca de componentes em tools/. Copia backgrounds/ para output/backgrounds/. Use quando o usuário invocar /build-slides ou pedir para gerar/construir o HTML da apresentação a partir do plano existente."
 user-invocable: true
 ---
 
@@ -88,6 +88,32 @@ Para cada slide em `slides_plan.md`, na ordem:
 4. Adicione o comentário de numeração: `<!-- SLIDE N ═══════════════════════════════ -->`
 5. Monte a `<section>` completa
 
+**Backgrounds (campo opcional em qualquer slide):**
+
+Quando o plano declara `background: "caminho"`, adicionar `data-background-image` na `<section>`:
+
+```html
+<section class="slide" id="..." data-background-image="backgrounds/cover.svg" data-background-size="cover">
+```
+
+Backgrounds disponíveis em `backgrounds/` e quando usar:
+
+| arquivo | usar em |
+|---|---|
+| `cover.svg` | capa e contracapa — glow roxo forte + linha central |
+| `break.svg` | slides de break/seção — faixa diagonal + borda esquerda roxa |
+| `glow-purple.svg` | slides de resumo executivo ou destaque — glow central sutil |
+| `glow-split.svg` | slides analíticos com dois painéis — roxo + verde nos cantos |
+| `grid-dots.svg` | slides analíticos padrão — fundo neutro com dot grid |
+| `grid-lines.svg` | slides de metodologia — grade técnica sutil |
+| `wave-flow.svg` | capa ou break — dois fluxos de linhas finas cruzados |
+| `wave-vortex.svg` | capa ou contracapa — linhas irradiando de ponto focal lateral |
+| `wave-arc.svg` | break ou exec-summary — arcos concêntricos do canto inferior esq |
+
+Se o plano não declara `background:`, usar `grid-dots.svg` como padrão para slides analíticos e omitir `data-background-image` nos outros (fundo sólido do CSS).
+
+---
+
 **Regras críticas de geração:**
 
 - `cover-title`, `cover-sub`, `cover-meta`, `brk-pre`, `agenda-title`, `agenda-sub` → **texto puro**, zero tags filhas
@@ -143,14 +169,20 @@ const chartDefs = {
 - Tooltip: `theme: 'dark'`
 - Distributed bars (ranking): `plotOptions.bar.distributed: true` + array de cores com gradação
 
-### Passo 5 — Montar e salvar presentation.html
+### Passo 5 — Montar e salvar em output/
 
 1. Pegue `shell.html` como base
 2. Substitua `{{SLIDES}}` pelo HTML de todas as `<section>` concatenadas
 3. Substitua `{{CHART_DEFS}}` pelo objeto `chartDefs` completo
-4. Salve como `presentation.html` na raiz do projeto
+4. Salve como `output/presentation.html`
+5. Copie a pasta `backgrounds/` para `output/backgrounds/` usando PowerShell:
+   ```powershell
+   Copy-Item -Recurse .claude\skills\build-slides\backgrounds output\backgrounds
+   ```
 
-Após salvar, informe o usuário que `presentation.html` foi criado e pode ser aberto no browser.
+A pasta `output/` fica autocontida: `presentation.html` + `backgrounds/` juntos, prontos para abrir ou compartilhar.
+
+Após salvar, informe o usuário que `output/presentation.html` foi criado e pode ser aberto no browser.
 
 ---
 
