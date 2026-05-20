@@ -16,9 +16,10 @@ presentation_generator/
 │   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
 │   └── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
 │
-├── output/                            ← gerado por /build-slides (pasta autocontida)
+├── output/                            ← gerado por /build-slides e /make (pasta autocontida)
 │   ├── presentation.html              ← abrir este arquivo no browser
-│   └── backgrounds/                   ← cópia dos backgrounds usados na apresentação
+│   ├── backgrounds/                   ← cópia dos backgrounds usados na apresentação
+│   └── elements/                      ← gerado por /make — elementos isolados do design system
 │
 ├── _source/                           ← arquivos de referência (não editar)
 │   ├── design-system/index.html       ← design system visual completo (dark)
@@ -31,10 +32,13 @@ presentation_generator/
     └── skills/
         ├── plan-slides/
         │   └── SKILL.md               ← skill conversacional (4 fases)
-        └── build-slides/
-            ├── SKILL.md               ← skill de geração HTML
+        ├── build-slides/
+        │   └── SKILL.md               ← skill de geração HTML da apresentação
+        ├── make-design/
+        │   └── SKILL.md               ← skill de elementos isolados do design system
+        └── components/                ← biblioteca compartilhada (build-slides + make-design)
             ├── tools-map.md           ← catálogo completo de componentes + regras de design
-            ├── backgrounds/           ← backgrounds SVG dark (copiados para output/ pelo build-slides)
+            ├── backgrounds/           ← backgrounds SVG (copiados para output/ pelo build-slides)
             │   ├── cover.svg          ← capa e contracapa (glow roxo forte + linha central)
             │   ├── break.svg          ← slides de seção (faixa diagonal + borda esquerda)
             │   ├── glow-purple.svg    ← destaque / resumo executivo (glow central)
@@ -46,13 +50,15 @@ presentation_generator/
             │   ├── wave-arc.svg       ← arcos concêntricos do canto inferior esq
             │   └── light/             ← variantes light dos mesmos 9 backgrounds
             └── tools/
-                ├── shell.html         ← wrapper HTML dark (CSS + Reveal.js + ApexCharts + buildOptions)
-                ├── shell-light.html   ← wrapper HTML light (tokens invertidos, charts light mode)
+                ├── — Shells —
+                ├── shell.html          ← wrapper Reveal.js dark (CSS + ApexCharts + buildOptions)
+                ├── shell-light.html    ← wrapper Reveal.js light (tokens invertidos)
+                ├── shell-element.html  ← wrapper página web para /make-design (fluid, html-to-image)
                 │
                 ├── — Slides base —
-                ├── slide-cover.html   ← capa e contracapa
-                ├── slide-brk.html     ← divisor de seção
-                ├── slide-standard.html← slide analítico (shell)
+                ├── slide-cover.html        ← capa e contracapa
+                ├── slide-brk.html          ← divisor de seção
+                ├── slide-standard.html     ← slide analítico (shell)
                 ├── slide-exec-summary.html
                 ├── slide-apendice.html
                 │
@@ -90,12 +96,21 @@ presentation_generator/
 
 ## Como usar
 
+**Pipeline de apresentação:**
 ```
 1. Colocar análise em input/  (ou ter URL em mãos)
 2. /plan-slides               → pipeline conversacional de 4 fases
 3. Revisar temp/slides_plan.md se quiser ajustar manualmente
 4. /build-slides              → gera output/presentation.html + copia backgrounds/
 5. Abrir output/presentation.html no browser
+```
+
+**Elemento isolado do design system:**
+```
+1. Ter os dados em mãos (colar no chat ou colocar CSV em input/)
+2. /make-design               → sugere gráfico + layout, confirma, gera HTML
+3. Abrir output/elements/[slug].html no browser
+4. Clicar "↓ PNG" para exportar em alta resolução (3×)
 ```
 
 ---
@@ -124,9 +139,9 @@ Pipeline conversacional que transforma uma análise em `temp/slides_plan.md`.
 ---
 
 ### `/build-slides`
-Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes em `tools/`.
+Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes em `components/`.
 
-**Processo:** lê `tools-map.md` → detecta `theme:` (dark/light) → mapeia cada `tipo:` para componentes → monta slides → gera `chartDefs` → injeta no `shell.html` ou `shell-light.html`.
+**Processo:** lê `components/tools-map.md` → detecta `theme:` (dark/light) → mapeia cada `tipo:` para componentes → monta slides → gera `chartDefs` → injeta no `shell.html` ou `shell-light.html`.
 
 **Temas suportados:**
 - `theme: dark` (padrão, pode ser omitido) — fundo `#0C0C0C`, backgrounds em `backgrounds/`
@@ -147,6 +162,26 @@ Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes 
 | `aprendizados` | slide-standard + g3 + block-learning-col |
 | `apendice` | slide-apendice.html |
 | `contracapa` | slide-cover.html (só cover-title) |
+
+---
+
+### `/make-design`
+Constrói um elemento isolado do design system como página HTML standalone.
+
+**Fluxo:**
+- **Passo 1** — captura dados (colados no chat ou CSV em `input/`)
+- **Passo 2** — analisa padrão, propõe tipo de gráfico + layout
+- **Passo 3** — confirma com o usuário via `AskUserQuestion`
+- **Passo 4** — gera HTML a partir de `components/tools/shell-element.html`
+- **Passo 5** — salva em `output/elements/[slug].html`
+
+**Composições possíveis:**
+- Gráfico isolado (single viz)
+- KPI row + gráfico
+- Gráfico + insights (`.row` com find-blocks)
+- 1-pager completo (cabeçalho + métricas + gráfico + achados)
+
+**Exportação:** botão "↓ PNG" fixo, `pixelRatio: 3` (~3000px de largura), fora do `#export-root` (não aparece no PNG).
 
 ---
 

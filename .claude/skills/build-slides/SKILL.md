@@ -14,7 +14,7 @@ Constrói `presentation.html` a partir de `temp/slides_plan.md` usando a bibliot
 
 Leia os seguintes arquivos **antes de gerar qualquer HTML**:
 
-1. `tools-map.md` — catálogo de componentes com regras críticas (obrigatório)
+1. `.claude/skills/components/tools-map.md` — catálogo de componentes com regras críticas (obrigatório)
 2. `temp/slides_plan.md` — plano de conteúdo gerado pelo `/plan-slides`
 3. Detecte o tema (ver Passo 1c) e leia o shell correspondente
 
@@ -24,8 +24,8 @@ Verifique se `slides_plan.md` declara o campo `theme:` no cabeçalho ou metadado
 
 | Valor | Shell | Backgrounds | Charts |
 |---|---|---|---|
-| `theme: dark` (padrão, omitido) | `tools/shell.html` | `backgrounds/` | `theme: dark`, cores `#8B5CF6 #10B981 #F59E0B #F97316 #EF4444` |
-| `theme: light` | `tools/shell-light.html` | `backgrounds/light/` | `theme: light`, cores `#7C3AED #059669 #D97706 #EA580C #DC2626` |
+| `theme: dark` (padrão, omitido) | `.claude/skills/components/tools/shell.html` | `backgrounds/` | `theme: dark`, cores `#8B5CF6 #10B981 #F59E0B #F97316 #EF4444` |
+| `theme: light` | `.claude/skills/components/tools/shell-light.html` | `backgrounds/light/` | `theme: light`, cores `#7C3AED #059669 #D97706 #EA580C #DC2626` |
 
 Se `theme:` não estiver presente, usar **dark** como padrão.
 
@@ -199,7 +199,7 @@ const chartDefs = {
 
 ### Passo 5 — Montar e salvar em output/
 
-1. Use o shell detectado no Passo 1c (`shell.html` ou `shell-light.html`)
+1. Use o shell detectado no Passo 1c (`.claude/skills/components/tools/shell.html` ou `.claude/skills/components/tools/shell-light.html`)
 2. Substitua `{{SLIDES}}` pelo HTML de todas as `<section>` concatenadas
 3. Substitua `{{CHART_DEFS}}` pelo objeto `chartDefs` completo
 4. Salve como `output/presentation.html`
@@ -207,13 +207,13 @@ const chartDefs = {
 
 **Dark (padrão):**
 ```powershell
-Copy-Item -Recurse .claude\skills\build-slides\backgrounds output\backgrounds -Exclude light
+Copy-Item -Recurse .claude\skills\components\backgrounds output\backgrounds -Exclude light
 ```
 
 **Light:**
 ```powershell
 New-Item -ItemType Directory -Force output\backgrounds | Out-Null
-Copy-Item .claude\skills\build-slides\backgrounds\light\* output\backgrounds\
+Copy-Item .claude\skills\components\backgrounds\light\* output\backgrounds\
 ```
 
 No modo light, os backgrounds ficam diretamente em `output/backgrounds/` (sem subpasta `light/`), então os caminhos no HTML são sempre `backgrounds/nome.svg`.
