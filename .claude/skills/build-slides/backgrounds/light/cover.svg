@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720">
+  <rect width="1280" height="720" fill="#F9FAFB"/>
+  <!-- glow roxo lateral esquerdo -->
+  <radialGradient id="gc" cx="22%" cy="50%" r="60%">
+    <stop offset="0%"   stop-color="#7C3AED" stop-opacity="0.10"/>
+    <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="1280" height="720" fill="url(#gc)"/>
+  <!-- linha de acento horizontal central -->
+  <linearGradient id="line" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%"   stop-color="#7C3AED" stop-opacity="0"/>
+    <stop offset="28%"  stop-color="#7C3AED" stop-opacity="0.28"/>
+    <stop offset="72%"  stop-color="#7C3AED" stop-opacity="0.28"/>
+    <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+  </linearGradient>
+  <rect x="0" y="359" width="1280" height="1" fill="url(#line)"/>
+  <!-- dot grid -->
+  <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+    <circle cx="1" cy="1" r="1" fill="rgba(0,0,0,0.055)"/>
+  </pattern>
+  <rect width="1280" height="720" fill="url(#dots)"/>
+</svg>

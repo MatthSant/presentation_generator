@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720">
+  <rect width="1280" height="720" fill="#FAFAFA"/>
+  <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+    <circle cx="1" cy="1" r="1" fill="rgba(0,0,0,0.07)"/>
+  </pattern>
+  <rect width="1280" height="720" fill="url(#dots)"/>
+</svg>

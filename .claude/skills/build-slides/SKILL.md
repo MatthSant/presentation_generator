@@ -1,6 +1,6 @@
 ---
 name: build-slides
-description: "Lê temp/slides_plan.md e constrói output/presentation.html do zero usando a biblioteca de componentes em tools/. Copia backgrounds/ para output/backgrounds/. Use quando o usuário invocar /build-slides ou pedir para gerar/construir o HTML da apresentação a partir do plano existente."
+description: "Lê temp/slides_plan.md e constrói output/presentation.html do zero usando a biblioteca de componentes em tools/. Copia backgrounds/ para output/backgrounds/. Suporta tema dark (padrão) e light via campo theme: no plano. Use quando o usuário invocar /build-slides ou pedir para gerar/construir o HTML da apresentação a partir do plano existente."
 user-invocable: true
 ---
 
@@ -16,7 +16,20 @@ Leia os seguintes arquivos **antes de gerar qualquer HTML**:
 
 1. `tools-map.md` — catálogo de componentes com regras críticas (obrigatório)
 2. `temp/slides_plan.md` — plano de conteúdo gerado pelo `/plan-slides`
-3. `tools/shell.html` — wrapper HTML completo
+3. Detecte o tema (ver Passo 1c) e leia o shell correspondente
+
+### Passo 1c — Detectar tema
+
+Verifique se `slides_plan.md` declara o campo `theme:` no cabeçalho ou metadados do deck:
+
+| Valor | Shell | Backgrounds | Charts |
+|---|---|---|---|
+| `theme: dark` (padrão, omitido) | `tools/shell.html` | `backgrounds/` | `theme: dark`, cores `#8B5CF6 #10B981 #F59E0B #F97316 #EF4444` |
+| `theme: light` | `tools/shell-light.html` | `backgrounds/light/` | `theme: light`, cores `#7C3AED #059669 #D97706 #EA580C #DC2626` |
+
+Se `theme:` não estiver presente, usar **dark** como padrão.
+
+Após detectar o tema, leia o arquivo shell correto.
 
 ### Passo 1b — Interpretar o plano de conteúdo
 
@@ -96,19 +109,25 @@ Quando o plano declara `background: "caminho"`, adicionar `data-background-image
 <section class="slide" id="..." data-background-image="backgrounds/cover.svg" data-background-size="cover">
 ```
 
-Backgrounds disponíveis em `backgrounds/` e quando usar:
+Backgrounds disponíveis e quando usar (nomes idênticos em dark e light):
 
 | arquivo | usar em |
 |---|---|
-| `cover.svg` | capa e contracapa — glow roxo forte + linha central |
-| `break.svg` | slides de break/seção — faixa diagonal + borda esquerda roxa |
-| `glow-purple.svg` | slides de resumo executivo ou destaque — glow central sutil |
-| `glow-split.svg` | slides analíticos com dois painéis — roxo + verde nos cantos |
-| `grid-dots.svg` | slides analíticos padrão — fundo neutro com dot grid |
-| `grid-lines.svg` | slides de metodologia — grade técnica sutil |
-| `wave-flow.svg` | capa ou break — dois fluxos de linhas finas cruzados |
-| `wave-vortex.svg` | capa ou contracapa — linhas irradiando de ponto focal lateral |
-| `wave-arc.svg` | break ou exec-summary — arcos concêntricos do canto inferior esq |
+| `cover.svg` | capa e contracapa |
+| `break.svg` | slides de break/seção |
+| `glow-purple.svg` | resumo executivo ou destaque |
+| `glow-split.svg` | slides analíticos com dois painéis |
+| `grid-dots.svg` | slides analíticos padrão |
+| `grid-lines.svg` | slides de metodologia |
+| `wave-flow.svg` | capa ou break |
+| `wave-vortex.svg` | capa ou contracapa |
+| `wave-arc.svg` | break ou exec-summary |
+
+Pasta de origem conforme tema detectado no Passo 1c:
+- **dark** → `backgrounds/nome.svg`
+- **light** → `backgrounds/light/nome.svg`
+
+No `data-background-image` do HTML, o caminho relativo ao `output/` é sempre `backgrounds/nome.svg` (dark) ou `backgrounds/light/nome.svg` (light).
 
 Se o plano não declara `background:`, usar `grid-dots.svg` como padrão para slides analíticos e omitir `data-background-image` nos outros (fundo sólido do CSS).
 
@@ -163,22 +182,41 @@ const chartDefs = {
 - Eixos de valor: sempre incluir `min: 0`
 - Barras horizontais: `yaxis` é o eixo de categorias — **nunca** aplicar `formatter` nem `min: 0` nele
 - Formatter de valor em barras horizontais vai em `xaxis.labels.formatter`
-- Cores do design system: purple `#8B5CF6`, green `#10B981`, amber `#F59E0B`, orange `#F97316`, red `#EF4444`
-- Labels de eixo: `style: { colors: '#9CA3AF', fontSize: '11px' }`
-- Grid: `borderColor: 'rgba(255,255,255,.06)'`
-- Tooltip: `theme: 'dark'`
 - Distributed bars (ranking): `plotOptions.bar.distributed: true` + array de cores com gradação
+
+**Cores e tema por modo (detectado no Passo 1c):**
+
+| | Dark | Light |
+|---|---|---|
+| purple | `#8B5CF6` | `#7C3AED` |
+| green | `#10B981` | `#059669` |
+| amber | `#F59E0B` | `#D97706` |
+| orange | `#F97316` | `#EA580C` |
+| red | `#EF4444` | `#DC2626` |
+| label color | `#9CA3AF` | `#6B7280` |
+| grid border | `rgba(255,255,255,.06)` | `rgba(0,0,0,.08)` |
+| tooltip/theme | `'dark'` | `'light'` |
 
 ### Passo 5 — Montar e salvar em output/
 
-1. Pegue `shell.html` como base
+1. Use o shell detectado no Passo 1c (`shell.html` ou `shell-light.html`)
 2. Substitua `{{SLIDES}}` pelo HTML de todas as `<section>` concatenadas
 3. Substitua `{{CHART_DEFS}}` pelo objeto `chartDefs` completo
 4. Salve como `output/presentation.html`
-5. Copie a pasta `backgrounds/` para `output/backgrounds/` usando PowerShell:
-   ```powershell
-   Copy-Item -Recurse .claude\skills\build-slides\backgrounds output\backgrounds
-   ```
+5. Copie os backgrounds para `output/backgrounds/` usando PowerShell:
+
+**Dark (padrão):**
+```powershell
+Copy-Item -Recurse .claude\skills\build-slides\backgrounds output\backgrounds -Exclude light
+```
+
+**Light:**
+```powershell
+New-Item -ItemType Directory -Force output\backgrounds | Out-Null
+Copy-Item .claude\skills\build-slides\backgrounds\light\* output\backgrounds\
+```
+
+No modo light, os backgrounds ficam diretamente em `output/backgrounds/` (sem subpasta `light/`), então os caminhos no HTML são sempre `backgrounds/nome.svg`.
 
 A pasta `output/` fica autocontida: `presentation.html` + `backgrounds/` juntos, prontos para abrir ou compartilhar.
 

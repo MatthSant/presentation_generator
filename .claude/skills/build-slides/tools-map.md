@@ -19,10 +19,16 @@ Este arquivo descreve cada componente disponível em `tools/`, quando usar cada 
 - Cards ad-hoc com `border-radius` alto + background tintado para listar achados/ações/aprendizados — usar sempre os componentes do design system (`find-block`, `ni`, `def-step`, `mdef-block`)
 - Qualquer `<div class="card ...">` ou construção equivalente inventada fora dos componentes desta biblioteca
 
-**Superfícies permitidas:**
+**Superfícies permitidas — dark (padrão):**
 - `rgba(255,255,255,.03)` — padrão para qualquer painel/bloco
 - `rgba(color, .06)` com `border: 1px solid rgba(color, .28)` — variante tintada (ex: `.cl`, `.cl-g`)
-- `.ni` do design system — full-border + tint (padrão para hipóteses e ações detalhadas)
+- `.ni` do design system — full-border + tint
+
+**Superfícies permitidas — light (`theme: light`):**
+- `rgba(0,0,0,.02)` — padrão para qualquer painel/bloco
+- `rgba(color, .06)` com `border: 1px solid rgba(color, .28)` — variante tintada (mesma proporção)
+- Bordas de divider: `rgba(0,0,0,.07)` em vez de `rgba(255,255,255,.07)`
+- Todos os valores hardcoded `#fff` em títulos/texto → `#111827`; corpo cinza → `#374151`
 
 ---
 

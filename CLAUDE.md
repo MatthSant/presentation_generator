@@ -21,7 +21,8 @@ presentation_generator/
 │   └── backgrounds/                   ← cópia dos backgrounds usados na apresentação
 │
 ├── _source/                           ← arquivos de referência (não editar)
-│   ├── design-system/index.html       ← design system visual completo
+│   ├── design-system/index.html       ← design system visual completo (dark)
+│   ├── design-system/light-mode.html  ← design system visual completo (light)
 │   ├── template_presentation.html     ← apresentação de referência (padrão de componentes)
 │   ├── REQUIREMENTS.md                ← requisitos originais do sistema
 │   └── slides.md                      ← exemplo de slides em markdown
@@ -33,7 +34,7 @@ presentation_generator/
         └── build-slides/
             ├── SKILL.md               ← skill de geração HTML
             ├── tools-map.md           ← catálogo completo de componentes + regras de design
-            ├── backgrounds/           ← backgrounds SVG (copiados para output/ pelo build-slides)
+            ├── backgrounds/           ← backgrounds SVG dark (copiados para output/ pelo build-slides)
             │   ├── cover.svg          ← capa e contracapa (glow roxo forte + linha central)
             │   ├── break.svg          ← slides de seção (faixa diagonal + borda esquerda)
             │   ├── glow-purple.svg    ← destaque / resumo executivo (glow central)
@@ -42,9 +43,11 @@ presentation_generator/
             │   ├── grid-lines.svg     ← metodologia (grade técnica sutil)
             │   ├── wave-flow.svg      ← dois fluxos cruzados (estilo flow field)
             │   ├── wave-vortex.svg    ← linhas irradiando de ponto focal lateral
-            │   └── wave-arc.svg       ← arcos concêntricos do canto inferior esq
+            │   ├── wave-arc.svg       ← arcos concêntricos do canto inferior esq
+            │   └── light/             ← variantes light dos mesmos 9 backgrounds
             └── tools/
-                ├── shell.html         ← wrapper HTML (CSS + Reveal.js + ApexCharts + buildOptions)
+                ├── shell.html         ← wrapper HTML dark (CSS + Reveal.js + ApexCharts + buildOptions)
+                ├── shell-light.html   ← wrapper HTML light (tokens invertidos, charts light mode)
                 │
                 ├── — Slides base —
                 ├── slide-cover.html   ← capa e contracapa
@@ -123,7 +126,11 @@ Pipeline conversacional que transforma uma análise em `temp/slides_plan.md`.
 ### `/build-slides`
 Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes em `tools/`.
 
-**Processo:** lê `tools-map.md` → mapeia cada `tipo:` para componentes → monta slides → gera `chartDefs` → injeta no `shell.html`.
+**Processo:** lê `tools-map.md` → detecta `theme:` (dark/light) → mapeia cada `tipo:` para componentes → monta slides → gera `chartDefs` → injeta no `shell.html` ou `shell-light.html`.
+
+**Temas suportados:**
+- `theme: dark` (padrão, pode ser omitido) — fundo `#0C0C0C`, backgrounds em `backgrounds/`
+- `theme: light` — fundo `#F9FAFB`, tokens invertidos, backgrounds em `backgrounds/light/`
 
 **Tipos de slide reconhecidos:**
 
@@ -150,6 +157,6 @@ Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes 
 - **Proibido:** hero-metric (número grande + gradiente)
 - **Proibido:** glassmorphism decorativo (`backdrop-filter`)
 - **Proibido:** cards ad-hoc — usar sempre componentes do design system
-- Superfícies sempre semi-transparentes (`rgba(255,255,255,.03)`), nunca opacas
+- Superfícies sempre semi-transparentes — dark: `rgba(255,255,255,.03)`, light: `rgba(0,0,0,.02)` — nunca opacas
 - `height` de gráfico sempre via JS (`height: 290` no chartDef), nunca CSS
 - Sem comentários óbvios no código
