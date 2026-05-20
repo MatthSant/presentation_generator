@@ -38,7 +38,7 @@ Use `TodoWrite` para marcar cada fase conforme avança. Só passe para a próxim
 
 ## Fase 1 — Audiência e tom
 
-Use `AskUserQuestion` com **duas perguntas simultâneas**:
+Use `AskUserQuestion` com **três perguntas simultâneas**:
 
 **Pergunta 1 — Perfil do público:**
 - C-Level / Diretoria (foco em impacto e decisão, sem detalhes técnicos)
@@ -50,7 +50,11 @@ Use `AskUserQuestion` com **duas perguntas simultâneas**:
 - Que decisão ou ação esta apresentação deve provocar?
 (campo de texto livre)
 
-Registre mentalmente: **[PERFIL]** e **[DECISAO_ESPERADA]**.
+**Pergunta 3 — Tema visual:**
+- Dark (padrão) — fundo escuro `#0C0C0C`, estilo analítico premium
+- Light — fundo branco `#F9FAFB`, ideal para impressão ou ambientes claros
+
+Registre mentalmente: **[PERFIL]**, **[DECISAO_ESPERADA]** e **[TEMA]**.
 
 ---
 
@@ -205,6 +209,7 @@ Só escreva o plano após essa validação.
 - Audiência: [perfil]
 - Tom: [foco da apresentação]
 - Mensagem inescapável: [1 frase]
+- theme: dark   ← ou light, conforme escolha do usuário em Fase 1
 ```
 
 ### Formato por tipo de slide
