@@ -21,6 +21,9 @@ presentation_generator/
 │   ├── backgrounds/                   ← cópia dos backgrounds usados na apresentação
 │   └── elements/                      ← gerado por /make — elementos isolados do design system
 │
+├── requirements/
+│   └── STACK.md                       ← stack técnica completa (CDN, ferramentas, outputs)
+│
 ├── _source/                           ← arquivos de referência (não editar)
 │   ├── design-system/index.html       ← design system visual completo (dark)
 │   ├── design-system/light-mode.html  ← design system visual completo (light)
