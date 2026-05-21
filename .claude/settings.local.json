@@ -20,7 +20,8 @@
       "Bash(perl -ne 's/<[^>]+>//g; print if /\\\\S/')",
       "Bash(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\analise_summary.md\" -Force)",
       "PowerShell(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\analise_summary.md\" -Force)",
-      "PowerShell(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\slides_plan.md\" -Force)"
+      "PowerShell(New-Item -ItemType File -Path \"c:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\temp\\\\slides_plan.md\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\Matheus\\\\Documents\\\\GitHub\\\\presentation_generator\\\\output\\\\elements\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Matheus\\Documents\\GitHub\\presentation_generator\\.claude\\skills\\build-slides"

@@ -79,11 +79,17 @@ Prossiga somente após confirmação.
 
 ### Passo 4 — Gerar o HTML
 
-#### 4a — Ler o shell
+O shell (`shell-element.html`) tem exatamente 5 placeholders — não é necessário lê-lo. Gere os valores abaixo e use o PowerShell para substituir diretamente no arquivo original.
 
-Leia `.claude/skills/components/tools/shell-element.html`.
+| Placeholder | Valor |
+|---|---|
+| `{{TITLE}}` | Título para a aba do browser |
+| `{{THEME}}` | `dark` ou `light` |
+| `{{CONTENT}}` | HTML gerado em 4a |
+| `{{CHART_DEFS}}` | Linhas JS geradas em 4b |
+| `{{FILENAME}}` | Slug sem extensão (ex: `vendas-canal-2024`) |
 
-#### 4b — Montar `{{CONTENT}}`
+#### 4a — Montar `{{CONTENT}}`
 
 Use **somente** as classes do design system. Nunca inventar classes novas, `box-shadow` decorativo, `border-radius` alto em superfícies de conteúdo, ou `background` inline colorido.
 
@@ -170,7 +176,7 @@ Use **somente** as classes do design system. Nunca inventar classes novas, `box-
 
 ---
 
-#### 4c — Montar `{{CHART_DEFS}}`
+#### 4b — Montar `{{CHART_DEFS}}`
 
 ```javascript
 'chart-[nome]': {
@@ -200,25 +206,39 @@ Barras horizontais (ranking): usar `colors` com array gradado do mais para o men
 
 ---
 
-#### 4d — Preencher placeholders do shell
+#### 4c — Salvar via PowerShell
 
-| Placeholder | Valor |
-|---|---|
-| `{{TITLE}}` | Título descritivo para a aba do browser |
-| `{{THEME}}` | `dark` ou `light` |
-| `{{CONTENT}}` | HTML montado em 4b |
-| `{{CHART_DEFS}}` | Linhas JS com as chaves `'chart-x': {...},` |
-| `{{FILENAME}}` | Slug sem extensão para o download PNG (ex: `vendas-por-canal-2024`) |
+Use o **Write tool** para criar dois arquivos temporários com o conteúdo gerado (são arquivos novos — não exigem Read prévio):
+
+- `temp\_el-content.html` → HTML de `{{CONTENT}}`
+- `temp\_el-charts.js` → linhas JS de `{{CHART_DEFS}}`
+
+Em seguida, rode o PowerShell abaixo substituindo os valores literais de `{{TITLE}}`, `{{THEME}}` e `{{FILENAME}}` diretamente na linha de comando:
+
+```powershell
+$shell   = Get-Content '.claude\skills\components\tools\shell-element.html' -Raw
+$content = Get-Content 'temp\_el-content.html' -Raw
+$charts  = Get-Content 'temp\_el-charts.js'   -Raw
+$out = $shell `
+  .Replace('{{TITLE}}',      'Título do Elemento') `
+  .Replace('{{THEME}}',      'light') `
+  .Replace('{{CONTENT}}',    $content) `
+  .Replace('{{CHART_DEFS}}', $charts) `
+  .Replace('{{FILENAME}}',   'slug-do-arquivo')
+New-Item -ItemType Directory -Force 'output\elements' | Out-Null
+[IO.File]::WriteAllText(
+  (Join-Path (Get-Location) 'output\elements\slug-do-arquivo.html'),
+  $out,
+  [Text.Encoding]::UTF8
+)
+Remove-Item 'temp\_el-content.html','temp\_el-charts.js' -ErrorAction SilentlyContinue
+```
+
+> `.Replace()` é método .NET literal — sem problemas com aspas, tags HTML ou caracteres especiais no conteúdo.
 
 ---
 
-### Passo 5 — Salvar e informar
-
-```powershell
-New-Item -ItemType Directory -Force output\elements | Out-Null
-```
-
-Salve em `output/elements/[slug].html`.
+### Passo 5 — Informar
 
 Informe:
 - Caminho do arquivo
@@ -237,3 +257,24 @@ Informe:
 | Tema não mencionado e escopo é só gráfico | Usar light sem perguntar |
 | Múltiplos gráficos na mesma página | IDs únicos obrigatórios: `chart-a`, `chart-b`, etc. |
 | Usuário quer tabela mas dados têm ≤ 2 dimensões | Sugerir gráfico, só usar tabela se o usuário confirmar preferência |
+
+---
+
+## Classes disponíveis no shell
+
+Referência rápida de classes menos frequentes que existem no shell mas não aparecem nos exemplos acima.
+
+| Classe | Uso |
+|---|---|
+| `.tag .tag-p/g/a/r/o` | Pill de categoria menor que badge — inline em texto ou listas |
+| `.bul li` | Lista com bullet circular roxo (alternativa ao `def-bullets`) |
+| `.tw > table` | Tabela estruturada: header roxo escuro / lavanda claro, linhas alternadas |
+| `.sp .sp-p/g/a/o/r` | Status pill inline (ex: "Ativo", "Crítico") — fundo sólido, texto branco/preto |
+| `.impact` | Pill verde para impacto positivo — ex: `<span class="impact">+18%</span>` |
+| `.ai / .an / .at / .as` | Item de agenda compacto: número quadrado + título + subtítulo |
+| `.card .card-title .card-body` + `.cl/cl-g/cl-a` | Card genérico com borda tintada — usar com moderação |
+| `.panel-l / .panel-r` | Colunas assimétricas (1.1 / 0.9) — alternativa semântica a `.col` com `flex` inline |
+| `.g3 / .g4` | Grid de 3 ou 4 colunas iguais |
+| `.divl` | Linha decorativa roxa (36 × 3 px) — separador leve abaixo de label-sec |
+| `.label-sec` | Label de seção em uppercase — para agrupar visualmente sem título completo |
+| `.xs` | Texto extra-pequeno (11 px, cinza2) |
