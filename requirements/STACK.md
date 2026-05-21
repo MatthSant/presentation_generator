@@ -17,7 +17,7 @@ Não há `npm install`, `pip install` nem nada a executar.
 |---|---|---|---|
 | **Reveal.js** | `5.1.0` | Framework de slides (apresentações) | `cdn.jsdelivr.net/npm/reveal.js@5.1.0` |
 | **ApexCharts** | latest | Visualização de dados (todos os gráficos) | `cdn.jsdelivr.net/npm/apexcharts` |
-| **html-to-image** | `1.11.11` | Exportação PNG 3× no `/make-design` | `cdn.jsdelivr.net/npm/html-to-image@1.11.11` |
+| **html2canvas** | `1.4.1` | Exportação PNG 3× no `/make-design` | `cdn.jsdelivr.net/npm/html2canvas@1.4.1` |
 | **Google Fonts** | — | Tipografia — família Exo 2 (400–900) | `fonts.googleapis.com` |
 
 > **Offline:** os arquivos `.html` precisam de conexão na **primeira abertura** para carregar CDN e fontes. Após o carregamento inicial o browser faz cache; exportações PNG subsequentes não requerem rede adicional.
@@ -98,3 +98,5 @@ Atualmente ApexCharts é carregado sem versão fixada (`latest`). Para garantir 
 <!-- versionado (recomendado para produção) -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.0/dist/apexcharts.min.js"></script>
 ```
+
+> **Nota:** `html-to-image` foi descartado por instabilidade ao serializar SVGs do ApexCharts em contexto local (file://). `html2canvas` é mais robusto para captura de conteúdo misto SVG + HTML.

@@ -6,7 +6,7 @@
   <title>{{TITLE}}</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -423,9 +423,10 @@
   /* ── Export PNG ── */
   const btn = document.getElementById('export-btn');
 
-  document.fonts.ready.then(() => {
-    btn.disabled = false;
-  });
+  Promise.race([
+    document.fonts.ready,
+    new Promise(r => setTimeout(r, 3000)),
+  ]).then(() => { btn.disabled = false; });
 
   btn.addEventListener('click', async () => {
     const orig = btn.textContent;
@@ -435,14 +436,30 @@
       const node = document.getElementById('export-root');
       const bg   = getComputedStyle(document.documentElement)
                      .getPropertyValue('--bg').trim() || '#0C0C0C';
-      const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 3, backgroundColor: bg });
+      const canvas = await html2canvas(node, {
+        scale: 3,
+        backgroundColor: bg,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      });
       const a = document.createElement('a');
-      a.href = dataUrl;
+      a.href = canvas.toDataURL('image/png');
       a.download = '{{FILENAME}}.png';
+      document.body.appendChild(a);
       a.click();
-    } finally {
+      document.body.removeChild(a);
       btn.textContent = orig;
       btn.disabled = false;
+    } catch (e) {
+      console.error('Export error:', e);
+      btn.textContent = 'Erro ✕';
+      btn.style.background = '#DC2626';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 3000);
     }
   });
 </script>
