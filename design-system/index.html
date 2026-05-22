@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System — Witly Presentations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── DS Shell ── */
+:root {
+  --bg:#0C0C0C; --surface:#111114; --surface-2:#18181C; --surface-3:#202026;
+  --border:#272727; --border-2:#1e1e24;
+  --text:#E2E2E8; --text-2:#8888A0; --text-3:#44444E;
+  --accent:#8B5CF6; --accent-dim:rgba(139,92,246,.14);
+  /* presentation tokens */
+  --purple:#8B5CF6; --purple-d:#5B21B6; --purple-bg:rgba(139,92,246,.12);
+  --green:#10B981;  --green-bg:rgba(16,185,129,.12);
+  --amber:#F59E0B;  --amber-bg:rgba(245,158,11,.12);
+  --orange:#F97316; --orange-bg:rgba(249,115,22,.12);
+  --red:#EF4444;    --red-bg:rgba(239,68,68,.12);
+  --white:#FFFFFF;  --gray:#B8BEC8; --gray2:#9CA3AF;
+}
+
+body { font-family:'Inter',system-ui,sans-serif; font-size:13px; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+
+/* Sidebar */
+.ds-nav { width:220px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border-2); padding:24px 0 40px; display:flex; flex-direction:column; gap:4px; }
+.ds-nav::-webkit-scrollbar { width:3px; }
+.ds-nav::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.ds-logo { padding:0 20px 20px; border-bottom:1px solid var(--border-2); margin-bottom:12px; }
+.ds-logo-mark { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--text); }
+.ds-logo-dot { width:22px; height:22px; background:var(--accent); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#fff; }
+.ds-cat { padding:6px 20px 2px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--text-3); margin-top:8px; }
+.ds-link { display:block; padding:6px 20px; font-size:12.5px; color:var(--text-2); text-decoration:none; border-left:2px solid transparent; transition:all .12s; }
+.ds-link:hover { color:var(--text); background:var(--surface-2); }
+.ds-link.active { color:var(--accent); border-left-color:var(--accent); background:var(--accent-dim); }
+
+/* Main */
+.ds-main { flex:1; padding:40px 48px 80px; max-width:900px; }
+.ds-main h1 { font-size:28px; font-weight:800; letter-spacing:-1px; margin-bottom:8px; }
+.ds-main > p { font-size:13px; color:var(--text-2); line-height:1.6; margin-bottom:48px; }
+
+/* Section headings */
+.ds-section { margin-bottom:56px; scroll-margin-top:24px; }
+.ds-section h2 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--accent); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border-2); }
+.ds-section h3 { font-size:13px; font-weight:600; color:var(--text); margin:20px 0 10px; }
+
+/* Preview box */
+.ds-preview { background:var(--surface-2); border:1px solid var(--border-2); border-radius:10px; padding:28px 24px; margin-bottom:6px; font-family:'Exo 2',system-ui,sans-serif; color:#fff; }
+.ds-preview-dark { background:#0C0C0C; }
+.ds-label { font-size:10px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px; font-family:'Inter',sans-serif; }
+
+/* Code block */
+.ds-code { background:var(--surface-3); border:1px solid var(--border-2); border-radius:8px; padding:14px 18px; font-family:'Menlo','Consolas',monospace; font-size:11.5px; color:#B8C4D0; line-height:1.65; overflow-x:auto; margin-bottom:20px; white-space:pre; }
+.ds-code .kw { color:#c792ea; }
+.ds-code .cl { color:#82aaff; }
+.ds-code .at { color:#ffcb6b; }
+.ds-code .vl { color:#c3e88d; }
+.ds-code .cm { color:#546e7a; }
+
+/* Swatches grid */
+.swatch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
+.swatch { border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,.06); }
+.swatch-color { height:56px; }
+.swatch-info { padding:8px 10px; background:var(--surface-2); }
+.swatch-name { font-size:11px; font-weight:600; color:var(--text); }
+.swatch-hex { font-size:10px; color:var(--text-2); font-family:monospace; margin-top:2px; }
+
+/* Flex helpers for preview */
+.row-g { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.col-g { display:flex; flex-direction:column; gap:10px; }
+
+/* Scroll progress bar */
+.ds-progress { position:fixed; top:0; left:0; right:0; height:2px; z-index:300; pointer-events:none; }
+.ds-progress-bar { height:100%; background:var(--accent); width:0%; transition:width .08s linear; }
+
+/* Copy button */
+.ds-code-wrap { position:relative; }
+.ds-copy { position:absolute; top:8px; right:8px; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:3px 10px; font-size:10.5px; color:var(--text-2); cursor:pointer; transition:all .12s; font-family:'Inter',sans-serif; }
+.ds-copy:hover { color:var(--text); border-color:var(--accent); }
+.ds-copy.copied { color:var(--green); border-color:var(--green); }
+
+/* Help hint fixed */
+.ds-kb-hint { position:fixed; bottom:20px; right:22px; display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-3); cursor:pointer; z-index:200; transition:color .12s; user-select:none; }
+.ds-kb-hint:hover { color:var(--text-2); }
+.ds-kb-hint kbd { display:inline-flex; align-items:center; justify-content:center; background:var(--surface-3); border:1px solid var(--border); border-bottom-width:2px; border-radius:4px; padding:1px 6px; font-size:10px; font-family:inherit; color:var(--text-2); }
+
+/* Keyboard shortcuts modal */
+.ks-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(4px); z-index:400; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .15s; }
+.ks-overlay.open { opacity:1; pointer-events:all; }
+.ks-modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px 32px; min-width:360px; box-shadow:0 24px 60px rgba(0,0,0,.5); }
+.ks-modal h3 { font-size:13px; font-weight:700; color:var(--text); margin-bottom:18px; }
+.ks-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-2); font-size:12.5px; color:var(--text-2); gap:32px; }
+.ks-row:last-child { border-bottom:none; padding-bottom:0; }
+.ks-keys { display:flex; gap:4px; flex-shrink:0; }
+kbd { display:inline-flex; align-items:center; justify-content:center; background:var(--surface-3); border:1px solid var(--border); border-bottom-width:2px; border-radius:5px; padding:2px 8px; font-size:11px; font-family:'Menlo','Consolas',monospace; color:var(--text); min-width:26px; white-space:nowrap; }
+
+/* Light background preview overrides */
+.ds-preview-light { background:#FFFFFF; }
+.ds-preview-light h1.slide-title { color:#111827; }
+.ds-preview-light .card { background:rgba(0,0,0,.025); border-color:rgba(0,0,0,.09); }
+.ds-preview-light .card-title { color:#111827; }
+.ds-preview-light .card-body { color:#6B7280; }
+.ds-preview-light .cl   { border-color:rgba(139,92,246,.35); background:rgba(139,92,246,.07); }
+.ds-preview-light .cl-g { border-color:rgba(16,185,129,.35);  background:rgba(16,185,129,.07); }
+.ds-preview-light .cl-a { border-color:rgba(245,158,11,.35);  background:rgba(245,158,11,.07); }
+.ds-preview-light .cl-o { border-color:rgba(249,115,22,.35);  background:rgba(249,115,22,.07); }
+.ds-preview-light .cl-r { border-color:rgba(239,68,68,.35);   background:rgba(239,68,68,.07); }
+.ds-preview-light .mr { border-color:rgba(0,0,0,.1); }
+.ds-preview-light .mi { border-color:rgba(0,0,0,.08); }
+.ds-preview-light .mv { color:#111827; }
+.ds-preview-light .ml { color:#6B7280; }
+.ds-preview-light .hl { color:#374151; }
+.ds-preview-light .hl strong { color:var(--purple); }
+.ds-preview-light .hl-g strong { color:var(--green); }
+.ds-preview-light .hl-a strong { color:var(--amber); }
+.ds-preview-light .hl-r strong { color:var(--red); }
+.ds-preview-light .def-bullets li { color:#374151; }
+.ds-preview-light ul.bul li { color:#374151; }
+.ds-preview-light ul.bul li strong { color:#111827; }
+.ds-preview-light .find-block { border-color:rgba(0,0,0,.08); }
+.ds-preview-light .find-title { color:#111827; }
+.ds-preview-light .find-note { color:#374151; }
+.ds-preview-light .find-note strong { color:#111827; }
+.ds-preview-light .agenda-item { border-color:rgba(0,0,0,.08); }
+.ds-preview-light .agenda-title { color:#111827; }
+.ds-preview-light .agenda-sub { color:#6B7280; }
+.ds-preview-light .mdef-title,.ds-preview-light .def-step-title,.ds-preview-light .grp-name { color:#111827; }
+.ds-preview-light .mdef-tag,.ds-preview-light .def-step-label,.ds-preview-light .grp-ex { color:var(--purple); }
+.ds-preview-light .def-step-num { color:#E5E7EB; } /* remains light — bg is purple/dark by nature */
+.ds-preview-light .c-w { color:#111827; } /* white text becomes dark on light bg */
+
+/* ────────────────────────────────────────────
+   PRESENTATION CSS (copy from index.html)
+   ──────────────────────────────────────────── */
+.badge { display:inline-flex; align-items:center; padding:3px 11px; border-radius:100px; font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; border:1px solid; }
+.badge-p { color:var(--purple); border-color:var(--purple); }
+.badge-g { color:var(--green);  border-color:var(--green); }
+.badge-a { color:var(--amber);  border-color:var(--amber); }
+.badge-o { color:var(--orange); border-color:var(--orange); }
+.badge-r { color:var(--red);    border-color:var(--red); }
+
+h1.slide-title { font-family:'Exo 2',sans-serif; font-size:30px; font-weight:800; line-height:1.15; color:#fff; }
+h1.slide-title em { color:var(--purple); font-style:normal; }
+
+.c-p { color:var(--purple); } .c-g { color:var(--green); } .c-a { color:var(--amber); }
+.c-o { color:var(--orange); } .c-r { color:var(--red); }    .c-w { color:#fff; }
+
+.card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:16px 18px; }
+.card-title { font-size:14px; font-weight:700; margin-bottom:5px; }
+.card-body { font-size:12.5px; color:var(--gray); line-height:1.6; }
+.cl   { border-color:rgba(139,92,246,.28); background:rgba(139,92,246,.06); }
+.cl-g { border-color:rgba(16,185,129,.28);  background:rgba(16,185,129,.06); }
+.cl-a { border-color:rgba(245,158,11,.28);  background:rgba(245,158,11,.06); }
+.cl-o { border-color:rgba(249,115,22,.28);  background:rgba(249,115,22,.06); }
+.cl-r { border-color:rgba(239,68,68,.28);   background:rgba(239,68,68,.06); }
+
+.mr { display:flex; border:1px solid rgba(255,255,255,.07); border-radius:10px; overflow:hidden; }
+.mi { flex:1; padding:12px 13px; text-align:center; border-right:1px solid rgba(255,255,255,.07); }
+.mi:last-child { border-right:none; }
+.mv { font-size:24px; font-weight:900; margin-bottom:3px; }
+.ml { font-size:10.5px; color:var(--gray); line-height:1.4; }
+
+.hl   { background:var(--purple-bg); border:1px solid rgba(139,92,246,.3); border-radius:10px; padding:12px 15px; font-size:12.5px; color:#fff; line-height:1.6; }
+.hl strong { color:var(--purple); }
+.hl-a { background:var(--amber-bg);  border-color:rgba(245,158,11,.3); } .hl-a strong { color:var(--amber); }
+.hl-g { background:var(--green-bg);  border-color:rgba(16,185,129,.3); } .hl-g strong { color:var(--green); }
+.hl-r { background:var(--red-bg);    border-color:rgba(239,68,68,.3);  } .hl-r strong { color:var(--red); }
+
+.def-bullets { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+.def-bullets li { font-size:12.5px; color:var(--gray); line-height:1.5; padding-left:18px; position:relative; }
+.def-bullets li::before { content:'—'; color:rgba(139,92,246,.4); position:absolute; left:0; top:0; }
+
+ul.bul { list-style:none; display:flex; flex-direction:column; gap:6px; padding:0; margin:0; }
+ul.bul li { display:flex; align-items:flex-start; gap:9px; font-size:12.5px; color:var(--gray); line-height:1.5; }
+ul.bul li::before { content:''; width:5px; height:5px; background:var(--purple); border-radius:50%; margin-top:6px; flex-shrink:0; }
+ul.bul li strong { color:#fff; }
+
+.find-block { padding:16px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+.find-block:last-child { border-bottom:none; }
+.find-tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:5px; }
+.find-tag-p { color:var(--purple); } .find-tag-g { color:var(--green); }
+.find-tag-a { color:var(--amber); }  .find-tag-r { color:var(--red); }
+.find-title { font-size:18px; font-weight:700; color:#fff; line-height:1.2; margin-bottom:10px; }
+.find-divider { height:1px; background:rgba(255,255,255,.07); }
+.find-note { font-size:12px; color:var(--gray); line-height:1.65; padding:10px 0 0 12px; }
+.find-note strong { color:#fff; }
+.find-note-p { border-left:2px solid rgba(139,92,246,.4); }
+.find-note-g { border-left:2px solid rgba(16,185,129,.4); }
+.find-note-a { border-left:2px solid rgba(245,158,11,.4); }
+.find-note-r { border-left:2px solid rgba(239,68,68,.4); }
+
+.def-step { display:flex; gap:18px; padding:20px 0; align-items:flex-start; border-bottom:1px solid rgba(255,255,255,.07); }
+.def-step:last-child { border-bottom:none; }
+.def-step-num { font-size:48px; font-weight:900; line-height:1; color:rgba(139,92,246,.4); flex-shrink:0; width:48px; text-align:right; letter-spacing:-2px; }
+.def-step-body { flex:1; }
+.def-step-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--purple); margin-bottom:5px; }
+.def-step-title { font-size:18px; font-weight:700; color:#fff; margin-bottom:12px; line-height:1.2; }
+.def-step-stats { display:flex; gap:24px; margin-bottom:12px; }
+.def-step-stat-n { font-size:22px; font-weight:900; line-height:1; margin-bottom:3px; }
+.def-step-stat-l { font-size:10px; color:var(--gray2); text-transform:uppercase; letter-spacing:.8px; }
+
+.mdef-block { padding:16px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+.mdef-block:last-child { border-bottom:none; }
+.mdef-tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--purple); margin-bottom:4px; }
+.mdef-title { font-size:18px; font-weight:700; color:#fff; margin-bottom:10px; line-height:1.2; }
+.mdef-sub-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--gray2); margin:10px 0 6px; }
+.mdef-divider { height:1px; background:rgba(255,255,255,.07); }
+.mdef-note { font-size:11.5px; color:var(--gray2); line-height:1.6; padding:14px 16px; border-left:2px solid rgba(139,92,246,.3); }
+.mdef-link { color:var(--purple); text-decoration:none; font-weight:600; }
+
+.grp-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--purple); margin-bottom:10px; }
+.grp-list { display:flex; flex-direction:column; }
+.grp-item { display:flex; align-items:center; gap:12px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+.grp-item:last-child { border-bottom:none; }
+.grp-n { font-size:10px; font-weight:700; color:rgba(139,92,246,.45); width:18px; flex-shrink:0; }
+.grp-name { font-size:13px; font-weight:600; color:#fff; line-height:1.2; }
+.grp-ex { font-size:11px; color:var(--gray2); margin-top:1px; }
+
+.agenda-list { display:flex; flex-direction:column; gap:0; }
+.agenda-item { display:flex; align-items:center; gap:20px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+.agenda-item:last-child { border-bottom:none; }
+.agenda-num { font-size:13px; font-weight:800; color:rgba(255,255,255,.3); width:20px; text-align:center; flex-shrink:0; }
+.agenda-num.c-p { color:var(--purple); } .agenda-num.c-g { color:var(--green); }
+.agenda-body {}
+.agenda-title { font-size:14px; font-weight:700; color:#fff; margin-bottom:2px; }
+.agenda-sub { font-size:11.5px; color:var(--gray); line-height:1.4; }
+
+.ni { display:flex; align-items:flex-start; gap:11px; background:rgba(255,255,255,.022); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:12px 15px; }
+.nb { width:24px; height:24px; border-radius:6px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.nb-p { background:var(--purple); color:#fff; }
+.nb-g { background:var(--green);  color:#000; }
+.nb-r { background:var(--red);    color:#fff; }
+.nb-a { background:var(--amber);  color:#000; }
+.nt { font-size:12.5px; color:var(--gray); line-height:1.5; }
+.nt strong { color:#fff; }
+.ni-v { flex-direction:column; gap:0; padding:8px 12px; }
+.ni-head { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+.ni-num { width:24px; height:24px; border-radius:6px; background:var(--purple); color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.ni-title { font-size:13px; font-weight:700; color:#fff; }
+.ni-section { padding-left:9px; margin-bottom:5px; }
+.ni-section:last-child { margin-bottom:0; }
+.ni-sl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; display:block; margin-bottom:2px; }
+.ni-sb { font-size:11px; color:var(--gray); line-height:1.45; }
+.ni-sl.c-a { border-left:2px solid rgba(245,158,11,.45); padding-left:6px; }
+.ni-sl.c-g { border-left:2px solid rgba(16,185,129,.45); padding-left:6px; }
+
+.tag { padding:3px 9px; border-radius:5px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.tag-p { background:var(--purple-bg); color:var(--purple); }
+.tag-g { background:var(--green-bg);  color:var(--green); }
+.tag-a { background:var(--amber-bg);  color:var(--amber); }
+.tag-r { background:var(--red-bg);    color:var(--red); }
+.tag-o { background:var(--orange-bg); color:var(--orange); }
+
+.sp { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; }
+.sp-p { background:var(--purple); color:#fff; }
+.sp-g { background:var(--green);  color:#000; }
+.sp-a { background:var(--amber);  color:#000; }
+.sp-o { background:var(--orange); color:#fff; }
+.sp-r { background:var(--red);    color:#fff; }
+
+.impact { font-size:11px; color:var(--green); font-weight:700; background:rgba(16,185,129,.15); padding:2px 7px; border-radius:4px; }
+
+.hyp-card { display:grid; grid-template-columns:28px 1fr auto; gap:10px; align-items:start; padding:10px 12px; border-radius:8px; }
+.hyp-card-r { background:rgba(239,68,68,.04);   border:1px solid rgba(239,68,68,.15); }
+.hyp-card-a { background:rgba(245,158,11,.04);  border:1px solid rgba(245,158,11,.15); }
+.hyp-card-p { background:rgba(139,92,246,.04);  border:1px solid rgba(139,92,246,.15); }
+.hyp-id { width:22px; height:22px; border-radius:5px; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; }
+.hyp-id-r { background:rgba(239,68,68,.15);  color:#EF4444; }
+.hyp-id-a { background:rgba(245,158,11,.15); color:#F59E0B; }
+.hyp-id-p { background:rgba(139,92,246,.15); color:#8B5CF6; }
+.hyp-body { font-size:12px; font-weight:600; color:#fff; line-height:1.4; }
+.hyp-body span { font-size:11px; font-weight:400; color:var(--gray); }
+.hyp-value-r { font-size:12px; font-weight:700; color:#10B981; white-space:nowrap; }
+.hyp-value-a { font-size:12px; font-weight:700; color:#F59E0B; white-space:nowrap; }
+.hyp-value-p { font-size:11px; font-weight:700; color:#8B5CF6; white-space:nowrap; }
+
+.chart-wrap { border-radius:10px; padding:4px 2px 0; min-height:180px; }
+
+.tw { border-radius:10px; border:1px solid var(--border); overflow:hidden; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+table thead tr { background:var(--purple-d); }
+table th { padding:8px 12px; text-align:left; font-weight:700; font-size:10.5px; letter-spacing:.3px; color:rgba(255,255,255,.9); }
+table td { padding:7px 12px; border-bottom:1px solid var(--border); color:var(--gray); }
+table tr:last-child td { border-bottom:none; }
+table tr:nth-child(even) td { background:rgba(255,255,255,.02); }
+
+/* ── Slide structure ── */
+.slide-hd { margin-bottom:20px; flex-shrink:0; }
+.brk-wrap { text-align:center; }
+.brk-pre { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--purple); margin-bottom:16px; }
+.brk-title { font-size:48px; font-weight:900; line-height:1.1; max-width:700px; color:#fff; margin:0 auto; letter-spacing:-1px; }
+.brk-title em { color:var(--purple); font-style:normal; }
+.cover-title { font-size:58px; font-weight:900; line-height:1.05; margin-bottom:6px; }
+.cover-sub   { font-size:56px; font-weight:900; color:var(--purple); line-height:1.05; margin-bottom:24px; }
+.cover-meta  { font-size:14px; color:var(--gray); }
+
+/* ── Layout ── */
+.row { display:flex; gap:12px; flex:1; min-height:0; }
+.col { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.panel-l { flex:1.1; display:flex; flex-direction:column; gap:10px; min-height:0; }
+.panel-r { flex:.9; display:flex; flex-direction:column; gap:10px; min-height:0; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+
+/* ── Text utilities ── */
+.chart-title { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--gray2); margin-bottom:3px; }
+.label-sec   { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gray2); margin-bottom:5px; }
+.xs { font-size:11px; color:var(--gray2); }
+.sm { font-size:12.5px; color:var(--gray); line-height:1.6; }
+.divl { width:36px; height:3px; background:var(--purple); border-radius:2px; margin:7px 0 18px; }
+
+/* ── Agenda compacta (card) ── */
+.ai { display:flex; align-items:center; gap:16px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:12px 16px; }
+.an { width:30px; height:30px; border-radius:8px; background:rgba(139,92,246,.12); color:var(--purple); font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.at { font-size:13.5px; font-weight:700; color:#fff; }
+.as { font-size:11px; color:var(--gray); margin-top:2px; }
+
+/* ── Hero stat ── */
+.hero-stat { display:flex; align-items:center; gap:18px; padding:16px 22px; border-radius:12px; flex-shrink:0; }
+.hs-r { background:rgba(239,68,68,.18);  border:1px solid rgba(239,68,68,.35); }
+.hs-g { background:rgba(16,185,129,.18); border:1px solid rgba(16,185,129,.35); }
+.hs-a { background:rgba(245,158,11,.18); border:1px solid rgba(245,158,11,.35); }
+.hs-p { background:rgba(139,92,246,.18); border:1px solid rgba(139,92,246,.35); }
+.hero-n { font-size:58px; font-weight:900; line-height:1; flex-shrink:0; }
+.hero-desc { font-size:13px; color:var(--gray); line-height:1.55; max-width:300px; }
+.hero-desc strong { color:#fff; display:block; font-size:15px; margin-bottom:2px; }
+
+/* DS utilities */
+.ds-divider { height:1px; background:var(--border-2); margin:32px 0; }
+.ds-row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; margin-bottom:12px; }
+.ds-col2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+.ds-note { font-size:11.5px; color:var(--text-2); line-height:1.6; margin-bottom:12px; background:var(--surface-2); border:1px solid var(--border-2); border-left:3px solid var(--accent); padding:10px 14px; border-radius:6px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar nav -->
+<nav class="ds-nav">
+  <div class="ds-logo">
+    <span class="ds-logo-mark"><span class="ds-logo-dot">W</span> Design System</span>
+  </div>
+  <span class="ds-cat">Fundamentos</span>
+  <a href="#cores" class="ds-link">Cores</a>
+  <a href="#fundo-branco" class="ds-link">Fundo Branco</a>
+  <a href="#tipografia" class="ds-link">Tipografia</a>
+  <a href="#utilitarios" class="ds-link">Utilitários de cor</a>
+  <span class="ds-cat">Elementos</span>
+  <a href="#badges" class="ds-link">Badges</a>
+  <a href="#tags" class="ds-link">Tags & Chips</a>
+  <a href="#kpis" class="ds-link">KPI Row</a>
+  <a href="#cards" class="ds-link">Cards</a>
+  <a href="#highlights" class="ds-link">Highlights</a>
+  <a href="#bullets" class="ds-link">Listas</a>
+  <a href="#tabela" class="ds-link">Tabelas</a>
+  <span class="ds-cat">Estrutura de slide</span>
+  <a href="#slide-structure" class="ds-link">Capa & Break</a>
+  <a href="#layout" class="ds-link">Layout (row / col / grid)</a>
+  <a href="#text-utils" class="ds-link">Utilitários de texto</a>
+  <a href="#agenda-compact" class="ds-link">Agenda compacta</a>
+  <a href="#hero-stat" class="ds-link">Hero Stat</a>
+  <span class="ds-cat">Blocos de conteúdo</span>
+  <a href="#find-blocks" class="ds-link">Find Blocks</a>
+  <a href="#find-note" class="ds-link">Find Note</a>
+  <a href="#agenda" class="ds-link">Agenda Items</a>
+  <a href="#def-steps" class="ds-link">Def Steps</a>
+  <a href="#grp-items" class="ds-link">Grp Items</a>
+  <a href="#mdef-blocks" class="ds-link">Mdef Blocks</a>
+  <a href="#hyp-cards" class="ds-link">Hyp Cards</a>
+  <a href="#hipoteses" class="ds-link">Hipóteses (ni)</a>
+  <span class="ds-cat">Gráficos</span>
+  <a href="#chart-bar" class="ds-link">Barras</a>
+  <a href="#chart-stacked" class="ds-link">Barras empilhadas</a>
+  <a href="#chart-line" class="ds-link">Linha</a>
+  <a href="#chart-area" class="ds-link">Área</a>
+  <a href="#chart-mixed" class="ds-link">Misto (bar + linha)</a>
+  <a href="#chart-donut" class="ds-link">Donut</a>
+  <a href="#chart-horizontal" class="ds-link">Barras horizontais</a>
+  <a href="#chart-radial" class="ds-link">Radial Bar</a>
+  <a href="#chart-scatter" class="ds-link">Dispersão</a>
+  <a href="#chart-radar" class="ds-link">Radar</a>
+  <a href="#chart-treemap" class="ds-link">Treemap</a>
+  <div style="margin-top:auto;padding:20px 20px 0;border-top:1px solid var(--border-2)">
+    <div onclick="toggleHelp()" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-3);cursor:pointer;transition:color .12s" onmouseenter="this.style.color='var(--text-2)'" onmouseleave="this.style.color='var(--text-3)'">
+      <kbd style="font-size:10px;padding:1px 6px">?</kbd> Atalhos de teclado
+    </div>
+  </div>
+</nav>
+
+<!-- Main content -->
+<main class="ds-main">
+  <h1>Witly — Design System</h1>
+  <p>Referência completa de todos os elementos, blocos e gráficos usados nas apresentações. Use as classes e estruturas HTML exatamente como mostradas — o editor depende delas para parsing e edição.</p>
+
+  <!-- ── CORES ── -->
+  <section class="ds-section" id="cores">
+    <h2>Cores</h2>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch-color" style="background:#8B5CF6"></div><div class="swatch-info"><div class="swatch-name">Purple</div><div class="swatch-hex">--purple · #8B5CF6</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#10B981"></div><div class="swatch-info"><div class="swatch-name">Green</div><div class="swatch-hex">--green · #10B981</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#F59E0B"></div><div class="swatch-info"><div class="swatch-name">Amber</div><div class="swatch-hex">--amber · #F59E0B</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#F97316"></div><div class="swatch-info"><div class="swatch-name">Orange</div><div class="swatch-hex">--orange · #F97316</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#EF4444"></div><div class="swatch-info"><div class="swatch-name">Red</div><div class="swatch-hex">--red · #EF4444</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#5B21B6"></div><div class="swatch-info"><div class="swatch-name">Purple Dark</div><div class="swatch-hex">--purple-d · #5B21B6</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#B8BEC8"></div><div class="swatch-info"><div class="swatch-name">Gray</div><div class="swatch-hex">--gray · #B8BEC8</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#9CA3AF"></div><div class="swatch-info"><div class="swatch-name">Gray 2</div><div class="swatch-hex">--gray2 · #9CA3AF</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#0C0C0C;border:1px solid #272727"></div><div class="swatch-info"><div class="swatch-name">BG</div><div class="swatch-hex">--bg · #0C0C0C</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#272727"></div><div class="swatch-info"><div class="swatch-name">Border</div><div class="swatch-hex">--border · #272727</div></div></div>
+    </div>
+    <h3>Backgrounds com tint</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch-color" style="background:rgba(139,92,246,.12)"></div><div class="swatch-info"><div class="swatch-name">purple-bg</div><div class="swatch-hex">rgba(139,92,246,.12)</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:rgba(16,185,129,.12)"></div><div class="swatch-info"><div class="swatch-name">green-bg</div><div class="swatch-hex">rgba(16,185,129,.12)</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:rgba(245,158,11,.12)"></div><div class="swatch-info"><div class="swatch-name">amber-bg</div><div class="swatch-hex">rgba(245,158,11,.12)</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:rgba(249,115,22,.12)"></div><div class="swatch-info"><div class="swatch-name">orange-bg</div><div class="swatch-hex">rgba(249,115,22,.12)</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:rgba(239,68,68,.12)"></div><div class="swatch-info"><div class="swatch-name">red-bg</div><div class="swatch-hex">rgba(239,68,68,.12)</div></div></div>
+    </div>
+  </section>
+
+  <!-- ── FUNDO BRANCO ── -->
+  <section class="ds-section" id="fundo-branco">
+    <h2>Fundo Branco</h2>
+    <div class="ds-note">Todos os componentes foram projetados para fundo <code>#0C0C0C</code>. Para apresentações com fundo branco, substitua as variáveis abaixo e adicione os overrides de superfície — as classes permanecem iguais.</div>
+
+    <h3>Paleta adaptada</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch-color" style="background:#FFFFFF;border:1px solid #E5E7EB"></div><div class="swatch-info"><div class="swatch-name">BG</div><div class="swatch-hex">#FFFFFF</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#F3F4F6"></div><div class="swatch-info"><div class="swatch-name">Surface</div><div class="swatch-hex">#F3F4F6</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#E5E7EB"></div><div class="swatch-info"><div class="swatch-name">Border</div><div class="swatch-hex">#E5E7EB</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#111827"></div><div class="swatch-info"><div class="swatch-name">Text</div><div class="swatch-hex">#111827</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#6B7280"></div><div class="swatch-info"><div class="swatch-name">Gray</div><div class="swatch-hex">#6B7280</div></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#9CA3AF"></div><div class="swatch-info"><div class="swatch-name">Gray 2</div><div class="swatch-hex">#9CA3AF</div></div></div>
+    </div>
+    <div class="ds-note" style="margin-top:10px">Cores de acento (purple, green, amber, orange, red) permanecem idênticas — funcionam em ambos os fundos.</div>
+
+    <h3>CSS a sobrescrever</h3>
+    <pre class="ds-code">/* 1. Variáveis de raiz */
+:root {
+  --bg:     #FFFFFF;
+  --border: #E5E7EB;
+  --gray:   #6B7280;
+  --gray2:  #9CA3AF;
+}
+
+/* 2. Slide title (hardcoded #fff → dark) */
+h1.slide-title { color: #111827; }
+
+/* 3. Superfícies semi-transparentes */
+.card { background: rgba(0,0,0,.025); border: 1px solid rgba(0,0,0,.09); }
+.card-title { color: #111827; }
+
+.mr  { border: 1px solid rgba(0,0,0,.10); }
+.mi  { border-right: 1px solid rgba(0,0,0,.08); }
+.mv  { color: #111827; }
+
+/* 4. Highlights (texto hardcoded #fff → dark) */
+.hl, .hl-g, .hl-a, .hl-r { color: #374151; }
+
+/* 5. Bullets */
+.def-bullets li { color: #374151; }
+ul.bul li       { color: #374151; }
+ul.bul li strong { color: #111827; }
+
+/* 6. Find blocks */
+.find-block  { border-color: rgba(0,0,0,.08); }
+.find-title  { color: #111827; }
+.find-note   { color: #374151; }
+
+/* 7. .c-w deixa de ser usado — use .c-p, .c-g, etc. */</pre>
+
+    <h3>Componentes lado a lado</h3>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">Fundo escuro (padrão)</div>
+        <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:12px">
+          <div class="card"><div class="card-title">Card neutro</div><div class="card-body">Texto de corpo com <strong style="color:#fff">destaque</strong>.</div></div>
+          <div class="card cl"><div class="card-title c-p">Card purple tint</div><div class="card-body">Full-border + tint.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Fundo branco</div>
+        <div class="ds-preview ds-preview-light" style="display:flex;flex-direction:column;gap:12px">
+          <div class="card"><div class="card-title">Card neutro</div><div class="card-body">Texto de corpo com <strong style="color:#111827">destaque</strong>.</div></div>
+          <div class="card cl"><div class="card-title c-p">Card purple tint</div><div class="card-body">Full-border + tint.</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ds-label">KPI Row — escuro</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="mr">
+            <div class="mi"><div class="mv c-p">~165k</div><div class="ml">clientes/ano</div></div>
+            <div class="mi"><div class="mv c-g">R$320</div><div class="ml">ticket médio</div></div>
+            <div class="mi"><div class="mv c-a">+6,5%</div><div class="ml">crescimento</div></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">KPI Row — branco</div>
+        <div class="ds-preview ds-preview-light">
+          <div class="mr">
+            <div class="mi"><div class="mv c-p">~165k</div><div class="ml">clientes/ano</div></div>
+            <div class="mi"><div class="mv c-g">R$320</div><div class="ml">ticket médio</div></div>
+            <div class="mi"><div class="mv c-a">+6,5%</div><div class="ml">crescimento</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ds-label">Highlights — escuro</div>
+        <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:8px">
+          <div class="hl"><strong>Insight:</strong> dado relevante aqui.</div>
+          <div class="hl hl-g"><strong>Resultado:</strong> positivo.</div>
+          <div class="hl hl-r"><strong>Risco:</strong> crítico.</div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Highlights — branco</div>
+        <div class="ds-preview ds-preview-light" style="display:flex;flex-direction:column;gap:8px">
+          <div class="hl"><strong>Insight:</strong> dado relevante aqui.</div>
+          <div class="hl hl-g"><strong>Resultado:</strong> positivo.</div>
+          <div class="hl hl-r"><strong>Risco:</strong> crítico.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ds-label">Find Block — escuro</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="find-block" style="padding:0">
+            <div class="find-tag find-tag-p">Potencial</div>
+            <div class="find-title">Régua pós-exame</div>
+            <ul class="def-bullets" style="margin-top:8px">
+              <li>WhatsApp automático D+7</li>
+              <li>Conversão estimada <strong class="c-p">+20%</strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Find Block — branco</div>
+        <div class="ds-preview ds-preview-light">
+          <div class="find-block" style="padding:0;border:none">
+            <div class="find-tag find-tag-p">Potencial</div>
+            <div class="find-title">Régua pós-exame</div>
+            <ul class="def-bullets" style="margin-top:8px">
+              <li>WhatsApp automático D+7</li>
+              <li>Conversão estimada <strong class="c-p">+20%</strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ds-label">Find Note — escuro</div>
+        <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:8px">
+          <div class="find-note find-note-p">Nota com <strong>destaque roxo</strong>.</div>
+          <div class="find-note find-note-g">Resultado <strong>positivo</strong>.</div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Find Note — branco</div>
+        <div class="ds-preview ds-preview-light" style="display:flex;flex-direction:column;gap:8px">
+          <div class="find-note find-note-p">Nota com <strong>destaque roxo</strong>.</div>
+          <div class="find-note find-note-g">Resultado <strong>positivo</strong>.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ds-note" style="margin-top:4px"><strong>Atenção:</strong> <code>.c-w</code> (texto branco) fica invisível no fundo branco — substitua por <code>.c-p</code>, <code>.c-g</code> ou outra cor de acento. Badges e tags funcionam sem alteração.</div>
+  </section>
+
+  <!-- ── TIPOGRAFIA ── -->
+  <section class="ds-section" id="tipografia">
+    <h2>Tipografia</h2>
+    <div class="ds-note">Font principal dos slides: <strong>Exo 2</strong> (títulos, números, badges). Font do editor: <strong>Inter</strong>.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div style="font-family:'Exo 2',sans-serif; margin-bottom:16px">
+        <div style="font-size:58px;font-weight:900;line-height:1;color:#fff;letter-spacing:-2px">Título Capa</div>
+        <div style="font-size:11px;color:var(--gray2);margin-top:4px">58px · weight 900 · .cover-title</div>
+      </div>
+      <div style="font-family:'Exo 2',sans-serif; margin-bottom:16px">
+        <div style="font-size:30px;font-weight:800;color:#fff">Título do <em style="color:var(--purple);font-style:normal">Slide</em></div>
+        <div style="font-size:11px;color:var(--gray2);margin-top:4px">30px · weight 800 · h1.slide-title</div>
+      </div>
+      <div style="font-family:'Exo 2',sans-serif; margin-bottom:16px">
+        <div style="font-size:18px;font-weight:700;color:#fff">Título de bloco ou definição</div>
+        <div style="font-size:11px;color:var(--gray2);margin-top:4px">18px · weight 700 · .find-title / .mdef-title</div>
+      </div>
+      <div style="font-family:'Exo 2',sans-serif; margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:#fff">Texto de card / agenda-title</div>
+        <div style="font-size:11px;color:var(--gray2);margin-top:4px">13px · weight 600</div>
+      </div>
+      <div style="font-family:'Exo 2',sans-serif; margin-bottom:16px">
+        <div style="font-size:12.5px;color:var(--gray)">Corpo de texto, bullets, descriptions</div>
+        <div style="font-size:11px;color:var(--gray2);margin-top:4px">12.5px · weight 400 · --gray</div>
+      </div>
+      <div style="font-family:'Exo 2',sans-serif;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--purple)">LABEL / TAG / BADGE</div>
+        <div style="font-size:11px;color:var(--gray2);margin-top:4px">10px · weight 700 · uppercase · letter-spacing 1.2px</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── UTILITÁRIOS DE COR ── -->
+  <section class="ds-section" id="utilitarios">
+    <h2>Utilitários de cor</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div style="display:flex;gap:24px;font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900">
+        <span class="c-p">c-p</span>
+        <span class="c-g">c-g</span>
+        <span class="c-a">c-a</span>
+        <span class="c-o">c-o</span>
+        <span class="c-r">c-r</span>
+        <span class="c-w">c-w</span>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;span class="c-p"&gt;texto roxo&lt;/span&gt;
+&lt;span class="c-g"&gt;texto verde&lt;/span&gt;
+&lt;span class="c-a"&gt;texto âmbar&lt;/span&gt;
+&lt;span class="c-o"&gt;texto laranja&lt;/span&gt;
+&lt;span class="c-r"&gt;texto vermelho&lt;/span&gt;
+&lt;span class="c-w"&gt;texto branco&lt;/span&gt;</pre>
+  </section>
+
+  <!-- ── BADGES ── -->
+  <section class="ds-section" id="badges">
+    <h2>Badges</h2>
+    <div class="ds-note">Usado no cabeçalho dos slides analíticos. Sempre segue o padrão <code>badge badge-{cor}</code>.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div class="ds-row">
+        <span class="badge badge-p">SEÇÃO 1</span>
+        <span class="badge badge-g">SEÇÃO 2</span>
+        <span class="badge badge-a">SEÇÃO 3</span>
+        <span class="badge badge-o">SEÇÃO 4</span>
+        <span class="badge badge-r">SEÇÃO 5</span>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="badge badge-p"&gt;SEÇÃO 1 · TÍTULO&lt;/div&gt;
+&lt;div class="badge badge-g"&gt;SEÇÃO 2 · TÍTULO&lt;/div&gt;
+&lt;div class="badge badge-a"&gt;SEÇÃO 3&lt;/div&gt;
+&lt;div class="badge badge-o"&gt;SEÇÃO 4&lt;/div&gt;
+&lt;div class="badge badge-r"&gt;SEÇÃO 5&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── TAGS & CHIPS ── -->
+  <section class="ds-section" id="tags">
+    <h2>Tags &amp; Chips</h2>
+    <h3>.find-tag — dentro de find-blocks</h3>
+    <div class="ds-preview ds-preview-dark">
+      <div class="ds-row">
+        <span class="find-tag find-tag-p">Potencial</span>
+        <span class="find-tag find-tag-g">Ação</span>
+        <span class="find-tag find-tag-a">Âmbar</span>
+        <span class="find-tag find-tag-r">Risco</span>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="find-tag find-tag-p"&gt;Potencial&lt;/div&gt;
+&lt;div class="find-tag find-tag-g"&gt;Ação&lt;/div&gt;</pre>
+    <h3>.tag — chip com background</h3>
+    <div class="ds-preview ds-preview-dark">
+      <div class="ds-row">
+        <span class="tag tag-p">tag-p</span>
+        <span class="tag tag-g">tag-g</span>
+        <span class="tag tag-a">tag-a</span>
+        <span class="tag tag-r">tag-r</span>
+        <span class="tag tag-o">tag-o</span>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;span class="tag tag-p"&gt;Rótulo&lt;/span&gt;</pre>
+    <h3>.sp — chip sólido</h3>
+    <div class="ds-preview ds-preview-dark">
+      <div class="ds-row">
+        <span class="sp sp-p">sp-p</span>
+        <span class="sp sp-g">sp-g</span>
+        <span class="sp sp-a">sp-a</span>
+        <span class="sp sp-o">sp-o</span>
+        <span class="sp sp-r">sp-r</span>
+        <span class="impact">~R$1,2M</span>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;span class="sp sp-g"&gt;LABEL&lt;/span&gt;
+&lt;span class="impact"&gt;~R$1,2M&lt;/span&gt;</pre>
+  </section>
+
+  <!-- ── KPI ROW ── -->
+  <section class="ds-section" id="kpis">
+    <h2>KPI Row (mr / mi / mv / ml)</h2>
+    <div class="ds-note">Faixa de métricas no topo de slides analíticos. O writer reconstrói o bloco <code>.mr</code> inteiro — não anide <code>.mr</code> dentro de outro.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div class="mr">
+        <div class="mi"><div class="mv c-p">~165k</div><div class="ml">clientes ativos/ano<br>(média 2022–2025)</div></div>
+        <div class="mi"><div class="mv c-g">R$320</div><div class="ml">ticket médio<br>por cliente</div></div>
+        <div class="mi"><div class="mv c-a">+6,5%</div><div class="ml">crescimento de volume<br>2024 → 2025</div></div>
+        <div class="mi"><div class="mv c-w">51%</div><div class="ml">nunca retornou<br>após 1ª compra</div></div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="mr"&gt;
+  &lt;div class="mi"&gt;
+    &lt;div class="mv c-p"&gt;~165k&lt;/div&gt;
+    &lt;div class="ml"&gt;clientes ativos/ano&lt;br&gt;(média 2022–2025)&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="mi"&gt;
+    &lt;div class="mv c-g"&gt;R$320&lt;/div&gt;
+    &lt;div class="ml"&gt;ticket médio&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="ds-note">Classes de cor para <code>.mv</code>: <code>c-p</code> <code>c-g</code> <code>c-a</code> <code>c-o</code> <code>c-r</code> <code>c-w</code> (ou vazio para branco padrão)</div>
+  </section>
+
+  <!-- ── CARDS ── -->
+  <section class="ds-section" id="cards">
+    <h2>Cards</h2>
+    <div class="ds-note">Superfícies sempre semi-transparentes. Nunca opacas. Variantes coloridas usam full-border + tint — <strong>nunca border-left stripe</strong>.</div>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">.card (neutro)</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="card"><div class="card-title">Título do card</div><div class="card-body">Conteúdo descritivo com <strong style="color:#fff">destaque</strong> e texto normal.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">.card.cl (purple tint)</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="card cl"><div class="card-title c-p">Título colorido</div><div class="card-body">Borda e fundo com tint roxo.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">.card.cl-g</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="card cl-g"><div class="card-title c-g">Verde</div><div class="card-body">Tint verde.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">.card.cl-a</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="card cl-a"><div class="card-title c-a">Âmbar</div><div class="card-body">Tint âmbar.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">.card.cl-o</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="card cl-o"><div class="card-title c-o">Laranja</div><div class="card-body">Tint laranja.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">.card.cl-r</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="card cl-r"><div class="card-title c-r">Vermelho</div><div class="card-body">Tint vermelho.</div></div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="card"&gt;...&lt;/div&gt;         &lt;!-- neutro --&gt;
+&lt;div class="card cl"&gt;...&lt;/div&gt;      &lt;!-- purple tint --&gt;
+&lt;div class="card cl-g"&gt;...&lt;/div&gt;    &lt;!-- green tint --&gt;
+&lt;div class="card cl-a"&gt;...&lt;/div&gt;    &lt;!-- amber tint --&gt;
+&lt;div class="card cl-o"&gt;...&lt;/div&gt;    &lt;!-- orange tint --&gt;
+&lt;div class="card cl-r"&gt;...&lt;/div&gt;    &lt;!-- red tint --&gt;</pre>
+  </section>
+
+  <!-- ── HIGHLIGHTS ── -->
+  <section class="ds-section" id="highlights">
+    <h2>Highlight Boxes (.hl)</h2>
+    <div class="ds-col2">
+      <div class="ds-preview ds-preview-dark"><div class="hl"><strong>Insight principal:</strong> texto explicativo com destaque colorido.</div></div>
+      <div class="ds-preview ds-preview-dark"><div class="hl hl-g"><strong>Resultado positivo:</strong> dados confirmam crescimento acima do esperado.</div></div>
+      <div class="ds-preview ds-preview-dark"><div class="hl hl-a"><strong>Atenção:</strong> ponto que requer revisão antes de prosseguir.</div></div>
+      <div class="ds-preview ds-preview-dark"><div class="hl hl-r"><strong>Risco:</strong> impacto negativo se não tratado.</div></div>
+    </div>
+    <pre class="ds-code">&lt;div class="hl"&gt;&lt;strong&gt;Rótulo:&lt;/strong&gt; texto.&lt;/div&gt;
+&lt;div class="hl hl-g"&gt;...&lt;/div&gt;
+&lt;div class="hl hl-a"&gt;...&lt;/div&gt;
+&lt;div class="hl hl-r"&gt;...&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── LISTAS ── -->
+  <section class="ds-section" id="bullets">
+    <h2>Listas</h2>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">ul.def-bullets — com traço roxo</div>
+        <div class="ds-preview ds-preview-dark">
+          <ul class="def-bullets">
+            <li>Compra em <strong style="color:#fff">mais de um grupo</strong> no mesmo dia</li>
+            <li>Taxa atual: <strong class="c-p">40,8%</strong> dos clientes</li>
+            <li>Janelas de observação comparáveis</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">ul.bul — com ponto roxo</div>
+        <div class="ds-preview ds-preview-dark">
+          <ul class="bul">
+            <li><strong>LTV (1D)</strong> — receita do dia da 1ª compra</li>
+            <li><strong>Taxa de Retorno</strong> — % com ≥1 compra após dia 1</li>
+            <li><strong>Upside %</strong> — receita de recompra / ticket</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;!-- Traço roxo (padrão em find-blocks e def-steps) --&gt;
+&lt;ul class="def-bullets"&gt;
+  &lt;li&gt;Bullet com &lt;strong&gt;negrito&lt;/strong&gt;&lt;/li&gt;
+  &lt;li style="color:var(--gray2);font-size:10.5px"&gt;Nota de rodapé&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;!-- Ponto roxo --&gt;
+&lt;ul class="bul"&gt;
+  &lt;li&gt;&lt;strong&gt;Rótulo&lt;/strong&gt; — descrição&lt;/li&gt;
+&lt;/ul&gt;</pre>
+  </section>
+
+  <!-- ── TABELA ── -->
+  <section class="ds-section" id="tabela">
+    <h2>Tabelas (.tw)</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div class="tw">
+        <table>
+          <thead><tr><th>Grupo</th><th>Clientes</th><th>LTV 12M</th><th>Retorno %</th></tr></thead>
+          <tbody>
+            <tr><td>Exames e Diagnóstico</td><td class="c-p">52.596</td><td>R$290</td><td>48%</td></tr>
+            <tr><td>Especialidades Médicas</td><td class="c-g">31.204</td><td>R$380</td><td>55%</td></tr>
+            <tr><td>Cuidados Preventivos</td><td>18.900</td><td>R$210</td><td>41%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="tw"&gt;
+  &lt;table&gt;
+    &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Coluna&lt;/th&gt;&lt;th&gt;Valor&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+    &lt;tbody&gt;
+      &lt;tr&gt;&lt;td&gt;Linha 1&lt;/td&gt;&lt;td class="c-p"&gt;42%&lt;/td&gt;&lt;/tr&gt;
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── FIND BLOCKS ── -->
+  <section class="ds-section" id="find-blocks">
+    <h2>Find Blocks (.find-block)</h2>
+    <div class="ds-note">Bloco principal de descoberta/insight. Reconhecido pelo editor para edição estruturada.</div>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">Tag única</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="find-block" style="padding:0">
+            <div class="find-tag find-tag-p">Potencial</div>
+            <div class="find-title">Exames → Especialidades</div>
+            <ul class="def-bullets" style="margin-top:10px">
+              <li>52k clientes com gap de conversão</li>
+              <li>Taxa atual: <strong class="c-p">19,5%</strong> — meta 39%</li>
+              <li style="color:var(--gray2);font-size:10.5px">Nota de rodapé opcional</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Múltiplas tags</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="find-block" style="padding:0">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <div class="find-tag find-tag-p" style="margin-bottom:0">Potencial</div>
+              <div class="find-tag find-tag-g" style="margin-bottom:0">Ação</div>
+            </div>
+            <div class="find-title" style="margin-top:8px">Régua pós-exame D+7</div>
+            <ul class="def-bullets" style="margin-top:10px">
+              <li>WhatsApp automático com voucher</li>
+              <li>Implementação em <strong style="color:#fff">30 dias</strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="find-block"&gt;
+  &lt;div class="find-tag find-tag-p"&gt;Potencial&lt;/div&gt;
+  &lt;div class="find-title"&gt;Título do bloco&lt;/div&gt;
+  &lt;ul class="def-bullets" style="margin-top:10px"&gt;
+    &lt;li&gt;Bullet normal&lt;/li&gt;
+    &lt;li style="color:var(--gray2);font-size:10.5px"&gt;Rodapé&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+
+&lt;!-- Múltiplas tags --&gt;
+&lt;div class="find-block"&gt;
+  &lt;div style="display:flex;gap:6px;flex-wrap:wrap"&gt;
+    &lt;div class="find-tag find-tag-p" style="margin-bottom:0"&gt;Tag 1&lt;/div&gt;
+    &lt;div class="find-tag find-tag-g" style="margin-bottom:0"&gt;Tag 2&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="find-title" style="margin-top:8px"&gt;Título&lt;/div&gt;
+  ...
+&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── FIND NOTE ── -->
+  <section class="ds-section" id="find-note">
+    <h2>Find Note (.find-note)</h2>
+    <div class="ds-col2">
+      <div class="ds-preview ds-preview-dark"><div class="find-note find-note-p">Nota com <strong>destaque roxo</strong> e borda lateral.</div></div>
+      <div class="ds-preview ds-preview-dark"><div class="find-note find-note-g">Resultado positivo: <strong>R$6,5–8M/ano</strong> em receita incremental.</div></div>
+      <div class="ds-preview ds-preview-dark"><div class="find-note find-note-a">Atenção: premissa conservadora de <strong>10% de conversão</strong>.</div></div>
+      <div class="ds-preview ds-preview-dark"><div class="find-note find-note-r">Risco crítico identificado: <strong>49% nunca retornou</strong>.</div></div>
+    </div>
+    <pre class="ds-code">&lt;div class="find-note find-note-p"&gt;Texto com &lt;strong&gt;destaque&lt;/strong&gt;.&lt;/div&gt;
+&lt;div class="find-note find-note-g"&gt;...&lt;/div&gt;
+&lt;div class="find-note find-note-a"&gt;...&lt;/div&gt;
+&lt;div class="find-note find-note-r"&gt;...&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── AGENDA ITEMS ── -->
+  <section class="ds-section" id="agenda">
+    <h2>Agenda Items (.agenda-list / .agenda-item)</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div class="agenda-list">
+        <div class="agenda-item">
+          <span class="agenda-num c-p">M</span>
+          <div class="agenda-body">
+            <div class="agenda-title">Definições Importantes</div>
+            <div class="agenda-sub">Recorte dos dados, grupos e métricas utilizadas</div>
+          </div>
+        </div>
+        <div class="agenda-item">
+          <span class="agenda-num">1</span>
+          <div class="agenda-body">
+            <div class="agenda-title">Crescimento: Volume vs. Ticket</div>
+            <div class="agenda-sub">Faturamento cresce por ticket, não por volume</div>
+          </div>
+        </div>
+        <div class="agenda-item" style="border-bottom:none">
+          <span class="agenda-num c-g">7</span>
+          <div class="agenda-body">
+            <div class="agenda-title">Impacto Financeiro</div>
+            <div class="agenda-sub">R$ 6,5–8M/ano em receita incremental estimada</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="agenda-list"&gt;
+  &lt;div class="agenda-item"&gt;
+    &lt;span class="agenda-num c-p"&gt;M&lt;/span&gt;
+    &lt;div class="agenda-body"&gt;
+      &lt;div class="agenda-title"&gt;Título&lt;/div&gt;
+      &lt;div class="agenda-sub"&gt;Subtítulo&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="ds-note">Cor do número: vazio (branco apagado), <code>c-p</code>, <code>c-g</code>, <code>c-a</code>, <code>c-o</code>, <code>c-r</code>. Último item deve ter <code>border-bottom:none</code>.</div>
+  </section>
+
+  <!-- ── DEF STEPS ── -->
+  <section class="ds-section" id="def-steps">
+    <h2>Def Steps (.def-step)</h2>
+    <div class="ds-note">Blocos de etapas numeradas com stats e bullets. Reconhecido pelo editor.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div class="def-step">
+        <div class="def-step-num">01</div>
+        <div class="def-step-body">
+          <div class="def-step-label">Base de dados</div>
+          <div class="def-step-title">Universo analisado</div>
+          <div class="def-step-stats">
+            <div><div class="def-step-stat-n c-p">152.261</div><div class="def-step-stat-l">clientes</div></div>
+            <div><div class="def-step-stat-n c-g">R$ 48,8M</div><div class="def-step-stat-l">receita</div></div>
+            <div><div class="def-step-stat-n">Jan/24–Mar/26</div><div class="def-step-stat-l">período</div></div>
+          </div>
+          <ul class="def-bullets">
+            <li>Histórico anterior a 2024 excluído</li>
+            <li>Janelas de observação comparáveis entre coortes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="def-divider"></div>
+      <div class="def-step">
+        <div class="def-step-num">02</div>
+        <div class="def-step-body">
+          <div class="def-step-label">Classificação</div>
+          <div class="def-step-title">Ponto de entrada — primeiro grupo</div>
+          <ul class="def-bullets">
+            <li>Cliente classificado pelo grupo da 1ª compra</li>
+            <li>Comportamento medido a partir desse ponto</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="def-step"&gt;
+  &lt;div class="def-step-num"&gt;01&lt;/div&gt;
+  &lt;div class="def-step-body"&gt;
+    &lt;div class="def-step-label"&gt;Rótulo&lt;/div&gt;
+    &lt;div class="def-step-title"&gt;Título da etapa&lt;/div&gt;
+    &lt;div class="def-step-stats"&gt;
+      &lt;div&gt;
+        &lt;div class="def-step-stat-n c-p"&gt;152.261&lt;/div&gt;
+        &lt;div class="def-step-stat-l"&gt;clientes&lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;ul class="def-bullets"&gt;
+      &lt;li&gt;Bullet&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="def-divider"&gt;&lt;/div&gt;</pre>
+    <div class="ds-note">Cores para <code>.def-step-stat-n</code>: <code>c-p</code> <code>c-g</code> <code>c-a</code> <code>c-o</code> <code>c-r</code> ou vazio (branco).</div>
+  </section>
+
+  <!-- ── GRP ITEMS ── -->
+  <section class="ds-section" id="grp-items">
+    <h2>Grp Items (.grp-item)</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div class="grp-label">10 grupos de serviços</div>
+      <div class="grp-list">
+        <div class="grp-item"><span class="grp-n">01</span><div><div class="grp-name">Exames e Diagnóstico</div><div class="grp-ex">Ecografia, laboratorial, imagem</div></div></div>
+        <div class="grp-item"><span class="grp-n">02</span><div><div class="grp-name">Especialidades Médicas</div><div class="grp-ex">Oftalmo, Cardio, Neuro, Dermato</div></div></div>
+        <div class="grp-item"><span class="grp-n">03</span><div><div class="grp-name">Cuidados Preventivos</div><div class="grp-ex">Clínico Geral, check-ups</div></div></div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="grp-label"&gt;10 grupos de serviços&lt;/div&gt;
+&lt;div class="grp-list"&gt;
+  &lt;div class="grp-item"&gt;
+    &lt;span class="grp-n"&gt;01&lt;/span&gt;
+    &lt;div&gt;
+      &lt;div class="grp-name"&gt;Exames e Diagnóstico&lt;/div&gt;
+      &lt;div class="grp-ex"&gt;Ecografia, laboratorial, imagem&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="ds-note"><code>.grp-n</code> deve ser <code>&lt;span&gt;</code>, não <code>&lt;div&gt;</code>.</div>
+  </section>
+
+  <!-- ── MDEF BLOCKS ── -->
+  <section class="ds-section" id="mdef-blocks">
+    <h2>Mdef Blocks (.mdef-block)</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div class="mdef-block">
+        <div class="mdef-tag">Comportamento no dia 1</div>
+        <div class="mdef-title">Cesta / Basket</div>
+        <ul class="def-bullets">
+          <li>Compra em <strong style="color:#fff">mais de um grupo</strong> no mesmo dia</li>
+          <li>Taxa atual: <strong class="c-p">40,8%</strong> dos clientes</li>
+        </ul>
+        <div class="mdef-sub-label">Classificação das compras</div>
+        <ul class="def-bullets">
+          <li><strong style="color:#fff">Entrada</strong> — dia 1, mesmo grupo</li>
+          <li><strong style="color:#fff">Positivação</strong> — grupo diferente</li>
+        </ul>
+      </div>
+      <div class="mdef-divider"></div>
+      <div class="mdef-block">
+        <div class="mdef-tag">Valor do cliente</div>
+        <div class="mdef-title">LTV por Primeiro Grupo</div>
+        <ul class="def-bullets">
+          <li><strong style="color:#fff">LTV (1D)</strong> — receita do dia da 1ª compra</li>
+          <li><strong style="color:#fff">Taxa de Retorno</strong> — % com ≥1 compra após dia 1</li>
+        </ul>
+      </div>
+      <div class="mdef-note">Texto de nota ou referência externa. <a href="#" class="mdef-link">Link opcional →</a></div>
+    </div>
+    <pre class="ds-code">&lt;div class="mdef-block"&gt;
+  &lt;div class="mdef-tag"&gt;Categoria&lt;/div&gt;
+  &lt;div class="mdef-title"&gt;Nome do conceito&lt;/div&gt;
+  &lt;ul class="def-bullets"&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;
+  &lt;!-- sub-grupo opcional --&gt;
+  &lt;div class="mdef-sub-label"&gt;Sub-título&lt;/div&gt;
+  &lt;ul class="def-bullets"&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="mdef-divider"&gt;&lt;/div&gt;
+&lt;div class="mdef-note"&gt;Nota. &lt;a href="..." class="mdef-link"&gt;Link&lt;/a&gt;&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── HYP CARDS ── -->
+  <section class="ds-section" id="hyp-cards">
+    <h2>Hyp Cards (.hyp-card)</h2>
+    <div class="ds-note">Cards de hipótese com prioridade. Classes obrigatórias: <code>hyp-card</code>, <code>hyp-id</code>, <code>hyp-body</code>, <code>hyp-value</code>.</div>
+    <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:6px">
+      <div class="hyp-card hyp-card-r">
+        <div class="hyp-id hyp-id-r">H1</div>
+        <div class="hyp-body">Protocolar Especialidades → Exames<br><span>encaminhamento obrigatório na saída da consulta</span></div>
+        <div class="hyp-value-r">~R$1,6M</div>
+      </div>
+      <div class="hyp-card hyp-card-a">
+        <div class="hyp-id hyp-id-a">H6</div>
+        <div class="hyp-body">Programa 60+ <span>— maior LTV, sem produto específico</span></div>
+        <div class="hyp-value-a">~R$275k</div>
+      </div>
+      <div class="hyp-card hyp-card-p">
+        <div class="hyp-id hyp-id-p">H11</div>
+        <div class="hyp-body">Rastreamento completo <span>— UTMs + atribuição por LTV</span></div>
+        <div class="hyp-value-p" style="font-size:11px">habilitador</div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;!-- Alta prioridade (com &lt;br&gt;) --&gt;
+&lt;div class="hyp-card" style="display:grid;grid-template-columns:28px 1fr auto;
+     gap:10px;align-items:start;padding:10px 12px;border-radius:8px;
+     background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.15)"&gt;
+  &lt;div class="hyp-id" style="width:22px;height:22px;border-radius:5px;
+       background:rgba(239,68,68,.15);color:#EF4444;font-weight:800;
+       font-size:11px;display:flex;align-items:center;justify-content:center"&gt;H1&lt;/div&gt;
+  &lt;div class="hyp-body" style="font-size:12px;font-weight:600;color:#fff;line-height:1.4"&gt;
+    Título do card&lt;br&gt;
+    &lt;span style="font-size:11px;font-weight:400;color:var(--gray)"&gt;subtítulo&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class="hyp-value" style="font-size:12px;font-weight:700;color:#10B981;white-space:nowrap"&gt;~R$1,6M&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- Média prioridade (span inline, sem &lt;br&gt;) --&gt;
+&lt;div class="hyp-card" style="...background:rgba(245,158,11,.04);border:...rgba(245,158,11,.15)"&gt;
+  &lt;div class="hyp-id" style="...background:rgba(245,158,11,.15);color:#F59E0B..."&gt;H6&lt;/div&gt;
+  &lt;div class="hyp-body" ...&gt;Título &lt;span style="..."&gt;— subtítulo inline&lt;/span&gt;&lt;/div&gt;
+  &lt;div class="hyp-value" style="...color:#F59E0B..."&gt;~R$275k&lt;/div&gt;
+&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── HIPÓTESES (NI) ── -->
+  <section class="ds-section" id="hipoteses">
+    <h2>Hipóteses — Nota (.ni)</h2>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">.ni — horizontal</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="ni"><div class="nb nb-p">H1</div><div class="nt"><strong>Cross-sell Exames → Especialidades.</strong> 52k clientes sem conversão, upside estimado <strong>R$1,6M/ano</strong>.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">.ni.ni-v — vertical expandido</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="ni ni-v">
+            <div class="ni-head"><div class="ni-num">H1</div><div class="ni-title">Cross-sell <span class="badge badge-g" style="font-size:8px;padding:2px 7px">~R$1,6M/ano</span></div></div>
+            <div class="ni-section"><span class="ni-sl c-a">Por quê?</span><div class="ni-sb">Exames têm a maior base e menor taxa de conversão.</div></div>
+            <div class="ni-section"><span class="ni-sl c-g">Acionável</span><div class="ni-sb">Régua automática D+7 e D+30 via WhatsApp.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;!-- Horizontal --&gt;
+&lt;div class="ni"&gt;
+  &lt;div class="nb nb-p"&gt;H1&lt;/div&gt;
+  &lt;div class="nt"&gt;&lt;strong&gt;Título.&lt;/strong&gt; Descrição.&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- Vertical --&gt;
+&lt;div class="ni ni-v"&gt;
+  &lt;div class="ni-head"&gt;
+    &lt;div class="ni-num"&gt;H1&lt;/div&gt;
+    &lt;div class="ni-title"&gt;Título &lt;span class="badge badge-g"&gt;~R$Xk/ano&lt;/span&gt;&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="ni-section"&gt;&lt;span class="ni-sl c-a"&gt;Por quê?&lt;/span&gt;&lt;div class="ni-sb"&gt;...&lt;/div&gt;&lt;/div&gt;
+  &lt;div class="ni-section"&gt;&lt;span class="ni-sl c-g"&gt;Acionável&lt;/span&gt;&lt;div class="ni-sb"&gt;...&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="ds-note">Cores <code>.nb</code>: <code>nb-p</code> <code>nb-g</code> <code>nb-r</code> <code>nb-a</code> <code>nb-o</code></div>
+  </section>
+
+  <!-- ── CAPA & BREAK ── -->
+  <section class="ds-section" id="slide-structure">
+    <h2>Capa &amp; Break de seção</h2>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">slide-cover</div>
+        <div class="ds-preview ds-preview-dark" style="min-height:120px;justify-content:flex-end;padding-bottom:32px">
+          <div class="cover-title">Diagnóstico</div>
+          <div class="cover-sub">Estratégico</div>
+          <div class="cover-meta">MAI/2026</div>
+        </div>
+        <pre class="ds-code">&lt;section class="slide slide-cover"&gt;
+  &lt;div class="cover-title"&gt;Título&lt;/div&gt;
+  &lt;div class="cover-sub"&gt;Subtítulo&lt;/div&gt;
+  &lt;div class="cover-meta"&gt;DATA&lt;/div&gt;
+&lt;/section&gt;</pre>
+      </div>
+      <div>
+        <div class="ds-label">slide-brk (section break)</div>
+        <div class="ds-preview ds-preview-dark" style="min-height:120px;justify-content:center;align-items:center;text-align:center">
+          <div class="brk-wrap">
+            <div class="brk-pre">Seção 4</div>
+            <h2 class="brk-title" style="font-size:36px">Performance por <em>Produto</em></h2>
+          </div>
+        </div>
+        <pre class="ds-code">&lt;section class="slide slide-brk"&gt;
+  &lt;div class="brk-wrap"&gt;
+    &lt;div class="brk-pre"&gt;Seção N&lt;/div&gt;
+    &lt;h2 class="brk-title"&gt;Título da &lt;em&gt;seção&lt;/em&gt;&lt;/h2&gt;
+  &lt;/div&gt;
+&lt;/section&gt;</pre>
+        <div class="ds-note"><code>brk-pre</code>: texto puro. <code>brk-title</code>: inner HTML preservado; <code>&lt;em&gt;</code> fica em roxo.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LAYOUT ── -->
+  <section class="ds-section" id="layout">
+    <h2>Layout (row / col / g2 / g3 / g4 / panel)</h2>
+    <div class="ds-note">Primitivos de layout dos slides analíticos. <code>.row</code> usa <code>flex:1</code> — sempre dentro de um container com altura definida.</div>
+    <h3>Grid de gráficos</h3>
+    <div class="ds-row">
+      <div style="flex:1">
+        <div class="ds-label">.g2 — 2 colunas</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="g2">
+            <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:6px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--purple)">col 1</div>
+            <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:6px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--purple)">col 2</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="ds-label">.g3 — 3 colunas</div>
+        <div class="ds-preview ds-preview-dark">
+          <div class="g3">
+            <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:6px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--green)">1</div>
+            <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:6px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--green)">2</div>
+            <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:6px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--green)">3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h3>Painéis assimétricos (.panel-l / .panel-r)</h3>
+    <div class="ds-preview ds-preview-dark">
+      <div class="row" style="height:80px">
+        <div class="panel-l" style="background:rgba(139,92,246,.08);border:1px dashed rgba(139,92,246,.3);border-radius:6px;align-items:center;justify-content:center;font-size:11px;color:var(--purple)">panel-l · flex 1.1</div>
+        <div class="panel-r" style="background:rgba(245,158,11,.08);border:1px dashed rgba(245,158,11,.3);border-radius:6px;align-items:center;justify-content:center;font-size:11px;color:var(--amber)">panel-r · flex .9</div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;!-- Slide analítico padrão --&gt;
+&lt;div class="row" style="flex:1"&gt;
+  &lt;div class="col" style="flex:1.1"&gt;gráficos&lt;/div&gt;
+  &lt;div class="col" style="flex:.9"&gt;find-blocks&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- Grid de gráficos lado a lado --&gt;
+&lt;div class="g2"&gt;
+  &lt;div&gt;...&lt;/div&gt;
+  &lt;div&gt;...&lt;/div&gt;
+&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── TEXT UTILITIES ── -->
+  <section class="ds-section" id="text-utils">
+    <h2>Utilitários de texto</h2>
+    <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div class="chart-title">Chart Title — 10.5px uppercase tracking</div>
+        <div class="label-sec" style="margin-top:8px">Label-sec — 11px uppercase tracking</div>
+      </div>
+      <div>
+        <div class="sm">Texto .sm — 12.5px, cor cinza, line-height 1.6. Usado para notas e descrições secundárias.</div>
+        <div class="xs" style="margin-top:6px">Texto .xs — 11px cinza escuro. Footnotes e metadata.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div>
+          <div class="divl"></div>
+          <div style="font-size:11px;color:var(--gray2)">.divl — acento roxo</div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="chart-title"&gt;LTV por grupo (R$)&lt;/div&gt;
+&lt;div class="label-sec"&gt;Distribuição de clientes&lt;/div&gt;
+&lt;div class="sm"&gt;Texto de suporte&lt;/div&gt;
+&lt;div class="xs"&gt;Nota de rodapé&lt;/div&gt;
+&lt;div class="divl"&gt;&lt;/div&gt;</pre>
+  </section>
+
+  <!-- ── AGENDA COMPACTA ── -->
+  <section class="ds-section" id="agenda-compact">
+    <h2>Agenda compacta — card (.ai / .an / .at / .as)</h2>
+    <div class="ds-note">Variante card da agenda. Cada item é autônomo com fundo e borda. Diferente de <code>.agenda-item</code> que usa separadores de linha.</div>
+    <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:8px">
+      <div class="ai">
+        <div class="an">M</div>
+        <div>
+          <div class="at">Definições Importantes</div>
+          <div class="as">Recorte dos dados, grupos e métricas utilizadas</div>
+        </div>
+      </div>
+      <div class="ai">
+        <div class="an">1</div>
+        <div>
+          <div class="at">Crescimento: Volume vs. Ticket</div>
+          <div class="as">Faturamento cresce por ticket, não por volume</div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="ai"&gt;
+  &lt;div class="an"&gt;1&lt;/div&gt;
+  &lt;div&gt;
+    &lt;div class="at"&gt;Título do item&lt;/div&gt;
+    &lt;div class="as"&gt;Subtítulo / descrição&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="ds-note"><code>.an</code> aceita qualquer texto (número, letra). Cor padrão: roxo.</div>
+  </section>
+
+  <!-- ── HERO STAT ── -->
+  <section class="ds-section" id="hero-stat">
+    <h2>Hero Stat (.hero-stat)</h2>
+    <div class="ds-note">Bloco de destaque para KPI principal de uma seção. Disponível mas ainda não usado nos slides atuais — reservado para slides de sumário ou abertura de ato.</div>
+    <div class="ds-preview ds-preview-dark" style="display:flex;flex-direction:column;gap:10px">
+      <div class="hero-stat hs-g">
+        <div class="hero-n c-g">R$6,5M</div>
+        <div class="hero-desc"><strong>Receita incremental estimada</strong>Com execução em 8 grupos e taxa de conversão de 10%</div>
+      </div>
+      <div class="hero-stat hs-r">
+        <div class="hero-n c-r">49%</div>
+        <div class="hero-desc"><strong>Nunca retornaram</strong>Dos 152k clientes ativos no período</div>
+      </div>
+    </div>
+    <pre class="ds-code">&lt;div class="hero-stat hs-g"&gt;
+  &lt;div class="hero-n c-g"&gt;R$6,5M&lt;/div&gt;
+  &lt;div class="hero-desc"&gt;
+    &lt;strong&gt;Rótulo&lt;/strong&gt;Descrição adicional
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="ds-note">Variantes de cor: <code>hs-g</code> <code>hs-r</code> <code>hs-a</code> <code>hs-p</code>. Combinar com <code>c-g</code> / <code>c-r</code> no <code>.hero-n</code>.</div>
+  </section>
+
+  <!-- ── GRÁFICO: BARRAS ── -->
+  <section class="ds-section" id="chart-bar">
+    <h2>Gráfico — Barras</h2>
+    <div class="ds-note">O <code>id</code> deve começar com <code>chart-</code> e ser único no documento. A altura é obrigatória via JS (<code>height:</code>) — CSS flex:1 não funciona no ApexCharts.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div id="chart-demo-bar" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">&lt;div class="chart-wrap" id="chart-nome"&gt;&lt;/div&gt;
+
+&lt;!-- No bloco chartDefs: --&gt;
+'chart-nome': {
+  type: 'bar',
+  height: 240,
+  series: [
+    { name: 'Série A', data: [42, 58, 71, 89] },
+    { name: 'Série B', data: [28, 35, 49, 61] },
+  ],
+  categories: ['2022', '2023', '2024', '2025'],
+  colors: ['#8B5CF6', '#10B981'],
+},</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">dataLabels: {
+  enabled: true,
+  formatter: v => v + '%',          // formatar valor exibido na barra
+  offsetY: -4,                       // ajuste vertical do rótulo
+  style: { fontSize: '11px', colors: ['#fff'] },
+},
+plotOptions: {
+  bar: {
+    borderRadius: 4,                 // arredondar pontas
+    columnWidth: '55%',              // largura das colunas (padrão 70%)
+    distributed: false,              // true → cor diferente por barra
+    dataLabels: { position: 'top' }, // 'top' | 'center' | 'bottom'
+  },
+},
+stroke: { show: true, width: 2, colors: ['transparent'] }, // borda nas barras
+xaxis: { title: { text: 'Período', style: { color: '#9CA3AF' } } },
+yaxis: { min: 0, max: 100, tickAmount: 5 },
+annotations: {                       // linha de referência horizontal
+  yaxis: [{ y: 60, borderColor: '#F59E0B',
+    label: { text: 'Meta', style: { color: '#fff', background: '#F59E0B' } } }],
+},</pre>
+  </section>
+
+  <!-- ── GRÁFICO: BARRAS EMPILHADAS ── -->
+  <section class="ds-section" id="chart-stacked">
+    <h2>Gráfico — Barras Empilhadas</h2>
+    <div class="ds-note">Ideal para composição ao longo do tempo. Use <code>stacked: true</code> em <code>chart</code>. Com <code>stackType: '100%'</code> mostra proporção percentual.</div>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">Empilhada (valor absoluto)</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-stacked" class="chart-wrap"></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Empilhada 100% (proporção)</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-stacked100" class="chart-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">/* Valor absoluto */
+'chart-nome': {
+  type: 'bar',
+  height: 240,
+  series: [
+    { name: 'Exames',        data: [52, 61, 70, 78] },
+    { name: 'Especialidades',data: [28, 34, 41, 49] },
+    { name: 'Outros',        data: [14, 18, 22, 27] },
+  ],
+  categories: ['2022', '2023', '2024', '2025'],
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+},
+/* No objeto ApexCharts adicione: chart: { stacked: true } */
+
+/* Proporção 100% — adicione também: chart: { stackType: '100%' } */</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">chart: { stacked: true, stackType: '100%' }, // '100%' → proporção percentual
+dataLabels: {
+  enabled: true,
+  formatter: (v, { seriesIndex, dataPointIndex, w }) =>
+    w.config.series[seriesIndex].data[dataPointIndex] + 'k', // valor original
+},
+plotOptions: { bar: { borderRadius: 0 } }, // sem radius em empilhada (visual limpo)</pre>
+  </section>
+
+  <!-- ── GRÁFICO: LINHA ── -->
+  <section class="ds-section" id="chart-line">
+    <h2>Gráfico — Linha</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div id="chart-demo-line" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">'chart-nome': {
+  type: 'line',
+  height: 240,
+  series: [
+    { name: 'LTV 12M', data: [210, 245, 290, 320] },
+  ],
+  categories: ['2022', '2023', '2024', '2025'],
+  colors: ['#8B5CF6'],
+},</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">stroke: {
+  curve: 'smooth',          // 'smooth' | 'straight' | 'stepline'
+  width: 3,                 // espessura (por série: [3, 2, 1])
+  dashArray: [0, 5],        // 0 = sólida, >0 = tracejada (por série)
+},
+markers: { size: 5, shape: 'circle', hover: { sizeOffset: 3 } },
+dataLabels: { enabled: true, formatter: v => 'R$' + v },
+annotations: {              // linhas de referência
+  yaxis: [{ y: 280, borderColor: '#EF4444', label: { text: 'Mínimo' } }],
+  xaxis: [{ x: '2024',   borderColor: '#F59E0B', label: { text: 'Virada' } }],
+  points: [{ x: '2025',  y: 320, marker: { size: 6, fillColor: '#8B5CF6' },
+    label: { text: 'Pico', style: { color: '#fff', background: '#8B5CF6' } } }],
+},</pre>
+  </section>
+
+  <!-- ── GRÁFICO: ÁREA ── -->
+  <section class="ds-section" id="chart-area">
+    <h2>Gráfico — Área</h2>
+    <div class="ds-note">Variante da linha com fill abaixo da curva. Destaca volume e tendência simultaneamente. Use gradiente de opacidade para não pesar visualmente.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div id="chart-demo-area" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">'chart-nome': {
+  type: 'area',
+  height: 240,
+  series: [
+    { name: 'Clientes ativos', data: [142, 155, 163, 171] },
+    { name: 'Clientes retidos', data: [68, 79, 91, 108] },
+  ],
+  categories: ['2022', '2023', '2024', '2025'],
+  colors: ['#8B5CF6', '#10B981'],
+},
+/* No objeto ApexCharts adicione:
+  stroke: { curve: 'smooth', width: 2 },
+  fill: { type: 'gradient', gradient: { opacityFrom: 0.25, opacityTo: 0 } } */</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">stroke: { curve: 'smooth', width: 2 },
+fill: {
+  type: 'gradient',
+  gradient: { opacityFrom: 0.35, opacityTo: 0 },    // degradê → transparente
+  // type: 'solid', opacity: 0.12                    // alternativa: cor sólida leve
+},
+dataLabels: { enabled: false },                      // rótulos geralmente poluem área</pre>
+  </section>
+
+  <!-- ── GRÁFICO: MISTO ── -->
+  <section class="ds-section" id="chart-mixed">
+    <h2>Gráfico — Misto (Bar + Linha)</h2>
+    <div class="ds-note">Combina barra (volume) e linha (taxa/meta) em dois eixos Y. Cada série declara seu próprio <code>type</code>. Requer dois objetos em <code>yaxis</code>.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div id="chart-demo-mixed" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">/* chartDefs não suporta misto nativamente — inicialize diretamente: */
+new ApexCharts(document.getElementById('chart-nome'), {
+  chart: { type: 'bar', height: 260, background: 'transparent',
+           fontFamily: "'Exo 2', sans-serif", toolbar: { show: false } },
+  theme: { mode: 'dark' },
+  series: [
+    { name: 'Receita (R$k)', type: 'bar',  data: [380, 420, 510, 590] },
+    { name: 'Crescimento %', type: 'line', data: [null, 10.5, 21.4, 15.7] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'],
+           labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: [
+    { labels: { style: { colors: '#9CA3AF' } } },
+    { opposite: true, labels: { style: { colors: '#9CA3AF' },
+      formatter: v => v + '%' } },
+  ],
+  colors: ['#8B5CF6', '#10B981'],
+  stroke: { width: [0, 3] },
+  plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+  dataLabels: { enabled: false },
+  grid: { borderColor: 'rgba(255,255,255,.07)', strokeDashArray: 3 },
+  tooltip: { theme: 'dark' },
+}).render();</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">stroke: { width: [0, 3] },            // 0 nas barras, 3 na linha
+markers: { size: [0, 5] },            // sem marcador nas barras, com na linha
+dataLabels: {
+  enabled: true,
+  enabledOnSeries: [0],               // rótulos só nas barras (índice 0)
+  formatter: v => 'R$' + v + 'k',
+},
+yaxis: [                              // eixo esquerdo (barras)
+  { labels: { style: { colors: '#9CA3AF' }, formatter: v => 'R$' + v + 'k' } },
+  { opposite: true,                   // eixo direito (linha)
+    labels: { style: { colors: '#9CA3AF' }, formatter: v => v + '%' } },
+],</pre>
+  </section>
+
+  <!-- ── GRÁFICO: DONUT ── -->
+  <section class="ds-section" id="chart-donut">
+    <h2>Gráfico — Donut / Pie</h2>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">Simples</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-donut" class="chart-wrap"></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Total no centro (valor absoluto)</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-donut-total" class="chart-wrap"></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Rótulos nas fatias</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-donut-labels" class="chart-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">/* Simples */
+'chart-nome': {
+  type: 'donut', height: 220,
+  series: [67.8, 23.2, 9.0],
+  labels: ['Exames', 'Especialidades', 'Outros'],
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+},
+
+/* Total no centro — use valores absolutos, não percentuais */
+plotOptions: {
+  pie: {
+    donut: {
+      size: '65%',
+      labels: {
+        show: true,
+        total: {
+          show: true, label: 'clientes',
+          color: '#9CA3AF', fontSize: '11px', fontWeight: 400,
+          formatter: w => w.globals.seriesTotals
+            .reduce((a, b) => a + b, 0).toLocaleString('pt-BR'),
+        },
+        value: {
+          fontSize: '22px', fontWeight: 700, color: '#fff', offsetY: 4,
+          formatter: v => (+v).toLocaleString('pt-BR'), // valor ao passar o mouse
+        },
+        name: { fontSize: '11px', color: '#9CA3AF', offsetY: -4 },
+      },
+    },
+  },
+},
+
+/* Rótulos nas fatias */
+plotOptions: { pie: { donut: { size: '55%' }, expandOnClick: false } },
+dataLabels: {
+  enabled: true,
+  formatter: (v, opts) =>
+    opts.w.config.labels[opts.seriesIndex] + '\n' + v.toFixed(1) + '%',
+  style: { fontSize: '11px', fontWeight: 600 },
+  dropShadow: { enabled: false },
+},</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">plotOptions: {
+  pie: {
+    donut: {
+      size: '65%',                         // tamanho do furo (menor = mais gordo)
+      labels: {
+        show: true,
+        total: {
+          show: true,
+          label: 'Total',                  // texto acima do valor
+          color: '#9CA3AF',
+          fontSize: '11px',
+          formatter: w =>                  // soma das séries formatada
+            w.globals.seriesTotals.reduce((a, b) => a + b, 0).toFixed(1) + '%',
+        },
+        value: {
+          fontSize: '24px', fontWeight: 700, color: '#fff',
+          formatter: v => v.toFixed(1) + '%',
+        },
+        name: { fontSize: '11px', color: '#9CA3AF', offsetY: -4 },
+      },
+    },
+    expandOnClick: false,                  // desativa zoom ao clicar fatia
+  },
+},
+dataLabels: {
+  enabled: true,
+  formatter: (v, { seriesIndex, w }) =>
+    w.config.labels[seriesIndex] + '\n' + v.toFixed(1) + '%',
+},
+legend: { position: 'bottom' },           // 'top' | 'right' | 'bottom' | 'left'</pre>
+  </section>
+
+  <!-- ── GRÁFICO: HORIZONTAL ── -->
+  <section class="ds-section" id="chart-horizontal">
+    <h2>Gráfico — Barras Horizontais</h2>
+    <div class="ds-preview ds-preview-dark">
+      <div id="chart-demo-hbar" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">'chart-nome': {
+  type: 'bar',
+  height: 260,
+  series: [{ name: 'Impacto (R$k)', data: [1600, 1020, 500, 400, 280] }],
+  categories: ['H1 · Especialidades', 'H2 · Régua pós-exame', 'H4 · Pós-cirúrgico', 'H3 · Pré-natal', 'H5 · Telemedicina'],
+  colors: ['#EF4444'],
+},
+&lt;!-- Para horizontal adicione no objeto ApexCharts: plotOptions.bar.horizontal: true --&gt;</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">plotOptions: {
+  bar: {
+    horizontal: true,
+    barHeight: '55%',                      // espessura das barras
+    borderRadius: 4,
+    distributed: true,                     // cor diferente por barra
+    dataLabels: { position: 'end' },       // rótulo no final da barra
+  },
+},
+dataLabels: {
+  enabled: true,
+  formatter: v => 'R$' + v.toLocaleString('pt-BR') + 'k',
+  offsetX: -8,
+  style: { fontSize: '11px', colors: ['#fff'] },
+},
+xaxis: { labels: { formatter: v => 'R$' + v + 'k' } },</pre>
+  </section>
+
+  <!-- ── GRÁFICO: RADIAL BAR ── -->
+  <section class="ds-section" id="chart-radial">
+    <h2>Gráfico — Radial Bar</h2>
+    <div class="ds-note">Barra circular com o valor no centro. Ideal para taxas, metas e KPIs com um número de destaque. Múltiplas séries aparecem como anéis concêntricos.</div>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">Único (taxa / meta)</div>
+        <div class="ds-preview ds-preview-dark" style="max-width:300px">
+          <div id="chart-demo-radial1" class="chart-wrap"></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Múltiplos (anéis concêntricos)</div>
+        <div class="ds-preview ds-preview-dark" style="max-width:300px">
+          <div id="chart-demo-radial2" class="chart-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">/* Único */
+new ApexCharts(document.getElementById('chart-nome'), {
+  chart: { type: 'radialBar', height: 260, background: 'transparent',
+           fontFamily: "'Exo 2', sans-serif", toolbar: { show: false } },
+  series: [67.8],
+  labels: ['Taxa de retorno'],
+  colors: ['#8B5CF6'],
+  plotOptions: {
+    radialBar: {
+      hollow: { size: '62%' },
+      dataLabels: {
+        value: { fontSize: '28px', fontWeight: 900, color: '#fff', offsetY: 4 },
+        name:  { fontSize: '11px', color: '#9CA3AF', offsetY: 20 },
+      },
+    },
+  },
+  theme: { mode: 'dark' },
+  tooltip: { theme: 'dark' },
+}).render();
+
+/* Múltiplos (anéis) */
+series: [67.8, 42.3, 19.5],
+labels: ['Retorno', 'Cross-sell', 'Basket'],
+colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+plotOptions: { radialBar: { hollow: { size: '30%' } } }</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">plotOptions: {
+  radialBar: {
+    startAngle: -135, endAngle: 135,       // arco parcial estilo gauge
+    hollow: {
+      size: '62%',                         // tamanho do furo
+      background: 'transparent',
+    },
+    track: {
+      background: 'rgba(255,255,255,.07)', // trilha de fundo
+      strokeWidth: '100%',
+    },
+    dataLabels: {
+      name:  { fontSize: '11px', color: '#9CA3AF', offsetY: -8 },
+      value: {
+        fontSize: '28px', fontWeight: 900, color: '#fff', offsetY: 4,
+        formatter: v => v + '%',           // formatar valor central
+      },
+      total: {                             // label central (múltiplos anéis)
+        show: true, label: 'Médio',
+        formatter: () => '43,2%',
+      },
+    },
+  },
+},</pre>
+  </section>
+
+  <!-- ── GRÁFICO: DISPERSÃO ── -->
+  <section class="ds-section" id="chart-scatter">
+    <h2>Gráfico — Dispersão (Scatter)</h2>
+    <div class="ds-note">Correlação entre duas variáveis contínuas. Use <code>buildTrendSeries(pts, type)</code> para sobrepor linha de tendência com R² automático. Tipos suportados: <code>'linear'</code>, <code>'exp'</code>, <code>'log'</code>, <code>'pow'</code>.</div>
+    <div class="ds-col2">
+      <div>
+        <div class="ds-label">Sem linha de tendência</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-scatter" class="chart-wrap"></div>
+        </div>
+      </div>
+      <div>
+        <div class="ds-label">Com linha de tendência (linear)</div>
+        <div class="ds-preview ds-preview-dark">
+          <div id="chart-demo-scatter-trend" class="chart-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <pre class="ds-code">/* ── Helper: regressão + linha de tendência ── */
+function calcR2(pts, fn) {
+  const my = pts.reduce((s,[,y])=>s+y,0)/pts.length;
+  return 1 - pts.reduce((s,[x,y])=>s+(y-fn(x))**2,0)
+             / pts.reduce((s,[,y])=>s+(y-my)**2,0);
+}
+function trendLinear(pts) {
+  const n=pts.length, sx=pts.reduce((s,[x])=>s+x,0), sy=pts.reduce((s,[,y])=>s+y,0),
+        sxy=pts.reduce((s,[x,y])=>s+x*y,0), sx2=pts.reduce((s,[x])=>s+x*x,0);
+  const m=(n*sxy-sx*sy)/(n*sx2-sx*sx), b=(sy-m*sx)/n;
+  return { fn:x=>m*x+b, label:'Linear' };
+}
+function trendExp(pts) {  /* y = a·eˣᵇ  — requer y > 0 */
+  const lp=pts.filter(([,y])=>y>0).map(([x,y])=>[x,Math.log(y)]);
+  const {fn:lf}=trendLinear(lp); return { fn:x=>Math.exp(lf(x)), label:'Exponencial' };
+}
+function trendLog(pts) {  /* y = a·ln(x) + b  — requer x > 0 */
+  const lp=pts.filter(([x])=>x>0).map(([x,y])=>[Math.log(x),y]);
+  const {fn:lf}=trendLinear(lp); return { fn:x=>lf(Math.log(x)), label:'Logarítmica' };
+}
+function trendPow(pts) {  /* y = a·xᵇ  — requer x,y > 0 */
+  const lp=pts.filter(([x,y])=>x>0&&y>0).map(([x,y])=>[Math.log(x),Math.log(y)]);
+  const {fn:lf}=trendLinear(lp); return { fn:x=>Math.exp(lf(Math.log(x))), label:'Potência' };
+}
+
+// Gera a série ApexCharts da linha de tendência
+function buildTrendSeries(pts, type='linear', steps=60) {
+  const fns = { linear:trendLinear, exp:trendExp, log:trendLog, pow:trendPow };
+  const {fn, label} = (fns[type]||trendLinear)(pts);
+  const r2 = calcR2(pts, fn);
+  const xs=pts.map(([x])=>x), xMin=Math.min(...xs), xMax=Math.max(...xs), dx=(xMax-xMin)/(steps-1);
+  const data=[];
+  for(let i=0;i<steps;i++){const x=xMin+i*dx,y=fn(x);if(isFinite(y))data.push([+x.toFixed(1),+y.toFixed(2)]);}
+  return { name:`${label} (R² = ${r2.toFixed(2)})`, type:'line', data };
+}
+
+/* ── Uso no gráfico ── */
+const d1 = [[210,72],[340,81],[180,65],[420,88],[290,75],[510,91],[380,84],[260,70]];
+const d2 = [[90,38],[150,45],[240,52],[130,41],[200,48],[310,55],[170,43],[280,50]];
+
+new ApexCharts(document.getElementById('chart-nome'), {
+  chart: { type: 'line', height: 300, background:'transparent',
+           fontFamily:"'Exo 2',sans-serif", toolbar:{show:false} },
+  theme: { mode:'dark' },
+  series: [
+    { name:'Cesta (basket)', type:'scatter', data: d1 },
+    { name:'Compra única',   type:'scatter', data: d2 },
+    buildTrendSeries([...d1,...d2], 'linear'),  // 'linear' | 'exp' | 'log' | 'pow'
+  ],
+  xaxis: { title:{text:'LTV 12M (R$)',style:{color:'#9CA3AF'}}, labels:{style:{colors:'#9CA3AF'}}, tickAmount:6 },
+  yaxis: { title:{text:'Retorno (%)',style:{color:'#9CA3AF'}}, labels:{style:{colors:'#9CA3AF'}} },
+  colors: ['#8B5CF6','#10B981','rgba(255,255,255,.5)'],
+  stroke: { width:[0,0,2], curve:'straight', dashArray:[0,0,6] },
+  markers: { size:[7,7,0], strokeWidth:0 },
+  grid: { borderColor:'rgba(255,255,255,.07)', strokeDashArray:3 },
+  legend: { labels:{colors:'#B8BEC8'} },
+  tooltip: { theme:'dark', x:{formatter:v=>'LTV: R$'+v}, y:{formatter:v=>v+'%'} },
+}).render();</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">markers: {
+  size: [7, 7, 0],               // tamanho por série (0 = sem marcador na tendência)
+  strokeWidth: 0,                // sem borda nos pontos
+  hover: { sizeOffset: 3 },
+},
+annotations: {                   // linhas de referência cruzadas
+  xaxis: [{ x: 300, borderColor: '#9CA3AF',
+    label: { text: 'Mediana LTV', style: { color: '#fff', background: '#374151' } } }],
+  yaxis: [{ y: 55, borderColor: '#9CA3AF',
+    label: { text: 'Mediana retorno' } }],
+},
+// Linha de tendência — veja helper buildTrendSeries() acima
+// buildTrendSeries(pts, 'linear')  → regressão linear
+// buildTrendSeries(pts, 'exp')     → exponencial   (y > 0)
+// buildTrendSeries(pts, 'log')     → logarítmica   (x > 0)
+// buildTrendSeries(pts, 'pow')     → potência      (x,y > 0)</pre>
+  </section>
+
+  <!-- ── GRÁFICO: RADAR ── -->
+  <section class="ds-section" id="chart-radar">
+    <h2>Gráfico — Radar</h2>
+    <div class="ds-note">Perfil multidimensional. Use para comparar segmentos em múltiplos critérios (ex: LTV, retorno, ticket, conversão, risco). Máximo de 6–8 dimensões para legibilidade.</div>
+    <div class="ds-preview ds-preview-dark" style="max-width:480px">
+      <div id="chart-demo-radar" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">/* chartDefs não suporta radar — inicialize diretamente: */
+new ApexCharts(document.getElementById('chart-nome'), {
+  chart: { type: 'radar', height: 300, background: 'transparent',
+           fontFamily: "'Exo 2', sans-serif", toolbar: { show: false } },
+  theme: { mode: 'dark' },
+  series: [
+    { name: 'Cesta (basket)',  data: [88, 72, 65, 91, 54, 78] },
+    { name: 'Compra única',   data: [45, 38, 52, 41, 80, 35] },
+  ],
+  xaxis: { categories: ['LTV', 'Retorno', 'Ticket', 'Conversão', 'Risco', 'Upside'] },
+  colors: ['#8B5CF6', '#10B981'],
+  stroke: { width: 2 },
+  fill: { opacity: 0.1 },
+  markers: { size: 4 },
+  yaxis: { show: false },
+  legend: { labels: { colors: '#B8BEC8' } },
+  tooltip: { theme: 'dark' },
+}).render();</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">stroke: { width: 2 },
+fill: { opacity: 0.12 },                   // transparência da área preenchida
+markers: { size: 4 },
+yaxis: { show: false },                    // esconde valores radiais internos
+xaxis: {
+  labels: { style: { colors: '#9CA3AF', fontSize: '11px' } },
+},
+plotOptions: {
+  radar: {
+    polygons: {
+      strokeColors: 'rgba(255,255,255,.08)',
+      fill: { colors: ['transparent', 'rgba(255,255,255,.02)'] }, // faixas alternadas
+    },
+  },
+},</pre>
+  </section>
+
+  <!-- ── GRÁFICO: TREEMAP ── -->
+  <section class="ds-section" id="chart-treemap">
+    <h2>Gráfico — Treemap</h2>
+    <div class="ds-note">Representa dados proporcionais com retângulos dimensionados por valor. Ideal para participação de mercado, distribuição de receita por grupo ou composição de portfólio.</div>
+    <div class="ds-preview ds-preview-dark">
+      <div id="chart-demo-treemap" class="chart-wrap"></div>
+    </div>
+    <pre class="ds-code">/* chartDefs não suporta treemap — inicialize diretamente: */
+new ApexCharts(document.getElementById('chart-nome'), {
+  chart: { type: 'treemap', height: 280, background: 'transparent',
+           fontFamily: "'Exo 2', sans-serif", toolbar: { show: false } },
+  theme: { mode: 'dark' },
+  series: [{
+    data: [
+      { x: 'Exames e Diagnóstico',  y: 52596 },
+      { x: 'Especialidades',        y: 31204 },
+      { x: 'Cuidados Preventivos',  y: 18900 },
+      { x: 'Saúde Mental',          y: 12400 },
+      { x: 'Alta Complexidade',     y: 9800  },
+      { x: 'Odontologia',           y: 8200  },
+      { x: 'Saúde Reprodutiva',     y: 6100  },
+      { x: 'Telemedicina',          y: 4900  },
+    ],
+  }],
+  colors: ['#8B5CF6'],
+  plotOptions: { treemap: { distributed: true, enableShades: true } },
+  dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 600 } },
+  tooltip: { theme: 'dark' },
+}).render();</pre>
+    <h3>Parâmetros úteis</h3>
+    <pre class="ds-code">plotOptions: {
+  treemap: {
+    distributed: true,             // true → cor diferente por célula
+    enableShades: true,            // variação de tom por valor dentro da cor
+    colorScale: {                  // alternativa: escala de cor por faixa de valor
+      ranges: [
+        { from: 0,     to: 10000, color: '#8B5CF6' },
+        { from: 10001, to: 40000, color: '#5B21B6' },
+        { from: 40001, to: 99999, color: '#3B0764' },
+      ],
+    },
+  },
+},
+dataLabels: {
+  enabled: true,
+  style: { fontSize: '11px', fontWeight: 600 },
+  formatter: (text, op) => [text, op.value.toLocaleString('pt-BR')], // 2 linhas
+},
+tooltip: {
+  y: { formatter: v => v.toLocaleString('pt-BR') + ' clientes' },
+},</pre>
+  </section>
+
+</main>
+
+<script>
+// ── Shared chart options ──
+const baseOpts = {
+  chart: { background: 'transparent', fontFamily: "'Exo 2', system-ui, sans-serif", toolbar: { show: false } },
+  theme: { mode: 'dark' },
+  grid: { borderColor: 'rgba(255,255,255,.07)', strokeDashArray: 3 },
+  tooltip: { theme: 'dark' },
+  legend: { labels: { colors: '#B8BEC8' } },
+  dataLabels: { enabled: false },
+};
+
+// Bar
+new ApexCharts(document.getElementById('chart-demo-bar'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'bar', height: 240 },
+  series: [
+    { name: 'Positivação %', data: [42, 58, 71, 89] },
+    { name: 'Retorno %', data: [28, 35, 49, 61] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+  colors: ['#8B5CF6', '#10B981'],
+  plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+}).render();
+
+// Line
+new ApexCharts(document.getElementById('chart-demo-line'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'line', height: 240 },
+  series: [
+    { name: 'LTV 12M (R$)', data: [210, 245, 290, 320] },
+    { name: 'Ticket médio (R$)', data: [95, 108, 124, 138] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+  colors: ['#8B5CF6', '#F59E0B'],
+  stroke: { width: 3, curve: 'smooth' },
+  markers: { size: 5 },
+}).render();
+
+// Donut simples
+new ApexCharts(document.getElementById('chart-demo-donut'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'donut', height: 220 },
+  series: [67.8, 23.2, 9.0],
+  labels: ['Exames e Diagnóstico', 'Especialidades', 'Outros grupos'],
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+  plotOptions: { pie: { donut: { size: '65%' } } },
+}).render();
+
+// Donut com total no centro (valores absolutos — total é significativo)
+new ApexCharts(document.getElementById('chart-demo-donut-total'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'donut', height: 220 },
+  series: [52596, 31204, 16200],
+  labels: ['Exames e Diagnóstico', 'Especialidades', 'Outros grupos'],
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+  plotOptions: {
+    pie: {
+      donut: {
+        size: '65%',
+        labels: {
+          show: true,
+          total: {
+            show: true,
+            label: 'clientes',
+            color: '#9CA3AF',
+            fontSize: '11px',
+            fontWeight: 400,
+            formatter: w => w.globals.seriesTotals
+              .reduce((a, b) => a + b, 0)
+              .toLocaleString('pt-BR'),
+          },
+          value: {
+            fontSize: '22px', fontWeight: 700, color: '#fff', offsetY: 4,
+            formatter: v => (+v).toLocaleString('pt-BR'),
+          },
+          name: { fontSize: '11px', color: '#9CA3AF', offsetY: -4 },
+        },
+      },
+    },
+  },
+  tooltip: { theme: 'dark', y: { formatter: v => v.toLocaleString('pt-BR') + ' clientes' } },
+}).render();
+
+// Donut com rótulos nas fatias
+new ApexCharts(document.getElementById('chart-demo-donut-labels'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'donut', height: 220 },
+  series: [67.8, 23.2, 9.0],
+  labels: ['Exames', 'Especialidades', 'Outros'],
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+  plotOptions: { pie: { donut: { size: '55%' }, expandOnClick: false } },
+  dataLabels: {
+    enabled: true,
+    formatter: (v, opts) =>
+      opts.w.config.labels[opts.seriesIndex] + '\n' + v.toFixed(1) + '%',
+    style: { fontSize: '11px', fontWeight: 600 },
+    dropShadow: { enabled: false },
+  },
+  legend: { show: false },
+}).render();
+
+// Stacked bar
+new ApexCharts(document.getElementById('chart-demo-stacked'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'bar', height: 220, stacked: true },
+  series: [
+    { name: 'Exames',        data: [52, 61, 70, 78] },
+    { name: 'Especialidades',data: [28, 34, 41, 49] },
+    { name: 'Outros',        data: [14, 18, 22, 27] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+  plotOptions: { bar: { borderRadius: 0, columnWidth: '55%' } },
+}).render();
+
+// Stacked 100%
+new ApexCharts(document.getElementById('chart-demo-stacked100'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'bar', height: 220, stacked: true, stackType: '100%' },
+  series: [
+    { name: 'Exames',        data: [52, 61, 70, 78] },
+    { name: 'Especialidades',data: [28, 34, 41, 49] },
+    { name: 'Outros',        data: [14, 18, 22, 27] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: { labels: { style: { colors: '#9CA3AF' }, formatter: v => v + '%' } },
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+  plotOptions: { bar: { borderRadius: 0, columnWidth: '55%' } },
+}).render();
+
+// Area
+new ApexCharts(document.getElementById('chart-demo-area'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'area', height: 240 },
+  series: [
+    { name: 'Clientes ativos', data: [142, 155, 163, 171] },
+    { name: 'Clientes retidos', data: [68, 79, 91, 108] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+  colors: ['#8B5CF6', '#10B981'],
+  stroke: { curve: 'smooth', width: 2 },
+  fill: { type: 'gradient', gradient: { opacityFrom: 0.25, opacityTo: 0 } },
+}).render();
+
+// Mixed bar + line
+new ApexCharts(document.getElementById('chart-demo-mixed'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'bar', height: 260 },
+  series: [
+    { name: 'Receita (R$k)', type: 'bar',  data: [380, 420, 510, 590] },
+    { name: 'Crescimento %', type: 'line', data: [null, 10.5, 21.4, 15.7] },
+  ],
+  xaxis: { categories: ['2022', '2023', '2024', '2025'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: [
+    { labels: { style: { colors: '#9CA3AF' } } },
+    { opposite: true, labels: { style: { colors: '#9CA3AF' }, formatter: v => v + '%' } },
+  ],
+  colors: ['#8B5CF6', '#10B981'],
+  stroke: { width: [0, 3] },
+  plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+}).render();
+
+// Radial bar — único
+new ApexCharts(document.getElementById('chart-demo-radial1'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'radialBar', height: 260 },
+  series: [67.8],
+  labels: ['Taxa de retorno'],
+  colors: ['#8B5CF6'],
+  plotOptions: {
+    radialBar: {
+      hollow: { size: '62%', background: 'transparent' },
+      track: { background: 'rgba(255,255,255,.07)' },
+      dataLabels: {
+        value: { fontSize: '28px', fontWeight: 900, color: '#fff', offsetY: 4, formatter: v => v + '%' },
+        name:  { fontSize: '11px', color: '#9CA3AF', offsetY: 20 },
+      },
+    },
+  },
+}).render();
+
+// Radial bar — múltiplos
+new ApexCharts(document.getElementById('chart-demo-radial2'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'radialBar', height: 260 },
+  series: [67.8, 42.3, 19.5],
+  labels: ['Retorno', 'Cross-sell', 'Basket'],
+  colors: ['#8B5CF6', '#10B981', '#F59E0B'],
+  plotOptions: {
+    radialBar: {
+      hollow: { size: '25%', background: 'transparent' },
+      track: { background: 'rgba(255,255,255,.07)' },
+      dataLabels: {
+        total: {
+          show: true, label: 'Médio',
+          fontSize: '13px', color: '#9CA3AF',
+          formatter: () => '43,2%',
+        },
+        value: { fontSize: '13px', fontWeight: 700, color: '#fff', formatter: v => v + '%' },
+        name:  { fontSize: '10px', color: '#9CA3AF' },
+      },
+    },
+  },
+}).render();
+
+// ── Regression helpers ──
+function calcR2(pts, fn) {
+  const my = pts.reduce((s,[,y])=>s+y,0)/pts.length;
+  return 1 - pts.reduce((s,[x,y])=>s+(y-fn(x))**2,0) / pts.reduce((s,[,y])=>s+(y-my)**2,0);
+}
+function trendLinear(pts) {
+  const n=pts.length, sx=pts.reduce((s,[x])=>s+x,0), sy=pts.reduce((s,[,y])=>s+y,0),
+        sxy=pts.reduce((s,[x,y])=>s+x*y,0), sx2=pts.reduce((s,[x])=>s+x*x,0);
+  const m=(n*sxy-sx*sy)/(n*sx2-sx*sx), b=(sy-m*sx)/n;
+  return { fn:x=>m*x+b, label:'Linear' };
+}
+function trendExp(pts) {
+  const lp=pts.filter(([,y])=>y>0).map(([x,y])=>[x,Math.log(y)]);
+  const {fn:lf}=trendLinear(lp); return { fn:x=>Math.exp(lf(x)), label:'Exponencial' };
+}
+function trendLog(pts) {
+  const lp=pts.filter(([x])=>x>0).map(([x,y])=>[Math.log(x),y]);
+  const {fn:lf}=trendLinear(lp); return { fn:x=>lf(Math.log(x)), label:'Logarítmica' };
+}
+function trendPow(pts) {
+  const lp=pts.filter(([x,y])=>x>0&&y>0).map(([x,y])=>[Math.log(x),Math.log(y)]);
+  const {fn:lf}=trendLinear(lp); return { fn:x=>Math.exp(lf(Math.log(x))), label:'Potência' };
+}
+function buildTrendSeries(pts, type='linear', steps=60) {
+  const fns={linear:trendLinear,exp:trendExp,log:trendLog,pow:trendPow};
+  const {fn,label}=(fns[type]||trendLinear)(pts);
+  const r2=calcR2(pts,fn);
+  const xs=pts.map(([x])=>x),xMin=Math.min(...xs),xMax=Math.max(...xs),dx=(xMax-xMin)/(steps-1);
+  const data=[];
+  for(let i=0;i<steps;i++){const x=xMin+i*dx,y=fn(x);if(isFinite(y))data.push([+x.toFixed(1),+y.toFixed(2)]);}
+  return {name:`${label} (R² = ${r2.toFixed(2)})`,type:'line',data};
+}
+
+const scatterD1=[[210,72],[340,81],[180,65],[420,88],[290,75],[510,91],[380,84],[260,70]];
+const scatterD2=[[90,38],[150,45],[240,52],[130,41],[200,48],[310,55],[170,43],[280,50]];
+const scatterOpts = {
+  xaxis: { title:{text:'LTV 12M (R$)',style:{color:'#9CA3AF'}}, labels:{style:{colors:'#9CA3AF'}}, tickAmount:6 },
+  yaxis: { title:{text:'Retorno (%)',style:{color:'#9CA3AF'}}, labels:{style:{colors:'#9CA3AF'}} },
+  tooltip: { theme:'dark', x:{formatter:v=>'LTV: R$'+v}, y:{formatter:v=>v+'%'} },
+};
+
+// Scatter simples
+new ApexCharts(document.getElementById('chart-demo-scatter'), {
+  ...baseOpts, ...scatterOpts,
+  chart: { ...baseOpts.chart, type:'scatter', height:280 },
+  series: [
+    { name:'Cesta (basket)', data:scatterD1 },
+    { name:'Compra única',   data:scatterD2 },
+  ],
+  colors: ['#8B5CF6','#10B981'],
+  markers: { size:7, strokeWidth:0 },
+}).render();
+
+// Scatter + trend line
+new ApexCharts(document.getElementById('chart-demo-scatter-trend'), {
+  ...baseOpts, ...scatterOpts,
+  chart: { ...baseOpts.chart, type:'line', height:280 },
+  series: [
+    { name:'Cesta (basket)', type:'scatter', data:scatterD1 },
+    { name:'Compra única',   type:'scatter', data:scatterD2 },
+    buildTrendSeries([...scatterD1,...scatterD2], 'linear'),
+  ],
+  colors: ['#8B5CF6','#10B981','rgba(255,255,255,.5)'],
+  stroke: { width:[0,0,2], curve:'straight', dashArray:[0,0,6] },
+  markers: { size:[7,7,0], strokeWidth:0 },
+}).render();
+
+// Radar
+new ApexCharts(document.getElementById('chart-demo-radar'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'radar', height: 300 },
+  series: [
+    { name: 'Cesta (basket)', data: [88, 72, 65, 91, 54, 78] },
+    { name: 'Compra única',   data: [45, 38, 52, 41, 80, 35] },
+  ],
+  xaxis: { categories: ['LTV', 'Retorno', 'Ticket', 'Conversão', 'Risco', 'Upside'] },
+  colors: ['#8B5CF6', '#10B981'],
+  stroke: { width: 2 },
+  fill: { opacity: 0.1 },
+  markers: { size: 4 },
+  yaxis: { show: false },
+}).render();
+
+// Treemap
+new ApexCharts(document.getElementById('chart-demo-treemap'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'treemap', height: 280 },
+  series: [{ data: [
+    { x: 'Exames e Diagnóstico', y: 52596 },
+    { x: 'Especialidades',       y: 31204 },
+    { x: 'Cuidados Preventivos', y: 18900 },
+    { x: 'Saúde Mental',         y: 12400 },
+    { x: 'Alta Complexidade',    y: 9800  },
+    { x: 'Odontologia',          y: 8200  },
+    { x: 'Saúde Reprodutiva',    y: 6100  },
+    { x: 'Telemedicina',         y: 4900  },
+  ]}],
+  colors: ['#8B5CF6'],
+  plotOptions: { treemap: { distributed: true, enableShades: true } },
+  dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 600 } },
+}).render();
+
+// Horizontal bar
+new ApexCharts(document.getElementById('chart-demo-hbar'), {
+  ...baseOpts,
+  chart: { ...baseOpts.chart, type: 'bar', height: 260 },
+  series: [{ name: 'Impacto estimado (R$k)', data: [1600, 1020, 500, 400, 280] }],
+  xaxis: { categories: ['H1 · Especialidades', 'H2 · Régua pós-exame', 'H4 · Pós-cirúrgico', 'H3 · Pré-natal', 'H5 · Telemedicina'], labels: { style: { colors: '#9CA3AF' } } },
+  yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+  colors: ['#EF4444'],
+  plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } },
+}).render();
+
+// Nav highlight on scroll
+const sections = document.querySelectorAll('.ds-section');
+const links = document.querySelectorAll('.ds-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+
+// ── Scroll progress bar ──
+const progressWrap = document.createElement('div');
+progressWrap.className = 'ds-progress';
+const progressBar = document.createElement('div');
+progressBar.className = 'ds-progress-bar';
+progressWrap.appendChild(progressBar);
+document.body.appendChild(progressWrap);
+window.addEventListener('scroll', () => {
+  const el = document.documentElement;
+  progressBar.style.width = (el.scrollTop / (el.scrollHeight - el.clientHeight) * 100) + '%';
+}, { passive: true });
+
+// ── Copy buttons on code blocks ──
+document.querySelectorAll('.ds-code').forEach(block => {
+  const wrap = document.createElement('div');
+  wrap.className = 'ds-code-wrap';
+  block.parentNode.insertBefore(wrap, block);
+  wrap.appendChild(block);
+  const btn = document.createElement('button');
+  btn.className = 'ds-copy';
+  btn.textContent = 'copiar';
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(block.textContent).then(() => {
+      btn.textContent = 'copiado!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copiar'; btn.classList.remove('copied'); }, 1800);
+    });
+  });
+  wrap.appendChild(btn);
+});
+
+// ── Keyboard shortcuts modal ──
+const overlay = document.createElement('div');
+overlay.className = 'ks-overlay';
+overlay.innerHTML = `<div class="ks-modal">
+  <h3>Atalhos de teclado</h3>
+  <div class="ks-row"><span>Próxima seção</span><span class="ks-keys"><kbd>→</kbd><kbd>↓</kbd></span></div>
+  <div class="ks-row"><span>Seção anterior</span><span class="ks-keys"><kbd>←</kbd><kbd>↑</kbd></span></div>
+  <div class="ks-row"><span>Primeira seção</span><span class="ks-keys"><kbd>Home</kbd></span></div>
+  <div class="ks-row"><span>Última seção</span><span class="ks-keys"><kbd>End</kbd></span></div>
+  <div class="ks-row"><span>Topo da página</span><span class="ks-keys"><kbd>T</kbd></span></div>
+  <div class="ks-row"><span>Copiar código da seção</span><span class="ks-keys"><kbd>C</kbd></span></div>
+  <div class="ks-row"><span>Fechar</span><span class="ks-keys"><kbd>Esc</kbd></span></div>
+  <div class="ks-row"><span>Este painel</span><span class="ks-keys"><kbd>?</kbd></span></div>
+</div>`;
+document.body.appendChild(overlay);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeHelp(); });
+function openHelp()  { overlay.classList.add('open'); }
+function closeHelp() { overlay.classList.remove('open'); }
+function toggleHelp(){ overlay.classList.toggle('open'); }
+
+// ── Help hint (bottom-right) ──
+const hint = document.createElement('div');
+hint.className = 'ds-kb-hint';
+hint.innerHTML = '<kbd>?</kbd> atalhos';
+hint.addEventListener('click', toggleHelp);
+document.body.appendChild(hint);
+
+// ── Section navigation ──
+const allSections = [...document.querySelectorAll('.ds-section')];
+
+function isEditing() {
+  const t = document.activeElement?.tagName;
+  return t === 'INPUT' || t === 'TEXTAREA' || document.activeElement?.isContentEditable;
+}
+
+function activeSectionIdx() {
+  let best = 0;
+  allSections.forEach((s, i) => {
+    const top = s.getBoundingClientRect().top;
+    if (top <= window.innerHeight * 0.6 && top >= allSections[best].getBoundingClientRect().top) best = i;
+  });
+  return best;
+}
+
+function goToSection(idx) {
+  idx = Math.max(0, Math.min(idx, allSections.length - 1));
+  allSections[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.addEventListener('keydown', e => {
+  if (overlay.classList.contains('open')) {
+    if (e.key === 'Escape') closeHelp();
+    return;
+  }
+  if (isEditing()) return;
+  switch (e.key) {
+    case 'ArrowRight':
+    case 'ArrowDown':
+      e.preventDefault();
+      goToSection(activeSectionIdx() + 1);
+      break;
+    case 'ArrowLeft':
+    case 'ArrowUp':
+      e.preventDefault();
+      goToSection(activeSectionIdx() - 1);
+      break;
+    case 'Home':
+      e.preventDefault();
+      goToSection(0);
+      break;
+    case 'End':
+      e.preventDefault();
+      goToSection(allSections.length - 1);
+      break;
+    case 't':
+    case 'T':
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      break;
+    case 'c':
+    case 'C': {
+      const idx = activeSectionIdx();
+      const codeEl = allSections[idx]?.querySelector('.ds-code');
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent).then(() => {
+          const btn = allSections[idx].querySelector('.ds-copy');
+          if (btn) {
+            btn.textContent = 'copiado!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = 'copiar'; btn.classList.remove('copied'); }, 1800);
+          }
+        });
+      }
+      break;
+    }
+    case '?':
+      openHelp();
+      break;
+    case 'Escape':
+      closeHelp();
+      break;
+  }
+});
+</script>
+</body>
+</html>
