@@ -216,9 +216,9 @@ Use o **Write tool** para criar dois arquivos temporários com o conteúdo gerad
 Em seguida, rode o PowerShell abaixo substituindo os valores literais de `{{TITLE}}`, `{{THEME}}` e `{{FILENAME}}` diretamente na linha de comando:
 
 ```powershell
-$shell   = Get-Content '.claude\skills\components\tools\shell-element.html' -Raw
-$content = Get-Content 'temp\_el-content.html' -Raw
-$charts  = Get-Content 'temp\_el-charts.js'   -Raw
+$shell   = Get-Content '.claude\skills\components\tools\shell-element.html' -Raw -Encoding UTF8
+$content = Get-Content 'temp\_el-content.html' -Raw -Encoding UTF8
+$charts  = Get-Content 'temp\_el-charts.js'   -Raw -Encoding UTF8
 $out = $shell `
   .Replace('{{TITLE}}',      'Título do Elemento') `
   .Replace('{{THEME}}',      'light') `
@@ -235,6 +235,17 @@ Remove-Item 'temp\_el-content.html','temp\_el-charts.js' -ErrorAction SilentlyCo
 ```
 
 > `.Replace()` é método .NET literal — sem problemas com aspas, tags HTML ou caracteres especiais no conteúdo.
+
+**1-pager com múltiplas seções** (mais eficiente em tokens): em vez de um único `_el-content.html`, crie um arquivo por seção + `_el-map.md`. Monte `$content` concatenando no PowerShell:
+
+```powershell
+$hdr = Get-Content 'temp\_el-header.html' -Raw -Encoding UTF8
+$s1  = Get-Content 'temp\_el-s1.html'     -Raw -Encoding UTF8
+$s2  = Get-Content 'temp\_el-s2.html'     -Raw -Encoding UTF8
+$content = '<div class="content" style="gap:24px">' + $hdr + $s1 + $s2 + '</div>'
+```
+
+Vantagem: para editar uma seção basta `Read` + `Write` daquele arquivo — sem tocar nas demais seções. Ao iterar sobre o conteúdo, omitir o `Remove-Item` final para manter os arquivos de seção no `temp/`.
 
 ---
 

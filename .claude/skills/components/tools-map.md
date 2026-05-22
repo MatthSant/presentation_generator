@@ -293,3 +293,42 @@ Variações aceitas:
 - Entre def-steps: `<div class="def-divider"></div>`
 - Entre mdef-blocks: `<div class="mdef-divider"></div>`
 - **Nunca** usar `<hr>` ou `border-top` inline como separador
+
+---
+
+## Elementos interativos (shell-element.html)
+
+> Estes componentes só existem no shell de elementos isolados (`shell-element.html`). **Não usar em slides Reveal.js.**
+
+### `.ic` — Insight Card (clicável)
+**Quando usar:** afirmação ou achado que merece detalhe — o card exibe a síntese; o clique abre o modal com análise completa.
+**Posicionamento:** substitui ou complementa um `find-block` quando o conteúdo de suporte é denso (gráfico + tabela + texto).
+**Regra:** `data-modal` deve conter o `id` exato do `.ic-overlay` correspondente.
+
+```html
+<div class="ic" data-modal="id-do-modal">
+  <span class="ic-label">Achado</span>
+  <span class="ic-text">Frase declarativa do insight — síntese que aparece no card.</span>
+  <span class="ic-caret">ver análise ↗</span>
+</div>
+```
+
+### `.ic-overlay` — Modal de detalhe
+**Quando usar:** par obrigatório de cada `.ic`. Posicionar fora do card pai (diretamente no fluxo do documento), **nunca** aninhado dentro do `<div class="card">` que contém o `.ic`.
+**Fechar:** clique no `×` (`data-ic-close`), clique fora do dialog (no overlay escuro), ou tecla Escape.
+**Gráficos dentro do modal:** usar `opacity:0; pointer-events:none` no overlay (já é o padrão) — os gráficos renderizam no load com dimensões reais, sem precisar de resize ao abrir.
+
+```html
+<div class="ic-overlay" id="id-do-modal">
+  <div class="ic-dialog">
+    <div class="ic-dialog-hd">
+      <div class="ic-dialog-title">Título descritivo do modal</div>
+      <button class="ic-close" data-ic-close>&#215;</button>
+    </div>
+    <!-- conteúdo: hl, row, find-blocks, chart-wrap, tw > table -->
+  </div>
+</div>
+```
+
+**CSS e JS:** nativos no `shell-element.html` — não é necessário adicionar nada ao `_el-header.html` ou `_el-scripts.html`.
+**Largura do dialog:** `min(820px, 100%)` — responsivo por padrão.
