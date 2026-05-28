@@ -312,12 +312,12 @@ Para cada seção no plano aprovado, executar este ciclo completo antes de passa
 ② Escrever temp\[SLUG]\calc_sXX.py
 ③ py -3 temp\[SLUG]\calc_sXX.py   → números no terminal
 ④ Apresentar achados no chat (números, padrões, anomalias)
-⑤ Escrever temp\[SLUG]\_el-sXX.html  (fragmento HTML puro)
+⑤ Escrever output\[SLUG]\sXX.json  (typed blocks — ver schema abaixo)
 ⑥ Atualizar plano_analise.md: marcar [x] na seção concluída
 ⑦ Só então iniciar a próxima seção
 ```
 
-**Nunca pular etapas.** Se o Python retornar erro, diagnosticar e corrigir antes de escrever o HTML.
+**Nunca pular etapas.** Se o Python retornar erro, diagnosticar e corrigir antes de escrever o JSON.
 
 ---
 
@@ -340,7 +340,7 @@ with open(rf'temp\{SLUG}\_txs.json', encoding='utf-8') as f:
 
 # --- cálculos da seção conforme ltv-analysis/sections/SXX.md ---
 
-# Print estruturado — o que vai virar KPIs e gráficos no HTML
+# Print estruturado — o que vai virar KPIs e gráficos no JSON
 print('=== S01 — Perfil da Base ===')
 print(f'n_clientes:       {n_clientes:,}')
 print(f'tx_recompra:      {fmt_pct(tx_recompra)}')
@@ -350,52 +350,93 @@ print(f'ltv_medio:        {fmt_brl(ltv_medio)}')
 
 ---
 
-### Fragmento HTML da seção (`_el-sXX.html`)
+### JSON da seção (`output\[SLUG]\sXX.json`) — typed blocks
 
-Cada arquivo é um **fragmento puro** — sem `<html>`, `<head>` ou `<body>`. Começa diretamente no elemento raiz da seção com os três atributos de navegação obrigatórios:
+A skill **não escreve HTML**. Escreve JSON com blocos tipados que o app renderiza.
+O renderer em `app/public/renderer.js` é o único lugar que conhece classes CSS.
 
-```html
-<div class="card content"
-     id="s01"
-     data-page="visao-geral"
-     data-page-label="Visão Geral"
-     data-report-section="Perfil da Base">
+**Estrutura obrigatória:**
 
-  <div class="slide-hd">
-    <span class="badge badge-p">VISÃO GERAL</span>
-    <h1 class="slide-title">...</h1>
-  </div>
-
-  <div class="mr">
-    <!-- KPI row -->
-  </div>
-
-  <div class="row">
-    <div class="col" style="flex:1.1">
-      <div class="chart-wrap" id="chart-s01-dist"></div>
-    </div>
-    <div class="col" style="flex:.9">
-      <!-- find-blocks -->
-    </div>
-  </div>
-
-</div>
-<!-- modal de detalhamento, se houver, vem AQUI, fora do div raiz -->
-<div class="ic-overlay" id="modal-s01-detail">...</div>
+```json
+{
+  "id": "s01",
+  "page": "visao-geral",
+  "pageLabel": "Visão Geral",
+  "sectionLabel": "Perfil da Base",
+  "header": {
+    "badge": "VISÃO GERAL",
+    "badgeColor": "p",
+    "title": "Base com ",
+    "titleEm": "1.234 clientes ativos"
+  },
+  "blocks": [ ... ],
+  "modals": [ ... ]
+}
 ```
 
-Os `chartDefs` de **todos** os gráficos da seção ficam em `temp\[SLUG]\_charts.js` — um arquivo acumulativo que é atualizado após cada seção:
+**Block types disponíveis:**
 
-```javascript
-// _charts.js — acumular após cada seção; NÃO reescrever o arquivo inteiro
-'chart-s01-dist': {
-  type: 'donut',
-  height: 260,
-  series: [68.2, 20.1, 7.4, 4.3],
-  labels: ['1 compra', '2 compras', '3 compras', '4+'],
-  colors: ['#8B5CF6','#7C3AED','#6D28D9','#4C1D95'],
-},
+| `type` | Campos principais |
+|---|---|
+| `kpi-row` | `items: [{value, label, color}]` |
+| `chart` | `id, chartType, height, series, labels/categories, colors` |
+| `find-block` | `tag, tagColor, title, detail, modal?` |
+| `find-note` | `text, color` |
+| `highlight` | `text, color?` |
+| `ni` | `number, text, color` |
+| `row` | `cols: [{flex, blocks:[]}]` |
+| `g2`/`g3`/`g4` | `items: [{title?, blocks:[]}]` |
+| `heatmap` | `cols:[], rows:[{label, cells:[{value,cls}]}]` |
+| `table` | `headers:[], rows:[[cell,...]]` |
+| `label-sec` | `text, sub?, divider?` |
+
+**Exemplo de seção completa:**
+
+```json
+{
+  "id": "s01",
+  "page": "visao-geral",
+  "pageLabel": "Visão Geral",
+  "sectionLabel": "Perfil da Base",
+  "header": { "badge": "VISÃO GERAL", "badgeColor": "p", "title": "Base com ", "titleEm": "1.234 clientes" },
+  "blocks": [
+    {
+      "type": "kpi-row",
+      "items": [
+        { "value": "1.234",   "label": "Clientes únicos",  "color": "p" },
+        { "value": "34%",     "label": "Taxa de recompra", "color": "g" },
+        { "value": "R$ 1.8k", "label": "LTV médio",        "color": "p" }
+      ]
+    },
+    {
+      "type": "row",
+      "cols": [
+        {
+          "flex": 1.1,
+          "blocks": [
+            { "type": "chart", "id": "chart-s01-dist", "chartType": "donut", "height": 260,
+              "series": [68.2, 20.1, 7.4, 4.3], "labels": ["1 compra","2 compras","3 compras","4+"],
+              "colors": ["#8B5CF6","#7C3AED","#6D28D9","#4C1D95"] },
+            { "type": "find-note", "text": "68% dos clientes comprou apenas uma vez.", "color": "p" }
+          ]
+        },
+        {
+          "flex": 0.9,
+          "blocks": [
+            { "type": "find-block", "tag": "Recompra", "tagColor": "p",
+              "title": "1 em cada 3 clientes voltou a comprar.",
+              "detail": "Taxa de recompra de 34% — acima da média do setor (22%)." }
+          ]
+        }
+      ]
+    }
+  ]
+}
 ```
+
+> **IDs de gráficos:** sempre `chart-sXX-[descricao]` — únicos por seção.  
+> **Cores de `find-block`:** `p` (roxo), `g` (verde), `a` (âmbar), `r` (vermelho).  
+> **`find-note`** vai embaixo do gráfico no mesmo col; `find-block` vai na coluna de insights.
 
 ---
 
@@ -407,36 +448,64 @@ S05 é o único ponto em que a execução para para confirmar com o usuário ant
 2. Propor taxonomia de grupos no chat com justificativa baseada nos dados
 3. `AskUserQuestion` — os nomes e a divisão fazem sentido para o negócio?
 4. Só após aprovação: escrever `norm_produto()` e `norm_grupo()`, salvar em `temp\[SLUG]\norm_functions.py`
-5. Apenas então escrever `_el-s05.html` e seguir
+5. Apenas então escrever `output\[SLUG]\s05.json` e seguir
 
 ---
 
 ### Montagem final — após todas as seções
 
-```powershell
-# 1. Ler shell
-$shell = Get-Content '.claude\skills\components\tools\shell-report.html' -Raw -Encoding UTF8
+Não há montagem HTML. As seções já estão em `output\[SLUG]\sXX.json`.
+Só gerar o `data.json` de navegação:
 
-# 2. Concatenar fragmentos na ordem do plano
-$files   = @('_el-s01','_el-s02','_el-s03','_el-s04',
-             '_el-s05','_el-s06','_el-s07','_el-s08',
-             '_el-s08-[grupo1]', '_el-s08-[grupo2]',   # grupos do portfólio
-             '_el-sp-[dim1]', '_el-sp-[dim2]')         # dimensões de perfil
-$content = ($files | ForEach-Object {
-    Get-Content "temp\[SLUG]\$_.html" -Raw -Encoding UTF8
-}) -join "`n"
+```python
+import json, os, glob
+from datetime import datetime
 
-# 3. Ler chartDefs acumulados
-$charts = Get-Content 'temp\[SLUG]\_charts.js' -Raw -Encoding UTF8
+SLUG       = '[SLUG]'
+NOME       = '[NOME_CLIENTE]'
+OUTPUT_DIR = rf'output\{SLUG}'
 
-# 4. Montar e salvar
-$out = $shell.Replace('{{TITLE}}','Análise de LTV — [NOME_CLIENTE]').Replace('{{THEME}}','light').Replace('{{CONTENT}}',$content).Replace('{{CHART_DEFS}}',$charts)
-New-Item -ItemType Directory -Force 'output\[SLUG]' | Out-Null
-[IO.File]::WriteAllText((Join-Path (Get-Location) 'output\[SLUG]\relatorio-ltv.html'), $out, [Text.Encoding]::UTF8)
-Write-Host 'Relatório montado: output\[SLUG]\relatorio-ltv.html'
+# Estrutura de páginas — derivada do plano_analise.md
+pages = [
+    { "id": "visao-geral", "label": "Visão Geral",
+      "sections": [
+        {"id":"s01","label":"Perfil da Base"},
+        {"id":"s02","label":"Faturamento e Ticket"},
+        {"id":"s03","label":"LTV por Safra"},
+        {"id":"s04","label":"Progressão de LTV"},
+      ]
+    },
+    { "id": "produtos", "label": "Por Produto",
+      "sections": [
+        {"id":"s05","label":"Segmentação por Grupo"},
+        # ... adicionar grupos e seções de perfil conforme plano
+      ]
+    },
+]
+# Filtrar só seções cujo arquivo existe
+for page in pages:
+    page["sections"] = [s for s in page["sections"]
+                        if os.path.exists(rf'{OUTPUT_DIR}\{s["id"]}.json')]
+pages = [p for p in pages if p["sections"]]
+
+data = {
+    "meta": {
+        "client": NOME, "slug": SLUG, "type": "ltv",
+        "theme": "light", "title": f"Análise de LTV — {NOME}",
+        "created_at": datetime.now().isoformat()
+    },
+    "pages": pages
+}
+
+with open(rf'{OUTPUT_DIR}\data.json', 'w', encoding='utf-8') as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+
+print(f'data.json gerado — {sum(len(p["sections"]) for p in pages)} seções')
+print(f'Abrir: http://localhost:3131/report/{SLUG}')
 ```
 
-> **Nunca ler os `_el-*.html` para editar depois de escritos** — se uma seção precisar de correção, reescrever só aquele arquivo e remontar. Os demais ficam intactos em `temp\[SLUG]\`.
+> **Iniciar o app antes de abrir:** `cd app && node server.js` (ou já estar rodando)  
+> **Live reload:** salvar um `sXX.json` atualizado recarrega a seção no browser automaticamente via SSE.
 
 ---
 

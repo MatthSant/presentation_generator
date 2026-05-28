@@ -16,10 +16,24 @@ presentation_generator/
 │   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
 │   └── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
 │
-├── output/                            ← gerado por /build-slides e /make (pasta autocontida)
-│   ├── presentation.html              ← abrir este arquivo no browser
+├── app/                               ← servidor Node.js do analytics app
+│   ├── server.js                      ← Express (porta 3131) — serve JSONs, comentários, SSE
+│   ├── package.json
+│   └── public/
+│       ├── index.html                 ← homepage: lista todas as análises em output/
+│       ├── report.html                ← shell do relatório (design system + renderer)
+│       ├── style.css                  ← design system CSS (extraído de shell-report.html)
+│       ├── chart-options.js           ← buildOptions ApexCharts (isDark dinâmico)
+│       └── renderer.js                ← JSON typed-blocks → DOM (único lugar com classes CSS)
+│
+├── output/                            ← gerado por /build-slides, /make e /ltv-analysis
+│   ├── presentation.html              ← abrir este arquivo no browser (slides)
 │   ├── backgrounds/                   ← cópia dos backgrounds usados na apresentação
-│   └── elements/                      ← gerado por /make — elementos isolados do design system
+│   ├── elements/                      ← gerado por /make — elementos isolados do design system
+│   └── [slug]/                        ← gerado por /ltv-analysis
+│       ├── data.json                  ← mapa de navegação (pages + sections)
+│       ├── s01.json … sXX.json        ← conteúdo de cada seção (typed blocks)
+│       └── comments.csv               ← anotações do consultor
 │
 ├── requirements/
 │   └── STACK.md                       ← stack técnica completa (CDN, ferramentas, outputs)

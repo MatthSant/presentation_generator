@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { max-width: 960px; margin: 0 auto; padding: 60px 40px 100px; }
+    .page-hd { margin-bottom: 48px; }
+    .page-hd .badge { margin-bottom: 12px; display: block; }
+    .analyses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .an-card {
+      display: block; text-decoration: none;
+      border: 1px solid var(--border); border-radius: 2px;
+      padding: 22px 24px; background: var(--bg);
+      transition: border-color .12s, background .12s;
+      cursor: pointer;
+    }
+    .an-card:hover { border-color: var(--purple); background: var(--purple-bg); }
+    .an-type { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gray2); margin-bottom: 8px; }
+    .an-client { font-size: 18px; font-weight: 700; color: var(--fg); margin-bottom: 4px; line-height: 1.2; letter-spacing: -.01em; }
+    .an-meta { font-size: 11.5px; color: var(--gray2); margin-top: 14px; display: flex; gap: 14px; }
+    .an-meta span { display: flex; align-items: center; gap: 4px; }
+    .empty { padding: 60px 0; text-align: center; }
+    .empty .label-sec { color: var(--gray2); margin-bottom: 8px; }
+    .loading { color: var(--gray2); font-size: 12px; padding: 60px 0; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="page-hd">
+  <span class="badge badge-p">ANALYTICS</span>
+  <h1 class="slide-title">Análises disponíveis</h1>
+</div>
+
+<div id="grid" class="loading">Carregando…</div>
+
+<script>
+async function load() {
+  const grid = document.getElementById('grid');
+  try {
+    const res = await fetch('/api/analyses');
+    const list = await res.json();
+    if (!list.length) {
+      grid.className = 'empty';
+      grid.innerHTML = '<p class="label-sec">Nenhuma análise encontrada</p><p class="sm">Coloque um <code>data.json</code> em <code>output/[slug]/</code> e recarregue.</p>';
+      return;
+    }
+    grid.className = 'analyses-grid';
+    grid.innerHTML = list.map(a => `
+      <a class="an-card" href="/report/${a.slug}">
+        <div class="an-type">${a.type || 'análise'}</div>
+        <div class="an-client">${esc(a.client || a.slug)}</div>
+        <div class="an-meta">
+          <span>📊 ${a.sectionCount || 0} seções</span>
+          ${a.commentCount ? `<span>💬 ${a.commentCount}</span>` : ''}
+          ${a.created_at ? `<span>📅 ${fmtDate(a.created_at)}</span>` : ''}
+        </div>
+      </a>`).join('');
+  } catch (e) {
+    grid.className = 'empty';
+    grid.innerHTML = `<p class="sm" style="color:var(--red)">Erro ao carregar: ${e.message}</p>`;
+  }
+}
+
+const esc     = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmtDate = iso => { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch { return ''; } };
+
+load();
+</script>
+</body>
+</html>
