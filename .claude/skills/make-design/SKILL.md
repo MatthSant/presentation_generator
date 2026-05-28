@@ -16,7 +16,7 @@ Constrói um elemento visual isolado do design system e salva em `output/element
 | **Output** | `output/elements/[slug].html` — abre no browser |
 | **Exportação** | Botão "↓ PNG" fixo na tela, gera PNG 3× (≈3000px de largura) |
 | **Composição** | Gráfico isolado / gráfico + contexto / 1-pager completo |
-| **Tema** | Dark (padrão) · Light se o usuário mencionar |
+| **Tema** | Light (padrão) · Dark se o usuário mencionar |
 
 ---
 
@@ -71,7 +71,7 @@ Use `AskUserQuestion` com **2–3 perguntas simultâneas**:
 
 1. **Tipo de gráfico** — primeira opção é a sugestão, + 2–3 alternativas relevantes
 2. **Escopo** — gráfico isolado / gráfico + contexto / 1-pager
-3. **Tema** (somente se não mencionado) — Dark / Light
+3. **Tema** (somente se não mencionado) — Light / Dark
 
 Prossiga somente após confirmação.
 
