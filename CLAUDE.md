@@ -80,6 +80,7 @@ presentation_generator/
                 ├── block-ni.html              ← ação numerada detalhada (Por que? / Acionável)
                 ├── block-horizon-col.html     ← coluna de horizonte (plano de ação)
                 ├── block-learning-col.html    ← coluna de aprendizados (debrief)
+                ├── block-heatmap.html         ← tabela heatmap (escala verde→neutro→vermelho por valor %)
                 │
                 └── — Gráficos (chartDefs snippets) —
                     ├── chart-bar.html
@@ -114,6 +115,14 @@ presentation_generator/
 2. /make-design               → sugere gráfico + layout, confirma, gera HTML
 3. Abrir output/elements/[slug].html no browser
 4. Clicar "↓ PNG" para exportar em alta resolução (3×)
+```
+
+**Análise de LTV:**
+```
+1. Colocar CSV transacional em input/
+2. /ltv-analysis              → 5 fases: confirma CSV → contexto → perguntas → setup → execução
+3. Acompanhar a análise no chat (achados por seção)
+4. Abrir output/[slug]/relatorio-ltv.html no browser
 ```
 
 ---
@@ -165,6 +174,25 @@ Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes 
 | `aprendizados` | slide-standard + g3 + block-learning-col |
 | `apendice` | slide-apendice.html |
 | `contracapa` | slide-cover.html (só cover-title) |
+
+---
+
+### `/ltv-analysis`
+Análise completa de LTV a partir de um CSV transacional — por produto, por coorte e por perfil.
+
+**5 fases:**
+- **Fase 0** — localiza CSV em `input/` e confirma com o usuário
+- **Fase 1** — nome do cliente e contexto do negócio
+- **Fase 2** — perguntas norteadoras do usuário
+- **Fase 3** — cria `temp/[slug]/` e `output/[slug]/`, explora CSV (colunas, cobertura, produtos)
+- **Fase 4** — preenche dicionário de `custom_fields`, propõe taxonomia de grupos, gera `temp/[slug]/plano_analise.md`
+- **Fase 5** — executa seção a seção com scripts Python + HTML por seção → monta relatório final
+
+**Artefatos gerados:**
+- `temp/[slug]/dicionario.md` — mapeamento dos `custom_fields`
+- `temp/[slug]/plano_analise.md` — seções planejadas e progresso
+- `temp/[slug]/_el-sXX.html` — seções HTML individuais
+- `output/[slug]/relatorio-ltv.html` — relatório completo montado
 
 ---
 

@@ -3,6 +3,8 @@
 Tabela de origem: transacional — **uma linha por transação**.  
 Dados de cliente e primeira compra são desnormalizados (repetidos em cada linha do mesmo `user_id`).
 
+> **Como usar este dicionário:** copie a seção "Campos customizados" para `temp/[nome-da-analise]/dicionario.md` e preencha o significado de cada `custom_field` de acordo com o negócio sendo analisado. Os demais campos são padrão entre análises.
+
 ---
 
 ## Identificação
@@ -76,6 +78,8 @@ Dados de cliente e primeira compra são desnormalizados (repetidos em cada linha
 
 ## Perfil do cliente (desnormalizado)
 
+Campos de perfil padrão — presentes na maioria das plataformas. Se ausentes, verificar nos campos customizados.
+
 | Coluna | Tipo | Descrição | Observações |
 |---|---|---|---|
 | `tempo_acompanhamento` | ? | Tempo como lead/cliente | ⚠️ **CONFIRMAR:** unidade (dias? meses?)? Contado a partir de quando (captura ou primeira compra)? |
@@ -88,60 +92,33 @@ Dados de cliente e primeira compra são desnormalizados (repetidos em cada linha
 
 ## Campos customizados
 
-Mapeamento confirmado pelo usuário. Campos não listados abaixo são ignorados.
+> **Instruções para o analista:** os campos abaixo variam por negócio. Antes de iniciar qualquer análise segmentada, criar `temp/[nome-da-analise]/dicionario.md` e preencher o mapeamento de cada `custom_field_N` que existir no CSV. Campos não mapeados são ignorados.
 
-### Perfil — Relação com autismo
+### Template de mapeamento (copiar para `temp/[analise]/dicionario.md`)
 
-| Coluna | Pergunta | Observações |
-|---|---|---|
-| `custom_field_1` | Parentesco com autista | Ex: mãe, pai, irmão, cuidador |
-| `custom_field_3` | Qual a sua relação com autismo? | Visão geral — sobreposição com cf5 |
-| `custom_field_5` | Qual é o seu papel principal em relação ao autismo? | **Principal segmentador** — familiar / terapeuta / educador / autista |
-| `custom_field_6` | A criança/adolescente tem diagnóstico formal de autismo? | Booleano/texto |
-| `custom_field_7` | Faixa etária da criança/adolescente | — |
-| `custom_field_8` | A criança/adolescente realiza acompanhamento terapêutico? | — |
-| `custom_field_9` | Você tem diagnóstico formal de autismo? | Pergunta ao próprio usuário |
-| `custom_field_10` | Realiza algum acompanhamento terapêutico? | — |
+```markdown
+# Dicionário — [Nome do Negócio / Análise]
 
-### Perfil — Atuação profissional
+## Metadados
+- **Negócio:** [nome]
+- **Data do CSV:** [data de extração]
+- **Pasta da análise:** temp/[nome-da-analise]/
 
-| Coluna | Pergunta | Observações |
-|---|---|---|
-| `custom_field_2` | Área de atuação | Versão curta |
-| `custom_field_11` | Em qual área você atua? | Versão longa — possível sobreposição com cf2 |
-| `custom_field_12` | Qual é a sua formação principal? | — |
-| `custom_field_13` | Qual é a sua função na educação? | Preenchido apenas por educadores |
-| `custom_field_14` | Em qual área você atua? (2) | Segunda resposta / versão alternativa |
-| `custom_field_25` | Qual é a sua ocupação principal? | — |
+## Campos customizados mapeados
 
-### Perfil — Demográfico
+| Coluna | Pergunta / Significado | Tipo de resposta | Exemplos de valores | Relevância para LTV |
+|---|---|---|---|---|
+| `custom_field_1`  | [a preencher] | [texto livre / seleção única / múltipla] | [ex: valor1, valor2] | [alta / média / baixa / ignorar] |
+| `custom_field_2`  | [a preencher] | — | — | — |
+| `custom_field_3`  | [a preencher] | — | — | — |
+| ...               | ...           | ...  | ... | ... |
 
-| Coluna | Pergunta | Observações |
-|---|---|---|
-| `custom_field_4` | Estado civil | — |
-| `custom_field_24` | Renda familiar mensal | Faixa de renda — segmentação de poder aquisitivo |
+## Campos ignorados
+[Listar custom_fields presentes no CSV mas sem mapeamento ou sem relevância analítica]
 
-### Perfil — Interesse e maturidade
-
-| Coluna | Pergunta | Observações |
-|---|---|---|
-| `custom_field_16` | Principais desafios no dia a dia | Multi-seleção — difícil de agregar, uso limitado em LTV |
-| `custom_field_17` | Quais temas você tem interesse em estudar ou atuar? | Multi-seleção |
-| `custom_field_18` | Como você avalia sua maturidade no tema autismo? | **Segmentador relevante** — iniciante / intermediário / avançado |
-| `custom_field_19` | Sobre quais faixas etárias você tem mais interesse | — |
-
-### Engajamento com o produto
-
-| Coluna | Pergunta | Observações |
-|---|---|---|
-| `custom_field_20` | Como você conheceu o Instituto Singular? | Canal de aquisição declarado — cruzar com UTM |
-| `custom_field_21` | Afirmações sobre interação com o IS.T | Multi-seleção — nível de engajamento pré-compra |
-| `custom_field_22` | Você já utilizou materiais gratuitos do Instituto Singular? | Sim/Não — proxy de nurturing |
-| `custom_field_23` | Onde você prefere consumir conteúdo? | Canal preferido |
-
-### Campos sem mapeamento confirmado
-
-`custom_field_15`, `custom_field_26` a `custom_field_50` — não mapeados, ignorados na análise.
+## Campos de perfil padrão disponíveis
+[Marcar quais dos campos padrão (genero, escolaridade, renda_mensal, idade) estão preenchidos no CSV]
+```
 
 ---
 
@@ -151,3 +128,4 @@ Mapeamento confirmado pelo usuário. Campos não listados abaixo são ignorados.
 - **LTV próprio vs. plataforma:** calcularemos `sum(valor_venda) por user_id` e compararemos com `ltv_cliente` para validar.
 - **Recompra:** derivada de `num_transacoes > 1` ou de `data_pedido != data_primeira_compra`.
 - **Coorte:** mês/ano de `data_primeira_compra`.
+- **Campos customizados:** solicitar mapeamento ao usuário antes de qualquer análise segmentada — ver `temp/[analise]/dicionario.md`.

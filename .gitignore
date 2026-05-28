@@ -2,3 +2,4 @@ _source/
 input/
 temp/
 output/
+.claude/settings.local.json

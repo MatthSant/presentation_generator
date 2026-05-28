@@ -287,6 +287,27 @@ Variações aceitas:
 
 ---
 
+### `block-heatmap.html` — Tabela heatmap (escala de cor por valor)
+**Quando usar:** comparação de uma métrica relativa (variação %, desvio, índice) entre dois eixos categóricos — ex: segmentos × períodos de tempo, produtos × safras.
+**Não usar para** valores absolutos — heatmap só faz sentido com uma escala de desvio/percentual em torno de um benchmark ou zero.
+**Layout:** CSS Grid com `--hm-cols` igual ao número de colunas de dados. Linha de cabeçalho com `.hm-th` (roxo). Primeira célula de cada linha é `.hm-rh` (label da linha). Dados em `.hm-cell` com classe de cor.
+
+**Escala de cor (% ou índice):**
+
+| Classe | Intervalo | Cor |
+|---|---|---|
+| `.hm-g3` | ≥ 80 | verde escuro — texto branco |
+| `.hm-g2` | 30 a 79 | verde médio — texto escuro |
+| `.hm-g1` | 5 a 29 | verde claro — texto escuro |
+| `.hm-n` | −4 a 4 | neutro (fundo cinza sutil) |
+| `.hm-r1` | −5 a −30 | vermelho claro — texto escuro |
+| `.hm-r2` | −31 a −65 | vermelho médio — texto escuro |
+| `.hm-r3` | ≤ −66 | vermelho escuro — texto branco |
+
+**Placeholders:** `{{TITLE}}`, `{{subtitle}}`, `--hm-cols`, `.hm-th` × N, `.hm-rh` × linhas, `.hm-cell {{hm-cor}}` × células.
+
+---
+
 ## Separadores
 
 - Entre find-blocks: `<div class="find-divider"></div>` (linha horizontal sutil)

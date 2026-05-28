@@ -1,0 +1,47 @@
+<div>
+  <p class="label-sec">{{TITLE}}</p>
+  <p class="sm" style="color:var(--purple);margin:2px 0 12px">{{subtitle}}</p>
+  <div class="hm-wrap">
+    <div class="hm-grid" style="--hm-cols:{{N}}">
+
+      <div></div><!-- corner vazio -->
+      <div class="hm-th">{{col-1}}</div>
+      <div class="hm-th">{{col-2}}</div>
+      <!-- repetir hm-th para cada coluna -->
+
+      <div class="hm-rh">{{row-label-1}}</div>
+      <div class="hm-cell {{hm-cor}}">{{valor}}</div>
+      <!-- repetir hm-cell para cada coluna da linha -->
+
+      <!-- repetir o par hm-rh + células para cada linha -->
+
+    </div>
+  </div>
+</div>
+
+<!--
+REGRAS:
+
+- {{TITLE}}     : label de seção em uppercase (ex: "VARIAÇÃO VS. BENCHMARK 60D")
+- {{subtitle}}  : descrição curta do que o valor representa (ex: "% acima/abaixo da média")
+- --hm-cols     : número de colunas de dados (sem contar o cabeçalho de linha)
+- {{hm-cor}}    : classe de cor da célula — ver escala abaixo
+
+ESCALA DE COR (valor numérico em %):
+  .hm-g3  ≥ 80       verde escuro  — texto branco
+  .hm-g2  30 a 79    verde médio   — texto escuro
+  .hm-g1  5 a 29     verde claro   — texto escuro
+  .hm-n   -4 a 4     neutro        — sem tint (fundo acinzentado sutil)
+  .hm-r1  -5 a -30   vermelho claro — texto escuro
+  .hm-r2  -31 a -65  vermelho médio — texto escuro
+  .hm-r3  ≤ -66      vermelho escuro — texto branco
+
+QUANDO USAR:
+- Comparação de uma métrica relativa (variação %, índice, desvio) entre dois eixos categóricos
+- Benchmarking por segmento ao longo do tempo
+- Mapas de calor de taxa de recompra / LTV por coorte × produto
+
+LARGURA:
+- Muitas colunas (≥ 8): usar .hm-wrap para scroll horizontal automático
+- Poucas colunas (≤ 5): pode omitir .hm-wrap
+-->

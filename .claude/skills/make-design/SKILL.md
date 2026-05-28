@@ -131,6 +131,8 @@ Use **somente** as classes do design system. Nunca inventar classes novas, `box-
 </div>
 ```
 
+> **Linguagem do `find-title`:** declare a conclusão de negócio em linguagem simples — nunca jargão estatístico ou analítico ("artefato", "viés", "distribuição", "percentil", "correlação"). Se a explicação exige linguagem técnica, coloque-a no `.sm` ou mova para uma modal. Exemplo errado: *"A queda na mediana é um artefato de composição."* Exemplo certo: *"A mediana caiu porque o mix mudou — não porque o core retorna mais rápido."*
+
 **Layout gráfico + insights (`.row`):**
 ```html
 <div class="row">
@@ -280,6 +282,8 @@ Referência rápida de classes menos frequentes que existem no shell mas não ap
 | `.tag .tag-p/g/a/r/o` | Pill de categoria menor que badge — inline em texto ou listas |
 | `.bul li` | Lista com bullet circular roxo (alternativa ao `def-bullets`) |
 | `.tw > table` | Tabela estruturada: header roxo escuro / lavanda claro, linhas alternadas |
+| `.hm-wrap` > `.hm-grid` | Heatmap — grid de células coloridas por valor; usar `--hm-cols:N` no style |
+| `.hm-g3/g2/g1` · `.hm-n` · `.hm-r1/r2/r3` | Escala de cor do heatmap: ≥80 verde escuro → neutro → ≤−66 vermelho escuro |
 | `.sp .sp-p/g/a/o/r` | Status pill inline (ex: "Ativo", "Crítico") — fundo sólido, texto branco/preto |
 | `.impact` | Pill verde para impacto positivo — ex: `<span class="impact">+18%</span>` |
 | `.ai / .an / .at / .as` | Item de agenda compacto: número quadrado + título + subtítulo |
