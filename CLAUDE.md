@@ -10,11 +10,17 @@ Pipeline de duas skills que transforma qualquer análise em uma apresentação R
 presentation_generator/
 ├── CLAUDE.md                          ← este arquivo
 │
-├── input/                             ← colocar aqui a análise antes de /plan-slides
-│                                         (MD, HTML ou URL fornecida no chat)
-├── temp/
+├── input/                             ← dados do cliente para análises
+│   └── [cliente]/                     ← ex: instituto-singular/
+│       └── arquivo.csv                ← CSV transacional para /ltv-analysis
+│
+├── temp/                              ← arquivos intermediários (não vão ao GitHub)
 │   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
-│   └── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
+│   ├── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
+│   └── [cliente]/                     ← ex: instituto-singular/
+│       └── [analise]/                 ← ex: ltv-mai-2026/
+│           ├── plano_analise.md       ← gerado por /ltv-analysis
+│           └── dicionario.md          ← mapeamento de campos
 │
 ├── app/                               ← servidor Node.js do analytics app
 │   ├── server.js                      ← Express (porta 3131) — serve JSONs, comentários, SSE
@@ -26,14 +32,14 @@ presentation_generator/
 │       ├── chart-options.js           ← buildOptions ApexCharts (isDark dinâmico)
 │       └── renderer.js                ← JSON typed-blocks → DOM (único lugar com classes CSS)
 │
-├── output/                            ← gerado por /build-slides, /make e /ltv-analysis
-│   ├── presentation.html              ← abrir este arquivo no browser (slides)
-│   ├── backgrounds/                   ← cópia dos backgrounds usados na apresentação
-│   ├── elements/                      ← gerado por /make — elementos isolados do design system
-│   └── [slug]/                        ← gerado por /ltv-analysis
-│       ├── data.json                  ← mapa de navegação (pages + sections)
-│       ├── s01.json … sXX.json        ← conteúdo de cada seção (typed blocks)
-│       └── comments.csv               ← anotações do consultor
+├── output/                            ← gerado por /build-slides, /make-design e /ltv-analysis
+│   ├── elements/                      ← gerado por /make-design — elementos isolados do design system
+│   ├── [cliente]/                     ← ex: instituto-singular/
+│   │   └── [analise]/                 ← ex: ltv-mai-2026/  (acessível em /report/[cliente]/[analise])
+│   │       ├── data.json              ← mapa de navegação (pages + sections)
+│   │       ├── s01.json … sXX.json   ← conteúdo de cada seção (typed blocks)
+│   │       └── comments.csv           ← anotações do consultor
+│   └── presentation.html              ← gerado por /build-slides (Reveal.js)
 │
 ├── requirements/
 │   └── STACK.md                       ← stack técnica completa (CDN, ferramentas, outputs)
@@ -133,10 +139,10 @@ presentation_generator/
 
 **Análise de LTV:**
 ```
-1. Colocar CSV transacional em input/
+1. Colocar CSV transacional em input/[cliente]/
 2. /ltv-analysis              → 5 fases: confirma CSV → contexto → perguntas → setup → execução
 3. Acompanhar a análise no chat (achados por seção)
-4. Abrir output/[slug]/relatorio-ltv.html no browser
+4. Abrir http://localhost:3131/report/[cliente]/[analise] no browser
 ```
 
 ---
@@ -194,19 +200,24 @@ Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes 
 ### `/ltv-analysis`
 Análise completa de LTV a partir de um CSV transacional — por produto, por coorte e por perfil.
 
+**Estrutura de pastas** (cliente = slug do cliente, analise = slug da análise, ex: `ltv-mai-2026`):
+- Input: `input/[cliente]/arquivo.csv`
+- Temp:  `temp/[cliente]/[analise]/`
+- Output: `output/[cliente]/[analise]/` → acessível em `/report/[cliente]/[analise]`
+
 **5 fases:**
-- **Fase 0** — localiza CSV em `input/` e confirma com o usuário
-- **Fase 1** — nome do cliente e contexto do negócio
+- **Fase 0** — localiza CSV em `input/[cliente]/` e confirma com o usuário
+- **Fase 1** — nome do cliente e contexto do negócio → define `[cliente]` e `[analise]`
 - **Fase 2** — perguntas norteadoras do usuário
-- **Fase 3** — cria `temp/[slug]/` e `output/[slug]/`, explora CSV (colunas, cobertura, produtos)
-- **Fase 4** — preenche dicionário de `custom_fields`, propõe taxonomia de grupos, gera `temp/[slug]/plano_analise.md`
-- **Fase 5** — executa seção a seção com scripts Python + HTML por seção → monta relatório final
+- **Fase 3** — cria `temp/[cliente]/[analise]/` e `output/[cliente]/[analise]/`, explora CSV
+- **Fase 4** — preenche dicionário de `custom_fields`, propõe taxonomia de grupos, gera plano
+- **Fase 5** — executa seção a seção com scripts Python → gera `sXX.json` + `data.json`
 
 **Artefatos gerados:**
-- `temp/[slug]/dicionario.md` — mapeamento dos `custom_fields`
-- `temp/[slug]/plano_analise.md` — seções planejadas e progresso
-- `temp/[slug]/_el-sXX.html` — seções HTML individuais
-- `output/[slug]/relatorio-ltv.html` — relatório completo montado
+- `temp/[cliente]/[analise]/dicionario.md` — mapeamento dos `custom_fields`
+- `temp/[cliente]/[analise]/plano_analise.md` — seções planejadas e progresso
+- `output/[cliente]/[analise]/data.json` — mapa de navegação
+- `output/[cliente]/[analise]/sXX.json` — seções em typed blocks JSON
 
 ---
 

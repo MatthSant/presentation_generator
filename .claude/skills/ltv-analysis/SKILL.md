@@ -37,11 +37,11 @@ Fase 5  → iniciar execução seção a seção
 
 1. Listar arquivos em `input/` com `Glob("input/**/*")`.
 2. **Um CSV encontrado:** informar o nome e perguntar ao usuário com `AskUserQuestion`:
-   > "Encontrei `[nome].csv` em input/. Posso usar este arquivo?"
+   > "Encontrei `[nome].csv` em input/[cliente]/. Posso usar este arquivo?"
    - Sim, usar este
    - Não, quero indicar outro caminho
 3. **Múltiplos CSVs:** usar `AskUserQuestion` listando os nomes e perguntando qual usar.
-4. **Nenhum arquivo:** pedir que o usuário coloque o CSV em `input/` e reexecute.
+4. **Nenhum arquivo:** pedir que o usuário coloque o CSV em `input/[cliente]/` e reexecute.
 
 Após confirmação, ler as primeiras 5 linhas do CSV com `Read` para verificar o separador e o encoding. Registrar mentalmente o caminho como **[CSV_PATH]**.
 
@@ -58,7 +58,11 @@ Usar `AskUserQuestion` com **duas perguntas simultâneas**:
 - Campo de texto livre: "Descreva brevemente o negócio: o que vendem, quem são os clientes, qual o modelo de receita (curso, assinatura, produto físico, etc.)."
 
 Registrar como **[NOME_CLIENTE]** e **[CONTEXTO]**.  
-Derivar **[SLUG]** = nome em kebab-case minúsculo sem acentos (ex: "Instituto Singular" → `instituto-singular`).
+Derivar:
+- **[CLIENTE]** = nome em kebab-case minúsculo sem acentos (ex: "Instituto Singular" → `instituto-singular`) — pasta do cliente
+- **[SLUG]** = identificador da análise com data (ex: `ltv-mai-2026`) — pasta da análise
+
+O relatório ficará acessível em: `http://localhost:3131/report/[CLIENTE]/[SLUG]`
 
 ---
 
@@ -82,13 +86,13 @@ Após receber: agradecer e informar que as pastas serão criadas e o CSV explora
 
 ```bash
 # Criar pastas de trabalho
-mkdir temp\[SLUG]
-mkdir output\[SLUG]
+mkdir temp\[CLIENTE]\[SLUG]
+mkdir output\[CLIENTE]\[SLUG]
 ```
 
 ### 3b. Rodar exploração do CSV
 
-Criar `temp\[SLUG]\_explorar.py` com o conteúdo abaixo e executar com `py -3`:
+Criar `temp\[CLIENTE]\[SLUG]\_explorar.py` com o conteúdo abaixo e executar com `py -3`:
 
 ```python
 import csv, collections, sys
@@ -148,7 +152,7 @@ for c in custom_cols:
     print(f"  {c}: {len(vals)} valores únicos — {top}")
 ```
 
-Executar: `py -3 temp\[SLUG]\_explorar.py`
+Executar: `py -3 temp\[CLIENTE]\[SLUG]\_explorar.py`
 
 ### 3c. Apresentar resultado ao usuário
 
@@ -170,7 +174,7 @@ Com os custom fields detectados na Fase 3, usar `AskUserQuestion` perguntando o 
 
 Listar os campos com cobertura ≥ 20% e seus valores de exemplo. Campo de texto livre por campo.
 
-Após receber as respostas, criar `temp\[SLUG]\dicionario.md` copiando o template de `analyze-ltv/dictionary.md` e preenchendo a seção de campos customizados com as informações do usuário.
+Após receber as respostas, criar `temp\[CLIENTE]\[SLUG]\dicionario.md` copiando o template de `analyze-ltv/dictionary.md` e preenchendo a seção de campos customizados com as informações do usuário.
 
 ### 4b. Planejar as seções de perfil (Página 3)
 
@@ -185,7 +189,7 @@ Listar no chat os campos qualificados e os descartados com justificativa breve.
 
 ### 4c. Gerar plano da análise
 
-Criar `temp\[SLUG]\plano_analise.md` com a estrutura abaixo:
+Criar `temp\[CLIENTE]\[SLUG]\plano_analise.md` com a estrutura abaixo:
 
 ```markdown
 # Plano de Análise — [NOME_CLIENTE]
@@ -245,23 +249,23 @@ Só avançar para Fase 5 com aprovação.
 ### Princípio fundamental: uma seção de cada vez
 
 **Nunca processar mais de uma seção simultaneamente.**  
-Cada seção produz dois artefatos isolados que ficam em `temp\[SLUG]\`:
+Cada seção produz dois artefatos:
 
 ```
-calc_sXX.py      ← script Python da seção (cálculos + print dos números)
-_el-sXX.html     ← fragmento HTML da seção (sem shell, sem <html>/<body>)
+temp\[CLIENTE]\[SLUG]\calc_sXX.py   ← script Python (cálculos + print dos números)
+output\[CLIENTE]\[SLUG]\sXX.json    ← typed blocks lidos pelo app
 ```
 
-A montagem final acontece **apenas depois de todas as seções prontas**, concatenando os fragmentos com PowerShell. O agente nunca precisa ler múltiplos arquivos `_el-*.html` ao mesmo tempo.
+O app Node.js (`localhost:3131`) serve as seções dinamicamente à medida que ficam prontas — não há montagem final de HTML.
 
 ---
 
 ### Setup compartilhado — fazer UMA VEZ antes da primeira seção
 
-Na Fase 3 já rodamos a exploração. Antes de começar as seções, criar `temp\[SLUG]\_setup.py` que:
+Na Fase 3 já rodamos a exploração. Antes de começar as seções, criar `temp\[CLIENTE]\[SLUG]\_setup.py` que:
 1. Lê o CSV
 2. Constrói `users` e `all_txs`
-3. Serializa para `temp\[SLUG]\_users.json` e `temp\[SLUG]\_txs.json`
+3. Serializa para `temp\[CLIENTE]\[SLUG]\_users.json` e `temp\[CLIENTE]\[SLUG]\_txs.json`
 
 ```python
 import sys, json
@@ -269,6 +273,7 @@ sys.path.insert(0, r'.claude\skills\ltv-analysis')
 from ltv_calc import load_csv, build_users, parse_date
 
 CSV_PATH = '[CSV_PATH]'
+CLIENTE  = '[CLIENTE]'
 SLUG     = '[SLUG]'
 
 rows = load_csv(CSV_PATH)
@@ -289,15 +294,15 @@ def serial(obj):
     if isinstance(obj, (datetime, date)): return obj.isoformat()
     raise TypeError(f'Not serializable: {type(obj)}')
 
-with open(rf'temp\{SLUG}\_users.json', 'w', encoding='utf-8') as f:
+with open(rf'temp\{CLIENTE}\{SLUG}\_users.json', 'w', encoding='utf-8') as f:
     json.dump(users, f, default=serial, ensure_ascii=False)
-with open(rf'temp\{SLUG}\_txs.json', 'w', encoding='utf-8') as f:
+with open(rf'temp\{CLIENTE}\{SLUG}\_txs.json', 'w', encoding='utf-8') as f:
     json.dump(all_txs, f, default=serial, ensure_ascii=False)
 
 print(f'Setup OK — {len(users):,} usuários, {sum(len(v) for v in all_txs.values()):,} transações')
 ```
 
-Executar: `py -3 temp\[SLUG]\_setup.py`
+Executar: `py -3 temp\[CLIENTE]\[SLUG]\_setup.py`
 
 A partir daqui, **cada script de seção carrega `_users.json` e `_txs.json` em vez de reler o CSV**.
 
@@ -309,10 +314,10 @@ Para cada seção no plano aprovado, executar este ciclo completo antes de passa
 
 ```
 ① Ler o MD da seção em ltv-analysis/sections/SXX-[nome].md
-② Escrever temp\[SLUG]\calc_sXX.py
-③ py -3 temp\[SLUG]\calc_sXX.py   → números no terminal
+② Escrever temp\[CLIENTE]\[SLUG]\calc_sXX.py
+③ py -3 temp\[CLIENTE]\[SLUG]\calc_sXX.py   → números no terminal
 ④ Apresentar achados no chat (números, padrões, anomalias)
-⑤ Escrever output\[SLUG]\sXX.json  (typed blocks — ver schema abaixo)
+⑤ Escrever output\[CLIENTE]\[SLUG]\sXX.json  (typed blocks — ver schema abaixo)
 ⑥ Atualizar plano_analise.md: marcar [x] na seção concluída
 ⑦ Só então iniciar a próxima seção
 ```
@@ -331,11 +336,12 @@ from ltv_calc import filter_by, group_by, calc_ltv_metrics, seg_table, \
                     recompra_destinos, fmt_brl, fmt_pct
 # importar apenas as funções necessárias para esta seção (ver SXX.md)
 
-SLUG = '[SLUG]'
+CLIENTE = '[CLIENTE]'
+SLUG    = '[SLUG]'
 
-with open(rf'temp\{SLUG}\_users.json', encoding='utf-8') as f:
+with open(rf'temp\{CLIENTE}\{SLUG}\_users.json', encoding='utf-8') as f:
     users = json.load(f)
-with open(rf'temp\{SLUG}\_txs.json', encoding='utf-8') as f:
+with open(rf'temp\{CLIENTE}\{SLUG}\_txs.json', encoding='utf-8') as f:
     all_txs = json.load(f)
 
 # --- cálculos da seção conforme ltv-analysis/sections/SXX.md ---
@@ -350,10 +356,11 @@ print(f'ltv_medio:        {fmt_brl(ltv_medio)}')
 
 ---
 
-### JSON da seção (`output\[SLUG]\sXX.json`) — typed blocks
+### JSON da seção (`output\[CLIENTE]\[SLUG]\sXX.json`) — typed blocks
 
 A skill **não escreve HTML**. Escreve JSON com blocos tipados que o app renderiza.
-O renderer em `app/public/renderer.js` é o único lugar que conhece classes CSS.
+
+> **Schema completo em `ltv-analysis/BLOCKS.md`** — nunca ler `renderer.js` ou `chart-options.js`.
 
 **Estrutura obrigatória:**
 
@@ -374,69 +381,27 @@ O renderer em `app/public/renderer.js` é o único lugar que conhece classes CSS
 }
 ```
 
-**Block types disponíveis:**
+**Block types — resumo rápido** (schema completo e exemplos em `BLOCKS.md`):
 
 | `type` | Campos principais |
 |---|---|
-| `kpi-row` | `items: [{value, label, color}]` |
-| `chart` | `id, chartType, height, series, labels/categories, colors` |
-| `find-block` | `tag, tagColor, title, detail, modal?` |
-| `find-note` | `text, color` |
-| `highlight` | `text, color?` |
-| `ni` | `number, text, color` |
-| `row` | `cols: [{flex, blocks:[]}]` |
+| `kpi-row` | `items: [{value, label, color?}]` |
+| `chart` | `id, chartType, height, series, labels\|categories, colors, options?` |
+| `find-block` | `tag, tagColor, title, detail?, modal?` |
+| `find-note` | `text, color, modal?` |
+| `highlight` / `hl` | `text, color?` |
+| `ni` | `number, text, color` · ou `variant:'vertical', title, sections:[{label,text,color}]` |
+| `row` | `cols: [{flex?, blocks:[]}]` |
 | `g2`/`g3`/`g4` | `items: [{title?, blocks:[]}]` |
-| `heatmap` | `cols:[], rows:[{label, cells:[{value,cls}]}]` |
-| `table` | `headers:[], rows:[[cell,...]]` |
-| `label-sec` | `text, sub?, divider?` |
+| `heatmap` | `cols:[], rows:[{label, cells:[{value,cls,title?}]}], caption?` |
+| `table` | `headers:[], rows:[ [str\|{value,html,color},...] ]` |
+| `label-sec` | `text, sub?, divider?` (divider padrão true) |
+| `content` | `blocks:[], gap?` (wrapper com gap customizado) |
+| `xs` | `text` (nota metodológica 11px) |
 
-**Exemplo de seção completa:**
-
-```json
-{
-  "id": "s01",
-  "page": "visao-geral",
-  "pageLabel": "Visão Geral",
-  "sectionLabel": "Perfil da Base",
-  "header": { "badge": "VISÃO GERAL", "badgeColor": "p", "title": "Base com ", "titleEm": "1.234 clientes" },
-  "blocks": [
-    {
-      "type": "kpi-row",
-      "items": [
-        { "value": "1.234",   "label": "Clientes únicos",  "color": "p" },
-        { "value": "34%",     "label": "Taxa de recompra", "color": "g" },
-        { "value": "R$ 1.8k", "label": "LTV médio",        "color": "p" }
-      ]
-    },
-    {
-      "type": "row",
-      "cols": [
-        {
-          "flex": 1.1,
-          "blocks": [
-            { "type": "chart", "id": "chart-s01-dist", "chartType": "donut", "height": 260,
-              "series": [68.2, 20.1, 7.4, 4.3], "labels": ["1 compra","2 compras","3 compras","4+"],
-              "colors": ["#8B5CF6","#7C3AED","#6D28D9","#4C1D95"] },
-            { "type": "find-note", "text": "68% dos clientes comprou apenas uma vez.", "color": "p" }
-          ]
-        },
-        {
-          "flex": 0.9,
-          "blocks": [
-            { "type": "find-block", "tag": "Recompra", "tagColor": "p",
-              "title": "1 em cada 3 clientes voltou a comprar.",
-              "detail": "Taxa de recompra de 34% — acima da média do setor (22%)." }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-> **IDs de gráficos:** sempre `chart-sXX-[descricao]` — únicos por seção.  
-> **Cores de `find-block`:** `p` (roxo), `g` (verde), `a` (âmbar), `r` (vermelho).  
-> **`find-note`** vai embaixo do gráfico no mesmo col; `find-block` vai na coluna de insights.
+> **IDs de gráficos:** sempre `chart-sXX-descricao` — únicos por seção.  
+> **`find-note`** vai abaixo do gráfico na mesma coluna; **`find-block`** vai na coluna de insights.  
+> **Cores:** `p` roxo · `g` verde · `a` âmbar · `r` vermelho · `o` laranja.
 
 ---
 
@@ -447,23 +412,24 @@ S05 é o único ponto em que a execução para para confirmar com o usuário ant
 1. `calc_s05.py` roda análise exploratória: todos os produtos, ticket, tx_recompra, mediana de intervalo
 2. Propor taxonomia de grupos no chat com justificativa baseada nos dados
 3. `AskUserQuestion` — os nomes e a divisão fazem sentido para o negócio?
-4. Só após aprovação: escrever `norm_produto()` e `norm_grupo()`, salvar em `temp\[SLUG]\norm_functions.py`
-5. Apenas então escrever `output\[SLUG]\s05.json` e seguir
+4. Só após aprovação: escrever `norm_produto()` e `norm_grupo()`, salvar em `temp\[CLIENTE]\[SLUG]\norm_functions.py`
+5. Apenas então escrever `output\[CLIENTE]\[SLUG]\s05.json` e seguir
 
 ---
 
 ### Montagem final — após todas as seções
 
-Não há montagem HTML. As seções já estão em `output\[SLUG]\sXX.json`.
+Não há montagem HTML. As seções já estão em `output\[CLIENTE]\[SLUG]\sXX.json`.
 Só gerar o `data.json` de navegação:
 
 ```python
 import json, os, glob
 from datetime import datetime
 
+CLIENTE    = '[CLIENTE]'
 SLUG       = '[SLUG]'
 NOME       = '[NOME_CLIENTE]'
-OUTPUT_DIR = rf'output\{SLUG}'
+OUTPUT_DIR = rf'output\{CLIENTE}\{SLUG}'
 
 # Estrutura de páginas — derivada do plano_analise.md
 pages = [
@@ -501,7 +467,7 @@ with open(rf'{OUTPUT_DIR}\data.json', 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
 
 print(f'data.json gerado — {sum(len(p["sections"]) for p in pages)} seções')
-print(f'Abrir: http://localhost:3131/report/{SLUG}')
+print(f'Abrir: http://localhost:3131/report/{CLIENTE}/{SLUG}')
 ```
 
 > **Iniciar o app antes de abrir:** `cd app && node server.js` (ou já estar rodando)  
@@ -561,181 +527,12 @@ Quando a base tem produtos de entrada muito baratos (eventos, pitches), o LTV in
 
 ---
 
-## Design system — construção do relatório com `shell-report.html`
-
-O relatório final usa `components/tools/shell-report.html` como shell — **não** o `shell-element.html`. O shell-report tem sidebar de páginas, tab bar de seções, sistema de comentários e modal de detalhamento integrados.
-
-### Placeholders do shell
-
-| Placeholder | O que recebe |
-|---|---|
-| `{{TITLE}}` | Título da aba do browser |
-| `{{THEME}}` | `dark` ou `light` |
-| `{{CONTENT}}` | HTML de todas as seções concatenadas |
-| `{{CHART_DEFS}}` | Objeto JS com definições de todos os gráficos |
-
-### Estrutura de cada seção `_el-sXX.html`
-
-Cada arquivo de seção **deve ter exatamente um elemento raiz** com os três atributos de navegação:
-
-```html
-<div class="card content"
-     id="s01"
-     data-page="visao-geral"
-     data-page-label="Visão Geral"
-     data-report-section="Perfil da Base">
-
-  <!-- conteúdo da seção aqui -->
-
-</div>
-```
-
-| Atributo | Obrigatoriedade | Descrição |
-|---|---|---|
-| `id` | **obrigatório** | Identificador único — usado por `switchTab()` para mostrar/ocultar |
-| `data-page` | **obrigatório** | Agrupa seções na mesma página da sidebar |
-| `data-page-label` | recomendado | Label exibido na sidebar (pode ser igual em todas as seções da mesma página) |
-| `data-report-section` | **obrigatório** | Label exibido na tab bar — deve ser o nome curto da seção |
-
-**Páginas e IDs padrão:**
-
-| `data-page` | `data-page-label` | Seções |
-|---|---|---|
-| `visao-geral` | `Visão Geral` | S01 → S04 |
-| `analise-produto` | `Análise por Produto` | S05 → S08 + grupos |
-| `analise-perfil` | `Análise de Perfil` | Sxx+ (perfil) |
-
-### IDs de seção
-
-Usar padrão `s[número]` sem zero à esquerda para seções fixas (`s1`, `s2` ... `s8`).  
-Para grupos de produto: `s8-[slug-grupo]` (ex: `s8-core`, `s8-evento`).  
-Para perfil: `sp-[slug-dimensao]` (ex: `sp-genero`, `sp-papel`).
-
-### Gráficos — `{{CHART_DEFS}}`
-
-Cada gráfico no HTML precisa de um `<div class="chart-wrap" id="chart-[nome]"></div>` e uma entrada correspondente no objeto `chartDefs`:
-
-```javascript
-'chart-s1-dist-tx': {
-  type: 'donut',
-  height: 260,
-  series: [68.2, 20.1, 7.4, 4.3],
-  labels: ['1 compra', '2 compras', '3 compras', '4+'],
-  colors: ['#8B5CF6', '#7C3AED', '#6D28D9', '#4C1D95'],
-},
-'chart-s2-fat': {
-  type: 'stacked',
-  height: 300,
-  series: [
-    { name: 'Novos', data: [1200000, 1450000, 1680000, 1920000] },
-    { name: 'Recompra', data: [380000, 520000, 710000, 980000] },
-  ],
-  categories: ['2022', '2023', '2024', '2025'],
-  colors: ['#8B5CF6', '#10B981'],
-},
-```
-
-IDs de gráfico: `chart-s[número]-[slug-descritivo]` — únicos em todo o relatório.
-
-### Modais de detalhamento
-
-Botão "ver tabela completa" dentro do card → modal com tabela de 10 colunas.
-
-```html
-<!-- dentro do card, antes do </div> final -->
-<div class="find-block" data-modal="modal-s1-dist" style="cursor:pointer">
-  <span class="find-tag find-tag-p">Tabela</span>
-  <div class="find-title">Ver tabela completa</div>
-  <p class="sm">Todos os segmentos com as 10 métricas</p>
-</div>
-
-<!-- fora do card (após o </div> raiz da seção) -->
-<div class="ic-overlay" id="modal-s1-dist">
-  <div class="ic-dialog">
-    <div class="ic-dialog-hd">
-      <span class="ic-dialog-title">Distribuição de Compras — Detalhamento</span>
-      <button class="ic-close" data-ic-close>✕</button>
-    </div>
-    <div class="hl">Tabela com todos os segmentos e 10 métricas padrão</div>
-    <div class="tw">
-      <table>
-        <thead><tr>
-          <th>Segmento</th><th>N</th><th>LTV Médio</th><th>Multiplic.</th>
-          <th>Upside %</th><th>Taxa Rcmp</th><th>Ticket PC</th><th>Ticket Rcmp</th>
-          <th>Fat. 1ª</th><th>Fat. Rcmp</th><th>Fat. Total</th>
-        </tr></thead>
-        <tbody>
-          <tr><td>...</td>...</tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-```
-
-O handler de modal já está no `shell-report.html` — qualquer elemento com `data-modal="[id]"` abre o overlay com esse `id` ao ser clicado.
-
-### Montagem final com PowerShell
-
-```powershell
-$shell   = Get-Content '.claude\skills\components\tools\shell-report.html' -Raw -Encoding UTF8
-$charts  = Get-Content 'temp\[SLUG]\_el-charts.js' -Raw -Encoding UTF8
-
-# Concatenar seções na ordem correta
-$parts = @(
-  'temp\[SLUG]\_el-s1.html',
-  'temp\[SLUG]\_el-s2.html',
-  # ... todas as seções em ordem de página
-)
-$content = ($parts | ForEach-Object { Get-Content $_ -Raw -Encoding UTF8 }) -join "`n"
-
-$out = $shell.Replace('{{TITLE}}', 'Análise de LTV — [NOME_CLIENTE]').Replace('{{THEME}}', 'dark').Replace('{{CONTENT}}', $content).Replace('{{CHART_DEFS}}', $charts)
-
-New-Item -ItemType Directory -Force "output\[SLUG]" | Out-Null
-[IO.File]::WriteAllText(
-  (Join-Path (Get-Location) "output\[SLUG]\relatorio-ltv.html"),
-  $out,
-  [Text.Encoding]::UTF8
-)
-```
-
-> **Atenção:** charts devem ser renderizados **antes** de `buildNavigation()` no shell — o `shell-report.html` já garante isso (renderiza todos os `[id^="chart-"]` no `DOMContentLoaded` antes de construir a nav). Não há nada a fazer além de garantir que os IDs no HTML e no `chartDefs` coincidam.
-
-### Classes disponíveis (design system)
-
-Usar exclusivamente as classes do design system. Referência rápida das mais usadas em relatórios:
-
-| Classe | Uso |
-|---|---|
-| `.content` | Wrapper principal da seção com `gap: 14px` |
-| `.slide-hd` + `.slide-title` | Cabeçalho com badge + título |
-| `.badge.badge-p/g/a` | Badge de categoria (roxo/verde/âmbar) |
-| `.mr` > `.mi` > `.mv` + `.ml` | KPI row: valor + label |
-| `.c-p / .c-g / .c-r / .c-a` | Cores de texto semânticas |
-| `.chart-wrap` | Container de gráfico ApexCharts |
-| `.chart-title` | Título acima do gráfico |
-| `.find-block` + `.find-tag` + `.find-title` | Card de insight com tag |
-| `.find-note.find-note-p/g/a` | Frase síntese abaixo do gráfico |
-| `.row` > `.col` | Layout gráfico + insights lado a lado |
-| `.g2` / `.g3` | Grid 2 ou 3 colunas iguais |
-| `.hl` | Highlight — número ou frase em destaque |
-| `.tw > table` | Tabela estruturada (header roxo, linhas alternadas) |
-| `.hm-wrap` > `.hm-grid` | Heatmap — ver `block-heatmap.html` |
-| `.hm-g3/g2/g1` · `.hm-n` · `.hm-r1/r2/r3` | Escala de cor do heatmap (verde → neutro → vermelho) |
-| `.ic-overlay` + `.ic-dialog` | Modal de detalhamento |
-| `.sm` | Texto secundário (13px, cinza) |
-| `.xs` | Texto extra-pequeno (11px, cinza2) |
-
-Proibido: `border-left > 1px` como stripe, gradient text, glassmorphism, cards ad-hoc, superfícies opacas. `height` de gráfico sempre via JS no `chartDef`, nunca CSS.
-
----
-
 ## Comportamento durante a execução
 
 - **Apresentar números no chat** após cada seção — não apenas salvar arquivos silenciosamente
 - **Perguntar antes de prosseguir** se um achado for surpreendente ou contraditório com o contexto do negócio
-- **Registrar anomalias** no `temp\[SLUG]\plano_analise.md` (ex: coluna vazia, produto sem categorização)
-- **Nunca deletar arquivos em `temp\[SLUG]\`** — o usuário pode querer retomar ou ajustar
+- **Registrar anomalias** no `temp\[CLIENTE]\[SLUG]\plano_analise.md` (ex: coluna vazia, produto sem categorização)
+- **Nunca deletar arquivos em `temp\[CLIENTE]\[SLUG]\`** — o usuário pode querer retomar ou ajustar
 - **Atualizar o plano** (`plano_analise.md`) marcando `[x]` as seções concluídas conforme avança
 
 ---
