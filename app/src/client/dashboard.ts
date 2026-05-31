@@ -217,6 +217,14 @@ export class Dashboard {
       ref.tile.setAttribute('gs-y', String(y));
       ref.tile.setAttribute('gs-w', String(w));
       ref.tile.setAttribute('gs-h', String(h));
+
+      // Charts can't shrink below their natural size — the floor matches the
+      // read-path render (the chart's own pixel height ≈ a few cells).
+      if (ref.widget.type === 'chart') {
+        const minH = Math.max(2, Math.ceil((ref.widget.height ?? 300) / CELL_H));
+        ref.tile.setAttribute('gs-min-w', '3');
+        ref.tile.setAttribute('gs-min-h', String(minH));
+      }
     }
 
     // Per-axis margins mirror the read path's 24px column gap / 0 row gap so the
@@ -225,6 +233,23 @@ export class Dashboard {
       { column: 12, cellHeight: CELL_H, float: true, marginTop: 0, marginBottom: 0, marginLeft: 12, marginRight: 12 },
       this.grid,
     );
+
+    // Gridstack only moves the tile; ApexCharts must be told to re-fit. Re-fit
+    // live during the drag and once more on stop so width + height track the cell.
+    const onResize = (...a: unknown[]) => this.refitChart(a[1] as HTMLElement);
+    this.gridStack.on('resize', onResize);
+    this.gridStack.on('resizestop', onResize);
+  }
+
+  /** Re-fit the chart in a resized grid item to fill the cell (minus its title). */
+  private refitChart(itemEl: HTMLElement): void {
+    const ref = this.tiles.find(t => t.tile === itemEl);
+    if (!ref?.chartElId || !this.charts.has(ref.chartElId)) return;
+    const content = itemEl.querySelector('.grid-stack-item-content') as HTMLElement | null;
+    if (!content) return;
+    const titleH = (content.querySelector('.chart-title') as HTMLElement | null)?.offsetHeight ?? 0;
+    const height = Math.max(120, content.clientHeight - titleH - 8);
+    this.charts.resize(ref.chartElId, height);
   }
 
   /** Leave edit mode. On save, persist coords (a throw keeps the editor open),

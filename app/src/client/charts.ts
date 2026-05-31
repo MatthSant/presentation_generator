@@ -196,6 +196,13 @@ export class ChartManager {
     void inst.updateSeries(def.series as unknown[], true);
   }
 
+  /** Re-fit a chart to a new pixel height (width re-measures from the parent).
+   *  Used by the layout editor so a chart fills its cell as it's resized. */
+  resize(elId: string, height: number): void {
+    const inst = this.charts.get(elId);
+    if (inst) void inst.updateOptions({ chart: { height } }, true, false);
+  }
+
   has(elId: string): boolean { return this.charts.has(elId); }
 
   destroyAll(): void {
