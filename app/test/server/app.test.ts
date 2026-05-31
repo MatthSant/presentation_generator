@@ -122,6 +122,13 @@ test('GET /report/:client/:slug → serves the SPA shell', async () => {
   assert.match(res.text, /src="\/js\/client\/main\.js"/);
 });
 
+test('GET / → serves the homepage that lists analyses', async () => {
+  const res = await request(created.app).get('/');
+  assert.equal(res.status, 200);
+  assert.match(res.text, /id="home-list"/);
+  assert.match(res.text, /\/api\/analyses/);
+});
+
 /* ── layout ── */
 
 test('layout: default empty, PUT clamps coords, GET reflects, DELETE resets', async () => {

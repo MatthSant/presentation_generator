@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Análises</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .home-wrap { max-width: 980px; margin: 0 auto; padding: 64px 32px 96px; }
+    .home-head { margin-bottom: 40px; }
+    .home-badge {
+      display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--purple);
+      background: var(--purple-bg); border: 1px solid var(--purple-d);
+      padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
+    }
+    .home-title { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
+    .home-sub { color: var(--gray); margin-top: 6px; font-size: 15px; }
+
+    .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+
+    .an-card {
+      display: block; text-decoration: none; color: inherit;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow-sm);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .an-card:hover {
+      transform: translateY(-2px); box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
+    .an-type {
+      display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--gray);
+      border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; margin-bottom: 12px;
+    }
+    .an-title { font-size: 18px; font-weight: 650; letter-spacing: -.01em; line-height: 1.25; }
+    .an-client { color: var(--gray); font-size: 14px; margin-top: 3px; }
+    .an-meta {
+      display: flex; gap: 16px; margin-top: 16px; padding-top: 14px;
+      border-top: 1px solid var(--divider); font-size: 13px; color: var(--gray);
+    }
+    .an-meta b { color: var(--fg); font-weight: 650; }
+    .an-date { margin-left: auto; }
+
+    .home-empty {
+      border: 1px dashed var(--border-strong); border-radius: 14px;
+      padding: 48px 24px; text-align: center; color: var(--gray);
+    }
+    .home-empty code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
+      background: var(--bg-page); border: 1px solid var(--border);
+      padding: 2px 6px; border-radius: 5px; color: var(--fg);
+    }
+  </style>
+</head>
+<body>
+  <div class="home-wrap">
+    <header class="home-head">
+      <span class="home-badge">Analytics App</span>
+      <h1 class="home-title">Análises</h1>
+      <p class="home-sub">Selecione um relatório para abrir o dashboard.</p>
+    </header>
+    <main id="home-list" class="home-grid"></main>
+  </div>
+
+  <script type="module">
+    const list = document.getElementById('home-list');
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const fmtDate = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    try {
+      const res = await fetch('/api/analyses');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rows = await res.json();
+
+      if (!rows.length) {
+        list.outerHTML = `<div class="home-empty">
+          Nenhuma análise encontrada em <code>output/</code>.<br>
+          Rode <code>/ltv-analysis</code> ou adicione uma pasta <code>output/&lt;cliente&gt;/&lt;slug&gt;/</code>.
+        </div>`;
+      } else {
+        list.innerHTML = rows.map((r) => `
+          <a class="an-card" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
+            ${r.type ? `<span class="an-type">${esc(r.type)}</span>` : ''}
+            <div class="an-title">${esc(r.title || r.slug)}</div>
+            <div class="an-client">${esc(r.client)}</div>
+            <div class="an-meta">
+              <span><b>${r.sectionCount ?? 0}</b> seções</span>
+              <span><b>${r.commentCount ?? 0}</b> comentários</span>
+              <span class="an-date">${esc(fmtDate(r.created_at))}</span>
+            </div>
+          </a>`).join('');
+      }
+    } catch (err) {
+      list.outerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`;
+    }
+  </script>
+</body>
+</html>
