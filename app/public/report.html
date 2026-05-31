@@ -1,17 +1,121 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Relatório</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
-  <link rel="stylesheet" href="/vendor/gridstack.min.css" />
+  <!-- ApexCharts is the only vendor lib the read path needs; Gridstack loads
+       lazily only when the layout editor opens. Module script runs after it. -->
   <script defer src="/vendor/apexcharts.min.js"></script>
-  <script defer src="/vendor/gridstack-all.js"></script>
-  <!-- Fase 4 substitui este shell por <script type="module" src="/js/client/main.js">. -->
+  <script type="module" src="/js/client/main.js"></script>
 </head>
 <body>
-  <main id="app" data-placeholder>Carregando…</main>
+
+  <!-- ── TOPNAV ── -->
+  <nav id="topnav">
+    <a class="tn-home" href="/" title="Início">⌂</a>
+    <div class="tn-brand">
+      <span class="tn-badge">Relatório</span>
+      <span class="tn-sep"></span>
+      <span class="tn-client" id="tn-client">—</span>
+    </div>
+    <div class="tn-pages" id="tn-pages"></div>
+    <div class="tn-right">
+      <button id="comment-toggle-btn">
+        <span>Comentários</span><span id="ctb-n">0</span>
+      </button>
+      <button id="print-btn" onclick="window.print()">↓ PDF</button>
+    </div>
+  </nav>
+
+  <!-- ── SECTION BAR ── -->
+  <div id="section-bar">
+    <span id="sb-page-label">—</span>
+    <div id="sb-tabs"></div>
+  </div>
+
+  <!-- ── MAIN ── -->
+  <main id="main">
+    <div id="export-root"></div>
+  </main>
+
+  <!-- modal overlays (find-block detail dialogs) render here -->
+  <div id="modal-root"></div>
+
+  <!-- ── COMMENT PANEL ── -->
+  <aside id="comment-panel">
+    <div class="cp-head">
+      <span class="cp-title">Comentários</span>
+      <span class="cp-count" id="cp-total">0</span>
+      <button class="cp-close" id="cp-close-btn">&#215;</button>
+    </div>
+    <div class="cp-filters">
+      <button class="cp-filter cp-active" data-filter="todos">Todos</button>
+      <button class="cp-filter" data-filter="detalhar">🔍 Detalhar</button>
+      <button class="cp-filter" data-filter="insight">🧙 Insight</button>
+      <button class="cp-filter" data-filter="acao">✅ Ação</button>
+    </div>
+    <div class="cp-list" id="cp-list"></div>
+    <div class="cp-foot">
+      <button id="cp-export-btn">↓ Exportar CSV</button>
+    </div>
+  </aside>
+
+  <!-- ── COMMENT MODAL ── -->
+  <div id="comment-modal">
+    <div class="cm-dialog">
+      <div class="cm-hd">
+        <div>
+          <div class="cm-title">Adicionar comentário</div>
+          <div class="cm-sec-lbl" id="cm-sec-lbl"></div>
+        </div>
+        <button class="cm-x" id="cm-x">&#215;</button>
+      </div>
+      <div class="cm-anchor-block" id="cm-anchor-block">
+        <div class="cm-anchor-lbl">Contexto capturado</div>
+        <div class="cm-anchor-txt" id="cm-anchor-txt"></div>
+      </div>
+      <div class="cm-types">
+        <button class="cm-type" data-type="detalhar">🔍 Detalhar</button>
+        <button class="cm-type" data-type="insight">🧙 Insight</button>
+        <button class="cm-type" data-type="acao">✅ Ação</button>
+      </div>
+      <textarea class="cm-ta" id="cm-ta" placeholder="Escreva seu comentário… (Ctrl+Enter para salvar)"></textarea>
+      <div class="cm-actions">
+        <button class="cm-cancel" id="cm-cancel">Cancelar</button>
+        <button class="cm-save" id="cm-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONTEXT MENU ── -->
+  <div id="ctx-menu">
+    <div class="ctx-item" id="ctx-comment">
+      <span class="ctx-icon">💬</span>
+      <span>Adicionar comentário</span>
+    </div>
+  </div>
+
+  <!-- ── FILTER FAB + MODAL ── -->
+  <button id="filter-fab" hidden>
+    <span class="flt-icon">⚲</span>
+    <span>Filtros</span>
+    <span id="filter-count">0</span>
+  </button>
+  <div id="filter-modal">
+    <div class="flt-dialog">
+      <div class="flt-hd">
+        <div class="flt-title">Filtros</div>
+        <button class="flt-x" id="filter-close">&#215;</button>
+      </div>
+      <div id="filter-body"></div>
+      <div class="flt-actions">
+        <button class="flt-clear" id="filter-clear">Limpar</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

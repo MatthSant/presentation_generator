@@ -118,7 +118,8 @@ test('GET data/dataset/section → 200 with the file, 404 when missing', async (
 test('GET /report/:client/:slug → serves the SPA shell', async () => {
   const res = await request(created.app).get(`/report/${CLIENT}/${SLUG}`);
   assert.equal(res.status, 200);
-  assert.match(res.text, /<main id="app"/);
+  assert.match(res.text, /id="export-root"/);
+  assert.match(res.text, /src="\/js\/client\/main\.js"/);
 });
 
 /* ── layout ── */
