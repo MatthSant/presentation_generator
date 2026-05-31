@@ -82,13 +82,14 @@ export class Dashboard {
 
   /** Pixel height for a chart's canvas on the read path, derived from its saved
    *  layout cell so the rendered size matches what the editor showed. Subtracts
-   *  the renderer's own chrome (title + wrap padding) from the cell budget. */
+   *  the renderer's own chrome (title + wrap padding) plus the elevated-card
+   *  vertical padding (16px top + 16px bottom) from the cell budget. */
   private chartHeightFor(id: string): number | undefined {
     const item = this.placed.get(id) ?? this.layoutFor(id);
     const widget = this.section.widgets?.find(w => w.id === id);
     if (!item || widget?.type !== 'chart') return undefined;
     const cells = Math.max(1, item.h ?? 1);
-    const chrome = widget.title ? 21 : 8;
+    const chrome = (widget.title ? 21 : 8) + 32;
     return Math.max(120, cells * CELL_H - chrome);
   }
 

@@ -27,15 +27,27 @@ interface Base {
   base: Record<string, Record<string, unknown>>;
 }
 
+/** Series palette = the design-system accent tokens, read live from CSS so a
+ *  single source of truth (style.css) drives both the UI and the charts. Falls
+ *  back to the literal design-system hex when no DOM/stylesheet is available
+ *  (Node tests), so buildOptions stays a pure function there. */
+function readPalette(fallback: string[]): string[] {
+  if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') return fallback;
+  const cs = getComputedStyle(document.documentElement);
+  const tokens = ['--purple', '--green', '--amber', '--orange', '--red'];
+  const read = tokens.map(t => cs.getPropertyValue(t).trim());
+  return read.every(Boolean) ? read : fallback;
+}
+
 function getBase(theme: Theme): Base {
   const dark = theme === 'dark';
   const labelColor = dark ? '#9CA3AF' : '#9A9AA0';
-  const gridColor = dark ? 'rgba(255,255,255,.06)' : '#ECECEC';
-  const defColors = dark
+  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#ECECEC';
+  const defColors = readPalette(dark
     ? ['#8B5CF6', '#10B981', '#F59E0B', '#F97316', '#EF4444']
-    : ['#6B4FD9', '#0E0E10', '#9A9AA0', '#4A4A50', '#B4322B'];
+    : ['#7C3AED', '#059669', '#D97706', '#EA580C', '#DC2626']);
   const base = {
-    chart: { background: 'transparent', toolbar: { show: false }, animations: { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
+    chart: { background: 'transparent', fontFamily: "'Exo 2', system-ui, sans-serif", toolbar: { show: false }, animations: { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
     theme: { mode: dark ? 'dark' : 'light' },
     grid: { borderColor: gridColor, strokeDashArray: 3 },
     tooltip: { theme: dark ? 'dark' : 'light' },
@@ -89,20 +101,20 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
 
   if (def.type === 'donut' || def.type === 'pie') {
     opts.legend = { position: 'bottom', labels: { colors: labelColor } };
-    opts.plotOptions = { pie: { donut: { size: '65%' } } };
+    opts.plotOptions = { pie: { donut: { size: '55%' } } };
   }
   if (def.type === 'bar' || def.type === 'mixed') {
-    opts.plotOptions = { bar: { borderRadius: 2, columnWidth: '55%', ...(def.distributed ? { distributed: true } : {}) } };
+    opts.plotOptions = { bar: { borderRadius: 4, columnWidth: '55%', ...(def.distributed ? { distributed: true } : {}) } };
     opts.yaxis = { ...b.yaxis, min: 0 };
   }
   if (def.type === 'stacked') {
     chart.stacked = true;
     if (def.stackType) chart.stackType = def.stackType;
-    opts.plotOptions = { bar: { borderRadius: 2, columnWidth: '55%' } };
+    opts.plotOptions = { bar: { borderRadius: 0, columnWidth: '55%' } };
     opts.yaxis = { ...b.yaxis, min: 0 };
   }
   if (def.type === 'bar-horizontal') {
-    opts.plotOptions = { bar: { horizontal: true, borderRadius: 2, barHeight: '55%' } };
+    opts.plotOptions = { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } };
     opts.yaxis = { labels: { style: { colors: labelColor, fontSize: '11px' } } };
     opts.xaxis = { ...b.xaxis, categories: def.categories, min: 0 };
   }

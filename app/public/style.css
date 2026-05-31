@@ -10,20 +10,21 @@
   --fg:           oklch(13%   0.008 280);
   --gray:         oklch(43%   0.010 280);
   --gray2:        oklch(64%   0.007 280);
-  --purple:       oklch(48%   0.19  280);
-  --purple-d:     oklch(93.5% 0.022 280);
-  --purple-bg:    oklch(48%   0.19  280 / 0.07);
-  --green:        oklch(47%   0.14  155);
-  --green-bg:     oklch(47%   0.14  155 / 0.07);
-  --amber:        oklch(57%   0.13  75);
-  --amber-bg:     oklch(57%   0.13  75  / 0.07);
-  --orange:       oklch(59%   0.15  45);
-  --orange-bg:    oklch(59%   0.15  45  / 0.07);
-  --red:          oklch(47%   0.17  25);
-  --red-bg:       oklch(47%   0.17  25  / 0.07);
+  --purple:       #7C3AED;
+  --purple-d:     #EDE9FE;
+  --purple-bg:    rgba(124, 58, 237, 0.08);
+  --green:        #059669;
+  --green-bg:     rgba(5, 150, 105, 0.08);
+  --amber:        #D97706;
+  --amber-bg:     rgba(217, 119, 6, 0.08);
+  --orange:       #EA580C;
+  --orange-bg:    rgba(234, 88, 12, 0.08);
+  --red:          #DC2626;
+  --red-bg:       rgba(220, 38, 38, 0.08);
   --surface:      oklch(97.5% 0.004 280);
   --divider:      oklch(93%   0.005 280);
   --shadow-sm:    0 1px 2px oklch(13% 0.008 280 / 0.06), 0 0 0 1px oklch(13% 0.008 280 / 0.04);
+  --shadow-card:  0 2px 8px oklch(13% 0.008 280 / 0.08), 0 0 0 1px oklch(13% 0.008 280 / 0.05);
   --shadow-md:    0 4px 14px oklch(13% 0.008 280 / 0.09), 0 0 0 1px oklch(13% 0.008 280 / 0.05);
 }
 
@@ -37,20 +38,21 @@
   --fg:           oklch(96%   0.003 280);
   --gray:         oklch(72%   0.006 280);
   --gray2:        oklch(54%   0.006 280);
-  --purple:       oklch(68%   0.20  280);
-  --purple-d:     oklch(34%   0.08  280);
-  --purple-bg:    oklch(68%   0.20  280 / 0.14);
-  --green:        oklch(62%   0.15  155);
-  --green-bg:     oklch(62%   0.15  155 / 0.14);
-  --amber:        oklch(72%   0.14  75);
-  --amber-bg:     oklch(72%   0.14  75  / 0.14);
-  --orange:       oklch(72%   0.15  45);
-  --orange-bg:    oklch(72%   0.15  45  / 0.14);
-  --red:          oklch(62%   0.18  25);
-  --red-bg:       oklch(62%   0.18  25  / 0.14);
+  --purple:       #8B5CF6;
+  --purple-d:     #5B21B6;
+  --purple-bg:    rgba(139, 92, 246, 0.14);
+  --green:        #10B981;
+  --green-bg:     rgba(16, 185, 129, 0.14);
+  --amber:        #F59E0B;
+  --amber-bg:     rgba(245, 158, 11, 0.14);
+  --orange:       #F97316;
+  --orange-bg:    rgba(249, 115, 22, 0.14);
+  --red:          #EF4444;
+  --red-bg:       rgba(239, 68, 68, 0.14);
   --surface:      oklch(19%   0.007 280);
   --divider:      oklch(22%   0.008 280);
   --shadow-sm:    0 1px 3px oklch(0% 0 0 / 0.5);
+  --shadow-card:  0 3px 10px oklch(0% 0 0 / 0.55), 0 0 0 1px oklch(0% 0 0 / 0.25);
   --shadow-md:    0 6px 20px oklch(0% 0 0 / 0.65), 0 0 0 1px oklch(0% 0 0 / 0.3);
 }
 
@@ -697,13 +699,13 @@ table tr:nth-child(even) td { background:var(--surface); }
 
 /* ── Agenda compacta ── */
 .ai { display:flex; align-items:center; gap:16px; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px 16px; }
-.an { width:30px; height:30px; border-radius:3px; background:transparent; border:1px solid var(--border); color:var(--fg); font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.an { width:30px; height:30px; border-radius:8px; background:transparent; border:1px solid var(--border); color:var(--fg); font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .at { font-size:13px; font-weight:600; color:var(--fg); }
 .as { font-size:11.5px; color:var(--gray2); margin-top:2px; }
 
 /* ── NI ── */
 .ni { display:flex; align-items:flex-start; gap:11px; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:14px 16px; }
-.nb { width:24px; height:24px; border-radius:3px; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.nb { width:24px; height:24px; border-radius:6px; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .nb-p { background:var(--purple); color:#fff; }
 .nb-g { background:var(--green); color:#fff; }
 .nb-r { background:var(--red);   color:#fff; }
@@ -712,7 +714,7 @@ table tr:nth-child(even) td { background:var(--surface); }
 .nt strong { color:var(--fg); }
 .ni-v { flex-direction:column; gap:0; padding:10px 14px; }
 .ni-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.ni-num { width:24px; height:24px; border-radius:3px; background:var(--purple); color:#fff; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.ni-num { width:24px; height:24px; border-radius:6px; background:var(--purple); color:#fff; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .ni-title { font-size:13px; font-weight:600; color:var(--fg); }
 .ni-section { padding-left:8px; margin-bottom:5px; }
 .ni-section:last-child { margin-bottom:0; }
@@ -782,6 +784,82 @@ table tr:nth-child(even) td { background:var(--surface); }
 .dash-grid--coords:not(.grid-active) .dash-tile {
   padding-bottom:24px;
 }
+
+/* ══════════════════════════════════════════
+   READ-PATH "COLLAGE" REDESIGN
+   Data widgets (chart, table, heatmap, kpi) sit on elevated cards lifted off
+   the page; narrative widgets sit flat on the paper, carrying their color via
+   accents (eyebrow / leading dot / number badge / strong) instead of a fill or
+   border. Scoped to :not(.grid-active) so the Gridstack editor keeps its own
+   chrome and modal/slide usage elsewhere is untouched. */
+
+/* — Elevated data cards — */
+.dash-grid:not(.grid-active) .widget-chart,
+.dash-grid:not(.grid-active) .hm-wrap {
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:var(--shadow-card);
+  padding:16px;
+}
+.dash-grid:not(.grid-active) .tw {
+  border-radius:8px;
+  box-shadow:var(--shadow-card);
+}
+/* Purple header is a design-system signature; use the translucent tint so it
+   reads on-brand without a heavy solid bar. */
+.dash-grid:not(.grid-active) .tw thead tr { background:var(--purple-bg); }
+.dash-grid:not(.grid-active) .tw th { color:var(--purple); }
+.dash-grid:not(.grid-active) .mr {
+  background:var(--bg);
+  border-top:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:var(--shadow-card);
+}
+
+/* — Flat narrative widgets: strip the card, keep color as accent — */
+.dash-grid:not(.grid-active) .find-block,
+.dash-grid:not(.grid-active) .find-note,
+.dash-grid:not(.grid-active) .hl,
+.dash-grid:not(.grid-active) .ni,
+.dash-grid:not(.grid-active) .req-block {
+  background:transparent;
+  border:none;
+  box-shadow:none;
+  border-radius:0;
+}
+.dash-grid:not(.grid-active) .find-block { border-top:none; padding:4px 0; }
+.dash-grid:not(.grid-active) .ni { padding:2px 0; }
+.dash-grid:not(.grid-active) .req-block { padding:4px 0; }
+
+/* find-note: keep a hairline colored marker (the eyebrow of a quiet note),
+   drop the tinted fill. The colored left rule stays at 1px (within design rules). */
+.dash-grid:not(.grid-active) .find-note { padding:2px 0 2px 13px; }
+.dash-grid:not(.grid-active) .find-note-p { border-left:1px solid var(--purple); }
+.dash-grid:not(.grid-active) .find-note-g { border-left:1px solid var(--green); }
+.dash-grid:not(.grid-active) .find-note-a { border-left:1px solid var(--amber); }
+.dash-grid:not(.grid-active) .find-note-r { border-left:1px solid var(--red); }
+.dash-grid:not(.grid-active) .find-note[data-modal] { border-left:1px solid var(--border); }
+.dash-grid:not(.grid-active) .find-note[data-modal]:hover { border-left-color:var(--purple); background:transparent; }
+
+/* highlight: flat line of text led by a small colored dot carrying the signal */
+.dash-grid:not(.grid-active) .hl {
+  padding:2px 0;
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+}
+.dash-grid:not(.grid-active) .hl::before {
+  content:'';
+  width:7px; height:7px;
+  border-radius:50%;
+  background:var(--purple);
+  flex-shrink:0;
+  transform:translateY(-1px);
+}
+.dash-grid:not(.grid-active) .hl-a::before { background:var(--amber); }
+.dash-grid:not(.grid-active) .hl-g::before { background:var(--green); }
+.dash-grid:not(.grid-active) .hl-r::before { background:var(--red); }
 
 @media (max-width: 860px) {
   .dash-grid { grid-template-columns:1fr; }
