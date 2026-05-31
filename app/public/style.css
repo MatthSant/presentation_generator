@@ -2,9 +2,9 @@
 
 /* ── Light tokens ── */
 :root, [data-theme="light"] {
-  --bg:           oklch(99.2% 0.003 280);
-  --bg-page:      oklch(96%   0.005 280);
-  --bg-sidebar:   oklch(97%   0.005 280);
+  --bg:           oklch(100%  0     0);
+  --bg-page:      oklch(100%  0     0);
+  --bg-sidebar:   oklch(98.6% 0.003 280);
   --border:       oklch(90%   0.007 280);
   --border-strong:oklch(82%   0.009 280);
   --fg:           oklch(13%   0.008 280);
