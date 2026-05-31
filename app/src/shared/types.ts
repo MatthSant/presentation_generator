@@ -38,7 +38,7 @@ export interface Bind {
   y?: string;
   /** Optional column whose distinct values split the data into multiple series. */
   series?: string;
-  /** Numeric columns to total (used by kpi-row). */
+  /** Numeric columns to total (used by kpi widgets). */
   metrics?: string[];
   /** Aggregation applied when several rows collapse into one x/metric. Default "sum". */
   agg?: AggFn;
@@ -60,7 +60,7 @@ export interface ResolvedBind {
   series: ResolvedSeries[];
   /** Filtered rows (after active filters), for table-style widgets. */
   rows: DatasetRow[];
-  /** Aggregated total per numeric column over the filtered rows (for kpi-row). */
+  /** Aggregated total per numeric column over the filtered rows (for kpi widgets). */
   totals: Record<string, number>;
 }
 
@@ -76,7 +76,7 @@ export type ChartType =
   | 'mixed' | 'stacked' | 'radialBar' | 'scatter' | 'radar' | 'treemap';
 
 export const WIDGET_TYPES = [
-  'kpi-row', 'chart', 'table', 'heatmap',
+  'kpi', 'chart', 'table', 'heatmap',
   'find-block', 'find-note', 'highlight', 'ni', 'ni-vertical',
   'label-sec', 'request', 'xs',
 ] as const;
@@ -88,18 +88,17 @@ interface WidgetBase {
   type: WidgetType;
 }
 
-export interface KpiItem {
-  /** Dataset column to total when the row has a `bind`; else inline value is used. */
+/** A single metric tile. One KPI per block — lay several side by side via the
+ *  layout grid rather than packing many into one widget. */
+export interface KpiWidget extends WidgetBase {
+  type: 'kpi';
+  /** Dataset column to total when the widget has a `bind`; else inline value is used. */
   key?: string;
   label: string;
   value?: string | number;
   color?: ColorToken;
   /** printf-ish hint for the client formatter, e.g. "R$", "%", "0.0". */
   format?: string;
-}
-export interface KpiRowWidget extends WidgetBase {
-  type: 'kpi-row';
-  items: KpiItem[];
   bind?: Bind;
 }
 
@@ -188,12 +187,12 @@ export interface XsWidget extends WidgetBase {
 }
 
 export type Widget =
-  | KpiRowWidget | ChartWidget | TableWidget | HeatmapWidget
+  | KpiWidget | ChartWidget | TableWidget | HeatmapWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget;
 
 /** Widgets that carry a data binding. */
-export const BINDABLE_TYPES = ['kpi-row', 'chart', 'table', 'heatmap'] as const;
+export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap'] as const;
 
 export interface Modal {
   id: string;

@@ -45,7 +45,7 @@ const SECTION = {
   id: 's01',
   header: { badge: '01', title: 'Receita por canal' },
   widgets: [
-    { id: 'k1', type: 'kpi-row', items: [{ key: 'receita', label: 'Receita' }],
+    { id: 'k1', type: 'kpi', key: 'receita', label: 'Receita',
       bind: { dataset: 'receita_canal', metrics: ['receita'] } },
     { id: 'c1', type: 'chart', chartType: 'bar', title: 'Receita',
       bind: { dataset: 'receita_canal', x: 'mes', y: 'receita' } },

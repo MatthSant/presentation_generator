@@ -91,13 +91,13 @@ agrupa por `x`, separa em séries por `series` e agrega `y`/`metrics`.
 | `x` | coluna de dimensão para categorias (eixo group-by) |
 | `y` | coluna numérica projetada nos valores das séries |
 | `series` | coluna cujos valores distintos viram múltiplas séries |
-| `metrics` | colunas numéricas a totalizar (usado por `kpi-row`) |
+| `metrics` | colunas numéricas a totalizar (usado por `kpi`) |
 | `agg` | agregação quando várias linhas colapsam: `sum`·`avg`·`min`·`max`·`count`. Padrão `sum` |
 | `name` | nome da série única quando não há `series` (padrão = `y`) |
 
 O resultado resolvido tem `{ categories, series, rows, totals }` — o widget
 consome o que precisar (chart usa `categories`+`series`, table usa `rows`,
-kpi-row usa `totals`).
+kpi usa `totals`).
 
 ---
 
@@ -131,25 +131,26 @@ kpi-row usa `totals`).
 
 ## Widget types
 
-### `kpi-row`
-Linha de métricas (máx 4 itens). Com `bind`, cada item puxa o total de uma
-coluna via `key`; sem `bind`, usa `value` inline.
+### `kpi`
+Uma única métrica por bloco. Com `bind`, puxa o total de uma coluna via `key`;
+sem `bind`, usa `value` inline. Para uma linha de métricas, crie vários blocos
+`kpi` e posicione-os lado a lado no `layout.json` (cada um com `w` pequeno).
 
 ```json
 {
-  "id": "kpi",
-  "type": "kpi-row",
-  "bind": { "dataset": "vendas", "metrics": ["receita", "pedidos"] },
-  "items": [
-    { "key": "receita", "label": "Receita total", "format": "R$",  "color": "p" },
-    { "key": "pedidos", "label": "Pedidos",        "format": "0",   "color": "g" },
-    { "value": "34%",    "label": "Taxa de recompra", "color": "a" }
-  ]
+  "id": "kpi-receita",
+  "type": "kpi",
+  "key": "receita",
+  "label": "Receita total",
+  "format": "R$",
+  "color": "p",
+  "bind": { "dataset": "vendas" }
 }
 ```
 
 - `key` — coluna do dataset a totalizar (lê de `totals[key]`). Requer `bind`.
 - `value` — valor literal, usado quando não há `key`/`bind`.
+- `label` — rótulo da métrica (obrigatório).
 - `format` — dica de formatação: `"R$"`, `"%"`, `"0"`, `"0.0"`.
 - `color` — token opcional.
 
@@ -410,7 +411,7 @@ o `id` do widget. O app posiciona via CSS grid (colapsa para 1 coluna em telas
   em cima do outro (o app aplica uma compactação de gravidade em runtime para se
   defender disso, mas não conte com ela — produza coordenadas limpas).
 - **`h` realista por tipo.** Subdimensionar `h` faz a tile estourar/cortar
-  conteúdo. Use como base: `kpi-row` → 2; `chart`/`heatmap` → 4; `table` → 4+
+  conteúdo. Use como base: `kpi` → 1; `chart`/`heatmap` → 4; `table` → 4+
   (≈1 por 3–4 linhas); `find-block`/`find-note`/`label-sec` → 1–2.
 - **Linhas alinhadas.** Widgets na mesma faixa horizontal compartilham o mesmo
   `y` e o mesmo `h` (ex.: `rev` e `ord` ambos `y: 2, h: 4`) para que as bordas

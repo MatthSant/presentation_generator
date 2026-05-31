@@ -5,7 +5,7 @@
  * rows render an empty state — the dashboard never goes blank or throws. */
 
 import type {
-  Widget, Bind, ResolvedBind, KpiRowWidget, ChartWidget, TableWidget,
+  Widget, Bind, ResolvedBind, KpiWidget, ChartWidget, TableWidget,
   HeatmapWidget, FindBlockWidget, FindNoteWidget, HighlightWidget, NiWidget,
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
 } from '../shared/types.js';
@@ -36,20 +36,18 @@ function errorCard(type: string, detail: string): HTMLElement {
   return d;
 }
 
-/* ── kpi-row ── */
-function renderKpiRow(w: KpiRowWidget, ctx: RenderCtx): HTMLElement {
+/* ── kpi ── single metric tile (lay several side by side via the layout grid) */
+function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
   const resolved = ctx.resolve(w.bind);
-  const row = el('div', 'mr');
-  for (const item of w.items || []) {
-    const mi = el('div', 'mi');
-    const mv = el('div', item.color ? `mv c-${item.color}` : 'mv');
-    let value: unknown = item.value;
-    if (resolved && item.key && item.key in resolved.totals) value = resolved.totals[item.key];
-    mv.textContent = formatValue(value, item.format);
-    mi.append(mv, el('div', 'ml', item.label));
-    row.appendChild(mi);
-  }
-  return row;
+  const card = el('div', 'mr');
+  const mi = el('div', 'mi');
+  const mv = el('div', w.color ? `mv c-${w.color}` : 'mv');
+  let value: unknown = w.value;
+  if (resolved && w.key && w.key in resolved.totals) value = resolved.totals[w.key];
+  mv.textContent = formatValue(value, w.format);
+  mi.append(mv, el('div', 'ml', w.label));
+  card.appendChild(mi);
+  return card;
 }
 
 /* ── chart ── */
@@ -222,7 +220,7 @@ function renderXs(w: XsWidget): HTMLElement {
 export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
   try {
     switch (widget.type) {
-      case 'kpi-row':     return renderKpiRow(widget, ctx);
+      case 'kpi':         return renderKpi(widget, ctx);
       case 'chart':       return renderChart(widget, ctx);
       case 'table':       return renderTable(widget, ctx);
       case 'heatmap':     return renderHeatmap(widget);

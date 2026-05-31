@@ -86,7 +86,7 @@ export function resolveBind(
   const rows = applyFilters(table.rows, table.filters ?? [], active);
   const agg: AggFn = bind.agg ?? 'sum';
 
-  // Totals per numeric column (kpi-row consumes these via item.key).
+  // Totals per numeric column (kpi widgets consume these via the `key` field).
   const totals: Record<string, number> = {};
   for (const col of allCols) {
     const vals = rows.map(r => r[col]).filter(v => typeof v === 'number') as number[];

@@ -7,13 +7,20 @@
   },
   "widgets": [
     {
-      "id": "kpi",
-      "type": "kpi-row",
-      "bind": { "dataset": "vendas" },
-      "items": [
-        { "key": "receita", "label": "Receita total", "format": "R$" },
-        { "key": "pedidos", "label": "Pedidos",       "format": "int" }
-      ]
+      "id": "kpi-receita",
+      "type": "kpi",
+      "key": "receita",
+      "label": "Receita total",
+      "format": "R$",
+      "bind": { "dataset": "vendas" }
+    },
+    {
+      "id": "kpi-pedidos",
+      "type": "kpi",
+      "key": "pedidos",
+      "label": "Pedidos",
+      "format": "int",
+      "bind": { "dataset": "vendas" }
     },
     {
       "id": "rev",

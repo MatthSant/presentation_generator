@@ -436,13 +436,22 @@ no `layout.json` (não há containers `row`/`g2`/`g3`/`g4`).
   },
   "widgets": [
     {
-      "id": "kpi",
-      "type": "kpi-row",
-      "bind": { "dataset": "kpis_base", "metrics": ["clientes", "receita"] },
-      "items": [
-        { "key": "clientes", "label": "Clientes", "format": "0",  "color": "p" },
-        { "key": "receita",  "label": "Receita",  "format": "R$", "color": "g" }
-      ]
+      "id": "kpi-clientes",
+      "type": "kpi",
+      "key": "clientes",
+      "label": "Clientes",
+      "format": "0",
+      "color": "p",
+      "bind": { "dataset": "kpis_base" }
+    },
+    {
+      "id": "kpi-receita",
+      "type": "kpi",
+      "key": "receita",
+      "label": "Receita",
+      "format": "R$",
+      "color": "g",
+      "bind": { "dataset": "kpis_base" }
     },
     {
       "id": "freq",
@@ -460,7 +469,7 @@ no `layout.json` (não há containers `row`/`g2`/`g3`/`g4`).
 
 | `type` | Campos principais |
 |---|---|
-| `kpi-row` | `bind`, `items:[{key, label, format?, color?}]` |
+| `kpi` | `key`/`value`, `label`, `format?`, `color?`, `bind?` (um por bloco; lado a lado via layout) |
 | `chart` | `chartType`, `title?`, `height?`, `bind` (`x`/`y`/`series`) |
 | `table` | `cols:[]`, `bind` (ou `rows` inline) |
 | `heatmap` | `cols:[]`, `rows:[{label, cells:[{value,cls,title?}]}]` (inline) |
@@ -473,7 +482,7 @@ no `layout.json` (não há containers `row`/`g2`/`g3`/`g4`).
 | `xs` | `text` (nota metodológica) |
 
 > **`id` único por seção** em todo widget — é a chave do `layout.json`.  
-> **Sempre prefira `bind`** em kpi-row/chart/table; inline só sem tabela de origem.  
+> **Sempre prefira `bind`** em kpi/chart/table; inline só sem tabela de origem.  
 > **Cores (tokens):** `p` roxo · `g` verde · `a` âmbar · `r` vermelho · `n` neutro.
 
 ---
@@ -497,7 +506,7 @@ sob a chave `sections.[id]` sem apagar as das outras seções:
 `x` coluna inicial (0–11) · `w` largura (1–12, com `x+w ≤ 12`) · `y` linha ·
 `h` altura (1 unidade ≈ 80px). Todo widget da seção precisa de uma entrada.
 **Nunca sobreponha widgets:** o próximo na vertical começa em `y + h` do
-anterior (não em `y + 1`), e `h` precisa caber o conteúdo (`kpi-row`→2,
+anterior (não em `y + 1`), e `h` precisa caber o conteúdo (`kpi`→1,
 `chart`/`heatmap`/`table`→4, `find-block`→1–2). Para compor "gráfico +
 insights" lado a lado, dê ao chart `w:7` e empilhe os find-blocks em `w:5` à
 direita (ver "Composições" e "Regras de coordenadas" em `BLOCKS.md`).

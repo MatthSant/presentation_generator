@@ -112,18 +112,14 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
   if (hasBind) validateBind(c, `${path}.bind`, w.bind, datasets);
 
   switch (type) {
-    case 'kpi-row':
-      if (!Array.isArray(w.items)) c.err(`${path}.items`, 'kpi-row requires an items array');
-      else w.items.forEach((it, i) => {
-        if (!isObj(it)) { c.err(`${path}.items[${i}]`, 'item must be an object'); return; }
-        if (!isNonEmptyStr(it.label)) c.err(`${path}.items[${i}].label`, 'item label is required');
-        if (!hasBind && it.value === undefined) {
-          c.err(`${path}.items[${i}].value`, 'item value is required when there is no bind');
-        }
-        if (it.color !== undefined && !COLOR_TOKENS.has(it.color as string)) {
-          c.err(`${path}.items[${i}].color`, `invalid color token "${String(it.color)}"`);
-        }
-      });
+    case 'kpi':
+      if (!isNonEmptyStr(w.label)) c.err(`${path}.label`, 'kpi label is required');
+      if (!hasBind && w.value === undefined) {
+        c.err(`${path}.value`, 'kpi value is required when there is no bind');
+      }
+      if (w.color !== undefined && !COLOR_TOKENS.has(w.color as string)) {
+        c.err(`${path}.color`, `invalid color token "${String(w.color)}"`);
+      }
       break;
     case 'chart':
       if (!isStr(w.chartType) || !CHART_TYPES.has(w.chartType)) {

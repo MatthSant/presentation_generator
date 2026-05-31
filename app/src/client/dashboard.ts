@@ -11,11 +11,12 @@ import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, type ChartDef } from './charts.js';
 
 const DEFAULT_W: Record<string, number> = {
-  'kpi-row': 12, 'label-sec': 12, 'find-note': 12, 'xs': 12,
+  'label-sec': 12, 'find-note': 12, 'xs': 12,
   'chart': 6, 'table': 6, 'highlight': 6, 'request': 6,
   'heatmap': 8, 'find-block': 4, 'ni': 4, 'ni-vertical': 4,
+  'kpi': 3,
 };
-const BOUND = new Set(['kpi-row', 'chart', 'table', 'heatmap']);
+const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap']);
 
 /** Row height (px) used only while the Gridstack editor is open. The read path
  *  uses content-sized tracks, so this just gives the editor a sane drag grid. */
@@ -147,7 +148,7 @@ export class Dashboard {
         }
         continue;
       }
-      // kpi-row / table / heatmap (and charts that had no live instance): full re-render
+      // kpi / table / heatmap (and charts that had no live instance): full re-render
       const ctx = this.resolveCtx();
       this.replaceTile(ref, renderWidget(ref.widget, ctx), ctx.charts[0]?.elId);
     }

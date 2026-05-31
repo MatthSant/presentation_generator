@@ -69,10 +69,10 @@ function ctxWith(resolved: ResolvedBind | null): RenderCtx {
   return { charts: [], resolve: () => resolved };
 }
 
-test('renderWidget: kpi-row reads totals by key and formats', () => {
+test('renderWidget: kpi reads its total by key and formats', () => {
   const resolved: ResolvedBind = { categories: [], series: [], rows: [], totals: { receita: 1500 } };
   const node = renderWidget(
-    { id: 'k1', type: 'kpi-row', items: [{ key: 'receita', label: 'Receita', format: 'R$' }], bind: { dataset: 'd' } } as Widget,
+    { id: 'k1', type: 'kpi', key: 'receita', label: 'Receita', format: 'R$', bind: { dataset: 'd' } } as Widget,
     ctxWith(resolved),
   );
   assert.match(node.textContent || '', /Receita/);
@@ -123,7 +123,7 @@ function section(): Section {
     id: 's1',
     header: { title: 'Vendas' },
     widgets: [
-      { id: 'kpi', type: 'kpi-row', items: [{ key: 'receita', label: 'Receita' }], bind: { dataset: 'vendas' } },
+      { id: 'kpi', type: 'kpi', key: 'receita', label: 'Receita', bind: { dataset: 'vendas' } },
       { id: 'tbl', type: 'table', cols: ['mes', 'receita'], bind: { dataset: 'vendas', x: 'mes', y: 'receita' } },
     ] as Widget[],
   };

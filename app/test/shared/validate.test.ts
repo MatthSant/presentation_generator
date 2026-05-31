@@ -75,8 +75,8 @@ describe('validateSection — widget rules', () => {
   test('chart without bind requires inline series', () => {
     assert.ok(hasError(wrap({ id: 'x', type: 'chart', chartType: 'bar' }), 'widgets[0].series'));
   });
-  test('kpi item without bind requires value', () => {
-    assert.ok(hasError(wrap({ id: 'x', type: 'kpi-row', items: [{ label: 'A' }] }), 'widgets[0].items[0].value'));
+  test('kpi without bind requires value', () => {
+    assert.ok(hasError(wrap({ id: 'x', type: 'kpi', label: 'A' }), 'widgets[0].value'));
   });
   test('text widgets require text', () => {
     assert.ok(hasError(wrap({ id: 'x', type: 'label-sec' }), 'widgets[0].text'));
