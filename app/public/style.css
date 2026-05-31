@@ -755,7 +755,9 @@ table tr:nth-child(even) td { background:var(--surface); }
 
 .dash-grid {
   display:grid;
-  grid-template-columns:repeat(12, 1fr);
+  /* minmax(0,1fr), not 1fr: a wide chart canvas must not be allowed to force its
+     track past its share and collapse the 12-col grid into one full-width column. */
+  grid-template-columns:repeat(12, minmax(0, 1fr));
   gap:24px;
   align-items:start;
 }
@@ -764,13 +766,21 @@ table tr:nth-child(even) td { background:var(--surface); }
 
 /* Coordinate mode (a saved layout exists): tiles place at their x/y/w/h on
    content-sized rows, so an undersized cell grows to fit instead of clipping and
-   adjacent columns auto-align at shared row boundaries. Row-gap is 0 (a tile
-   spanning N rows would otherwise inherit N-1 gaps and break that alignment);
-   columns keep the 24px gutter. */
+   adjacent columns auto-align at shared row boundaries. Row-gap stays 0 (a tile
+   spanning N rows would otherwise inherit N-1 phantom gaps inside its own area
+   and break that alignment); columns keep the 24px gutter. */
 .dash-grid--coords {
   grid-auto-rows:auto;
   column-gap:24px;
   row-gap:0;
+}
+
+/* Vertical breathing room between stacked tiles. Done as per-tile padding (not
+   row-gap) so it never lands inside a multi-row-spanning tile: the gutter sits
+   below each tile's content and matches the 24px column gutter. Excluded in edit
+   mode, where Gridstack drives sizing. */
+.dash-grid--coords:not(.grid-active) .dash-tile {
+  padding-bottom:24px;
 }
 
 @media (max-width: 860px) {

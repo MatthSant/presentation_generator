@@ -4,7 +4,7 @@
     {
       "name": "analytics-app",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.js"],
+      "runtimeArgs": ["dist/server/index.js"],
       "cwd": "app",
       "port": 3131
     }
