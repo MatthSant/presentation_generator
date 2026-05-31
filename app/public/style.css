@@ -817,39 +817,41 @@ table tr:nth-child(even) td { background:var(--surface); }
   box-shadow:var(--shadow-card);
 }
 
-/* — Flat narrative widgets: strip the card, keep color as accent — */
-.dash-grid:not(.grid-active) .find-block,
-.dash-grid:not(.grid-active) .find-note,
-.dash-grid:not(.grid-active) .hl,
-.dash-grid:not(.grid-active) .ni,
-.dash-grid:not(.grid-active) .req-block {
+/* — Flat narrative widgets: strip the card, keep color as accent. Applied in
+   both read and edit modes — the Gridstack tile outline already frames the
+   widget, so a fill/border here just fights it (the green-card-in-editor bug). */
+.dash-grid .find-block,
+.dash-grid .find-note,
+.dash-grid .hl,
+.dash-grid .ni,
+.dash-grid .req-block {
   background:transparent;
   border:none;
   box-shadow:none;
   border-radius:0;
 }
-.dash-grid:not(.grid-active) .find-block { border-top:none; padding:4px 0; }
-.dash-grid:not(.grid-active) .ni { padding:2px 0; }
-.dash-grid:not(.grid-active) .req-block { padding:4px 0; }
+.dash-grid .find-block { border-top:none; padding:4px 0; }
+.dash-grid .ni { padding:2px 0; }
+.dash-grid .req-block { padding:4px 0; }
 
 /* find-note: keep a hairline colored marker (the eyebrow of a quiet note),
    drop the tinted fill. The colored left rule stays at 1px (within design rules). */
-.dash-grid:not(.grid-active) .find-note { padding:2px 0 2px 13px; }
-.dash-grid:not(.grid-active) .find-note-p { border-left:1px solid var(--purple); }
-.dash-grid:not(.grid-active) .find-note-g { border-left:1px solid var(--green); }
-.dash-grid:not(.grid-active) .find-note-a { border-left:1px solid var(--amber); }
-.dash-grid:not(.grid-active) .find-note-r { border-left:1px solid var(--red); }
-.dash-grid:not(.grid-active) .find-note[data-modal] { border-left:1px solid var(--border); }
-.dash-grid:not(.grid-active) .find-note[data-modal]:hover { border-left-color:var(--purple); background:transparent; }
+.dash-grid .find-note { padding:2px 0 2px 13px; }
+.dash-grid .find-note-p { border-left:1px solid var(--purple); }
+.dash-grid .find-note-g { border-left:1px solid var(--green); }
+.dash-grid .find-note-a { border-left:1px solid var(--amber); }
+.dash-grid .find-note-r { border-left:1px solid var(--red); }
+.dash-grid .find-note[data-modal] { border-left:1px solid var(--border); }
+.dash-grid .find-note[data-modal]:hover { border-left-color:var(--purple); background:transparent; }
 
 /* highlight: flat line of text led by a small colored dot carrying the signal */
-.dash-grid:not(.grid-active) .hl {
+.dash-grid .hl {
   padding:2px 0;
   display:flex;
   align-items:baseline;
   gap:10px;
 }
-.dash-grid:not(.grid-active) .hl::before {
+.dash-grid .hl::before {
   content:'';
   width:7px; height:7px;
   border-radius:50%;
@@ -857,9 +859,9 @@ table tr:nth-child(even) td { background:var(--surface); }
   flex-shrink:0;
   transform:translateY(-1px);
 }
-.dash-grid:not(.grid-active) .hl-a::before { background:var(--amber); }
-.dash-grid:not(.grid-active) .hl-g::before { background:var(--green); }
-.dash-grid:not(.grid-active) .hl-r::before { background:var(--red); }
+.dash-grid .hl-a::before { background:var(--amber); }
+.dash-grid .hl-g::before { background:var(--green); }
+.dash-grid .hl-r::before { background:var(--red); }
 
 @media (max-width: 860px) {
   .dash-grid { grid-template-columns:1fr; }
