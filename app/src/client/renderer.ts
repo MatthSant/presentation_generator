@@ -17,6 +17,10 @@ export interface RenderCtx {
   resolve(bind?: Bind): ResolvedBind | null;
   /** Collector for charts that must be instantiated after DOM insertion. */
   charts: { elId: string; def: ChartDef }[];
+  /** Chart canvas height (px) derived from the saved layout cell, if any. When
+   *  present it overrides the widget's authored height so the read path renders
+   *  charts at the size the editor saved instead of a fixed default. */
+  chartHeight?(widgetId: string): number | undefined;
 }
 
 function el(tag: string, cls = '', text?: string): HTMLElement {
@@ -55,6 +59,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'widget-chart');
   if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
 
+  const height = ctx.chartHeight?.(w.id) ?? w.height;
   let def: ChartDef | null = null;
   if (w.bind) {
     const resolved = ctx.resolve(w.bind);
@@ -63,14 +68,14 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
       return wrap;
     }
     def = defFromResolved(w.chartType, resolved, {
-      height: w.height, colors: w.colors, distributed: w.distributed,
+      height, colors: w.colors, distributed: w.distributed,
       stackType: w.stackType, options: w.options,
     });
   } else if (w.series != null) {
     def = {
       type: w.chartType, series: w.series, categories: w.categories, labels: w.labels,
       colors: w.colors, distributed: w.distributed, stackType: w.stackType,
-      height: w.height, options: w.options,
+      height, options: w.options,
     };
   } else {
     wrap.appendChild(empty('Gráfico sem dados'));

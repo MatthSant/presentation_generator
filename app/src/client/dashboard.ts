@@ -75,8 +75,21 @@ export class Dashboard {
       charts,
       resolve: (bind?: Bind): ResolvedBind | null =>
         bind ? resolveBind(bind, this.opts.datasets, this.opts.getActive()) : null,
+      chartHeight: (id: string): number | undefined => this.chartHeightFor(id),
     };
     return ctx;
+  }
+
+  /** Pixel height for a chart's canvas on the read path, derived from its saved
+   *  layout cell so the rendered size matches what the editor showed. Subtracts
+   *  the renderer's own chrome (title + wrap padding) from the cell budget. */
+  private chartHeightFor(id: string): number | undefined {
+    const item = this.placed.get(id) ?? this.layoutFor(id);
+    const widget = this.section.widgets?.find(w => w.id === id);
+    if (!item || widget?.type !== 'chart') return undefined;
+    const cells = Math.max(1, item.h ?? 1);
+    const chrome = widget.title ? 21 : 8;
+    return Math.max(120, cells * CELL_H - chrome);
   }
 
   private layoutFor(id: string): LayoutItem | undefined {
