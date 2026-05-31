@@ -14,7 +14,7 @@ import { Dashboard } from './dashboard.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, type ChartDef } from './charts.js';
 import { resolveBind } from '../shared/bind.js';
-import type { Bind, ResolvedBind, Modal, Section } from '../shared/types.js';
+import type { Bind, ResolvedBind, Modal, Section, LayoutItem } from '../shared/types.js';
 
 const ROOT = document.getElementById('export-root')!;
 const MODAL_ROOT = document.getElementById('modal-root')!;
@@ -27,6 +27,7 @@ class App {
   private comments: Comments;
   private dashboard: Dashboard | null = null;
   private modalCharts = new ChartManager();
+  private editing = false;
 
   constructor(client: string, slug: string) {
     this.api = new Api(client, slug);
@@ -34,6 +35,7 @@ class App {
     this.filters = new Filters(this.store, () => this.dashboard?.applyFilters());
     this.comments = new Comments(this.api, by => this.nav.setBadges(by));
     this.wireModals();
+    this.wireLayoutEditor();
   }
 
   async start(): Promise<void> {
@@ -66,6 +68,7 @@ class App {
   }
 
   private async go(pageId: string, sectionId: string): Promise<void> {
+    if (this.editing) this.abortEdit(); // tab switch during edit → drop edits, then navigate
     this.store.currentPageId = pageId;
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
@@ -103,6 +106,7 @@ class App {
       datasets: this.store.datasets,
       getActive: () => this.store.active,
       layout: this.store.layoutFor(section.id),
+      onSaveLayout: (id, items) => this.persistLayout(id, items),
     });
 
     for (const modal of section.modals || []) this.renderModal(modal);
@@ -183,6 +187,69 @@ class App {
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') for (const m of document.querySelectorAll('.ic-overlay.open')) closeOverlay(m);
     });
+  }
+
+  /* ───────────────────────────  Layout editor  ─────────────────────────── */
+
+  private wireLayoutEditor(): void {
+    document.getElementById('layout-edit-btn')?.addEventListener('click', () => void this.startEdit());
+    document.getElementById('edit-save')?.addEventListener('click', () => void this.finishEdit(true));
+    document.getElementById('edit-cancel')?.addEventListener('click', () => void this.finishEdit(false));
+  }
+
+  private async startEdit(): Promise<void> {
+    if (!this.dashboard || this.editing) return;
+    try {
+      await this.dashboard.enterEditMode();
+    } catch {
+      this.toast('Não foi possível abrir o editor de layout');
+      return;
+    }
+    this.editing = true;
+    document.getElementById('edit-bar')?.removeAttribute('hidden');
+    document.getElementById('layout-edit-btn')?.classList.add('active');
+  }
+
+  private async finishEdit(save: boolean): Promise<void> {
+    if (!this.dashboard || !this.editing) return;
+    const saveBtn = document.getElementById('edit-save') as HTMLButtonElement | null;
+    if (save && saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvando…'; }
+    try {
+      await this.dashboard.exitEditMode(save);
+      this.clearEditUI();
+      if (save) this.toast('Layout salvo');
+    } catch {
+      this.toast('Erro ao salvar layout'); // editor stays open so the user can retry
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salvar'; }
+    }
+  }
+
+  /** Drop the editor silently (navigation away while editing). The dashboard is
+   *  about to be destroyed by renderSection, so no rebuild is needed here. */
+  private abortEdit(): void {
+    void this.dashboard?.exitEditMode(false);
+    this.clearEditUI();
+  }
+
+  private clearEditUI(): void {
+    this.editing = false;
+    document.getElementById('edit-bar')?.setAttribute('hidden', '');
+    document.getElementById('layout-edit-btn')?.classList.remove('active');
+  }
+
+  private async persistLayout(sectionId: string, items: LayoutItem[]): Promise<void> {
+    const res = await this.api.putLayout(sectionId, items);
+    this.store.layout = res.layout;
+  }
+
+  private toast(msg: string): void {
+    const el = document.createElement('div');
+    el.className = 'app-toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, 2200);
   }
 
   private watch(): void {

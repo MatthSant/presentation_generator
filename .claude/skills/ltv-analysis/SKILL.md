@@ -487,17 +487,20 @@ sob a chave `sections.[id]` sem apagar as das outras seções:
 {
   "sections": {
     "s01": [
-      { "id": "kpi",  "x": 0, "y": 0, "w": 12, "h": 1 },
-      { "id": "freq", "x": 0, "y": 1, "w": 6,  "h": 3 }
+      { "id": "kpi",  "x": 0, "y": 0, "w": 12, "h": 2 },
+      { "id": "freq", "x": 0, "y": 2, "w": 6,  "h": 4 }
     ]
   }
 }
 ```
 
 `x` coluna inicial (0–11) · `w` largura (1–12, com `x+w ≤ 12`) · `y` linha ·
-`h` altura. Todo widget da seção precisa de uma entrada. Para compor "gráfico +
+`h` altura (1 unidade ≈ 80px). Todo widget da seção precisa de uma entrada.
+**Nunca sobreponha widgets:** o próximo na vertical começa em `y + h` do
+anterior (não em `y + 1`), e `h` precisa caber o conteúdo (`kpi-row`→2,
+`chart`/`heatmap`/`table`→4, `find-block`→1–2). Para compor "gráfico +
 insights" lado a lado, dê ao chart `w:7` e empilhe os find-blocks em `w:5` à
-direita (ver "Composições" em `BLOCKS.md`).
+direita (ver "Composições" e "Regras de coordenadas" em `BLOCKS.md`).
 
 ---
 

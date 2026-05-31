@@ -434,29 +434,6 @@ body.edit-mode .grid-active .grid-stack-item-content { overflow-y: auto !importa
 /* Direct find-block (top-level flat item, no wrapper div) */
 .grid-active .grid-stack-item-content > .find-block { flex: 1; min-height: 0; }
 
-/* Edit toggle / cluster */
-#edit-toggle-btn,
-#edit-cluster button {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 10.5px;
-  font-weight: 700;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--gray2);
-  cursor: pointer;
-  padding: 5px 10px;
-  white-space: nowrap;
-  transition: border-color .15s, color .15s, background .15s;
-}
-#edit-toggle-btn:hover { border-color: var(--purple); color: var(--purple); }
-#edit-cluster:not([hidden]) { display: flex; align-items: center; gap: 6px; }
-.el-save { border-color: var(--purple) !important; color: var(--purple) !important; background: var(--purple-bg) !important; }
-.el-save.el-dirty { background: var(--purple) !important; color: #fff !important; }
-.el-cancel:hover { border-color: var(--red); color: var(--red); }
-.el-restore { border-color: transparent !important; color: var(--gray2); text-transform: none; letter-spacing: 0; }
-.el-restore:hover { color: var(--red); }
-
 /* Edit-mode affordances */
 body.edit-mode .grid-stack-item-content {
   outline: 1px dashed color-mix(in oklch, var(--purple) 45%, transparent);
@@ -484,212 +461,8 @@ body.edit-mode .grid-stack-item:hover .ui-resizable-handle { opacity: 1; }
 /* Chart cells never scroll — now redundant with .grid-active rule above, kept for specificity clarity */
 .grid-stack-item[data-block-type="chart"] .grid-stack-item-content { overflow: hidden !important; }
 
-/* ── Per-block comment button (hidden by default, appears only on block hover) ── */
+/* Positioning context for any absolute affordances inside an editor tile. */
 .grid-stack-item-content { position: relative; }
-.bc-add {
-  position: absolute;
-  top: 6px; right: 6px;
-  display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--gray2);
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s;
-  z-index: 10;
-}
-.grid-stack-item:hover .bc-add { opacity: 1; pointer-events: auto; }
-.bc-add:hover { background: var(--purple-bg); border-color: var(--purple); color: var(--purple); }
-
-/* ── Per-block comment badge (count pill, fades out on hover to reveal button) ── */
-.bc-badge {
-  position: absolute;
-  top: 6px; right: 6px;
-  min-width: 16px; height: 16px;
-  border-radius: 8px;
-  background: var(--purple);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  font-family: 'Exo 2', sans-serif;
-  letter-spacing: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  pointer-events: none;
-  z-index: 11;
-  transition: opacity .15s;
-}
-.bc-badge.bc-badge-active { display: flex; }
-.grid-stack-item:hover .bc-badge { opacity: 0; }
-
-/* ── Per-block edit button (.be-trigger = ✎ pencil) ── */
-.be-trigger {
-  position: absolute;
-  top: 6px; right: 32px;   /* sits left of the comment button */
-  font-size: 13px;
-  line-height: 1;
-  padding: 2px 5px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--gray2);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity .15s;
-  z-index: 10;
-  display: none;
-}
-body.edit-mode .be-trigger { display: block; }
-body.edit-mode .grid-stack-item:hover .be-trigger { opacity: 1; }
-body.edit-mode .be-trigger:hover { background: var(--purple-bg); border-color: var(--purple); color: var(--purple); }
-
-/* ── Add block floating button ── */
-#add-block-btn {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 200;
-  font-family: 'Exo 2', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 8px 18px;
-  border-radius: 20px;
-  border: 1px solid var(--purple);
-  background: var(--purple);
-  color: #fff;
-  cursor: pointer;
-  letter-spacing: .5px;
-  box-shadow: 0 4px 16px color-mix(in oklch, var(--purple) 35%, transparent);
-  transition: opacity .15s, transform .15s;
-}
-#add-block-btn:hover { opacity: .88; transform: translateX(-50%) translateY(-1px); }
-
-/* ── Block editor panel ── */
-#block-editor {
-  position: fixed;
-  top: 50%;
-  right: 24px;
-  transform: translateY(-50%);
-  z-index: 300;
-  width: 320px;
-}
-.be-dialog {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 12px 40px rgba(0,0,0,.18);
-  overflow: hidden;
-}
-.be-hd {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--border);
-}
-.be-type-badge {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: var(--purple);
-  background: var(--purple-bg);
-  border-radius: 3px;
-  padding: 2px 7px;
-}
-.be-x {
-  font-size: 18px;
-  background: none;
-  border: none;
-  color: var(--gray2);
-  cursor: pointer;
-  line-height: 1;
-  padding: 0 2px;
-}
-.be-x:hover { color: var(--red); }
-.be-fields { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.be-row { display: flex; flex-direction: column; gap: 4px; }
-.be-row-inline { flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; }
-.be-row label { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--gray2); }
-.be-row input,
-.be-row textarea {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 12.5px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--fg);
-  padding: 6px 9px;
-  resize: vertical;
-  min-height: 34px;
-  transition: border-color .15s;
-}
-.be-row input:focus,
-.be-row textarea:focus { outline: none; border-color: var(--purple); }
-.be-swatches { display: flex; gap: 5px; }
-.be-swatch {
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: transform .12s, border-color .12s;
-}
-.be-swatch:hover { transform: scale(1.15); }
-.be-swatch-active { border-color: var(--fg) !important; transform: scale(1.15); }
-.be-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  padding: 10px 14px 13px;
-  border-top: 1px solid var(--border);
-}
-.be-btn-cancel, .be-btn-save {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 10.5px;
-  font-weight: 700;
-  border-radius: 4px;
-  padding: 5px 12px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--gray2);
-  transition: border-color .15s, color .15s, background .15s;
-}
-.be-btn-cancel:hover { border-color: var(--red); color: var(--red); }
-.be-btn-save { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
-.be-btn-save:hover { background: var(--purple); color: #fff; }
-
-/* ── Block editor: type selector (create mode) ── */
-.be-type-row {
-  display: flex;
-  gap: 6px;
-  padding: 10px 14px 0;
-}
-.be-type-opt {
-  flex: 1;
-  font-family: 'Exo 2', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .6px;
-  text-transform: uppercase;
-  padding: 6px 8px;
-  border-radius: 5px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--gray2);
-  cursor: pointer;
-  text-align: center;
-  transition: border-color .15s, color .15s, background .15s;
-}
-.be-type-opt:hover { border-color: var(--border-strong); color: var(--fg); }
-.be-type-opt-active.opt-find { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
-.be-type-opt-active.opt-request { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
 
 /* ── Request block ── */
 .req-block {
@@ -744,10 +517,10 @@ body.edit-mode .be-trigger:hover { background: var(--purple-bg); border-color: v
   .ic-overlay { display: none !important; }
   [data-report-section] { display: block !important; }
   /* Layout estático na impressão: mantém posições, esconde affordances de edição */
-  #edit-cluster, #edit-toggle-btn { display: none !important; }
+  #layout-edit-btn, #edit-bar { display: none !important; }
   .grid-stack-item-content { outline: none !important; overflow: visible !important; }
   .ui-resizable-handle { display: none !important; }
-  .bc-add, .bc-badge, .be-trigger, #add-block-btn, #block-editor, .req-status { display: none !important; }
+  .req-status { display: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -989,9 +762,22 @@ table tr:nth-child(even) td { background:var(--surface); }
 .dash-tile { min-width:0; display:flex; flex-direction:column; }
 .dash-tile > * { min-width:0; }
 
+/* Coordinate mode (a saved layout exists): tiles place at their x/y/w/h on
+   content-sized rows, so an undersized cell grows to fit instead of clipping and
+   adjacent columns auto-align at shared row boundaries. Row-gap is 0 (a tile
+   spanning N rows would otherwise inherit N-1 gaps and break that alignment);
+   columns keep the 24px gutter. */
+.dash-grid--coords {
+  grid-auto-rows:auto;
+  column-gap:24px;
+  row-gap:0;
+}
+
 @media (max-width: 860px) {
   .dash-grid { grid-template-columns:1fr; }
   .dash-tile { grid-column:1 / -1 !important; }
+  /* Stacked single column: drop the row coordinates, flow content-sized. */
+  .dash-grid--coords .dash-tile { grid-row:auto !important; }
 }
 
 /* ── widget empty / error states ── */
@@ -1045,3 +831,55 @@ table tr:nth-child(even) td { background:var(--surface); }
 .flt-actions { display:flex; justify-content:flex-end; border-top:1px solid var(--divider); padding-top:12px; }
 .flt-clear { background:none; border:1px solid var(--border); border-radius:4px; padding:6px 16px; font-family:'Exo 2', sans-serif; font-size:11px; font-weight:600; color:var(--gray2); cursor:pointer; transition:border-color .15s, color .15s; }
 .flt-clear:hover { border-color:var(--red); color:var(--red); }
+
+/* ══════════════════════════════════════════
+   LAYOUT EDITOR (Gridstack — opens over the read-path grid)
+   ══════════════════════════════════════════ */
+/* Topnav toggle */
+#layout-edit-btn {
+  display:flex; align-items:center; gap:5px;
+  padding:5px 10px;
+  border:1px solid var(--border); border-radius:4px;
+  background:transparent;
+  font-family:'Exo 2', sans-serif; font-size:10.5px; font-weight:700;
+  color:var(--gray2); cursor:pointer; white-space:nowrap;
+  transition:border-color .15s, color .15s, background .15s;
+}
+#layout-edit-btn:hover { border-color:var(--purple); color:var(--purple); }
+#layout-edit-btn.active { border-color:var(--purple); color:var(--purple); background:var(--purple-bg); }
+
+/* Switch the grid container from CSS-grid to Gridstack's absolute layout.
+   Two-class specificity beats the later `.dash-grid { display:grid }` rule. */
+.dash-grid.grid-active { display:block; gap:0; }
+
+/* Edit bar — floating pill, sits above the filter FAB */
+#edit-bar {
+  position:fixed; right:24px; bottom:88px; z-index:96;
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px;
+  border:1px solid var(--border); border-radius:24px;
+  background:var(--bg); box-shadow:var(--shadow-md);
+}
+#edit-bar[hidden] { display:none; }
+.eb-label { font-family:'Exo 2', sans-serif; font-size:11px; font-weight:700; color:var(--gray2); letter-spacing:.3px; }
+.eb-cancel, .eb-save {
+  font-family:'Exo 2', sans-serif; font-size:11px; font-weight:700;
+  padding:6px 14px; border-radius:5px; cursor:pointer;
+  border:1px solid var(--border); background:transparent; color:var(--gray2);
+  transition:border-color .15s, color .15s, background .15s;
+}
+.eb-cancel:hover { border-color:var(--red); color:var(--red); }
+.eb-save { border-color:var(--green); color:var(--green); background:var(--green-bg); }
+.eb-save:hover { background:var(--green); color:#fff; }
+.eb-save:disabled { opacity:.6; cursor:default; }
+
+/* Transient feedback toast */
+.app-toast {
+  position:fixed; left:50%; bottom:32px; transform:translate(-50%, 16px); z-index:9300;
+  padding:10px 18px; border-radius:8px;
+  background:var(--fg); color:var(--bg);
+  font-family:'Exo 2', sans-serif; font-size:12px; font-weight:700; letter-spacing:.3px;
+  box-shadow:var(--shadow-md); opacity:0; pointer-events:none;
+  transition:opacity .25s, transform .25s;
+}
+.app-toast.show { opacity:1; transform:translate(-50%, 0); }

@@ -381,24 +381,40 @@ o `id` do widget. O app posiciona via CSS grid (colapsa para 1 coluna em telas
 {
   "sections": {
     "s01": [
-      { "id": "kpi", "x": 0, "y": 0, "w": 12, "h": 1 },
-      { "id": "rev", "x": 0, "y": 1, "w": 6,  "h": 3 },
-      { "id": "ord", "x": 6, "y": 1, "w": 6,  "h": 3 },
-      { "id": "tbl", "x": 0, "y": 2, "w": 12, "h": 3 }
+      { "id": "kpi", "x": 0, "y": 0, "w": 12, "h": 2 },
+      { "id": "rev", "x": 0, "y": 2, "w": 6,  "h": 4 },
+      { "id": "ord", "x": 6, "y": 2, "w": 6,  "h": 4 },
+      { "id": "tbl", "x": 0, "y": 6, "w": 12, "h": 4 }
     ],
     "s02": [
-      { "id": "donut",  "x": 0, "y": 0, "w": 5, "h": 3 },
-      { "id": "catbar", "x": 5, "y": 0, "w": 7, "h": 3 },
-      { "id": "fb1",    "x": 0, "y": 1, "w": 6, "h": 2 },
-      { "id": "note",   "x": 6, "y": 1, "w": 6, "h": 1 }
+      { "id": "donut",  "x": 0, "y": 0, "w": 5, "h": 4 },
+      { "id": "catbar", "x": 5, "y": 0, "w": 7, "h": 4 },
+      { "id": "fb1",    "x": 0, "y": 4, "w": 6, "h": 2 },
+      { "id": "note",   "x": 6, "y": 4, "w": 6, "h": 2 }
     ]
   }
 }
 ```
 
 - `x` — coluna inicial (0–11). `w` — largura em colunas (1–12). `x + w ≤ 12`.
-- `y` — linha (ordem vertical). `h` — altura em unidades de linha (informativa).
+- `y` — linha inicial. `h` — altura em unidades de linha (1 unidade ≈ 80px).
 - Todo widget de uma seção precisa de uma entrada no layout daquela seção.
+
+**Regras de coordenadas (críticas — evite layout quebrado):**
+
+- **Sem sobreposição.** Dois widgets nunca podem ocupar a mesma célula. Um
+  widget ocupa as linhas `y` até `y + h - 1` e as colunas `x` até `x + w - 1`;
+  o próximo na vertical começa em `y + h` (não em `y + 1`). Ex.: se `rev`/`ord`
+  têm `y: 2, h: 4`, eles vão até a linha 5 — o widget seguinte (`tbl`) começa em
+  `y: 6`, **não** em `y: 3`. Coordenadas sobrepostas fazem tiles renderizarem um
+  em cima do outro (o app aplica uma compactação de gravidade em runtime para se
+  defender disso, mas não conte com ela — produza coordenadas limpas).
+- **`h` realista por tipo.** Subdimensionar `h` faz a tile estourar/cortar
+  conteúdo. Use como base: `kpi-row` → 2; `chart`/`heatmap` → 4; `table` → 4+
+  (≈1 por 3–4 linhas); `find-block`/`find-note`/`label-sec` → 1–2.
+- **Linhas alinhadas.** Widgets na mesma faixa horizontal compartilham o mesmo
+  `y` e o mesmo `h` (ex.: `rev` e `ord` ambos `y: 2, h: 4`) para que as bordas
+  inferiores se alinhem.
 
 ---
 

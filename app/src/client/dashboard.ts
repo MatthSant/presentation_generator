@@ -17,18 +17,50 @@ const DEFAULT_W: Record<string, number> = {
 };
 const BOUND = new Set(['kpi-row', 'chart', 'table', 'heatmap']);
 
+/** Row height (px) used only while the Gridstack editor is open. The read path
+ *  uses content-sized tracks, so this just gives the editor a sane drag grid. */
+const CELL_H = 80;
+
+/** Resolve overlapping layout coords by letting gravity pull items down: any
+ *  item that would overlap an already-placed one is pushed below it. This is a
+ *  no-op on clean (editor-produced) layouts and repairs hand-authored ones that
+ *  overlap, so the coordinate read path can never render tiles on top of each
+ *  other. Pure + exported for unit testing. */
+export function compactVertically(items: LayoutItem[]): LayoutItem[] {
+  const sorted = [...items].sort((a, b) => ((a.y ?? 0) - (b.y ?? 0)) || ((a.x ?? 0) - (b.x ?? 0)));
+  const placed: LayoutItem[] = [];
+  for (const it of sorted) {
+    const w = it.w ?? 1, h = it.h ?? 1;
+    let y = it.y ?? 0;
+    for (;;) {
+      const hit = placed.find(p =>
+        (it.x ?? 0) < p.x + p.w && p.x < (it.x ?? 0) + w &&  // columns overlap
+        y < p.y + p.h && p.y < y + h);                        // rows overlap
+      if (!hit) break;
+      y = hit.y + hit.h;
+    }
+    placed.push({ ...it, y, w, h });
+  }
+  return placed;
+}
+
 interface TileRef { widget: Widget; tile: HTMLElement; chartElId?: string; }
 
 export interface DashboardOpts {
   datasets: DataMap;
   getActive: () => ActiveFilters;
   layout?: LayoutItem[];
+  /** Persist new grid coords on save. Throwing keeps the editor open (caller shows the error). */
+  onSaveLayout?: (sectionId: string, items: LayoutItem[]) => Promise<void>;
 }
 
 export class Dashboard {
   private charts = new ChartManager();
   private tiles: TileRef[] = [];
   private grid: HTMLElement;
+  private placed = new Map<string, LayoutItem>();
+  private gridStack: GridStackInstance | null = null;
+  private static gridStackLib?: Promise<void>;
 
   constructor(private section: Section, private host: HTMLElement, private opts: DashboardOpts) {
     this.grid = document.createElement('div');
@@ -50,16 +82,31 @@ export class Dashboard {
     return this.opts.layout?.find(l => l.id === id);
   }
 
+  /** A section with a saved layout renders as a true coordinate grid (honoring
+   *  y/h) so the read path matches the editor exactly. Without one, tiles flow
+   *  content-sized in document order at their default widths. */
+  private hasCoordLayout(): boolean {
+    return !!this.opts.layout && this.opts.layout.length > 0;
+  }
+
   private buildTile(widget: Widget, ctx: RenderCtx): HTMLElement {
     const tile = document.createElement('div');
     tile.className = 'dash-tile';
     tile.dataset.widgetId = widget.id;
     tile.dataset.widgetType = widget.type;
     const li = this.layoutFor(widget.id);
-    const w = li?.w ?? DEFAULT_W[widget.type] ?? 6;
-    const x = li?.x;
-    tile.style.gridColumn = (x != null ? `${x + 1} / span ${w}` : `span ${w}`);
-    if (li) tile.style.order = String((li.y ?? 0) * 100 + (li.x ?? 0));
+    const p = this.placed.get(widget.id);
+    const w = p?.w ?? li?.w ?? DEFAULT_W[widget.type] ?? 6;
+
+    if (p) {
+      // Coordinate placement against content-sized rows: tiles land at their
+      // compacted x/y, and shared row boundaries auto-align adjacent columns.
+      tile.style.gridColumn = `${(p.x ?? 0) + 1} / span ${w}`;
+      tile.style.gridRow = `${(p.y ?? 0) + 1} / span ${Math.max(1, p.h ?? 1)}`;
+    } else {
+      tile.style.gridColumn = (li?.x != null ? `${li.x + 1} / span ${w}` : `span ${w}`);
+      if (li) tile.style.order = String((li.y ?? 0) * 100 + (li.x ?? 0));
+    }
 
     const beforeCharts = ctx.charts.length;
     tile.appendChild(renderWidget(widget, ctx));
@@ -72,6 +119,10 @@ export class Dashboard {
     const ctx = this.resolveCtx();
     this.tiles = [];
     this.grid.innerHTML = '';
+    const coords = this.hasCoordLayout();
+    this.grid.classList.toggle('dash-grid--coords', coords);
+    this.placed.clear();
+    if (coords) for (const it of compactVertically(this.opts.layout!)) this.placed.set(it.id, it);
     for (const widget of this.section.widgets || []) {
       this.grid.appendChild(this.buildTile(widget, ctx));
     }
@@ -113,7 +164,103 @@ export class Dashboard {
     }
   }
 
+  /* ───────────────────────────  Layout editor  ─────────────────────────── */
+
+  get editing(): boolean { return this.gridStack != null; }
+
+  /** Lazy-load the Gridstack UMD bundle once (it isn't needed on the read path). */
+  private loadGridStack(): Promise<void> {
+    if (typeof GridStack !== 'undefined') return Promise.resolve();
+    if (!Dashboard.gridStackLib) {
+      Dashboard.gridStackLib = new Promise<void>((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = '/vendor/gridstack-all.js';
+        s.onload = () => resolve();
+        s.onerror = () => { Dashboard.gridStackLib = undefined; reject(new Error('Falha ao carregar Gridstack')); };
+        document.head.appendChild(s);
+      });
+    }
+    return Dashboard.gridStackLib;
+  }
+
+  /** Turn the read-path CSS grid into a draggable/resizable Gridstack. */
+  async enterEditMode(): Promise<void> {
+    if (this.gridStack) return;
+    await this.loadGridStack();
+    if (typeof GridStack === 'undefined') return;
+
+    document.body.classList.add('edit-mode');
+    this.grid.classList.add('grid-stack', 'grid-active');
+
+    for (const ref of this.tiles) {
+      const li = this.layoutFor(ref.widget.id);
+      const w = li?.w ?? DEFAULT_W[ref.widget.type] ?? 6;
+      const x = li?.x ?? 0;
+      const y = li?.y ?? 0;
+      // ceil (not round) so the cell never ends up shorter than the content,
+      // which is what produced the in-editor scrollbars.
+      const h = li?.h ?? Math.max(2, Math.ceil(ref.tile.offsetHeight / CELL_H));
+
+      const content = document.createElement('div');
+      content.className = 'grid-stack-item-content';
+      while (ref.tile.firstChild) content.appendChild(ref.tile.firstChild);
+      ref.tile.appendChild(content);
+
+      ref.tile.classList.add('grid-stack-item');
+      ref.tile.dataset.blockType = ref.widget.type;
+      ref.tile.style.gridColumn = '';
+      ref.tile.style.gridRow = '';
+      ref.tile.style.order = '';
+      ref.tile.setAttribute('gs-id', ref.widget.id);
+      ref.tile.setAttribute('gs-x', String(x));
+      ref.tile.setAttribute('gs-y', String(y));
+      ref.tile.setAttribute('gs-w', String(w));
+      ref.tile.setAttribute('gs-h', String(h));
+    }
+
+    // Per-axis margins mirror the read path's 24px column gap / 0 row gap so the
+    // arrangement looks the same in edit mode as it does once saved.
+    this.gridStack = GridStack.init(
+      { column: 12, cellHeight: CELL_H, float: true, marginTop: 0, marginBottom: 0, marginLeft: 12, marginRight: 12 },
+      this.grid,
+    );
+  }
+
+  /** Leave edit mode. On save, persist coords (a throw keeps the editor open),
+   *  then rebuild the read-path grid from the resulting layout. */
+  async exitEditMode(save: boolean): Promise<void> {
+    if (!this.gridStack) return;
+
+    if (save) {
+      const items = this.readGridLayout();
+      if (this.opts.onSaveLayout) await this.opts.onSaveLayout(this.section.id, items);
+      this.opts.layout = items;
+    }
+
+    this.gridStack.destroy(false);
+    this.gridStack = null;
+    document.body.classList.remove('edit-mode');
+    this.grid.classList.remove('grid-stack', 'grid-active');
+    this.charts.destroyAll();
+    this.render();
+  }
+
+  private readGridLayout(): LayoutItem[] {
+    const items: LayoutItem[] = [];
+    for (const n of this.gridStack!.save(false)) {
+      if (!n.id) continue;
+      const ref = this.tiles.find(t => t.widget.id === n.id);
+      items.push({ id: n.id, type: ref?.widget.type, x: n.x ?? 0, y: n.y ?? 0, w: n.w ?? 6, h: n.h ?? 1 });
+    }
+    return items;
+  }
+
   destroy(): void {
+    if (this.gridStack) {
+      try { this.gridStack.destroy(false); } catch { /* noop */ }
+      this.gridStack = null;
+      document.body.classList.remove('edit-mode');
+    }
     this.charts.destroyAll();
     this.grid.remove();
   }

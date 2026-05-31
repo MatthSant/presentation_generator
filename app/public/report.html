@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Relatório</title>
   <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/vendor/gridstack.min.css" />
   <link rel="stylesheet" href="/style.css" />
   <!-- ApexCharts is the only vendor lib the read path needs; Gridstack loads
        lazily only when the layout editor opens. Module script runs after it. -->
@@ -23,6 +24,7 @@
     </div>
     <div class="tn-pages" id="tn-pages"></div>
     <div class="tn-right">
+      <button id="layout-edit-btn"><span>⊞ Layout</span></button>
       <button id="comment-toggle-btn">
         <span>Comentários</span><span id="ctb-n">0</span>
       </button>
@@ -96,6 +98,13 @@
       <span class="ctx-icon">💬</span>
       <span>Adicionar comentário</span>
     </div>
+  </div>
+
+  <!-- ── LAYOUT EDIT BAR ── (visible only while editing the grid) -->
+  <div id="edit-bar" hidden>
+    <span class="eb-label">Editando layout</span>
+    <button class="eb-cancel" id="edit-cancel">Cancelar</button>
+    <button class="eb-save" id="edit-save">Salvar</button>
   </div>
 
   <!-- ── FILTER FAB + MODAL ── -->
