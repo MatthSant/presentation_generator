@@ -35,7 +35,7 @@ function getBase(theme: Theme): Base {
     ? ['#8B5CF6', '#10B981', '#F59E0B', '#F97316', '#EF4444']
     : ['#6B4FD9', '#0E0E10', '#9A9AA0', '#4A4A50', '#B4322B'];
   const base = {
-    chart: { background: 'transparent', toolbar: { show: false }, animations: { enabled: true } },
+    chart: { background: 'transparent', toolbar: { show: false }, animations: { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
     theme: { mode: dark ? 'dark' : 'light' },
     grid: { borderColor: gridColor, strokeDashArray: 3 },
     tooltip: { theme: dark ? 'dark' : 'light' },
@@ -188,8 +188,12 @@ export class ChartManager {
   update(elId: string, def: ChartDef): void {
     const inst = this.charts.get(elId);
     if (!inst) { this.create(elId, def); return; }
-    void inst.updateOptions({ ...(def.categories ? { xaxis: { categories: def.categories } } : {}), labels: def.labels }, false, true);
-    void inst.updateSeries(def.series, true);
+    // 1) Rebuild geometry silently (fixes plotOptions for series-count changes
+    //    in bar charts — a bare updateSeries leaves stale grouped-bar widths).
+    // 2) Then animate only the data transition with updateSeries.
+    const opts = buildOptions(def);
+    void inst.updateOptions(opts, false, false);
+    void inst.updateSeries(def.series as unknown[], true);
   }
 
   has(elId: string): boolean { return this.charts.has(elId); }
