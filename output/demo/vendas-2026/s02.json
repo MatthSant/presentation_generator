@@ -1,0 +1,54 @@
+{
+  "id": "s02",
+  "header": {
+    "badge": "Detalhe",
+    "title": "Receita por Categoria",
+    "sub": "Participação de cada categoria no semestre."
+  },
+  "widgets": [
+    {
+      "id": "donut",
+      "type": "chart",
+      "chartType": "donut",
+      "title": "Mix de categorias",
+      "height": 320,
+      "bind": { "dataset": "categorias", "x": "categoria", "y": "receita" }
+    },
+    {
+      "id": "catbar",
+      "type": "chart",
+      "chartType": "bar-horizontal",
+      "title": "Receita por categoria e canal",
+      "height": 320,
+      "bind": { "dataset": "categorias", "x": "categoria", "y": "receita", "series": "canal" }
+    },
+    {
+      "id": "fb1",
+      "type": "find-block",
+      "tag": "Achado",
+      "tagColor": "g",
+      "title": "Eletrônicos lideram a receita",
+      "detail": "A categoria responde por cerca de 30% do total, puxada pela loja física.",
+      "modal": "m1"
+    },
+    {
+      "id": "note",
+      "type": "find-note",
+      "text": "O canal online cresce mais rápido em pedidos, porém com ticket médio menor."
+    }
+  ],
+  "modals": [
+    {
+      "id": "m1",
+      "title": "Detalhe — receita por categoria",
+      "widgets": [
+        {
+          "id": "m1tbl",
+          "type": "table",
+          "cols": ["categoria", "canal", "receita"],
+          "bind": { "dataset": "categorias", "x": "categoria", "y": "receita" }
+        }
+      ]
+    }
+  ]
+}

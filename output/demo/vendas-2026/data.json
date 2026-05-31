@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "client": "Demo Varejo",
+    "title": "Vendas 2026 — Visão Geral",
+    "type": "dashboard",
+    "theme": "light",
+    "created_at": "2026-05-30",
+    "filters": [
+      { "id": "canal", "label": "Canal", "options": ["Loja", "Online"], "allValue": "Geral", "default": "Geral" }
+    ]
+  },
+  "pages": [
+    { "id": "p1", "label": "Resumo",  "sections": [{ "id": "s01", "label": "Visão Geral" }] },
+    { "id": "p2", "label": "Detalhe", "sections": [{ "id": "s02", "label": "Por Categoria" }] }
+  ]
+}
