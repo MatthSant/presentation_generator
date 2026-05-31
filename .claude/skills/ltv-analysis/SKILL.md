@@ -16,7 +16,8 @@ Pipeline que transforma um CSV transacional em uma análise completa de LTV — 
 - **Templates:** `ltv-analysis/sections/PRODUTO_GRUPO_TEMPLATE.md` e `PERFIL_TEMPLATE.md`
 - **Módulo Python:** `ltv-analysis/ltv_calc.py`
 - **Regras de cálculo:** `ltv-analysis/calc-rules.md` ← **LER ANTES da Fase 5**
-- **Shell do relatório:** `components/tools/shell-report.html`
+- **Schema do output (3 camadas):** `ltv-analysis/BLOCKS.md` ← **LER ANTES da Fase 5**
+- **App (servidor + renderer):** `app/` — TypeScript; `npm start` na porta 3131
 
 ---
 
@@ -248,15 +249,29 @@ Só avançar para Fase 5 com aprovação.
 
 ### Princípio fundamental: uma seção de cada vez
 
-**Nunca processar mais de uma seção simultaneamente.**  
-Cada seção produz dois artefatos:
+**Nunca processar mais de uma seção simultaneamente.**
+
+A análise segue o **modelo de 3 camadas** (ver `ltv-analysis/BLOCKS.md`):
+números ficam só no `dataset.json`; os arquivos de seção descrevem *o que*
+mostrar via `bind`; o `layout.json` posiciona cada widget no grid. **A skill
+nunca transcreve números nos `sXX.json`.**
+
+Cada seção produz:
 
 ```
-temp\[CLIENTE]\[SLUG]\calc_sXX.py   ← script Python (cálculos + print dos números)
-output\[CLIENTE]\[SLUG]\sXX.json    ← typed blocks lidos pelo app
+temp\[CLIENTE]\[SLUG]\calc_sXX.py   ← Python: cálculos + emite tabela(s) long-format
+output\[CLIENTE]\[SLUG]\dataset.json← Camada 1 — números (uma tabela por bloco analítico)
+output\[CLIENTE]\[SLUG]\sXX.json    ← Camada 2 — widgets planos com bind
+output\[CLIENTE]\[SLUG]\layout.json ← Camada 3 — coords de grid por widget
 ```
 
-O app Node.js (`localhost:3131`) serve as seções dinamicamente à medida que ficam prontas — não há montagem final de HTML.
+`dataset.json` e `layout.json` são **acumulativos** — cada seção adiciona suas
+tabelas e suas entradas de layout aos arquivos existentes (sem sobrescrever as
+das seções anteriores).
+
+O app TypeScript (`localhost:3131`) serve as seções dinamicamente à medida que
+ficam prontas, resolvendo `bind` contra o `dataset.json` e os filtros ativos —
+não há montagem final de HTML.
 
 ---
 
@@ -315,21 +330,29 @@ Para cada seção no plano aprovado, executar este ciclo completo antes de passa
 ```
 ① Ler o MD da seção em ltv-analysis/sections/SXX-[nome].md
 ② Escrever temp\[CLIENTE]\[SLUG]\calc_sXX.py
-③ py -3 temp\[CLIENTE]\[SLUG]\calc_sXX.py   → números no terminal
+③ py -3 temp\[CLIENTE]\[SLUG]\calc_sXX.py
+   → imprime os números no terminal E faz merge das tabelas long-format
+     desta seção em output\[CLIENTE]\[SLUG]\dataset.json
 ④ Apresentar achados no chat (números, padrões, anomalias)
-⑤ Escrever output\[CLIENTE]\[SLUG]\sXX.json  (typed blocks — ver schema abaixo)
-⑥ Atualizar plano_analise.md: marcar [x] na seção concluída
-⑦ Só então iniciar a próxima seção
+⑤ Escrever output\[CLIENTE]\[SLUG]\sXX.json  (widgets planos com bind — ver BLOCKS.md)
+⑥ Mesclar as entradas de layout desta seção em output\[CLIENTE]\[SLUG]\layout.json
+⑦ Validar: npm run validate -- [CLIENTE]/[SLUG]   (a partir de app/)
+⑧ Atualizar plano_analise.md: marcar [x] na seção concluída
+⑨ Só então iniciar a próxima seção
 ```
 
-**Nunca pular etapas.** Se o Python retornar erro, diagnosticar e corrigir antes de escrever o JSON.
+**Nunca pular etapas.** Se o Python retornar erro ou o validador acusar erro,
+diagnosticar e corrigir antes de seguir.
 
 ---
 
 ### Script Python padrão por seção (`calc_sXX.py`)
 
+O Python **calcula e emite números** — para o terminal (revisão) e para o
+`dataset.json` como tabelas long-format. Ele **não** escreve `sXX.json`.
+
 ```python
-import sys, json
+import sys, json, os
 sys.path.insert(0, r'.claude\skills\ltv-analysis')
 from ltv_calc import filter_by, group_by, calc_ltv_metrics, seg_table, \
                     ltv_progressao, dist_janela_recompra, mediana_retorno, \
@@ -338,6 +361,7 @@ from ltv_calc import filter_by, group_by, calc_ltv_metrics, seg_table, \
 
 CLIENTE = '[CLIENTE]'
 SLUG    = '[SLUG]'
+OUT     = rf'output\{CLIENTE}\{SLUG}'
 
 with open(rf'temp\{CLIENTE}\{SLUG}\_users.json', encoding='utf-8') as f:
     users = json.load(f)
@@ -346,62 +370,134 @@ with open(rf'temp\{CLIENTE}\{SLUG}\_txs.json', encoding='utf-8') as f:
 
 # --- cálculos da seção conforme ltv-analysis/sections/SXX.md ---
 
-# Print estruturado — o que vai virar KPIs e gráficos no JSON
+# Helper: faz merge de tabelas neste dataset.json sem perder as das outras seções
+def merge_dataset(tables: dict):
+    path = rf'{OUT}\dataset.json'
+    data = {}
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    data.update(tables)   # cada seção usa nomes de tabela próprios
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# Tabelas long-format: uma linha por combinação de dims × filters.
+# 'filters' lista as colunas fatiáveis (precisam de um FilterDef em data.json).
+merge_dataset({
+    "perfil_freq": {
+        "dims": ["frequencia"],
+        "rows": [
+            {"frequencia": "1 compra",  "clientes": n1},
+            {"frequencia": "2 compras", "clientes": n2},
+            {"frequencia": "3+",        "clientes": n3},
+        ],
+    },
+    "kpis_base": {
+        "dims": [],
+        "rows": [{"clientes": n_clientes, "receita": receita_total, "pedidos": pedidos}],
+    },
+})
+
+# Print estruturado — confere os números no terminal
 print('=== S01 — Perfil da Base ===')
-print(f'n_clientes:       {n_clientes:,}')
-print(f'tx_recompra:      {fmt_pct(tx_recompra)}')
-print(f'ltv_medio:        {fmt_brl(ltv_medio)}')
+print(f'n_clientes:  {n_clientes:,}')
+print(f'tx_recompra: {fmt_pct(tx_recompra)}')
+print(f'ltv_medio:   {fmt_brl(ltv_medio)}')
 # ...
 ```
 
+**Diretrizes para as tabelas:**
+- Nomes de tabela **únicos por seção** (ex.: `s03_safra`, `perfil_freq`) — o
+  merge é por chave, então colisões sobrescrevem.
+- `dims` = eixos de group-by (o que vira `x`/categorias). `filters` = colunas
+  fatiáveis (ex.: `["canal"]`) — exija um `FilterDef` em `data.json` para cada.
+- Pré-agregue ao nível que o widget consome; o app só re-agrega ao aplicar filtros.
+
 ---
 
-### JSON da seção (`output\[CLIENTE]\[SLUG]\sXX.json`) — typed blocks
+### JSON da seção (`output\[CLIENTE]\[SLUG]\sXX.json`) — widgets com bind
 
-A skill **não escreve HTML**. Escreve JSON com blocos tipados que o app renderiza.
+A skill **não escreve HTML nem números** aqui. Escreve uma **lista plana de
+widgets** que referenciam o `dataset.json` via `bind`. As posições no grid vão
+no `layout.json` (não há containers `row`/`g2`/`g3`/`g4`).
 
-> **Schema completo em `ltv-analysis/BLOCKS.md`** — nunca ler `renderer.js` ou `chart-options.js`.
+> **Schema completo, tipos de widget e exemplos em `ltv-analysis/BLOCKS.md`.**
+> Nunca ler o código TypeScript do app.
 
 **Estrutura obrigatória:**
 
 ```json
 {
   "id": "s01",
-  "page": "visao-geral",
-  "pageLabel": "Visão Geral",
-  "sectionLabel": "Perfil da Base",
   "header": {
     "badge": "VISÃO GERAL",
-    "badgeColor": "p",
-    "title": "Base com ",
-    "titleEm": "1.234 clientes ativos"
+    "title": "Perfil da base de clientes",
+    "sub": "Distribuição por frequência de compra."
   },
-  "blocks": [ ... ],
-  "modals": [ ... ]
+  "widgets": [
+    {
+      "id": "kpi",
+      "type": "kpi-row",
+      "bind": { "dataset": "kpis_base", "metrics": ["clientes", "receita"] },
+      "items": [
+        { "key": "clientes", "label": "Clientes", "format": "0",  "color": "p" },
+        { "key": "receita",  "label": "Receita",  "format": "R$", "color": "g" }
+      ]
+    },
+    {
+      "id": "freq",
+      "type": "chart",
+      "chartType": "donut",
+      "title": "Frequência de compra",
+      "bind": { "dataset": "perfil_freq", "x": "frequencia", "y": "clientes" }
+    }
+  ],
+  "modals": [ /* opcional */ ]
 }
 ```
 
-**Block types — resumo rápido** (schema completo e exemplos em `BLOCKS.md`):
+**Widget types — resumo** (schema e exemplos completos em `BLOCKS.md`):
 
 | `type` | Campos principais |
 |---|---|
-| `kpi-row` | `items: [{value, label, color?}]` |
-| `chart` | `id, chartType, height, series, labels\|categories, colors, options?` |
-| `find-block` | `tag, tagColor, title, detail?, modal?` |
-| `find-note` | `text, color, modal?` |
-| `highlight` / `hl` | `text, color?` |
-| `ni` | `number, text, color` · ou `variant:'vertical', title, sections:[{label,text,color}]` |
-| `row` | `cols: [{flex?, blocks:[]}]` |
-| `g2`/`g3`/`g4` | `items: [{title?, blocks:[]}]` |
-| `heatmap` | `cols:[], rows:[{label, cells:[{value,cls,title?}]}], caption?` |
-| `table` | `headers:[], rows:[ [str\|{value,html,color},...] ]` |
-| `label-sec` | `text, sub?, divider?` (divider padrão true) |
-| `content` | `blocks:[], gap?` (wrapper com gap customizado) |
-| `xs` | `text` (nota metodológica 11px) |
+| `kpi-row` | `bind`, `items:[{key, label, format?, color?}]` |
+| `chart` | `chartType`, `title?`, `height?`, `bind` (`x`/`y`/`series`) |
+| `table` | `cols:[]`, `bind` (ou `rows` inline) |
+| `heatmap` | `cols:[]`, `rows:[{label, cells:[{value,cls,title?}]}]` (inline) |
+| `find-block` | `tag`, `tagColor`, `title`, `detail?`, `modal?` |
+| `find-note` | `text` |
+| `highlight` | `text`, `label?`, `color?` |
+| `ni` / `ni-vertical` | `n`, `title`, `why?`, `action?` |
+| `label-sec` | `text`, `sub?` |
+| `request` | `text`, `status?` |
+| `xs` | `text` (nota metodológica) |
 
-> **IDs de gráficos:** sempre `chart-sXX-descricao` — únicos por seção.  
-> **`find-note`** vai abaixo do gráfico na mesma coluna; **`find-block`** vai na coluna de insights.  
-> **Cores:** `p` roxo · `g` verde · `a` âmbar · `r` vermelho · `o` laranja.
+> **`id` único por seção** em todo widget — é a chave do `layout.json`.  
+> **Sempre prefira `bind`** em kpi-row/chart/table; inline só sem tabela de origem.  
+> **Cores (tokens):** `p` roxo · `g` verde · `a` âmbar · `r` vermelho · `n` neutro.
+
+---
+
+### Layout da seção (`output\[CLIENTE]\[SLUG]\layout.json`) — grid de 12 colunas
+
+Após escrever os widgets, posicione-os no grid. Mescle as entradas desta seção
+sob a chave `sections.[id]` sem apagar as das outras seções:
+
+```json
+{
+  "sections": {
+    "s01": [
+      { "id": "kpi",  "x": 0, "y": 0, "w": 12, "h": 1 },
+      { "id": "freq", "x": 0, "y": 1, "w": 6,  "h": 3 }
+    ]
+  }
+}
+```
+
+`x` coluna inicial (0–11) · `w` largura (1–12, com `x+w ≤ 12`) · `y` linha ·
+`h` altura. Todo widget da seção precisa de uma entrada. Para compor "gráfico +
+insights" lado a lado, dê ao chart `w:7` e empilhe os find-blocks em `w:5` à
+direita (ver "Composições" em `BLOCKS.md`).
 
 ---
 
@@ -419,11 +515,13 @@ S05 é o único ponto em que a execução para para confirmar com o usuário ant
 
 ### Montagem final — após todas as seções
 
-Não há montagem HTML. As seções já estão em `output\[CLIENTE]\[SLUG]\sXX.json`.
-Só gerar o `data.json` de navegação:
+Não há montagem HTML. As 3 camadas já estão em `output\[CLIENTE]\[SLUG]\`
+(`dataset.json`, `sXX.json`, `layout.json`). Só falta o `data.json` de
+navegação — que inclui **`meta.filters`**: um `FilterDef` por coluna listada em
+`filters` de alguma tabela do `dataset.json`.
 
 ```python
-import json, os, glob
+import json, os
 from datetime import datetime
 
 CLIENTE    = '[CLIENTE]'
@@ -454,11 +552,23 @@ for page in pages:
                         if os.path.exists(rf'{OUTPUT_DIR}\{s["id"]}.json')]
 pages = [p for p in pages if p["sections"]]
 
+# Filtros — um FilterDef por coluna 'filters' do dataset. allValue = "sem filtro".
+# Ex.: se as tabelas têm filters:["canal"] com valores Loja/Online:
+filters = [
+    {
+        "id": "canal", "label": "Canal",
+        "options": ["Loja", "Online"],
+        "default": "Geral", "allValue": "Geral",
+    },
+    # adicionar um bloco por coluna fatiável; omitir se nenhuma tabela usa filters
+]
+
 data = {
     "meta": {
-        "client": NOME, "slug": SLUG, "type": "ltv",
+        "client": NOME, "type": "ltv",
         "theme": "light", "title": f"Análise de LTV — {NOME}",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
+        "filters": filters,
     },
     "pages": pages
 }
@@ -470,8 +580,16 @@ print(f'data.json gerado — {sum(len(p["sections"]) for p in pages)} seções')
 print(f'Abrir: http://localhost:3131/report/{CLIENTE}/{SLUG}')
 ```
 
-> **Iniciar o app antes de abrir:** `cd app && node server.js` (ou já estar rodando)  
-> **Live reload:** salvar um `sXX.json` atualizado recarrega a seção no browser automaticamente via SSE.
+Validar a análise inteira antes de abrir (a partir de `app/`):
+
+```bash
+npm run validate -- [CLIENTE]/[SLUG]
+```
+
+> **Iniciar o app antes de abrir:** a partir de `app/`, `npm start` (ou `npm run dev`
+> para watch). O app compila TypeScript para `dist/` + `public/js/`.  
+> **Live reload:** salvar um `sXX.json` atualizado recarrega a seção no browser
+> automaticamente via SSE.
 
 ---
 
