@@ -9,7 +9,7 @@ import { Api } from './api.js';
 import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Filters } from './filters.js';
-import { Comments } from './comments.js';
+import { Comments, type BlockMark } from './comments.js';
 import { Dashboard } from './dashboard.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, type ChartDef } from './charts.js';
@@ -32,8 +32,8 @@ class App {
   constructor(client: string, slug: string) {
     this.api = new Api(client, slug);
     this.nav = new Navigation(this.store, (p, s) => void this.go(p, s));
-    this.filters = new Filters(this.store, () => this.dashboard?.applyFilters());
-    this.comments = new Comments(this.api, by => this.nav.setBadges(by));
+    this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); this.markBlocks(); });
+    this.comments = new Comments(this.api, () => this.markBlocks());
     this.wireModals();
     this.wireLayoutEditor();
   }
@@ -80,7 +80,7 @@ class App {
     hint.className = 'rpt-hint';
     hint.innerHTML =
       '<svg class="rpt-hint-ic svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v4.5"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg>'
-      + '<div class="rpt-hint-body">Clique com o <strong>botão direito</strong> em qualquer seção para anotar um comentário. Use o botão <strong>Layout</strong> na barra superior para reorganizar os blocos.</div>'
+      + '<div class="rpt-hint-body">Clique com o <strong>botão direito</strong> em qualquer bloco para anotar um comentário (uma marca fica fixada no bloco). Use o botão <strong>Layout</strong> na barra superior para reorganizar os blocos.</div>'
       + '<button class="rpt-hint-x" type="button" aria-label="Dispensar dica">&#215;</button>';
     hint.querySelector('.rpt-hint-x')?.addEventListener('click', () => {
       hint.remove();
@@ -132,6 +132,34 @@ class App {
     });
 
     for (const modal of section.modals || []) this.renderModal(modal);
+    this.markBlocks();
+  }
+
+  /** Pin a comment marker on every block that carries annotations, so comments
+   *  live on the block they reference instead of a section-tab badge. Re-run on
+   *  every (re)render: filter changes and the layout editor rebuild the tiles. */
+  private markBlocks(): void {
+    const sectionId = this.store.currentSectionId;
+    const marks = sectionId ? this.comments.markersFor(sectionId) : new Map<string, BlockMark>();
+    for (const tile of ROOT.querySelectorAll<HTMLElement>('[data-widget-id]')) {
+      tile.querySelector(':scope > .tile-cmark')?.remove();
+      const mark = marks.get(tile.dataset.widgetId || '');
+      tile.classList.toggle('has-comment', !!mark);
+      if (mark) tile.appendChild(this.cmarkEl(mark));
+    }
+  }
+
+  private cmarkEl(mark: BlockMark): HTMLElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tile-cmark';
+    btn.title = `${mark.count} comentário${mark.count > 1 ? 's' : ''} neste bloco`;
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML =
+      '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg>'
+      + `<span class="tile-cmark-n">${mark.count}</span>`;
+    btn.addEventListener('click', e => { e.stopPropagation(); this.comments.openPanel(); });
+    return btn;
   }
 
   private headerEl(section: Section): HTMLElement {
@@ -239,6 +267,7 @@ class App {
     try {
       await this.dashboard.exitEditMode(save);
       this.clearEditUI();
+      this.markBlocks(); // the editor rebuilt the tiles — re-pin the markers
       if (save) this.toast('Layout salvo');
     } catch {
       this.toast('Erro ao salvar layout'); // editor stays open so the user can retry

@@ -29,6 +29,7 @@ export function registerComments(app: Express, ctx: Ctx): void {
       client, slug,
       section_id: String(b.sectionId ?? ''),
       section_label: String(b.sectionLabel ?? ''),
+      widget_id: String(b.widgetId ?? ''),
       type: String(b.type ?? 'detalhar'),
       text: String(b.text),
       anchor: String(b.anchor ?? ''),
@@ -37,8 +38,8 @@ export function registerComments(app: Express, ctx: Ctx): void {
     };
     db.prepare(`
       INSERT OR REPLACE INTO comments
-        (id, client, slug, section_id, section_label, type, text, anchor, status, created_at)
-      VALUES (@id, @client, @slug, @section_id, @section_label, @type, @text, @anchor, @status, @created_at)
+        (id, client, slug, section_id, section_label, widget_id, type, text, anchor, status, created_at)
+      VALUES (@id, @client, @slug, @section_id, @section_label, @widget_id, @type, @text, @anchor, @status, @created_at)
     `).run(row);
     res.json(toApiComment(row));
   });
@@ -72,9 +73,9 @@ export function registerComments(app: Express, ctx: Ctx): void {
     const rows = db.prepare(
       'SELECT * FROM comments WHERE client = ? AND slug = ? ORDER BY created_at',
     ).all(client, slug) as CommentRow[];
-    const header = 'id,sectionId,sectionLabel,type,text,anchor,status,createdAt';
+    const header = 'id,sectionId,sectionLabel,widgetId,type,text,anchor,status,createdAt';
     const lines = rows.map(r => [
-      r.id, r.section_id, csvQuote(r.section_label), r.type,
+      r.id, r.section_id, csvQuote(r.section_label), r.widget_id ?? '', r.type,
       csvQuote(r.text), csvQuote(r.anchor), r.status, r.created_at,
     ].join(','));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

@@ -1,12 +1,10 @@
 /* navigation.ts — topnav page tabs (#topnav .tnp-btn) + section bar (#sb-tabs).
  *
  * Pure DOM wiring over a Store: builds the buttons once, then toggles active
- * classes and per-section comment badges. Selecting anything calls back into
- * main, which loads + renders the section and updates the store. */
+ * classes. Selecting anything calls back into main, which loads + renders the
+ * section and updates the store. (Comments mark their own block, not the tab.) */
 
 import type { Store } from './store.js';
-
-const TYPE_EMOJI: Record<string, string> = { detalhar: '🔍', insight: '🧙', acao: '✅' };
 
 export class Navigation {
   private pagesHost: HTMLElement;
@@ -66,16 +64,6 @@ export class Navigation {
     }
     for (const b of this.tabsHost.querySelectorAll<HTMLElement>('.sb-tab-btn')) {
       b.classList.toggle('sb-tab-active', b.dataset.sectionId === sectionId && b.dataset.pageId === pageId);
-    }
-  }
-
-  /** Append comment-type emoji to each section tab that has comments. */
-  setBadges(bySection: Map<string, Set<string>>): void {
-    for (const b of this.tabsHost.querySelectorAll<HTMLElement>('.sb-tab-btn')) {
-      const base = b.dataset.label || '';
-      const types = bySection.get(b.dataset.sectionId || '');
-      const emojis = types ? [...types].map(t => TYPE_EMOJI[t] || '●').join('') : '';
-      b.textContent = emojis ? `${base} ${emojis}` : base;
     }
   }
 }

@@ -7,6 +7,8 @@
 import type { Api, ApiComment } from './api.js';
 
 type Filter = 'todos' | 'detalhar' | 'insight' | 'acao';
+/** A block's comment summary: how many, and which types are present. */
+export interface BlockMark { count: number; types: Set<string> }
 const TYPE_TEXT: Record<string, string> = { detalhar: 'Detalhar', insight: 'Insight', acao: 'Ação' };
 /* Monoline icons matching the chrome (report.html). stroke=currentColor so the
    per-type color from .cp-type-* carries to the glyph. */
@@ -17,7 +19,7 @@ const TYPE_ICON: Record<string, string> = {
 };
 const ANCHOR_SELECTORS = ['.find-title', '.mv', '.chart-title', '.find-tag', '.hl', '.label-sec', '.ml', 'td', 'th', '.find-note', '.sm'];
 
-interface PendingCtx { sectionId: string; sectionLabel: string; anchor: string | null; }
+interface PendingCtx { sectionId: string; sectionLabel: string; widgetId: string | null; anchor: string | null; }
 
 export class Comments {
   private list: ApiComment[] = [];
@@ -28,7 +30,8 @@ export class Comments {
 
   constructor(
     private api: Api,
-    private onBadges: (bySection: Map<string, Set<string>>) => void,
+    /** Notify the app that the list changed so it can re-mark the rendered blocks. */
+    private onChange: () => void,
   ) {
     this.wirePanel();
     this.wireModal();
@@ -38,17 +41,26 @@ export class Comments {
   async load(): Promise<void> {
     try { this.list = await this.api.getComments(); } catch { this.list = []; }
     this.renderPanel();
-    this.emitBadges();
+    this.onChange();
   }
 
-  /* ── badges ── */
-  private emitBadges(): void {
-    const by = new Map<string, Set<string>>();
+  /** Block ids → {count, types} for a section, for marking tiles in place. */
+  markersFor(sectionId: string): Map<string, BlockMark> {
+    const by = new Map<string, BlockMark>();
     for (const c of this.list) {
-      if (!by.has(c.sectionId)) by.set(c.sectionId, new Set());
-      by.get(c.sectionId)!.add(c.type);
+      if (c.sectionId !== sectionId || !c.widgetId) continue;
+      const m = by.get(c.widgetId) ?? { count: 0, types: new Set<string>() };
+      m.count += 1;
+      m.types.add(c.type);
+      by.set(c.widgetId, m);
     }
-    this.onBadges(by);
+    return by;
+  }
+
+  /** Open the side panel (used by a block marker click). */
+  openPanel(): void {
+    el('comment-panel').classList.add('open');
+    el('comment-toggle-btn').classList.add('ctb-on');
   }
 
   /* ── panel ── */
@@ -155,24 +167,25 @@ export class Comments {
     if (!text || !this.selType || !this.pending) return;
     const optimistic: ApiComment = {
       id: `tmp-${Date.now()}`, sectionId: this.pending.sectionId, sectionLabel: this.pending.sectionLabel,
+      widgetId: this.pending.widgetId || '',
       type: this.selType, text, anchor: this.pending.anchor || '', status: 'novo', createdAt: new Date().toISOString(),
     };
     this.list.push(optimistic);
     this.renderPanel();
-    this.emitBadges();
+    this.onChange();
     this.closeModal();
     try {
       const saved = await this.api.postComment(optimistic);
       const i = this.list.findIndex(c => c.id === optimistic.id);
       if (i >= 0) this.list[i] = saved;
-      this.emitBadges();
+      this.onChange();
     } catch (e) { console.error('save comment failed', e); }
   }
 
   private async remove(id: string): Promise<void> {
     this.list = this.list.filter(c => c.id !== id);
     this.renderPanel();
-    this.emitBadges();
+    this.onChange();
     try { await this.api.deleteComment(id); } catch (e) { console.error('delete comment failed', e); }
   }
 
@@ -183,9 +196,11 @@ export class Comments {
       const sec = (e.target as HTMLElement).closest<HTMLElement>('[data-report-section]');
       if (!sec) { menu.classList.remove('open'); return; }
       e.preventDefault();
+      const block = (e.target as HTMLElement).closest<HTMLElement>('[data-widget-id]');
       this.ctxTarget = {
         sectionId: sec.id,
         sectionLabel: sec.dataset.reportSection || '',
+        widgetId: block?.dataset.widgetId || null,
         anchor: captureContext(e.target as HTMLElement),
       };
       menu.style.left = `${(e as MouseEvent).clientX}px`;
@@ -197,7 +212,7 @@ export class Comments {
 
     document.addEventListener('click', e => {
       const add = (e.target as HTMLElement).closest<HTMLElement>('.sc-add');
-      if (add) this.openModal({ sectionId: add.dataset.secId || '', sectionLabel: add.dataset.secLabel || '', anchor: null });
+      if (add) this.openModal({ sectionId: add.dataset.secId || '', sectionLabel: add.dataset.secLabel || '', widgetId: null, anchor: null });
     });
   }
 }

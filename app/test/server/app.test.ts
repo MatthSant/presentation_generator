@@ -237,15 +237,17 @@ test('PATCH section: missing section file → 404', async () => {
 test('comments: POST → GET → PATCH status → DELETE', async () => {
   const post = await request(created.app)
     .post(`/api/${CLIENT}/${SLUG}/comments`)
-    .send({ sectionId: 's01', sectionLabel: 'Receita', type: 'detalhar', text: 'rever isto' });
+    .send({ sectionId: 's01', sectionLabel: 'Receita', widgetId: 'f1', type: 'detalhar', text: 'rever isto' });
   assert.equal(post.status, 200);
   const id = post.body.id;
   assert.ok(id);
   assert.equal(post.body.status, 'novo');
+  assert.equal(post.body.widgetId, 'f1');
 
   const list = await request(created.app).get(`/api/${CLIENT}/${SLUG}/comments`);
   assert.equal(list.body.length, 1);
   assert.equal(list.body[0].text, 'rever isto');
+  assert.equal(list.body[0].widgetId, 'f1');
 
   const patch = await request(created.app)
     .patch(`/api/${CLIENT}/${SLUG}/comments/${id}`).send({ status: 'resolvido' });
@@ -278,7 +280,7 @@ test('comments: CSV export has header + row', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /text\/csv/);
   const lines = res.text.trim().split('\n');
-  assert.equal(lines[0], 'id,sectionId,sectionLabel,type,text,anchor,status,createdAt');
+  assert.equal(lines[0], 'id,sectionId,sectionLabel,widgetId,type,text,anchor,status,createdAt');
   assert.equal(lines.length, 2);
 });
 

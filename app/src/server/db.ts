@@ -17,6 +17,7 @@ const SCHEMA = `
     slug          TEXT NOT NULL,
     section_id    TEXT NOT NULL,
     section_label TEXT NOT NULL,
+    widget_id     TEXT DEFAULT '',
     type          TEXT NOT NULL,
     text          TEXT NOT NULL,
     anchor        TEXT DEFAULT '',
@@ -48,6 +49,8 @@ export function openDb(dbPath: string): DB {
   const handle = new Database(dbPath);
   handle.pragma('journal_mode = WAL');
   handle.exec(SCHEMA);
+  // Backfill the column on stores created before comments were block-scoped.
+  try { handle.exec("ALTER TABLE comments ADD COLUMN widget_id TEXT DEFAULT ''"); } catch { /* already present */ }
   return handle;
 }
 
@@ -77,11 +80,11 @@ export function csvQuote(v: string | null | undefined): string {
 
 export interface CommentRow {
   id: string; client: string; slug: string; section_id: string; section_label: string;
-  type: string; text: string; anchor: string; status: string; created_at: string;
+  widget_id: string; type: string; text: string; anchor: string; status: string; created_at: string;
 }
 export function toApiComment(row: CommentRow) {
   return {
-    id: row.id, sectionId: row.section_id, sectionLabel: row.section_label,
+    id: row.id, sectionId: row.section_id, sectionLabel: row.section_label, widgetId: row.widget_id ?? '',
     type: row.type, text: row.text, anchor: row.anchor, status: row.status, createdAt: row.created_at,
   };
 }
@@ -111,16 +114,16 @@ export function migrateCsv(db: DB, out: string, client: string, slug: string): v
   const headers = parseCsvLine(lines[0]);
   const insert = db.prepare(`
     INSERT OR IGNORE INTO comments
-      (id, client, slug, section_id, section_label, type, text, anchor, status, created_at)
+      (id, client, slug, section_id, section_label, widget_id, type, text, anchor, status, created_at)
     VALUES
-      (@id, @client, @slug, @section_id, @section_label, @type, @text, @anchor, @status, @created_at)
+      (@id, @client, @slug, @section_id, @section_label, @widget_id, @type, @text, @anchor, @status, @created_at)
   `);
   const rows = lines.slice(1).map(line => {
     const v = parseCsvLine(line);
     const row = Object.fromEntries(headers.map((h, i) => [h, v[i] ?? ''])) as Record<string, string>;
     return {
       id: row.id || '', client, slug,
-      section_id: row.sectionId || '', section_label: row.sectionLabel || '',
+      section_id: row.sectionId || '', section_label: row.sectionLabel || '', widget_id: row.widgetId || '',
       type: row.type || 'detalhar', text: row.text || '', anchor: row.anchor || '',
       status: row.status || 'novo', created_at: row.createdAt || new Date().toISOString(),
     };

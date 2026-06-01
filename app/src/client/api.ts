@@ -3,7 +3,7 @@
 import type { ReportData, DataMap, Section, Layout, LayoutItem } from '../shared/types.js';
 
 export interface ApiComment {
-  id: string; sectionId: string; sectionLabel: string;
+  id: string; sectionId: string; sectionLabel: string; widgetId: string;
   type: string; text: string; anchor: string; status: string; createdAt: string;
 }
 
