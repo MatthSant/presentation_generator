@@ -134,7 +134,7 @@ As variantes `tag-*` (`#047857`, `#B45309`, `#B91C1C` no claro) existem só para
 
 **Display Font:** Exo 2 (com `system-ui, sans-serif` de fallback)
 **Body Font:** Exo 2
-**Label/Mono Font:** Exo 2 em tudo; monospaço apenas em `.widget-error-msg` (mensagem técnica de erro)
+**Label/Mono Font:** Exo 2 em tudo; monospaço apenas em contexto de código — mensagem técnica de erro (`.widget-error-msg`) e tokens de código/caminho inline (`<code>`)
 
 **Character:** Uma única família geométrica humanista (Exo 2, self-hosted, pesos 400–900) carrega toda a interface, inclusive os rótulos e eixos dos gráficos ApexCharts. A unidade tipográfica é deliberada: nada na tela parece de um sistema diferente.
 
@@ -148,7 +148,7 @@ As variantes `tag-*` (`#047857`, `#B45309`, `#B91C1C` no claro) existem só para
 ### Named Rules
 **A Regra do Piso de 11px.** Nenhum texto legível desce abaixo de 11px. Rótulos uppercase tracked param em 11px/700; abaixo disso a legibilidade pré-reunião quebra.
 
-**A Regra da Família Única.** Exo 2 em toda a UI e em todos os gráficos. Introduzir uma segunda família de texto é proibido (exceto o monospaço da mensagem de erro técnica).
+**A Regra da Família Única.** Exo 2 em toda a UI e em todos os gráficos. Introduzir uma segunda família de texto é proibido (exceto o monospaço reservado a contexto de código: mensagem de erro técnica e `<code>` inline).
 
 ## 4. Elevation: Papel e Recortes
 

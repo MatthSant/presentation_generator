@@ -115,7 +115,7 @@
       { "name": "A Regra da Voz Única", "body": "O roxo aparece em ≤10% de qualquer tela: bordas-topo, títulos de coluna, numeradores. Preencher um bloco inteiro de roxo é proibido. A raridade é o ponto.", "section": "colors" },
       { "name": "A Regra do Accent com Significado", "body": "Verde/âmbar/laranja/vermelho só aparecem quando representam um dado. Cor nunca é decoração, e nunca é o único portador de significado.", "section": "colors" },
       { "name": "A Regra do Piso de 11px", "body": "Nenhum texto legível desce abaixo de 11px. Rótulos uppercase tracked param em 11px/700.", "section": "typography" },
-      { "name": "A Regra da Família Única", "body": "Exo 2 em toda a UI e em todos os gráficos. Uma segunda família de texto é proibida (exceto o monospaço da mensagem de erro técnica).", "section": "typography" },
+      { "name": "A Regra da Família Única", "body": "Exo 2 em toda a UI e em todos os gráficos. Uma segunda família de texto é proibida (exceto o monospaço reservado a contexto de código: mensagem de erro técnica e <code> inline).", "section": "typography" },
       { "name": "A Regra da Colagem", "body": "Texto de narrativa repousa plano no papel; dados são recortes elevados em cards. Aplicar card a um find-block na grade do dashboard é proibido (ele só é card no modal de detalhe).", "section": "elevation" },
       { "name": "A Regra da Superfície Translúcida", "body": "Superfícies decorativas são semi-transparentes — claro rgba(0,0,0,.02), escuro rgba(255,255,255,.03) — nunca opacas chapadas.", "section": "elevation" }
     ],
