@@ -1,0 +1,81 @@
+{
+  "sections": {
+    "s01": [
+      {
+        "id": "kpi-receita",
+        "type": "kpi",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 1
+      },
+      {
+        "id": "kpi-pedidos",
+        "type": "kpi",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 1
+      },
+      {
+        "id": "rev",
+        "type": "chart",
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "ord",
+        "type": "chart",
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "tbl",
+        "type": "table",
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 3
+      }
+    ],
+    "s02": [
+      {
+        "id": "catbar",
+        "type": "chart",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 7
+      },
+      {
+        "id": "fb1",
+        "type": "find-block",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 2
+      },
+      {
+        "id": "donut",
+        "type": "chart",
+        "x": 6,
+        "y": 2,
+        "w": 6,
+        "h": 5
+      },
+      {
+        "id": "note",
+        "type": "find-note",
+        "x": 6,
+        "y": 8,
+        "w": 6,
+        "h": 1
+      }
+    ]
+  },
+  "updatedAt": "2026-05-31T15:49:02.000Z"
+}

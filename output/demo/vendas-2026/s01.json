@@ -1,0 +1,49 @@
+{
+  "id": "s01",
+  "header": {
+    "badge": "Resumo",
+    "title": "Visão Geral de Vendas",
+    "sub": "Receita e pedidos por mês — 1º semestre de 2026. Use o filtro de canal no canto inferior direito."
+  },
+  "widgets": [
+    {
+      "id": "kpi-receita",
+      "type": "kpi",
+      "key": "receita",
+      "label": "Receita total",
+      "format": "R$",
+      "bind": { "dataset": "vendas" }
+    },
+    {
+      "id": "kpi-pedidos",
+      "type": "kpi",
+      "key": "pedidos",
+      "label": "Pedidos",
+      "format": "int",
+      "bind": { "dataset": "vendas" }
+    },
+    {
+      "id": "rev",
+      "type": "chart",
+      "chartType": "bar",
+      "title": "Receita por mês",
+      "height": 300,
+      "bind": { "dataset": "vendas", "x": "mes", "y": "receita", "series": "canal" }
+    },
+    {
+      "id": "ord",
+      "type": "chart",
+      "chartType": "line",
+      "title": "Pedidos por mês",
+      "height": 300,
+      "bind": { "dataset": "vendas", "x": "mes", "y": "pedidos", "series": "canal" }
+    },
+    {
+      "id": "tbl",
+      "type": "table",
+      "cols": ["mes", "canal", "receita", "pedidos"],
+      "bind": { "dataset": "vendas", "x": "mes", "y": "receita" },
+      "caption": "Linhas filtram pelo canal selecionado."
+    }
+  ]
+}

@@ -2,3 +2,5 @@ _source/
 input/
 temp/
 output/
+.claude/settings.local.json
+app/node_modules/

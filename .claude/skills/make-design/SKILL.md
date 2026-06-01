@@ -16,7 +16,7 @@ Constrói um elemento visual isolado do design system e salva em `output/element
 | **Output** | `output/elements/[slug].html` — abre no browser |
 | **Exportação** | Botão "↓ PNG" fixo na tela, gera PNG 3× (≈3000px de largura) |
 | **Composição** | Gráfico isolado / gráfico + contexto / 1-pager completo |
-| **Tema** | Dark (padrão) · Light se o usuário mencionar |
+| **Tema** | Light (padrão) · Dark se o usuário mencionar |
 
 ---
 
@@ -71,7 +71,7 @@ Use `AskUserQuestion` com **2–3 perguntas simultâneas**:
 
 1. **Tipo de gráfico** — primeira opção é a sugestão, + 2–3 alternativas relevantes
 2. **Escopo** — gráfico isolado / gráfico + contexto / 1-pager
-3. **Tema** (somente se não mencionado) — Dark / Light
+3. **Tema** (somente se não mencionado) — Light / Dark
 
 Prossiga somente após confirmação.
 
@@ -79,14 +79,15 @@ Prossiga somente após confirmação.
 
 ### Passo 4 — Gerar o HTML
 
-O shell (`shell-element.html`) tem exatamente 5 placeholders — não é necessário lê-lo. Gere os valores abaixo e use o PowerShell para substituir diretamente no arquivo original.
+O shell (`shell-element.html`) tem 6 placeholders — não é necessário lê-lo. Gere os valores abaixo e use o PowerShell para substituir diretamente no arquivo original.
 
 | Placeholder | Valor |
 |---|---|
 | `{{TITLE}}` | Título para a aba do browser |
 | `{{THEME}}` | `dark` ou `light` |
 | `{{CONTENT}}` | HTML gerado em 4a |
-| `{{CHART_DEFS}}` | Linhas JS geradas em 4b |
+| `{{DATA}}` | Bloco `var DATA = {...}` gerado em 4b |
+| `{{CHART_DEFS}}` | Definições de gráfico geradas em 4c — referenciam `DATA.*` |
 | `{{FILENAME}}` | Slug sem extensão (ex: `vendas-canal-2024`) |
 
 #### 4a — Montar `{{CONTENT}}`
@@ -130,6 +131,8 @@ Use **somente** as classes do design system. Nunca inventar classes novas, `box-
   <p class="sm">Detalhe ou dado de suporte.</p>
 </div>
 ```
+
+> **Linguagem do `find-title`:** declare a conclusão de negócio em linguagem simples — nunca jargão estatístico ou analítico ("artefato", "viés", "distribuição", "percentil", "correlação"). Se a explicação exige linguagem técnica, coloque-a no `.sm` ou mova para uma modal. Exemplo errado: *"A queda na mediana é um artefato de composição."* Exemplo certo: *"A mediana caiu porque o mix mudou — não porque o core retorna mais rápido."*
 
 **Layout gráfico + insights (`.row`):**
 ```html
@@ -176,14 +179,41 @@ Use **somente** as classes do design system. Nunca inventar classes novas, `box-
 
 ---
 
-#### 4b — Montar `{{CHART_DEFS}}`
+#### 4b — Montar `{{DATA}}`
+
+Todos os arrays de dados ficam num único bloco `var DATA = {...}` com nomes descritivos. Os gráficos não repetem os números — apenas referenciam `DATA.nomeDaChave`.
+
+```javascript
+var DATA = {
+  // Séries (arrays de números)
+  faturamento:  [120, 145, 132, 178, 201, 189],
+  meta:         [130, 130, 150, 150, 180, 180],
+  // Dimensão (eixo X ou labels)
+  meses:        ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+  // Para donut/pie: labels separados
+  canais:       ['Orgânico', 'Pago', 'Direto', 'Afiliados'],
+  participacao: [42, 31, 18, 9],
+};
+```
+
+**Regras:**
+- Nomear as chaves pelo significado do dado, nunca `series1` ou `data1`
+- Séries de gráficos diferentes ficam em chaves separadas — nunca compartilhar arrays entre gráficos com escalas distintas
+- KPIs e textos de `.mv` também podem vir do DATA se forem derivados dos mesmos dados (ex: `DATA.faturamento.reduce(...)`)
+- Nunca repetir os mesmos números em `{{DATA}}` e `{{CHART_DEFS}}`
+
+---
+
+#### 4c — Montar `{{CHART_DEFS}}`
+
+As definições referenciam `DATA.*` — zero arrays inline.
 
 ```javascript
 'chart-[nome]': {
   type: 'bar',
   height: 320,
-  series: [{ name: 'Série', data: [10, 20, 30] }],
-  categories: ['Jan', 'Fev', 'Mar'],
+  series: [{ name: 'Faturamento', data: DATA.faturamento }],
+  categories: DATA.meses,
   colors: ['#8B5CF6'],
 },
 ```
@@ -206,23 +236,26 @@ Barras horizontais (ranking): usar `colors` com array gradado do mais para o men
 
 ---
 
-#### 4c — Salvar via PowerShell
+#### 4d — Salvar via PowerShell
 
-Use o **Write tool** para criar dois arquivos temporários com o conteúdo gerado (são arquivos novos — não exigem Read prévio):
+Use o **Write tool** para criar três arquivos temporários (são arquivos novos — não exigem Read prévio):
 
 - `temp\_el-content.html` → HTML de `{{CONTENT}}`
-- `temp\_el-charts.js` → linhas JS de `{{CHART_DEFS}}`
+- `temp\_el-data.js` → bloco `var DATA = {...}` de `{{DATA}}`
+- `temp\_el-charts.js` → entradas de `{{CHART_DEFS}}`
 
 Em seguida, rode o PowerShell abaixo substituindo os valores literais de `{{TITLE}}`, `{{THEME}}` e `{{FILENAME}}` diretamente na linha de comando:
 
 ```powershell
 $shell   = Get-Content '.claude\skills\components\tools\shell-element.html' -Raw -Encoding UTF8
 $content = Get-Content 'temp\_el-content.html' -Raw -Encoding UTF8
-$charts  = Get-Content 'temp\_el-charts.js'   -Raw -Encoding UTF8
+$data    = Get-Content 'temp\_el-data.js'       -Raw -Encoding UTF8
+$charts  = Get-Content 'temp\_el-charts.js'     -Raw -Encoding UTF8
 $out = $shell `
   .Replace('{{TITLE}}',      'Título do Elemento') `
   .Replace('{{THEME}}',      'light') `
   .Replace('{{CONTENT}}',    $content) `
+  .Replace('{{DATA}}',       $data) `
   .Replace('{{CHART_DEFS}}', $charts) `
   .Replace('{{FILENAME}}',   'slug-do-arquivo')
 New-Item -ItemType Directory -Force 'output\elements' | Out-Null
@@ -231,7 +264,7 @@ New-Item -ItemType Directory -Force 'output\elements' | Out-Null
   $out,
   [Text.Encoding]::UTF8
 )
-Remove-Item 'temp\_el-content.html','temp\_el-charts.js' -ErrorAction SilentlyContinue
+Remove-Item 'temp\_el-content.html','temp\_el-data.js','temp\_el-charts.js' -ErrorAction SilentlyContinue
 ```
 
 > `.Replace()` é método .NET literal — sem problemas com aspas, tags HTML ou caracteres especiais no conteúdo.
@@ -280,6 +313,8 @@ Referência rápida de classes menos frequentes que existem no shell mas não ap
 | `.tag .tag-p/g/a/r/o` | Pill de categoria menor que badge — inline em texto ou listas |
 | `.bul li` | Lista com bullet circular roxo (alternativa ao `def-bullets`) |
 | `.tw > table` | Tabela estruturada: header roxo escuro / lavanda claro, linhas alternadas |
+| `.hm-wrap` > `.hm-grid` | Heatmap — grid de células coloridas por valor; usar `--hm-cols:N` no style |
+| `.hm-g3/g2/g1` · `.hm-n` · `.hm-r1/r2/r3` | Escala de cor do heatmap: ≥80 verde escuro → neutro → ≤−66 vermelho escuro |
 | `.sp .sp-p/g/a/o/r` | Status pill inline (ex: "Ativo", "Crítico") — fundo sólido, texto branco/preto |
 | `.impact` | Pill verde para impacto positivo — ex: `<span class="impact">+18%</span>` |
 | `.ai / .an / .at / .as` | Item de agenda compacto: número quadrado + título + subtítulo |

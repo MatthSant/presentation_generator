@@ -10,16 +10,36 @@ Pipeline de duas skills que transforma qualquer análise em uma apresentação R
 presentation_generator/
 ├── CLAUDE.md                          ← este arquivo
 │
-├── input/                             ← colocar aqui a análise antes de /plan-slides
-│                                         (MD, HTML ou URL fornecida no chat)
-├── temp/
-│   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
-│   └── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
+├── input/                             ← dados do cliente para análises
+│   └── [cliente]/                     ← ex: instituto-singular/
+│       └── arquivo.csv                ← CSV transacional para /ltv-analysis
 │
-├── output/                            ← gerado por /build-slides e /make (pasta autocontida)
-│   ├── presentation.html              ← abrir este arquivo no browser
-│   ├── backgrounds/                   ← cópia dos backgrounds usados na apresentação
-│   └── elements/                      ← gerado por /make — elementos isolados do design system
+├── temp/                              ← arquivos intermediários (não vão ao GitHub)
+│   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
+│   ├── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
+│   └── [cliente]/                     ← ex: instituto-singular/
+│       └── [analise]/                 ← ex: ltv-mai-2026/
+│           ├── plano_analise.md       ← gerado por /ltv-analysis
+│           └── dicionario.md          ← mapeamento de campos
+│
+├── app/                               ← servidor Node.js do analytics app
+│   ├── server.js                      ← Express (porta 3131) — serve JSONs, comentários, SSE
+│   ├── package.json
+│   └── public/
+│       ├── index.html                 ← homepage: lista todas as análises em output/
+│       ├── report.html                ← shell do relatório (design system + renderer)
+│       ├── style.css                  ← design system CSS (extraído de shell-report.html)
+│       ├── chart-options.js           ← buildOptions ApexCharts (isDark dinâmico)
+│       └── renderer.js                ← JSON typed-blocks → DOM (único lugar com classes CSS)
+│
+├── output/                            ← gerado por /build-slides, /make-design e /ltv-analysis
+│   ├── elements/                      ← gerado por /make-design — elementos isolados do design system
+│   ├── [cliente]/                     ← ex: instituto-singular/
+│   │   └── [analise]/                 ← ex: ltv-mai-2026/  (acessível em /report/[cliente]/[analise])
+│   │       ├── data.json              ← mapa de navegação (pages + sections)
+│   │       ├── s01.json … sXX.json   ← conteúdo de cada seção (typed blocks)
+│   │       └── comments.csv           ← anotações do consultor
+│   └── presentation.html              ← gerado por /build-slides (Reveal.js)
 │
 ├── requirements/
 │   └── STACK.md                       ← stack técnica completa (CDN, ferramentas, outputs)
@@ -80,6 +100,7 @@ presentation_generator/
                 ├── block-ni.html              ← ação numerada detalhada (Por que? / Acionável)
                 ├── block-horizon-col.html     ← coluna de horizonte (plano de ação)
                 ├── block-learning-col.html    ← coluna de aprendizados (debrief)
+                ├── block-heatmap.html         ← tabela heatmap (escala verde→neutro→vermelho por valor %)
                 │
                 └── — Gráficos (chartDefs snippets) —
                     ├── chart-bar.html
@@ -114,6 +135,14 @@ presentation_generator/
 2. /make-design               → sugere gráfico + layout, confirma, gera HTML
 3. Abrir output/elements/[slug].html no browser
 4. Clicar "↓ PNG" para exportar em alta resolução (3×)
+```
+
+**Análise de LTV:**
+```
+1. Colocar CSV transacional em input/[cliente]/
+2. /ltv-analysis              → 5 fases: confirma CSV → contexto → perguntas → setup → execução
+3. Acompanhar a análise no chat (achados por seção)
+4. Abrir http://localhost:3131/report/[cliente]/[analise] no browser
 ```
 
 ---
@@ -165,6 +194,30 @@ Lê `temp/slides_plan.md` e constrói `presentation.html` usando os componentes 
 | `aprendizados` | slide-standard + g3 + block-learning-col |
 | `apendice` | slide-apendice.html |
 | `contracapa` | slide-cover.html (só cover-title) |
+
+---
+
+### `/ltv-analysis`
+Análise completa de LTV a partir de um CSV transacional — por produto, por coorte e por perfil.
+
+**Estrutura de pastas** (cliente = slug do cliente, analise = slug da análise, ex: `ltv-mai-2026`):
+- Input: `input/[cliente]/arquivo.csv`
+- Temp:  `temp/[cliente]/[analise]/`
+- Output: `output/[cliente]/[analise]/` → acessível em `/report/[cliente]/[analise]`
+
+**5 fases:**
+- **Fase 0** — localiza CSV em `input/[cliente]/` e confirma com o usuário
+- **Fase 1** — nome do cliente e contexto do negócio → define `[cliente]` e `[analise]`
+- **Fase 2** — perguntas norteadoras do usuário
+- **Fase 3** — cria `temp/[cliente]/[analise]/` e `output/[cliente]/[analise]/`, explora CSV
+- **Fase 4** — preenche dicionário de `custom_fields`, propõe taxonomia de grupos, gera plano
+- **Fase 5** — executa seção a seção com scripts Python → gera `sXX.json` + `data.json`
+
+**Artefatos gerados:**
+- `temp/[cliente]/[analise]/dicionario.md` — mapeamento dos `custom_fields`
+- `temp/[cliente]/[analise]/plano_analise.md` — seções planejadas e progresso
+- `output/[cliente]/[analise]/data.json` — mapa de navegação
+- `output/[cliente]/[analise]/sXX.json` — seções em typed blocks JSON
 
 ---
 
