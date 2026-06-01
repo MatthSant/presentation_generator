@@ -63,8 +63,30 @@ class App {
     this.watch();
 
     const first = this.store.allSections()[0];
-    if (first) await this.go(first.pageId, first.id);
+    if (first) { await this.go(first.pageId, first.id); this.maybeShowFirstRunHint(); }
     else ROOT.innerHTML = '<div style="padding:60px 56px"><p class="sm">Relatório sem seções.</p></div>';
+  }
+
+  /** Surface the two features a first-time consultant won't otherwise discover:
+   *  right-click-to-comment and the layout editor. A flat note on the paper,
+   *  dismissed once and remembered — never a modal. */
+  private maybeShowFirstRunHint(): void {
+    let dismissed = false;
+    try { dismissed = localStorage.getItem('rpt-hint-v1') === '1'; } catch { /* storage unavailable */ }
+    if (dismissed) return;
+    const main = document.getElementById('main');
+    if (!main) return;
+    const hint = document.createElement('div');
+    hint.className = 'rpt-hint';
+    hint.innerHTML =
+      '<svg class="rpt-hint-ic svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v4.5"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg>'
+      + '<div class="rpt-hint-body">Clique com o <strong>botão direito</strong> em qualquer seção para anotar um comentário. Use o botão <strong>Layout</strong> na barra superior para reorganizar os blocos.</div>'
+      + '<button class="rpt-hint-x" type="button" aria-label="Dispensar dica">&#215;</button>';
+    hint.querySelector('.rpt-hint-x')?.addEventListener('click', () => {
+      hint.remove();
+      try { localStorage.setItem('rpt-hint-v1', '1'); } catch { /* ignore */ }
+    });
+    main.insertBefore(hint, ROOT);
   }
 
   private async go(pageId: string, sectionId: string): Promise<void> {

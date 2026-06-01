@@ -7,7 +7,14 @@
 import type { Api, ApiComment } from './api.js';
 
 type Filter = 'todos' | 'detalhar' | 'insight' | 'acao';
-const TYPE_LABEL: Record<string, string> = { detalhar: '🔍 Detalhar', insight: '🧙 Insight', acao: '✅ Ação' };
+const TYPE_TEXT: Record<string, string> = { detalhar: 'Detalhar', insight: 'Insight', acao: 'Ação' };
+/* Monoline icons matching the chrome (report.html). stroke=currentColor so the
+   per-type color from .cp-type-* carries to the glyph. */
+const TYPE_ICON: Record<string, string> = {
+  detalhar: '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m20 20-5.2-5.2"/></svg>',
+  insight: '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 17.5h5"/><path d="M10 20.5h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 1 1.6h5c.1-.6.4-1.2 1-1.6A6 6 0 0 0 12 3Z"/></svg>',
+  acao: '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m8.2 12.3 2.8 2.7 4.8-5.5"/></svg>',
+};
 const ANCHOR_SELECTORS = ['.find-title', '.mv', '.chart-title', '.find-tag', '.hl', '.label-sec', '.ml', 'td', 'th', '.find-note', '.sm'];
 
 interface PendingCtx { sectionId: string; sectionLabel: string; anchor: string | null; }
@@ -95,10 +102,10 @@ export class Comments {
     item.className = 'cp-item';
     const hd = document.createElement('div');
     hd.className = 'cp-item-hd';
-    hd.append(
-      span(`cp-type cp-type-${c.type}`, TYPE_LABEL[c.type] || c.type),
-      span('cp-sec', c.sectionLabel),
-    );
+    const type = document.createElement('span');
+    type.className = `cp-type cp-type-${c.type}`;
+    type.innerHTML = (TYPE_ICON[c.type] || '') + (TYPE_TEXT[c.type] || c.type);
+    hd.append(type, span('cp-sec', c.sectionLabel));
     item.appendChild(hd);
     if (c.anchor) item.appendChild(span('cp-anchor', `"${c.anchor}"`));
     item.appendChild(span('cp-text', c.text));

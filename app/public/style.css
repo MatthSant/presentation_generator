@@ -234,6 +234,9 @@ html, body {
 
 /* Print button */
 #print-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -332,7 +335,7 @@ html, body {
 .cp-close { background:none; border:none; color:var(--gray2); cursor:pointer; font-size:16px; padding:2px 5px; border-radius:3px; transition:color .15s; }
 .cp-close:hover { color:var(--fg); }
 .cp-filters { display:flex; padding:8px 10px; gap:4px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.cp-filter { font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:4px 8px; border-radius:3px; border:1px solid transparent; background:none; color:var(--gray2); cursor:pointer; font-family:'Exo 2',sans-serif; transition:color .15s,background .15s; }
+.cp-filter { display:inline-flex; align-items:center; justify-content:center; gap:5px; font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:4px 8px; border-radius:3px; border:1px solid transparent; background:none; color:var(--gray2); cursor:pointer; font-family:'Exo 2',sans-serif; transition:color .15s,background .15s; }
 .cp-filter:hover { color:var(--fg); }
 .cp-filter.cp-active { background:var(--purple-bg); color:var(--purple); }
 .cp-list { flex:1; overflow-y:auto; padding:4px 0; }
@@ -341,7 +344,8 @@ html, body {
 .cp-item { padding:10px 14px; border-bottom:1px solid var(--divider); position:relative; }
 .cp-item:last-child { border-bottom:none; }
 .cp-item-hd { display:flex; align-items:center; gap:6px; margin-bottom:5px; flex-wrap:wrap; }
-.cp-type { font-size:8px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; padding:2px 6px; border-radius:2px; }
+.cp-type { display:inline-flex; align-items:center; gap:4px; font-size:8px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; padding:2px 6px; border-radius:2px; }
+.cp-type .svg-ic { width:11px; height:11px; }
 .cp-type-detalhar { background:var(--amber-bg); color:var(--amber); }
 .cp-type-insight   { background:var(--purple-bg); color:var(--purple); }
 .cp-type-acao      { background:var(--green-bg); color:var(--green); }
@@ -372,7 +376,7 @@ html, body {
 .cm-x { background:none; border:none; font-size:18px; color:var(--gray2); cursor:pointer; padding:0 4px; transition:color .15s; }
 .cm-x:hover { color:var(--fg); }
 .cm-types { display:flex; gap:6px; }
-.cm-type { flex:1; padding:8px 4px; border-radius:3px; border:1px solid var(--border); background:none; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gray2); cursor:pointer; transition:all .15s; }
+.cm-type { display:flex; align-items:center; justify-content:center; gap:5px; flex:1; padding:8px 4px; border-radius:3px; border:1px solid var(--border); background:none; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gray2); cursor:pointer; transition:all .15s; }
 .cm-type:hover { color:var(--fg); border-color:var(--fg); }
 .cm-type.sel-detalhar { background:var(--amber-bg);  border-color:var(--amber);  color:var(--amber); }
 .cm-type.sel-insight   { background:var(--purple-bg); border-color:var(--purple); color:var(--purple); }
@@ -391,7 +395,12 @@ html, body {
 #ctx-menu.open { display:block; }
 .ctx-item { padding:9px 14px; font-size:12px; color:var(--fg); cursor:pointer; display:flex; align-items:center; gap:9px; transition:background .12s,color .12s; user-select:none; }
 .ctx-item:hover { background:var(--purple-bg); color:var(--purple); }
-.ctx-icon { font-size:13px; flex-shrink:0; }
+.ctx-icon { display:flex; align-items:center; flex-shrink:0; color:var(--gray2); }
+
+/* Monoline icon glyphs (replace emoji across the chrome). Stroke inherits the
+   button's currentColor so hover/active states recolor the icon for free.
+   Named .svg-ic to avoid colliding with the .ic interactive-card component. */
+.svg-ic { width:14px; height:14px; flex-shrink:0; display:block; }
 
 /* ── Anchor: painel + modal ── */
 .cp-anchor { font-size:10.5px; color:var(--gray2); border-left:1px solid var(--divider); padding:3px 8px; margin-bottom:5px; font-style:italic; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
@@ -614,7 +623,7 @@ ul.bul li strong { color:var(--fg); }
 .find-block[data-modal] { cursor:pointer; user-select:none; }
 .find-block[data-modal]:hover .find-title { color:var(--purple); }
 .find-block[data-modal]:hover .fn-more { color:var(--purple); }
-.fn-more { display:block; margin-top:5px; font-size:10px; color:var(--gray2); letter-spacing:.3px; transition:color .15s; }
+.fn-more { display:block; margin-top:5px; font-size:11px; font-weight:600; color:var(--gray2); letter-spacing:.3px; transition:color .15s; }
 
 /* ── Def Steps ── */
 .def-step { display:flex; gap:18px; padding:20px 0; align-items:flex-start; border-bottom:1px solid var(--divider); }
@@ -818,7 +827,7 @@ table tr:nth-child(even) td { background:var(--surface); }
 .dash-grid:not(.grid-active) .tw th { color:var(--purple); }
 .dash-grid:not(.grid-active) .mr {
   background:var(--bg);
-  border-top:1px solid var(--border);
+  border-top:3px solid var(--purple);
   border-radius:8px;
   box-shadow:var(--shadow-card);
 }
@@ -886,7 +895,8 @@ table tr:nth-child(even) td { background:var(--surface); }
 }
 .widget-error { border:1px solid var(--red); border-radius:6px; padding:14px 16px; background:var(--red-bg); }
 .widget-error-tag { font-size:9px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; color:var(--red); margin-bottom:4px; }
-.widget-error-msg { font-size:12px; color:var(--fg); font-family:ui-monospace, monospace; }
+.widget-error-hint { font-size:12px; line-height:1.5; color:var(--fg); margin-bottom:6px; }
+.widget-error-msg { font-size:11px; color:var(--gray2); font-family:ui-monospace, monospace; }
 
 /* ══════════════════════════════════════════
    FILTER FAB + MODAL
@@ -903,7 +913,7 @@ table tr:nth-child(even) td { background:var(--surface); }
 }
 #filter-fab:hover { border-color:var(--purple); color:var(--purple); }
 #filter-fab[hidden] { display:none; }
-.flt-icon { font-size:14px; line-height:1; }
+.flt-icon { display:flex; align-items:center; line-height:1; }
 #filter-count {
   font-size:10px; font-weight:800; min-width:16px; text-align:center;
   padding:1px 5px; border-radius:8px; background:var(--surface); color:var(--gray2); display:none;
@@ -979,3 +989,23 @@ table tr:nth-child(even) td { background:var(--surface); }
   transition:opacity .25s, transform .25s;
 }
 .app-toast.show { opacity:1; transform:translate(-50%, 0); }
+
+/* First-run hint — a flat note on the paper (never a modal) that surfaces the
+   two discoverable-only features: right-click to comment and the layout editor.
+   Shown once per browser; dismissal is remembered in localStorage. */
+.rpt-hint {
+  display:flex; align-items:flex-start; gap:12px;
+  margin:0 0 24px; padding:12px 14px;
+  border:1px solid var(--border); border-radius:6px;
+  background:var(--surface);
+}
+.rpt-hint-ic { width:16px; height:16px; flex-shrink:0; color:var(--purple); margin-top:1px; }
+.rpt-hint-body { flex:1; font-size:12px; line-height:1.6; color:var(--gray); }
+.rpt-hint-body strong { color:var(--fg); font-weight:700; }
+.rpt-hint-x {
+  flex-shrink:0; background:none; border:none; cursor:pointer;
+  font-size:16px; line-height:1; color:var(--gray2); padding:0 2px;
+  transition:color .15s;
+}
+.rpt-hint-x:hover { color:var(--fg); }
+@media print { .rpt-hint { display:none !important; } }
