@@ -79,6 +79,7 @@ export const WIDGET_TYPES = [
   'kpi', 'chart', 'table', 'heatmap',
   'find-block', 'find-note', 'highlight', 'ni', 'ni-vertical',
   'label-sec', 'request', 'xs',
+  'def-step', 'mdef-block', 'grp-list',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -119,6 +120,18 @@ export interface ChartWidget extends WidgetBase {
   options?: Record<string, unknown>;
   /** Filter column this chart responds to (informational; binding uses activeFilters). */
   filterBy?: string;
+  /** Scatter only: overlay a regression line of this kind, fitted from the points. */
+  trend?: 'linear' | 'exp' | 'log' | 'pow';
+  /** Donut/pie: show the summed total in the center hole. */
+  donutTotal?: boolean;
+  /** Caption under the donut center total (defaults to "Total"). */
+  totalLabel?: string;
+  /** Enable per-slice/point value labels (e.g. donut % on slices). */
+  showLabels?: boolean;
+  /** Mixed only: 0-based index of the series to plot on a secondary right-hand axis. */
+  secondaryAxis?: number;
+  /** Suffix for secondary-axis labels (e.g. "%"). */
+  secondaryAxisSuffix?: string;
 }
 
 export type TableCell = string | number | { value: string | number; cls?: string; title?: string };
@@ -186,10 +199,53 @@ export interface XsWidget extends WidgetBase {
   text: string;
 }
 
+/** One stat inside a def-step (value + caption, optional color token). */
+export interface DefStepStat {
+  value: string | number;
+  label: string;
+  color?: ColorToken;
+}
+
+/** A numbered methodology step (universe analysed, classification, etc.).
+ *  One step per widget — stack several via the layout grid. Bullets may carry
+ *  inline <strong>/<em>. */
+export interface DefStepWidget extends WidgetBase {
+  type: 'def-step';
+  num?: string;
+  label?: string;
+  title: string;
+  stats?: DefStepStat[];
+  bullets?: string[];
+}
+
+/** A term/metric definition: tag + title + bullets, with an optional
+ *  sub-classification (sub-label + its own bullets). Bullets allow inline HTML. */
+export interface MdefBlockWidget extends WidgetBase {
+  type: 'mdef-block';
+  tag?: string;
+  title: string;
+  bullets?: string[];
+  subLabel?: string;
+  subBullets?: string[];
+}
+
+export interface GrpItem {
+  name: string;
+  example?: string;
+}
+
+/** An auto-numbered list of groups/segments (01, 02, …). */
+export interface GrpListWidget extends WidgetBase {
+  type: 'grp-list';
+  label?: string;
+  items: GrpItem[];
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
-  | LabelSecWidget | RequestWidget | XsWidget;
+  | LabelSecWidget | RequestWidget | XsWidget
+  | DefStepWidget | MdefBlockWidget | GrpListWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap'] as const;

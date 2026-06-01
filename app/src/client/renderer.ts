@@ -8,6 +8,7 @@ import type {
   Widget, Bind, ResolvedBind, KpiWidget, ChartWidget, TableWidget,
   HeatmapWidget, FindBlockWidget, FindNoteWidget, HighlightWidget, NiWidget,
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
+  DefStepWidget, MdefBlockWidget, GrpListWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, type ChartDef } from './charts.js';
@@ -36,7 +37,11 @@ function empty(msg = 'Sem dados para este filtro'): HTMLElement {
 
 function errorCard(type: string, detail: string): HTMLElement {
   const d = el('div', 'widget-error');
-  d.append(el('div', 'widget-error-tag', 'Widget inválido'), el('div', 'widget-error-msg', `${type}: ${detail}`));
+  d.append(
+    el('div', 'widget-error-tag', 'Bloco não exibido'),
+    el('div', 'widget-error-hint', 'Não foi possível carregar este bloco. Os demais continuam disponíveis.'),
+    el('div', 'widget-error-msg', `${type}: ${detail}`),
+  );
   return d;
 }
 
@@ -60,6 +65,12 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
 
   const height = ctx.chartHeight?.(w.id) ?? w.height;
+  // First-class chart variants (scatter trend-line, donut center total, slice
+  // labels, mixed secondary axis) — passed straight through to the builder.
+  const variant = {
+    trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
+    showLabels: w.showLabels, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
+  };
   let def: ChartDef | null = null;
   if (w.bind) {
     const resolved = ctx.resolve(w.bind);
@@ -69,13 +80,13 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
     }
     def = defFromResolved(w.chartType, resolved, {
       height, colors: w.colors, distributed: w.distributed,
-      stackType: w.stackType, options: w.options,
+      stackType: w.stackType, options: w.options, ...variant,
     });
   } else if (w.series != null) {
     def = {
       type: w.chartType, series: w.series, categories: w.categories, labels: w.labels,
       colors: w.colors, distributed: w.distributed, stackType: w.stackType,
-      height, options: w.options,
+      height, options: w.options, ...variant,
     };
   } else {
     wrap.appendChild(empty('Gráfico sem dados'));
@@ -221,6 +232,64 @@ function renderXs(w: XsWidget): HTMLElement {
   return p;
 }
 
+/* ── methodology widgets ── bullets may carry inline <strong>/<em>, so each li
+ *  is set via innerHTML (same trust model as find-block/ni). */
+function bulletList(items: string[]): HTMLElement {
+  const ul = el('ul', 'def-bullets');
+  for (const b of items) { const li = el('li'); li.innerHTML = b; ul.appendChild(li); }
+  return ul;
+}
+
+function renderDefStep(w: DefStepWidget): HTMLElement {
+  const step = el('div', 'def-step');
+  if (w.num) step.appendChild(el('div', 'def-step-num', w.num));
+  const body = el('div', 'def-step-body');
+  if (w.label) body.appendChild(el('div', 'def-step-label', w.label));
+  body.appendChild(el('div', 'def-step-title', w.title || ''));
+  if (w.stats?.length) {
+    const stats = el('div', 'def-step-stats');
+    for (const s of w.stats) {
+      const cell = el('div');
+      cell.append(
+        el('div', s.color ? `def-step-stat-n c-${s.color}` : 'def-step-stat-n', formatValue(s.value)),
+        el('div', 'def-step-stat-l', s.label),
+      );
+      stats.appendChild(cell);
+    }
+    body.appendChild(stats);
+  }
+  if (w.bullets?.length) body.appendChild(bulletList(w.bullets));
+  step.appendChild(body);
+  return step;
+}
+
+function renderMdefBlock(w: MdefBlockWidget): HTMLElement {
+  const div = el('div', 'mdef-block');
+  if (w.tag) div.appendChild(el('div', 'mdef-tag', w.tag));
+  div.appendChild(el('div', 'mdef-title', w.title || ''));
+  if (w.bullets?.length) div.appendChild(bulletList(w.bullets));
+  if (w.subLabel) div.appendChild(el('div', 'mdef-sub-label', w.subLabel));
+  if (w.subBullets?.length) div.appendChild(bulletList(w.subBullets));
+  return div;
+}
+
+function renderGrpList(w: GrpListWidget): HTMLElement {
+  const wrap = el('div');
+  if (w.label) wrap.appendChild(el('div', 'grp-label', w.label));
+  const list = el('div', 'grp-list');
+  (w.items || []).forEach((it, i) => {
+    const item = el('div', 'grp-item');
+    item.appendChild(el('span', 'grp-n', String(i + 1).padStart(2, '0')));
+    const body = el('div');
+    body.appendChild(el('div', 'grp-name', it.name));
+    if (it.example) body.appendChild(el('div', 'grp-ex', it.example));
+    item.appendChild(body);
+    list.appendChild(item);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
 /* ── dispatch ── */
 export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
   try {
@@ -237,6 +306,9 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'label-sec':   return renderLabelSec(widget);
       case 'request':     return renderRequest(widget);
       case 'xs':          return renderXs(widget);
+      case 'def-step':    return renderDefStep(widget);
+      case 'mdef-block':  return renderMdefBlock(widget);
+      case 'grp-list':    return renderGrpList(widget);
       default:            return errorCard((widget as { type: string }).type, 'tipo desconhecido');
     }
   } catch (e) {

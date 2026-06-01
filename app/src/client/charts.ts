@@ -5,6 +5,7 @@
  * filters can updateSeries in place instead of re-rendering the dashboard. */
 
 import type { ChartType, ResolvedSeries } from '../shared/types.js';
+import { buildTrendSeries, type TrendType } from './trend.js';
 
 export interface ChartDef {
   type: ChartType;
@@ -16,6 +17,18 @@ export interface ChartDef {
   stackType?: string;
   height?: number;
   options?: Record<string, unknown>;
+  /** Scatter only: overlay a regression line of this kind, fitted from points. */
+  trend?: TrendType;
+  /** Donut/pie: show the summed total in the center hole. */
+  donutTotal?: boolean;
+  /** Caption under the donut center total (defaults to "Total"). */
+  totalLabel?: string;
+  /** Enable per-slice/point value labels (e.g. donut % on slices). */
+  showLabels?: boolean;
+  /** Mixed only: 0-based index of the series to plot on a right-hand axis. */
+  secondaryAxis?: number;
+  /** Suffix appended to secondary-axis labels (e.g. "%"). */
+  secondaryAxisSuffix?: string;
 }
 
 type Theme = 'light' | 'dark';
@@ -84,13 +97,25 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   const { dark, labelColor, defColors, base } = getBase(theme);
   const b = JSON.parse(JSON.stringify(base)) as typeof base;
 
-  const resolvedType = (def.type === 'mixed' || def.type === 'stacked') ? 'bar'
+  let resolvedType: string = (def.type === 'mixed' || def.type === 'stacked') ? 'bar'
     : def.type === 'bar-horizontal' ? 'bar'
       : def.type;
 
+  // Scatter trend-line: keep the observations as scatter series and append a
+  // fitted line series. The chart itself must be a 'line' so the curve renders.
+  let series = def.series;
+  if (def.type === 'scatter' && def.trend) {
+    const pointSeries = (Array.isArray(def.series) ? def.series : [])
+      .map(s => ({ ...(s as Record<string, unknown>), type: 'scatter' }));
+    const pts = pointSeries.flatMap(s => ((s as { data?: [number, number][] }).data) || []);
+    const trend = buildTrendSeries(pts, def.trend);
+    series = trend ? [...pointSeries, trend] : pointSeries;
+    resolvedType = 'line';
+  }
+
   const opts: Record<string, unknown> = {
     chart: { ...b.chart, type: resolvedType, height: def.height ?? 300 },
-    series: def.series,
+    series,
     colors: def.colors || defColors,
   };
 
@@ -101,11 +126,32 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
 
   if (def.type === 'donut' || def.type === 'pie') {
     opts.legend = { position: 'bottom', labels: { colors: labelColor } };
-    opts.plotOptions = { pie: { donut: { size: '55%' } } };
+    const donut: Record<string, unknown> = { size: '55%' };
+    if (def.donutTotal) {
+      donut.labels = {
+        show: true,
+        total: { show: true, label: def.totalLabel || 'Total', color: labelColor, fontSize: '11px', fontWeight: 400 },
+        value: { fontSize: '22px', fontWeight: 700, color: dark ? '#FFFFFF' : '#0E0E10', offsetY: 4 },
+        name: { fontSize: '11px', color: labelColor, offsetY: -4 },
+      };
+    }
+    opts.plotOptions = { pie: { donut } };
   }
   if (def.type === 'bar' || def.type === 'mixed') {
     opts.plotOptions = { bar: { borderRadius: 4, columnWidth: '55%', ...(def.distributed ? { distributed: true } : {}) } };
     opts.yaxis = { ...b.yaxis, min: 0 };
+  }
+  if (def.type === 'mixed') {
+    // line series get a visible stroke; bar series get none (width 0).
+    const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
+    opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)) };
+    if (def.secondaryAxis != null) {
+      const sec = def.secondaryAxis;
+      const suffix = def.secondaryAxisSuffix || '';
+      opts.yaxis = arr.map((_, i) => i === sec
+        ? { opposite: true, labels: { style: { colors: labelColor, fontSize: '11px' }, ...(suffix ? { formatter: (v: number) => `${v}${suffix}` } : {}) } }
+        : { labels: { style: { colors: labelColor, fontSize: '11px' } } });
+    }
   }
   if (def.type === 'stacked') {
     chart.stacked = true;
@@ -137,9 +183,14 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     opts.legend = { show: true, position: 'bottom', labels: { colors: labelColor } };
   }
   if (def.type === 'scatter') {
-    chart.type = 'scatter';
-    opts.markers = { size: 5 };
+    chart.type = def.trend ? 'line' : 'scatter';
+    opts.markers = { size: def.trend ? 6 : 5, strokeWidth: 0 };
     opts.xaxis = { ...b.xaxis, type: 'numeric' };
+    if (def.trend) {
+      // scatter point-series get no connecting stroke; the trend line gets one.
+      const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
+      opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)), curve: 'smooth' };
+    }
   }
   if (def.type === 'radar') {
     chart.type = 'radar';
@@ -159,6 +210,11 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   (opts.chart as Record<string, unknown>).type = chart.type ?? resolvedType;
   (opts.chart as Record<string, unknown>).height = def.height ?? 300;
   if (chart.stacked) (opts.chart as Record<string, unknown>).stacked = true;
+  // After the base re-merge (which forces data labels off) re-enable them so the
+  // flag wins; def.options still has the final say below.
+  if (def.showLabels) {
+    opts.dataLabels = { enabled: true, style: { fontSize: '11px', fontWeight: 600 }, dropShadow: { enabled: false } };
+  }
   if (def.options) mergeDeep(opts, def.options);
 
   const yaxis = opts.yaxis as Record<string, unknown> | Record<string, unknown>[] | undefined;

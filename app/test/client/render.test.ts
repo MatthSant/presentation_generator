@@ -18,21 +18,32 @@ const { Dashboard, compactVertically } = await import('../../src/client/dashboar
 import type { RenderCtx } from '../../src/client/renderer.js';
 import type { DataMap, ResolvedBind, Section, Widget, LayoutItem } from '../../src/shared/types.js';
 
-/* Minimal Gridstack stand-in: init() returns an instance whose save() reads the
- * gs-* attributes Dashboard wrote onto the tiles, so tests can mutate an attr to
- * simulate a drag/resize and assert the persisted coords. destroy() keeps DOM. */
+/* Minimal Gridstack stand-in. Like the real lib, init() attaches a live
+ * `gridstackNode` (full x/y/w/h) to each item from the gs-* attrs Dashboard
+ * wrote; tests simulate a drag/resize by mutating that node. save() deliberately
+ * OMITS `h` to mirror real gridstack stripping any field equal to a default/min
+ * — the behavior that used to collapse minH-sized charts to h=1. destroy() keeps
+ * the DOM. */
 class FakeGrid {
-  constructor(private el: HTMLElement) {}
+  constructor(private el: HTMLElement) {
+    for (const t of this.el.querySelectorAll<HTMLElement>('.grid-stack-item')) {
+      t.gridstackNode = {
+        el: t,
+        id: t.getAttribute('gs-id') || undefined,
+        x: Number(t.getAttribute('gs-x')), y: Number(t.getAttribute('gs-y')),
+        w: Number(t.getAttribute('gs-w')), h: Number(t.getAttribute('gs-h')),
+      };
+    }
+  }
   on(): void { /* noop */ }
   makeWidget(): void { /* noop */ }
   removeAll(): void { /* noop */ }
   destroy(): void { /* keep DOM, matches destroy(false) */ }
-  save(): { id: string; x: number; y: number; w: number; h: number }[] {
-    return Array.from(this.el.querySelectorAll<HTMLElement>('.grid-stack-item')).map(t => ({
-      id: t.getAttribute('gs-id') || '',
-      x: Number(t.getAttribute('gs-x')), y: Number(t.getAttribute('gs-y')),
-      w: Number(t.getAttribute('gs-w')), h: Number(t.getAttribute('gs-h')),
-    }));
+  save(): GridStackNode[] {
+    return Array.from(this.el.querySelectorAll<HTMLElement>('.grid-stack-item')).map(t => {
+      const n = t.gridstackNode!;
+      return { id: n.id, x: n.x, y: n.y, w: n.w }; // h omitted, as real gridstack does at minH
+    });
   }
 }
 (globalThis as unknown as { GridStack: unknown }).GridStack = {
@@ -52,6 +63,46 @@ test('buildOptions: bar chart resolves type + forces yaxis.min 0', () => {
 test('buildOptions: stacked sets chart.stacked, mixed/horizontal map to bar', () => {
   assert.equal((buildOptions({ type: 'stacked', series: [] }, 'dark').chart as Record<string, unknown>).stacked, true);
   assert.equal((buildOptions({ type: 'bar-horizontal', series: [] }).chart as Record<string, unknown>).type, 'bar');
+});
+
+test('buildOptions: scatter+trend becomes a line chart with an appended fitted series', () => {
+  const opts = buildOptions(
+    { type: 'scatter', trend: 'linear', series: [{ name: 'g', data: [[1, 2], [2, 4], [3, 6]] }] },
+    'light',
+  );
+  assert.equal((opts.chart as Record<string, unknown>).type, 'line');
+  const series = opts.series as { type?: string }[];
+  assert.equal(series.length, 2);            // points + trend
+  assert.equal(series[0].type, 'scatter');
+  assert.equal(series[1].type, 'line');
+  assert.deepEqual((opts.stroke as Record<string, unknown>).width, [0, 3]);
+});
+
+test('buildOptions: donutTotal enables the center total label', () => {
+  const opts = buildOptions(
+    { type: 'donut', series: [1, 2], labels: ['a', 'b'], donutTotal: true, totalLabel: 'clientes' },
+    'dark',
+  );
+  const plot = opts.plotOptions as { pie: { donut: { labels?: { total?: { show?: boolean; label?: string } } } } };
+  assert.equal(plot.pie.donut.labels?.total?.show, true);
+  assert.equal(plot.pie.donut.labels?.total?.label, 'clientes');
+});
+
+test('buildOptions: showLabels survives the base re-merge that forces labels off', () => {
+  const opts = buildOptions({ type: 'donut', series: [1, 2], labels: ['a', 'b'], showLabels: true }, 'light');
+  assert.equal((opts.dataLabels as Record<string, unknown>).enabled, true);
+});
+
+test('buildOptions: mixed secondaryAxis builds an opposite right-hand axis + per-series stroke', () => {
+  const opts = buildOptions({
+    type: 'mixed', secondaryAxis: 1, secondaryAxisSuffix: '%',
+    series: [{ name: 'rev', type: 'bar', data: [1, 2] }, { name: 'growth', type: 'line', data: [10, 20] }],
+  }, 'light');
+  const y = opts.yaxis as Array<Record<string, unknown>>;
+  assert.ok(Array.isArray(y));
+  assert.equal(y.length, 2);
+  assert.equal((y[1] as { opposite?: boolean }).opposite, true);
+  assert.deepEqual((opts.stroke as Record<string, unknown>).width, [0, 3]);
 });
 
 test('defFromResolved: circular charts take first series data + labels', () => {
@@ -103,6 +154,40 @@ test('renderWidget: bound chart with data pushes a chart spec', () => {
 test('renderWidget: unknown type renders an error card', () => {
   const node = renderWidget({ id: 'x', type: 'bogus' } as unknown as Widget, ctxWith(null));
   assert.ok(node.classList.contains('widget-error'));
+});
+
+test('renderWidget: def-step renders num, stats and HTML bullets', () => {
+  const node = renderWidget({
+    id: 'd1', type: 'def-step', num: '01', label: 'Base de dados', title: 'Universo analisado',
+    stats: [{ value: 1500, label: 'clientes', color: 'p' }],
+    bullets: ['Período <strong>jan–dez</strong>'],
+  } as Widget, ctxWith(null));
+  assert.ok(node.classList.contains('def-step'));
+  assert.equal(node.querySelector('.def-step-num')?.textContent, '01');
+  assert.ok(node.querySelector('.def-step-stat-n.c-p'));
+  assert.ok(node.querySelector('.def-bullets li strong')); // inline HTML preserved
+});
+
+test('renderWidget: mdef-block renders tag, title and optional sub-classification', () => {
+  const node = renderWidget({
+    id: 'm1', type: 'mdef-block', tag: 'Valor do cliente', title: 'LTV',
+    bullets: ['Receita acumulada'], subLabel: 'Variantes', subBullets: ['LTV 12m'],
+  } as Widget, ctxWith(null));
+  assert.equal(node.querySelector('.mdef-tag')?.textContent, 'Valor do cliente');
+  assert.equal(node.querySelector('.mdef-title')?.textContent, 'LTV');
+  assert.equal(node.querySelector('.mdef-sub-label')?.textContent, 'Variantes');
+  assert.equal(node.querySelectorAll('.def-bullets').length, 2); // main + sub
+});
+
+test('renderWidget: grp-list auto-numbers items from 01', () => {
+  const node = renderWidget({
+    id: 'g1', type: 'grp-list', label: '3 grupos',
+    items: [{ name: 'A', example: 'ex' }, { name: 'B' }, { name: 'C' }],
+  } as Widget, ctxWith(null));
+  const ns = [...node.querySelectorAll('.grp-n')].map(n => n.textContent);
+  assert.deepEqual(ns, ['01', '02', '03']);
+  assert.equal(node.querySelectorAll('.grp-item').length, 3);
+  assert.equal(node.querySelectorAll('.grp-ex').length, 1); // only the one with an example
 });
 
 /* ── Dashboard ── */
@@ -237,8 +322,9 @@ test('exitEditMode(true): persists moved coords then rebuilds the read grid', as
   });
 
   await dash.enterEditMode();
-  // simulate the user dragging "tbl" to the right half
-  host.querySelector('[data-widget-id="tbl"]')!.setAttribute('gs-x', '6');
+  // simulate the user dragging "tbl" to the right half (mutate the live node, as
+  // real gridstack does on drag — not just the gs-x attribute)
+  host.querySelector<HTMLElement>('[data-widget-id="tbl"]')!.gridstackNode!.x = 6;
   await dash.exitEditMode(true);
 
   assert.equal(dash.editing, false);
@@ -247,6 +333,9 @@ test('exitEditMode(true): persists moved coords then rebuilds the read grid', as
   const tblItem = saved[0].items.find(i => i.id === 'tbl')!;
   assert.equal(tblItem.x, 6);
   assert.equal(tblItem.w, 6);
+  // h must round-trip from the live node even though save() omits it (regression:
+  // save()'s stripping used to collapse this to h=1).
+  assert.equal(tblItem.h, 2);
   assert.equal(tblItem.type, 'table'); // widget type carried into the layout item
 
   // read grid is rebuilt and reflects the new x
