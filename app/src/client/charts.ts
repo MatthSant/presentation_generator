@@ -41,7 +41,7 @@ function readPalette(fallback: string[]): string[] {
 
 function getBase(theme: Theme): Base {
   const dark = theme === 'dark';
-  const labelColor = dark ? '#9CA3AF' : '#9A9AA0';
+  const labelColor = dark ? '#9CA3AF' : '#6B6B73';
   const gridColor = dark ? 'rgba(255,255,255,.07)' : '#ECECEC';
   const defColors = readPalette(dark
     ? ['#8B5CF6', '#10B981', '#F59E0B', '#F97316', '#EF4444']

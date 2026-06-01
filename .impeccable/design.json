@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-31T21:30:00.000Z",
+  "title": "Design System: Analytics Report App",
+  "extensions": {
+    "colorMeta": {
+      "purple": {
+        "role": "primary",
+        "displayName": "Roxo de Marca",
+        "canonical": "#7C3AED",
+        "tonalRamp": ["oklch(20% 0.15 295)", "oklch(30% 0.18 295)", "oklch(40% 0.21 295)", "oklch(50% 0.23 295)", "oklch(58% 0.23 295)", "oklch(70% 0.18 295)", "oklch(85% 0.10 295)", "oklch(95% 0.04 295)"]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Verde de Dado",
+        "canonical": "#059669",
+        "tonalRamp": ["oklch(20% 0.07 160)", "oklch(30% 0.10 160)", "oklch(40% 0.12 160)", "oklch(52% 0.13 160)", "oklch(62% 0.13 160)", "oklch(74% 0.10 160)", "oklch(86% 0.06 160)", "oklch(95% 0.03 160)"]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Âmbar de Atenção",
+        "canonical": "#D97706",
+        "tonalRamp": ["oklch(22% 0.06 65)", "oklch(33% 0.09 65)", "oklch(45% 0.11 65)", "oklch(57% 0.13 65)", "oklch(68% 0.13 65)", "oklch(78% 0.10 65)", "oklch(88% 0.06 65)", "oklch(96% 0.03 65)"]
+      },
+      "red": {
+        "role": "secondary",
+        "displayName": "Vermelho de Risco",
+        "canonical": "#DC2626",
+        "tonalRamp": ["oklch(22% 0.10 25)", "oklch(33% 0.14 25)", "oklch(45% 0.18 25)", "oklch(55% 0.20 25)", "oklch(63% 0.20 25)", "oklch(74% 0.15 25)", "oklch(86% 0.08 25)", "oklch(95% 0.04 25)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "oklch(13% 0.008 280)",
+        "tonalRamp": ["oklch(13% 0.008 280)", "oklch(22% 0.008 280)", "oklch(33% 0.009 280)", "oklch(43% 0.010 280)", "oklch(52% 0.008 280)", "oklch(64% 0.007 280)", "oklch(82% 0.006 280)", "oklch(96% 0.003 280)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["oklch(10.5% 0.007 280)", "oklch(14.5% 0.006 280)", "oklch(19% 0.007 280)", "oklch(24% 0.009 280)", "oklch(90% 0.007 280)", "oklch(97.5% 0.004 280)", "oklch(99% 0.002 280)", "#FFFFFF"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Valores de KPI e estatísticas-âncora. Números, não prosa." },
+      "headline": { "displayName": "Headline", "purpose": "Títulos de find-block e de seção." },
+      "body": { "displayName": "Body", "purpose": "Parágrafos e bullets, limite 65–75ch." },
+      "label": { "displayName": "Label", "purpose": "Rótulos uppercase tracked: títulos de gráfico, cabeçalhos de tabela, eyebrows. Piso 11px." },
+      "caption": { "displayName": "Caption", "purpose": "Notas auxiliares e legendas." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 2px oklch(13% 0.008 280 / 0.06), 0 0 0 1px oklch(13% 0.008 280 / 0.04)", "purpose": "KPIs e controles em repouso." },
+      { "name": "shadow-card", "value": "0 2px 8px oklch(13% 0.008 280 / 0.08), 0 0 0 1px oklch(13% 0.008 280 / 0.05)", "purpose": "Elevação padrão dos cards de dado (gráfico, tabela, heatmap)." },
+      { "name": "shadow-md", "value": "0 4px 14px oklch(13% 0.008 280 / 0.09), 0 0 0 1px oklch(13% 0.008 280 / 0.05)", "purpose": "Diálogos, menus de contexto, modais de detalhamento." }
+    ],
+    "motion": [
+      { "name": "transition-fast", "value": "0.15s", "purpose": "Hover/focus de controles (borda, cor)." },
+      { "name": "chart-anim", "value": "400ms", "purpose": "Render inicial dos gráficos ApexCharts; updateSeries em 350ms." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "KPI Tile",
+      "kind": "card",
+      "refersTo": "kpi-tile",
+      "description": "Métrica única com borda-topo roxa; vários lado a lado pela grade de 12 colunas.",
+      "html": "<div class=\"ds-kpi\"><div class=\"ds-kpi-v\">R$ 1.523.000</div><div class=\"ds-kpi-l\">Receita Total</div></div>",
+      "css": ".ds-kpi { display:flex; flex-direction:column; padding:22px 24px; background:var(--bg,#fff); border:1px solid var(--border,oklch(90% 0.007 280)); border-top:3px solid var(--purple,#7C3AED); border-radius:8px; box-shadow:0 1px 2px oklch(13% 0.008 280 / 0.06), 0 0 0 1px oklch(13% 0.008 280 / 0.04); font-family:'Exo 2',system-ui,sans-serif; } .ds-kpi-v { font-size:32px; font-weight:700; line-height:1; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; color:var(--fg,oklch(13% 0.008 280)); margin-bottom:6px; } .ds-kpi-l { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--gray2,oklch(52% 0.008 280)); }"
+    },
+    {
+      "name": "Data Card",
+      "kind": "card",
+      "refersTo": "data-card",
+      "description": "Container elevado para gráfico/tabela/heatmap. Papel branco, borda fina, sombra de card.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Receita por Mês</div><div class=\"ds-card-body\">[gráfico]</div></div>",
+      "css": ".ds-card { background:var(--bg,#fff); border:0.8px solid var(--border,oklch(90% 0.007 280)); border-radius:8px; padding:16px; box-shadow:0 2px 8px oklch(13% 0.008 280 / 0.08), 0 0 0 1px oklch(13% 0.008 280 / 0.05); font-family:'Exo 2',system-ui,sans-serif; } .ds-card-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--gray2,oklch(52% 0.008 280)); margin-bottom:4px; } .ds-card-body { color:var(--fg,oklch(13% 0.008 280)); }"
+    },
+    {
+      "name": "Find-Block (flat)",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Achado de narrativa na grade do dashboard: plano sobre o papel, sem moldura. Tag colorida + título editorial.",
+      "html": "<div class=\"ds-find\"><span class=\"ds-find-tag\">Achado</span><div class=\"ds-find-title\">Eletrônicos lideram a receita</div><p class=\"ds-find-detail\">Categoria responde por 38% do total no semestre.</p></div>",
+      "css": ".ds-find { padding:4px 0; background:transparent; border:none; box-shadow:none; font-family:'Exo 2',system-ui,sans-serif; } .ds-find-tag { display:inline-block; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:2px; color:var(--tag-g,#047857); margin-bottom:10px; } .ds-find-title { font-size:22px; font-weight:800; line-height:1.15; letter-spacing:-0.022em; color:var(--fg,oklch(13% 0.008 280)); margin-bottom:10px; } .ds-find-detail { font-size:13px; line-height:1.65; color:var(--gray,oklch(43% 0.010 280)); }"
+    },
+    {
+      "name": "Table Header",
+      "kind": "custom",
+      "refersTo": "table-header",
+      "description": "Cabeçalho de tabela com tint roxo de fundo e texto roxo em Label uppercase.",
+      "html": "<table class=\"ds-tbl\"><thead><tr><th>Categoria</th><th>Receita</th></tr></thead><tbody><tr><td>Eletrônicos</td><td>R$ 580.000</td></tr></tbody></table>",
+      "css": ".ds-tbl { width:100%; border-collapse:collapse; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px oklch(13% 0.008 280 / 0.08), 0 0 0 1px oklch(13% 0.008 280 / 0.05); font-family:'Exo 2',system-ui,sans-serif; } .ds-tbl thead tr { background:rgba(124,58,237,0.08); } .ds-tbl th { color:var(--purple,#7C3AED); text-transform:uppercase; letter-spacing:1.5px; font-size:11px; font-weight:700; padding:12px; text-align:right; } .ds-tbl th:first-child { text-align:left; } .ds-tbl td { padding:10px 12px; font-size:13px; text-align:right; font-variant-numeric:tabular-nums; border-top:1px solid var(--border,oklch(90% 0.007 280)); } .ds-tbl td:first-child { text-align:left; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "Pílula de filtro; estado ativo muda borda e cor, sem fill chapado.",
+      "html": "<button class=\"ds-chip\">Online</button><button class=\"ds-chip ds-chip-on\">Loja</button>",
+      "css": ".ds-chip { font-family:'Exo 2',sans-serif; font-size:11px; font-weight:600; padding:6px 12px; border-radius:8px; border:1px solid var(--border,oklch(90% 0.007 280)); background:var(--surface,oklch(97.5% 0.004 280)); color:var(--gray2,oklch(52% 0.008 280)); cursor:pointer; transition:all .15s; } .ds-chip:hover { border-color:var(--purple,#7C3AED); color:var(--fg,oklch(13% 0.008 280)); } .ds-chip-on { border-color:var(--purple,#7C3AED); color:var(--purple,#7C3AED); background:rgba(124,58,237,0.08); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Dossiê do Consultor",
+    "overview": "O sistema é um relatório de consultoria impresso que ganhou interatividade, não um produto de BI. A tela é papel; o texto de narrativa repousa plano sobre ela, e os dados vivem em cards levemente elevados, como recortes colados. A personalidade é analítica, precisa e discreta: o consultor revisa minutos antes da reunião, então tudo é legível de relance e nada grita. O roxo é a voz única de marca, usado com parcimônia; os accents carregam significado de dado, jamais decoração.",
+    "keyCharacteristics": [
+      "Papel como superfície, recortes de dado colados por cima (collage)",
+      "Roxo como voz única; accents só com significado de dado",
+      "Tipografia Exo 2 em toda a interface, inclusive nos gráficos",
+      "Tema claro e escuro de primeira classe, ambos com elevação tonal real",
+      "Densidade editorial: legível de relance, nunca ruidosa"
+    ],
+    "rules": [
+      { "name": "A Regra da Voz Única", "body": "O roxo aparece em ≤10% de qualquer tela: bordas-topo, títulos de coluna, numeradores. Preencher um bloco inteiro de roxo é proibido. A raridade é o ponto.", "section": "colors" },
+      { "name": "A Regra do Accent com Significado", "body": "Verde/âmbar/laranja/vermelho só aparecem quando representam um dado. Cor nunca é decoração, e nunca é o único portador de significado.", "section": "colors" },
+      { "name": "A Regra do Piso de 11px", "body": "Nenhum texto legível desce abaixo de 11px. Rótulos uppercase tracked param em 11px/700.", "section": "typography" },
+      { "name": "A Regra da Família Única", "body": "Exo 2 em toda a UI e em todos os gráficos. Uma segunda família de texto é proibida (exceto o monospaço da mensagem de erro técnica).", "section": "typography" },
+      { "name": "A Regra da Colagem", "body": "Texto de narrativa repousa plano no papel; dados são recortes elevados em cards. Aplicar card a um find-block na grade do dashboard é proibido (ele só é card no modal de detalhe).", "section": "elevation" },
+      { "name": "A Regra da Superfície Translúcida", "body": "Superfícies decorativas são semi-transparentes — claro rgba(0,0,0,.02), escuro rgba(255,255,255,.03) — nunca opacas chapadas.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do manter a narrativa plana no papel e os dados em cards elevados (A Regra da Colagem).",
+      "Do usar roxo só em bordas-topo, títulos de coluna e numeradores, em ≤10% da tela.",
+      "Do usar Exo 2 em toda a UI e em todos os gráficos; ler a paleta dos gráficos dos tokens CSS em runtime.",
+      "Do manter contraste de texto ≥4.5:1 (WCAG AA), inclusive em rótulos de eixo e tags; nunca usar cor como único portador de estado.",
+      "Do definir altura de gráfico via JS (height no chartDef), nunca via CSS.",
+      "Do tingir todo neutro levemente de roxo (hue 280); manter superfícies semi-transparentes."
+    ],
+    "donts": [
+      "Don't usar border-left/border-right maior que 1px como stripe colorido.",
+      "Don't usar gradient text (background-clip: text).",
+      "Don't usar o template hero-metric (número gigante com gradiente).",
+      "Don't usar glassmorphism decorativo (backdrop-filter).",
+      "Don't criar cards ad-hoc — usar sempre os componentes do design-system; nunca aninhar cards.",
+      "Don't usar #000 ou #fff puros, nem superfícies opacas chapadas.",
+      "Don't parecer um dashboard de BI genérico ou um produto de SaaS comprado pronto."
+    ]
+  }
+}
