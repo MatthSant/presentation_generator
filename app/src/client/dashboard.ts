@@ -285,12 +285,24 @@ export class Dashboard {
     this.render();
   }
 
+  /** Read coords from each tile's LIVE gridstack node, not save(): save() strips
+   *  any field equal to a default or min constraint, so a chart sitting at its
+   *  minH (4) comes back with no `h` — and a naive `?? 1` would persist h=1,
+   *  collapsing the chart to its 120px floor on the next read-path render. */
   private readGridLayout(): LayoutItem[] {
     const items: LayoutItem[] = [];
-    for (const n of this.gridStack!.save(false)) {
-      if (!n.id) continue;
-      const ref = this.tiles.find(t => t.widget.id === n.id);
-      items.push({ id: n.id, type: ref?.widget.type, x: n.x ?? 0, y: n.y ?? 0, w: n.w ?? 6, h: n.h ?? 1 });
+    for (const ref of this.tiles) {
+      const node = ref.tile.gridstackNode;
+      if (!node) continue;
+      const prev = this.layoutFor(ref.widget.id);
+      items.push({
+        id: ref.widget.id,
+        type: ref.widget.type,
+        x: node.x ?? prev?.x ?? 0,
+        y: node.y ?? prev?.y ?? 0,
+        w: node.w ?? node.minW ?? prev?.w ?? DEFAULT_W[ref.widget.type] ?? 6,
+        h: node.h ?? node.minH ?? prev?.h ?? 1,
+      });
     }
     return items;
   }
