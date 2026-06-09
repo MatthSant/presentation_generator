@@ -26,12 +26,16 @@ export interface PyResult {
 
 const SCRIPT = path.join(PYSRC, 'conversao-perfil', 'build_report.py');
 
+/** Force Python stdout/stderr to UTF-8 — on Windows the default codepage (cp1252)
+ *  would mangle acentos in the JSON the Node side captures (→ "n�o"). */
+const PY_SPAWN = { windowsHide: true, env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } };
+
 function runBuildReport(a: BuildReportArgs): Promise<PyResult> {
   // The Windows `py` launcher needs `-3` before the script path; `python3` does not.
   const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
   const args = [...prefix, SCRIPT, a.configPath, a.contentPath, a.csvPath, a.outDir];
   return new Promise((resolve) => {
-    const child = spawn(PYTHON_BIN, args, { windowsHide: true });
+    const child = spawn(PYTHON_BIN, args, PY_SPAWN);
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d.toString(); });
@@ -90,7 +94,7 @@ export async function runQuery(client: string, slug: string, fn: string, args: u
   const a = [...prefix, QUERY_SCRIPT, config, dump, fn, JSON.stringify(args ?? {})];
   await acquireSlot();
   return new Promise<QueryResult>((resolve) => {
-    const child = spawn(PYTHON_BIN, a, { windowsHide: true });
+    const child = spawn(PYTHON_BIN, a, PY_SPAWN);
     let out = '';
     let err = '';
     child.stdout.on('data', (d) => { out += d.toString(); });

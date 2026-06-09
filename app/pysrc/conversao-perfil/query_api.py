@@ -110,6 +110,11 @@ def crosstab(ctx, a):
         rows.append({'grupo': ga, 'cruzar': gb, 'valor': round(sales / leads * 100, 2), 'leads': int(leads)})
     if not rows:
         return {'status': 'nao_disponivel', 'motivo': 'sem respondentes nesse cruzamento'}
+    # Ordena pela sequência natural dos critérios (faixas ascendentes), p/ o gráfico
+    # agrupado e a tabela saírem organizados em vez de ordem arbitrária.
+    oa = {v: i for i, v in enumerate(ca.get('order', []))}
+    ob = {v: i for i, v in enumerate(cb.get('order', []))}
+    rows.sort(key=lambda r: (oa.get(r['grupo'], 999), ob.get(r['cruzar'], 999)))
     return {'status': 'ok', 'table': {'dims': ['grupo', 'cruzar'], 'filters': [], 'rows': rows},
             'summary': f"Conversão 60d: {ca.get('label')} × {cb.get('label')} ({canal})"}
 

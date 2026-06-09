@@ -171,12 +171,21 @@ export interface DeepDeps {
 
 const DEEP_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil. Você NÃO recebe o
 dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
-devolve só agregados. Faça quantas consultas precisar; cada resultado ganha um
-"dataset_key" que você pode usar no bind de um gráfico/tabela. Quando tiver o
-suficiente, chame "emit_modal". Regras: gráficos/tabelas só via bind a um
-dataset_key retornado (ou a uma tabela do catálogo inicial); a prosa vai em
-find-note (números permitidos). Se uma consulta voltar "nao_disponivel", diga isso
-na prosa — nunca invente número.`;
+devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
+gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
+
+A modal deve ser ENXUTA e legível — qualidade, não quantidade:
+- NO MÁXIMO UM gráfico, o mais informativo do recorte. Para um cruzamento, prefira
+  barras agrupadas (chartType "bar", x="grupo", series="cruzar", y="valor").
+- NUNCA use gráfico de valor único (ex.: associação / Cramér's V) — comente
+  associação na PROSA, não num gráfico.
+- Use tabela só se for curta; NUNCA despeje a tabela inteira de um cruzamento.
+- 1 a 2 find-note curtos que interpretam o número e dão a implicação prática.
+- Estrutura sugerida: nota de contexto → 1 gráfico → nota de conclusão.
+
+Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
+catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
+"nao_disponivel", diga isso na prosa — nunca invente número.`;
 
 function consultarTool(deps: DeepDeps): Anthropic.Tool {
   const ids = deps.meta.criterios.map((c) => c.id);
