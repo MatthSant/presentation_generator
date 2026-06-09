@@ -96,6 +96,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
             datasetChanged = true;
             return key;
           },
+          validate: (modal) => validate(assignIds({ ...(modal as Modal), id: modalId })),
         };
         const r = await generateModalDeep(prompt, cardCtx, catalog, deps);
         mocked = r.mocked;
@@ -114,7 +115,11 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
           if (mocked) break;
         }
       }
-      if (!modal) { res.status(422).json({ error: 'modal inválida', detail: errors }); return; }
+      if (!modal) {
+        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, errors);
+        res.status(422).json({ error: 'modal inválida', detail: errors });
+        return;
+      }
 
       if (datasetChanged) writeJson(path.join(dir, 'dataset.json'), dataset);
       section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id), modal];
@@ -134,6 +139,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
 
       res.json({ ok: true, modal, mocked, blockId, datasetChanged });
     } catch (e) {
+      console.error(`[deepen] ${client}/${slug}/${secId} ${blockId}:`, (e as Error).message);
       res.status(500).json({ error: (e as Error).message });
     }
   });

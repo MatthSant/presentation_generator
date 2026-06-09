@@ -165,6 +165,8 @@ export interface DeepDeps {
   runQuery: (fn: string, args: Record<string, unknown>) => Promise<QueryReply>;
   /** Merge a returned table into the dataset; returns the new dataset key to bind to. */
   registerTable: (table: { dims: string[]; filters: string[]; rows: Array<Record<string, unknown>> }, summary: string) => string;
+  /** Validate an emitted modal (same guard as the renderer). Returns [] when ok. */
+  validate?: (modal: unknown) => string[];
 }
 
 const DEEP_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil. Você NÃO recebe o
@@ -198,7 +200,7 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
   return { name: 'emit_modal', description: 'Emite a modal final.', input_schema: modalSchema(tableNames) };
 }
 
-const MAX_TURNS = 6;
+const MAX_TURNS = 8;
 
 export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -218,20 +220,33 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
       messages,
     });
     messages.push({ role: 'assistant', content: msg.content });
-    const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-    if (!tu) throw new Error('Claude não chamou nenhuma tool');
-    if (tu.name === 'emit_modal') return { modal: tu.input, mocked: false };
+    const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+    if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');
 
-    const { funcao, ...args } = tu.input as { funcao: string; [k: string]: unknown };
-    const r = await deps.runQuery(funcao, args);
-    let result: unknown;
-    if (r.status === 'ok' && r.table) {
-      const key = deps.registerTable(r.table, r.summary ?? '');
-      result = { status: 'ok', dataset_key: key, columns: Object.keys(r.table.rows[0] ?? {}), sample: r.table.rows.slice(0, 3), summary: r.summary };
-    } else {
-      result = { status: r.status, motivo: r.motivo };
+    // A valid emitted modal ends the loop — we don't send another request, so any
+    // sibling tool_uses left unanswered are fine.
+    const emitted = toolUses.find((t) => t.name === 'emit_modal');
+    if (emitted && (!deps.validate || deps.validate(emitted.input).length === 0)) {
+      return { modal: emitted.input, mocked: false };
     }
-    messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(result) }] });
+
+    // Otherwise answer EVERY tool_use with a tool_result before the next turn —
+    // Anthropic requires one per tool_use, including parallel ("any") calls.
+    const results: Anthropic.ToolResultBlockParam[] = [];
+    for (const t of toolUses) {
+      if (t.name === 'emit_modal') {
+        const errs = deps.validate ? deps.validate(t.input) : ['modal inválida'];
+        results.push({ type: 'tool_result', tool_use_id: t.id, content: JSON.stringify({ status: 'modal_invalida', erros: errs, instrucao: 'Corrija: gráficos/tabelas só com bind a um dataset_key retornado e colunas que existem nele.' }) });
+        continue;
+      }
+      const { funcao, ...args } = t.input as { funcao: string; [k: string]: unknown };
+      const r = await deps.runQuery(funcao, args);
+      const content = r.status === 'ok' && r.table
+        ? JSON.stringify({ status: 'ok', dataset_key: deps.registerTable(r.table, r.summary ?? ''), columns: Object.keys(r.table.rows[0] ?? {}), sample: r.table.rows.slice(0, 3), summary: r.summary })
+        : JSON.stringify({ status: r.status, motivo: r.motivo });
+      results.push({ type: 'tool_result', tool_use_id: t.id, content });
+    }
+    messages.push({ role: 'user', content: results });
   }
   throw new Error('loop de aprofundamento sem emit_modal');
 }
