@@ -332,34 +332,44 @@ def build(csv_path, config, content, out_dir):
     add_table('cod_assoc', ['fatorA', 'fatorB'], assoc_rows)
     add_table('cod_fatores', ['Fator'], fator_rows)
 
-    dg.newrow(); base_y = dg.y
-    det.append({'id': 'det-eb3', 'type': 'eyebrow', 'n': '⚖', 'color': 'purple', 'title': 'RELEVÂNCIA × CODEPENDÊNCIA',
-                'caption': 'o que move a conversão (amplitude) e se o sinal é próprio ou proxy — reage ao filtro de canal'})
-    det.append({'id': 'det-cod-hm', 'type': 'heatmap', 'bind': {'dataset': 'cod_assoc'},
-                'rowKey': 'fatorA', 'colKey': 'fatorB', 'valKey': 'valor', 'clsKey': 'cls',
-                'caption': "Associação (Cramér's V): quanto mais escuro, mais os dois critérios se explicam mutuamente."})
-    det.append({'id': 'det-cod-tbl', 'type': 'table', 'title': 'Relevância × Independência',
-                'cols': ['Fator', 'Amplitude', 'Independ.', 'Papel'], 'bind': {'dataset': 'cod_fatores'},
-                'colorScale': {'Amplitude': 'amp', 'Independ.': 'surv'},
-                'defs': {
-                    'Amplitude': 'Desvio médio do diff vs. benchmark entre os grupos, ponderado pela representatividade — quanto o fator de fato move a conversão (alta ≥30% · média ≥12% · baixa <12%).',
-                    'Independ.': '% do sinal de conversão que sobrevive ao controlar pelo fator mais associado. Alto = sinal próprio (qualificador); baixo = proxy de outro fator.',
-                    'Papel': 'Veredito: qualificador (sinal próprio e relevante) · proxy de X (relevante, mas explicado por X) · baixo impacto (amplitude baixa).',
-                }})
-    det.append({'id': 'det-cod-note', 'type': 'find-note', 'text': 'Associação ≠ causalidade. Amplitude e lift controlado são indícios sobre a distribuição de leads — use para priorizar, confirmando no nível do lead quando possível. Tudo nesta zona reage ao filtro de canal.'})
-    dg.items += [
-        {'id': 'det-eb3', 'type': 'eyebrow', 'x': 0, 'y': base_y, 'w': 12, 'h': 1},
-        {'id': 'det-cod-hm', 'type': 'heatmap', 'x': 0, 'y': base_y + 1, 'w': 7, 'h': 6},
-        {'id': 'det-cod-tbl', 'type': 'table', 'x': 7, 'y': base_y + 1, 'w': 5, 'h': 6},
-        {'id': 'det-cod-note', 'type': 'find-note', 'x': 0, 'y': base_y + 7, 'w': 12, 'h': 1},
+    # s11 (Detalhamentos) fica só com o cross-cut autoral; a codependência ganha
+    # PÁGINA PRÓPRIA (s12). Sem cross-cut, s11 nem é criada — a página Detalhamentos
+    # passa a ser povoada sob demanda pelos detalhamentos das perguntas norteadoras.
+    has_det = len(det) > 0
+    if has_det:
+        sections['s11'] = {'id': 's11', 'header': dcfg.get('header', {'badge': 'Detalhamentos', 'title': 'Detalhamentos'}), 'widgets': det}
+        layouts['s11'] = dg.items
+
+    cod_w = [
+        {'id': 'cod-eb', 'type': 'eyebrow', 'n': '⚖', 'color': 'purple', 'title': 'RELEVÂNCIA × CODEPENDÊNCIA',
+         'caption': 'o que move a conversão (amplitude) e se o sinal é próprio ou proxy — reage ao filtro de canal'},
+        {'id': 'cod-hm', 'type': 'heatmap', 'bind': {'dataset': 'cod_assoc'},
+         'rowKey': 'fatorA', 'colKey': 'fatorB', 'valKey': 'valor', 'clsKey': 'cls',
+         'caption': "Associação (Cramér's V): quanto mais escuro, mais os dois critérios se explicam mutuamente."},
+        {'id': 'cod-tbl', 'type': 'table', 'title': 'Relevância × Independência',
+         'cols': ['Fator', 'Amplitude', 'Independ.', 'Papel'], 'bind': {'dataset': 'cod_fatores'},
+         'colorScale': {'Amplitude': 'amp', 'Independ.': 'surv'},
+         'defs': {
+             'Amplitude': 'Desvio médio do diff vs. benchmark entre os grupos, ponderado pela representatividade — quanto o fator de fato move a conversão (alta ≥30% · média ≥12% · baixa <12%).',
+             'Independ.': '% do sinal de conversão que sobrevive ao controlar pelo fator mais associado. Alto = sinal próprio (qualificador); baixo = proxy de outro fator.',
+             'Papel': 'Veredito: qualificador (sinal próprio e relevante) · proxy de X (relevante, mas explicado por X) · baixo impacto (amplitude baixa).',
+         }},
+        {'id': 'cod-note', 'type': 'find-note', 'text': 'Associação ≠ causalidade. Amplitude e lift controlado são indícios sobre a distribuição de leads — use para priorizar, confirmando no nível do lead quando possível. Tudo nesta página reage ao filtro de canal.'},
     ]
-    sections['s11'] = {'id': 's11', 'header': dcfg.get('header', {'badge': 'Detalhamentos', 'title': 'Detalhamentos'}), 'widgets': det}
-    layouts['s11'] = dg.items
+    sections['s12'] = {'id': 's12', 'header': {'badge': 'Codependência', 'title': 'Relevância × Codependência'}, 'widgets': cod_w}
+    layouts['s12'] = [
+        {'id': 'cod-eb', 'type': 'eyebrow', 'x': 0, 'y': 0, 'w': 12, 'h': 1},
+        {'id': 'cod-hm', 'type': 'heatmap', 'x': 0, 'y': 1, 'w': 7, 'h': 6},
+        {'id': 'cod-tbl', 'type': 'table', 'x': 7, 'y': 1, 'w': 5, 'h': 6},
+        {'id': 'cod-note', 'type': 'find-note', 'x': 0, 'y': 7, 'w': 12, 'h': 1},
+    ]
 
     # ── navegação ─────────────────────────────────────────────────────────
     all_pages = [{'id': 'panorama', 'label': 'Panorama', 'sections': [{'id': 's01', 'label': 'Panorama Geral'}]},
-                 {'id': 'insights', 'label': 'Insights', 'sections': [{'id': 's10', 'label': content['insights']['header']['title']}]},
-                 {'id': 'detalhamentos', 'label': 'Detalhamentos', 'sections': [{'id': 's11', 'label': sections['s11']['header'].get('title', 'Detalhamentos')}]}]
+                 {'id': 'insights', 'label': 'Insights', 'sections': [{'id': 's10', 'label': content['insights']['header']['title']}]}]
+    if has_det:
+        all_pages.append({'id': 'detalhamentos', 'label': 'Detalhamentos', 'sections': [{'id': 's11', 'label': sections['s11']['header'].get('title', 'Detalhamentos')}]})
+    all_pages.append({'id': 'codependencia', 'label': 'Codependência', 'sections': [{'id': 's12', 'label': 'Relevância × Codependência'}]})
     for ci, c in enumerate(CRIT):
         all_pages.append({'id': c['id'], 'label': c['tab'], 'sections': [{'id': f's{ci + 2:02d}', 'label': c['label']}]})
 

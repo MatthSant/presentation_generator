@@ -106,6 +106,9 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       await generateDoc(dir).catch(() => { /* fall through to empty */ });
     }
     const doc = file ? readJson<PerguntasDoc>(file) : null;
+    // Idempotent: keep the nav page present even after the analysis is regenerated
+    // (which rewrites data.json but leaves perguntas.json in place).
+    if (dir && doc && (doc.perguntas || []).length) ensurePerguntasPage(dir);
     const custom = dir ? readJson<PerguntasDoc>(customPath(dir)) : null;
     const list = [...(doc?.perguntas || []), ...(custom?.perguntas || [])];
     const status = liveStatus(client, slug);
