@@ -61,11 +61,19 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const dataset = readJson<DataMap>(path.join(dir, 'dataset.json'));
     if (!dataset) { res.status(400).json({ error: 'dataset ausente' }); return; }
     const catalog = buildCatalog(dataset);
+    // Criterion-page widgets are id-prefixed ("renda-reptoggle" → "renda").
+    // Validate the prefix against the real dataset criteria so we anchor the model
+    // on the card's own criterion instead of letting it wander to another one.
+    const critIds = new Set<string>();
+    for (const t of catalog.tables) { const mm = t.name.match(/^crit_([a-z0-9]+)_/i); if (mm) critIds.add(mm[1]); }
+    const prefix = blockId.includes('-') ? blockId.slice(0, blockId.indexOf('-')) : '';
     const cardCtx = {
       title: (card as { title?: string }).title,
       detail: (card as { detail?: string }).detail,
       type: (card as Widget).type,
       bind: (card as { bind?: unknown }).bind,
+      pagina: section.header?.title,
+      criterio: critIds.has(prefix) ? prefix : undefined,
     };
     const modalId = `modal-${blockId}-${crypto.randomBytes(3).toString('hex')}`;
     const validate = (modal: Modal): string[] => {

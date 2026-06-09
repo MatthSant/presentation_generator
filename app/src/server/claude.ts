@@ -95,9 +95,12 @@ export async function generateInsights(digest: Digest, opts?: { tone?: string })
 
 const MODAL_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil, gerando uma MODAL
 com widgets do app. Regras inegociáveis:
+- FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as
+  tabelas do catálogo desse critério; não troque por outro critério.
 - Widgets de gráfico/tabela NÃO carregam números — eles fazem "bind" a uma tabela do
   CATÁLOGO. Use SOMENTE nomes de tabela e colunas que existem no catálogo fornecido.
 - A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
+- No máximo UM gráfico; não despeje a tabela inteira.
 - Se o recorte pedido não existir no catálogo, diga isso num find-note — nunca invente.
 - Responda exclusivamente chamando a ferramenta emit_modal.`;
 
@@ -134,7 +137,7 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
 }
 
 export interface ModalResult { modal: unknown; mocked: boolean }
-interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown }
+interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown; pagina?: string; criterio?: string }
 
 export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -182,6 +185,12 @@ A modal deve ser ENXUTA e legível — qualidade, não quantidade:
 - Use tabela só se for curta; NUNCA despeje a tabela inteira de um cruzamento.
 - 1 a 2 find-note curtos que interpretam o número e dão a implicação prática.
 - Estrutura sugerida: nota de contexto → 1 gráfico → nota de conclusão.
+
+FOCO (importante): o card pertence à página de um critério específico — campos
+"criterio" e "pagina" no input. FOQUE nesse critério: use card.criterio como
+\`criterio\` nas consultas e mantenha-o como eixo principal. Só envolva OUTRO
+critério se o pedido pedir explicitamente um cruzamento — e ainda assim cruzando
+COM o critério do card, nunca trocando por outro.
 
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
 catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
