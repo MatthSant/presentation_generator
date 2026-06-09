@@ -67,11 +67,20 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const critIds = new Set<string>();
     for (const t of catalog.tables) { const mm = t.name.match(/^crit_([a-z0-9]+)_/i); if (mm) critIds.add(mm[1]); }
     const prefix = blockId.includes('-') ? blockId.slice(0, blockId.indexOf('-')) : '';
+    // What the block itself shows — for toggles the binds live in `tabs` (not at
+    // the top level), so surface the datasets/labels each tab uses.
+    const rawTabs = (card as { tabs?: Array<Record<string, unknown>> }).tabs;
+    const tabs = Array.isArray(rawTabs)
+      ? rawTabs
+          .map((t) => ({ label: t.label, dataset: (t.bind as { dataset?: string })?.dataset ?? (t.chart as { bind?: { dataset?: string } })?.bind?.dataset }))
+          .filter((t) => t.dataset)
+      : undefined;
     const cardCtx = {
       title: (card as { title?: string }).title,
       detail: (card as { detail?: string }).detail,
       type: (card as Widget).type,
       bind: (card as { bind?: unknown }).bind,
+      tabs,
       pagina: section.header?.title,
       criterio: critIds.has(prefix) ? prefix : undefined,
     };

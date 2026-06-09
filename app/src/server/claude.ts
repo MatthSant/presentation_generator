@@ -97,6 +97,8 @@ const MODAL_SYSTEM = `Você aprofunda um card de uma análise de conversão por 
 com widgets do app. Regras inegociáveis:
 - FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as
   tabelas do catálogo desse critério; não troque por outro critério.
+- Entenda O QUE O BLOCO MOSTRA por card.title, card.bind e card.tabs (datasets que
+  ele usa) e aprofunde sobre ESSE assunto.
 - Widgets de gráfico/tabela NÃO carregam números — eles fazem "bind" a uma tabela do
   CATÁLOGO. Use SOMENTE nomes de tabela e colunas que existem no catálogo fornecido.
 - A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
@@ -137,7 +139,7 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
 }
 
 export interface ModalResult { modal: unknown; mocked: boolean }
-interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown; pagina?: string; criterio?: string }
+interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown; tabs?: unknown; pagina?: string; criterio?: string }
 
 export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -191,6 +193,11 @@ FOCO (importante): o card pertence à página de um critério específico — ca
 \`criterio\` nas consultas e mantenha-o como eixo principal. Só envolva OUTRO
 critério se o pedido pedir explicitamente um cruzamento — e ainda assim cruzando
 COM o critério do card, nunca trocando por outro.
+
+O QUE O BLOCO MOSTRA: use card.title, card.bind e card.tabs (os datasets/rótulos
+que o bloco usa) para entender o assunto exato do bloco e escolher o recorte mais
+relevante a ELE (ex.: um bloco de "proporção/representatividade" pede métrica de
+participação por lançamento; um bloco de conversão pede a métrica de conversão).
 
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
 catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
