@@ -433,12 +433,31 @@ function renderRankCard(w: RankCardWidget, ctx: RenderCtx): HTMLElement {
 }
 
 /* ── narrative widgets ── */
+
+/** Insight cards embed the takeaway as "…<strong>Implicação:</strong> …". Split it
+ *  out so it renders as a labelled footer block (matches the design). */
+function splitImplication(detail: string): { body: string; impl: string } {
+  const m = detail.match(/(?:<strong>\s*)?implica[çc][ãa]o\s*:?\s*(?:<\/strong>)?\s*:?\s*/i);
+  if (!m || m.index === undefined) return { body: detail, impl: '' };
+  return { body: detail.slice(0, m.index).trim(), impl: detail.slice(m.index + m[0].length).trim() };
+}
+
 function renderFindBlock(w: FindBlockWidget): HTMLElement {
-  const div = el('div', `find-block${w.card ? ' find-block--card' : ''}`);
+  const color = w.tagColor || 'p';
+  const div = el('div', `find-block${w.card ? ' find-block--card' : ''} fb-${color}`);
   if (w.modal) { div.dataset.modal = w.modal; }
-  div.appendChild(el('span', `find-tag find-tag-${w.tagColor || 'p'}`, w.tag || ''));
+  div.appendChild(el('span', `find-tag find-tag-${color}`, w.tag || ''));
   div.appendChild(el('div', 'find-title', w.title || ''));
-  if (w.detail) { const p = el('p', 'sm'); p.innerHTML = w.detail; div.appendChild(p); }
+  if (w.detail) {
+    const { body, impl } = splitImplication(w.detail);
+    if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = body; div.appendChild(p); }
+    if (impl) {
+      const f = el('div', 'fb-impl');
+      f.appendChild(el('span', 'fb-impl-tag', 'Implicação'));
+      const t = el('span', 'fb-impl-txt'); t.innerHTML = impl; f.appendChild(t);
+      div.appendChild(f);
+    }
+  }
   if (w.modal) { const a = el('a', 'fn-link', w.linkLabel || '↗ ver detalhamento'); div.appendChild(a); }
   return div;
 }

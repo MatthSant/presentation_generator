@@ -27,15 +27,33 @@ export interface Digest {
 
 /** Closed catalog of bindable tables for the deepen-card modal: table name +
  *  columns + a couple sample rows. Claude may only `bind` to these names. */
-export interface CatalogTable { name: string; columns: string[]; filters: string[]; sample: Array<Record<string, unknown>> }
+export interface CatalogTable {
+  name: string; columns: string[]; dims: string[]; filters: string[]; rowCount: number;
+  /** Distinct values per dimension (capped) — the valid keys for a bind.where filter. */
+  dimValues: Record<string, string[]>;
+  sample: Array<Record<string, unknown>>;
+}
 export interface DeepenCatalog { tables: CatalogTable[] }
+
+const MAX_DIM_VALUES = 24;
 
 export function buildCatalog(dataset: DataMap): DeepenCatalog {
   const tables: CatalogTable[] = [];
   for (const [name, t] of Object.entries(dataset)) {
     const rows = t.rows ?? [];
     const columns = rows.length ? Object.keys(rows[0]) : [];
-    tables.push({ name, columns, filters: t.filters ?? [], sample: rows.slice(0, 2) });
+    const dims = t.dims ?? [];
+    const dimValues: Record<string, string[]> = {};
+    for (const d of dims) {
+      const seen = new Set<string>();
+      for (const r of rows) {
+        const v = String(r[d] ?? '');
+        if (!seen.has(v)) seen.add(v);
+        if (seen.size >= MAX_DIM_VALUES) break;
+      }
+      dimValues[d] = [...seen];
+    }
+    tables.push({ name, columns, dims, filters: t.filters ?? [], rowCount: rows.length, dimValues, sample: rows.slice(0, 2) });
   }
   return { tables };
 }

@@ -95,6 +95,13 @@ function validateBind(c: Collector, path: string, bind: unknown, datasets?: Data
     if (!Array.isArray(bind.metrics)) c.err(`${path}.metrics`, 'metrics must be an array');
     else bind.metrics.forEach((m, i) => checkCol(`metrics[${i}]`, m));
   }
+  if (bind.where !== undefined) {
+    if (!isObj(bind.where)) { c.err(`${path}.where`, 'where must be an object of column → value'); }
+    else for (const [col, val] of Object.entries(bind.where)) {
+      if (!cols.has(col)) c.err(`${path}.where.${col}`, `column "${col}" not in dataset "${bind.dataset}"`);
+      if (!(isStr(val) || isNum(val))) c.err(`${path}.where.${col}`, 'where value must be a string or number');
+    }
+  }
 }
 
 function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataMap): void {

@@ -82,8 +82,13 @@ export function resolveBind(
   requireCol(bind.y, 'y');
   requireCol(bind.series, 'series');
   (bind.metrics ?? []).forEach((m, i) => requireCol(m, `metrics[${i}]`));
+  for (const col of Object.keys(bind.where ?? {})) requireCol(col, `where.${col}`);
 
-  const rows = applyFilters(table.rows, table.filters ?? [], active);
+  let rows = applyFilters(table.rows, table.filters ?? [], active);
+  if (bind.where) {
+    const conds = Object.entries(bind.where);
+    rows = rows.filter(r => conds.every(([c, v]) => String(r[c] ?? '') === String(v)));
+  }
   const agg: AggFn = bind.agg ?? 'sum';
 
   // Totals per numeric column (kpi widgets consume these via the `key` field).

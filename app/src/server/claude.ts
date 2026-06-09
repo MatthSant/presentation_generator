@@ -154,8 +154,17 @@ com widgets do app. Regras inegociáveis:
 - Widgets de gráfico/tabela NÃO carregam números — eles fazem "bind" a uma tabela do
   CATÁLOGO. Use SOMENTE nomes de tabela e colunas que existem no catálogo fornecido.
 - A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
-- No máximo UM gráfico; não despeje a tabela inteira.
-- Se o recorte pedido não existir no catálogo, diga isso num find-note — nunca invente.
+- RECORTE POR VALOR (where): cada linha da tabela é uma combinação das "dims". Para
+  ISOLAR um valor de uma dimensão (um mês, uma categoria), use bind.where — ex.:
+  {"dataset":"vendas","x":"canal","y":"receita","where":{"mes":"Jan"}}. Use SOMENTE
+  colunas e valores que aparecem no catálogo (cada tabela traz "dims" e "dimValues" = os
+  valores válidos). Com o where o filtro é REAL: aí PODE rotular o widget com o recorte
+  (ex.: "Receita por canal em Janeiro").
+- Se o recorte NÃO é representável — não há coluna nem valor para ele em tabela alguma
+  (ex.: categoria por mês quando nenhuma tabela cruza os dois) — diga isso num find-note;
+  nunca finja um filtro que o bind não aplica nem rotule um recorte que não foi aplicado.
+- No máximo UM gráfico. Tabela só se for curta; para tabelas longas (muitas linhas /
+  vários períodos), prefira um gráfico agregado ou a prosa — nunca despeje a tabela inteira.
 - Se vier "modal_anterior", AJUSTE/aprofunde essa modal conforme a "instrucao",
   partindo dela e mantendo o que faz sentido (emita a modal final completa).
 - Responda exclusivamente chamando a ferramenta emit_modal.`;
@@ -167,6 +176,7 @@ function bindSchema(tableNames: string[]): unknown {
       dataset: { type: 'string', enum: tableNames },
       x: { type: 'string' }, y: { type: 'string' }, series: { type: 'string' },
       agg: { type: 'string', enum: ['sum', 'avg', 'min', 'max', 'count'] },
+      where: { type: 'object', additionalProperties: { type: 'string' }, description: 'recorte por valor de dimensão, ex.: {"mes":"Jan"} — só colunas/valores do catálogo' },
     },
   };
 }
@@ -260,7 +270,12 @@ grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
 
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
 catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
-"nao_disponivel", diga isso na prosa — nunca invente número.`;
+"nao_disponivel", diga isso na prosa — nunca invente número.
+
+BIND: para isolar um valor de uma dimensão numa tabela já existente, use bind.where
+(ex.: {"mes":"Jan"}) com valores que existam na tabela — o filtro é real e aí PODE
+rotular o widget com o recorte. Para um corte que exige NOVO cálculo (não está em tabela
+alguma), peça via "consultar". Se nem assim der, diga na prosa — nunca finja o filtro.`;
 
 function consultarTool(deps: DeepDeps): Anthropic.Tool {
   const ids = deps.meta.criterios.map((c) => c.id);
