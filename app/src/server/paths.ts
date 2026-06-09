@@ -19,5 +19,9 @@ export const PYSRC    = process.env.PYSRC_DIR || path.join(APP_ROOT, 'pysrc');
 /** Scratch dir for raw uploads + transient config/content. NOT served by
  *  express.static (lives outside PUBLIC and OUT) so raw CSVs can't leak. */
 export const SCRATCH  = process.env.APP_SCRATCH || path.join(APP_ROOT, '.scratch');
+/** Retained base data per analysis (dump + config) for on-demand crossings
+ *  (Fase 3b). Outside the served tree. At-rest encryption = encrypted volume in
+ *  production. Override/relocate with APP_BASE. */
+export const BASE     = process.env.APP_BASE || path.join(APP_ROOT, '.base');
 /** Python interpreter. Windows uses the `py -3` launcher; *nix `python3`. */
 export const PYTHON_BIN = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'py' : 'python3');

@@ -17,3 +17,5 @@ __pycache__/
 
 # Scratch de uploads (CSV bruto transitório) — nunca versionar
 app/.scratch/
+# Dado-base retido por análise (Fase 3b) — dado de cliente, nunca versionar
+app/.base/

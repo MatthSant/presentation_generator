@@ -16,7 +16,7 @@ import multer from 'multer';
 import type { Express, Request } from 'express';
 import type { Ctx } from '../context.js';
 import { analysisDir, writeJson, readJson } from '../fsutil.js';
-import { SCRATCH } from '../paths.js';
+import { SCRATCH, BASE } from '../paths.js';
 import { runGeneration } from '../pygen.js';
 import { buildDigest } from '../datasetCatalog.js';
 import { generateInsights } from '../claude.js';
@@ -88,6 +88,19 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       const uid = (req as AuthedRequest).user?.id;
       if (uid) assignClient(ctx.db, uid, client);
 
+      // Fase 3b: retain the base data (dump + config) for on-demand crossings.
+      // Lives outside the served tree; at-rest encryption = encrypted volume.
+      let baseRetained = false;
+      if (String(req.body?.retainBase ?? 'true') !== 'false') {
+        try {
+          const baseDir = path.join(BASE, client, slug);
+          fs.mkdirSync(baseDir, { recursive: true });
+          fs.copyFileSync(csvPath, path.join(baseDir, 'dump.csv'));
+          writeJson(path.join(baseDir, 'config.json'), config);
+          baseRetained = true;
+        } catch { baseRetained = false; }
+      }
+
       // Optional Layer B1: generate insight prose from the freshly computed
       // aggregates (CSV still in scratch), then re-emit the views with it.
       let insights: { applied: boolean; mocked?: boolean; error?: string } = { applied: false };
@@ -112,7 +125,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
         .filter((f) => /^s\d+\.json$/.test(f))
         .map((f) => readJson<unknown>(path.join(outDir, f)));
       const v = validateAnalysis({ dataset: dataset ?? undefined, sections, layout: layout ?? undefined });
-      res.json({ ok: v.ok, report: `/report/${client}/${slug}`, insights, stdout: tail(result.stdout, 1000), validation: v });
+      res.json({ ok: v.ok, report: `/report/${client}/${slug}`, insights, baseRetained, stdout: tail(result.stdout, 1000), validation: v });
     } catch (e) {
       const msg = (e as Error).message;
       res.status(msg === 'busy' ? 409 : 500).json({ error: msg });

@@ -6,8 +6,9 @@
  * output dir at once. */
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
-import { PYSRC, PYTHON_BIN } from './paths.js';
+import { PYSRC, PYTHON_BIN, BASE } from './paths.js';
 
 export interface BuildReportArgs {
   csvPath: string;
@@ -69,4 +70,35 @@ export async function runGeneration(key: string, args: BuildReportArgs): Promise
     releaseSlot();
     locked.delete(key);
   }
+}
+
+// --- Fase 3b: on-demand query over the retained base ------------------------
+
+const QUERY_SCRIPT = path.join(PYSRC, 'conversao-perfil', 'query_api.py');
+
+export interface QueryResult { status: string; [k: string]: unknown }
+
+/** Run a catalog query over the retained dump. Returns null when this analysis
+ *  has no retained base (deep deepen unavailable). Always returns aggregates. */
+export async function runQuery(client: string, slug: string, fn: string, args: unknown): Promise<QueryResult | null> {
+  const baseDir = path.join(BASE, client, slug);
+  const config = path.join(baseDir, 'config.json');
+  const dump = path.join(baseDir, 'dump.csv');
+  if (!fs.existsSync(config) || !fs.existsSync(dump)) return null;
+
+  const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
+  const a = [...prefix, QUERY_SCRIPT, config, dump, fn, JSON.stringify(args ?? {})];
+  await acquireSlot();
+  return new Promise<QueryResult>((resolve) => {
+    const child = spawn(PYTHON_BIN, a, { windowsHide: true });
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => { out += d.toString(); });
+    child.stderr.on('data', (d) => { err += d.toString(); });
+    child.on('error', (e) => resolve({ status: 'erro', motivo: e.message }));
+    child.on('close', () => {
+      try { resolve(JSON.parse(out.trim().split('\n').pop() || '{}') as QueryResult); }
+      catch { resolve({ status: 'erro', motivo: err || out || 'sem saída' }); }
+    });
+  }).finally(releaseSlot);
 }
