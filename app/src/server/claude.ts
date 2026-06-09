@@ -14,6 +14,34 @@ import { CLAUDE_LOG } from './paths.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 
+// USD per 1M tokens: [input, output, cache-write-5m, cache-read]. Defaults are
+// public list prices by model family; override exactly via env if they change.
+const PRICES: Record<string, [number, number, number, number]> = {
+  opus: [15, 75, 18.75, 1.5],
+  sonnet: [3, 15, 3.75, 0.3],
+  haiku: [1, 5, 1.25, 0.1],
+};
+function rates(): [number, number, number, number] {
+  const env = process.env;
+  if (env.ANTHROPIC_PRICE_IN) {
+    return [Number(env.ANTHROPIC_PRICE_IN), Number(env.ANTHROPIC_PRICE_OUT) || 0,
+      Number(env.ANTHROPIC_PRICE_CACHE_WRITE) || 0, Number(env.ANTHROPIC_PRICE_CACHE_READ) || 0];
+  }
+  const m = MODEL.toLowerCase();
+  for (const k of ['opus', 'haiku', 'sonnet']) if (m.includes(k)) return PRICES[k];
+  return PRICES.sonnet;
+}
+
+interface Usage { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number }
+function costOf(usage: Usage | null | undefined): Record<string, unknown> | undefined {
+  if (!usage) return undefined;
+  const i = usage.input_tokens || 0, o = usage.output_tokens || 0;
+  const cw = usage.cache_creation_input_tokens || 0, cr = usage.cache_read_input_tokens || 0;
+  const [pi, po, pcw, pcr] = rates();
+  const usd = (i * pi + o * po + cw * pcw + cr * pcr) / 1e6;
+  return { usd: Number(usd.toFixed(6)), tokens: { in: i, out: o, cache_write: cw, cache_read: cr } };
+}
+
 /** Append a record of one Claude call (what was sent + what came back) to the
  *  JSONL log. Never throws — logging must not break the call. */
 function logClaude(kind: string, request: unknown, result: Record<string, unknown>): void {
@@ -27,7 +55,7 @@ function logClaude(kind: string, request: unknown, result: Record<string, unknow
 async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreateParamsNonStreaming, kind: string): Promise<Anthropic.Message> {
   try {
     const msg = await client.messages.create(params);
-    logClaude(kind, params, { response: msg.content, usage: msg.usage, stop_reason: msg.stop_reason });
+    logClaude(kind, params, { response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
     return msg;
   } catch (e) {
     logClaude(kind, params, { error: (e as Error).message });
