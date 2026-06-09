@@ -17,6 +17,7 @@ import { registerComments } from './routes/comments.js';
 import { registerEdits } from './routes/edits.js';
 import { registerWatch } from './routes/watch.js';
 import { registerGenerate } from './routes/generate.js';
+import { registerDeepen } from './routes/deepen.js';
 
 export interface CreateAppOptions {
   /** Output root holding [client]/[slug] files. Defaults to paths.OUT. */
@@ -53,6 +54,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerComments(app, ctx);
   registerEdits(app, ctx);
   registerGenerate(app, ctx);
+  registerDeepen(app, ctx);
   const closeWatch = registerWatch(app, ctx);
 
   return {

@@ -25,6 +25,21 @@ export interface Digest {
   codependencia: Array<{ fator: string; amplitude: string; independencia: string; papel: string }>;
 }
 
+/** Closed catalog of bindable tables for the deepen-card modal: table name +
+ *  columns + a couple sample rows. Claude may only `bind` to these names. */
+export interface CatalogTable { name: string; columns: string[]; filters: string[]; sample: Array<Record<string, unknown>> }
+export interface DeepenCatalog { tables: CatalogTable[] }
+
+export function buildCatalog(dataset: DataMap): DeepenCatalog {
+  const tables: CatalogTable[] = [];
+  for (const [name, t] of Object.entries(dataset)) {
+    const rows = t.rows ?? [];
+    const columns = rows.length ? Object.keys(rows[0]) : [];
+    tables.push({ name, columns, filters: t.filters ?? [], sample: rows.slice(0, 2) });
+  }
+  return { tables };
+}
+
 const numOf = (v: unknown): number => (typeof v === 'number' ? v : Number(v) || 0);
 
 /** Best/worst group of a criterion, read from crit_<id>_grp (canal=Geral). */

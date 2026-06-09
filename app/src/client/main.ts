@@ -28,6 +28,8 @@ class App {
   private dashboard: Dashboard | null = null;
   private modalCharts = new ChartManager();
   private editing = false;
+  /** Modal id to auto-open after the next section (re)render — set by deepen. */
+  private pendingModal: string | null = null;
 
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
@@ -157,6 +159,68 @@ class App {
 
     for (const modal of section.modals || []) this.renderModal(modal);
     this.markBlocks();
+    this.markDeepen(section);
+
+    if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
+      const el = document.getElementById(this.pendingModal);
+      if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+      this.pendingModal = null;
+    }
+  }
+
+  /** Add a "detalhar" (deepen) button to every find-block card tile. */
+  private markDeepen(section: Section): void {
+    for (const w of section.widgets) {
+      if (w.type !== 'find-block' || !w.id) continue;
+      const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
+      if (!tile || tile.querySelector(':scope > .tile-deepen')) continue;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tile-deepen';
+      btn.title = 'Detalhar este card com IA';
+      btn.innerHTML = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>detalhar';
+      const title = (w as { title?: string }).title || '';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); this.openDeepenComposer(section.id, w.id!, title); });
+      tile.appendChild(btn);
+    }
+  }
+
+  /** Prompt the consultant for what to deepen, call the API, then reload + open. */
+  private openDeepenComposer(secId: string, blockId: string, cardTitle: string): void {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'deepen-dlg';
+    dlg.innerHTML = `<form method="dialog" class="deepen-form">
+      <h3>Detalhar card</h3>
+      <p class="deepen-card">${esc(cardTitle)}</p>
+      <textarea placeholder="O que aprofundar? Ex.: mostre a variação por faixa de renda ao longo dos lançamentos."></textarea>
+      <div class="deepen-actions">
+        <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
+        <button value="go" class="deepen-btn" type="submit">Gerar detalhamento</button>
+      </div></form>`;
+    document.body.appendChild(dlg);
+    const ta = dlg.querySelector('textarea')!;
+    dlg.addEventListener('close', () => {
+      const prompt = ta.value.trim();
+      const go = dlg.returnValue === 'go';
+      dlg.remove();
+      if (!go || !prompt) return;
+      void this.runDeepen(secId, blockId, prompt);
+    });
+    dlg.showModal();
+    ta.focus();
+  }
+
+  private async runDeepen(secId: string, blockId: string, prompt: string): Promise<void> {
+    this.toast('Gerando detalhamento…');
+    try {
+      const r = await this.api.deepen(secId, blockId, prompt);
+      this.pendingModal = r.modal.id;
+      this.store.dropSection(secId);
+      await this.go(this.store.currentPageId, secId);
+      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
+    } catch (e) {
+      this.toast(`Falha ao detalhar: ${(e as Error).message}`);
+    }
   }
 
   /** Pin a comment marker on every block that carries annotations, so comments

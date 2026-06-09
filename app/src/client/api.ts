@@ -37,6 +37,13 @@ export class Api {
     });
   }
 
+  deepen(secId: string, blockId: string, prompt: string): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean }> {
+    return this.json(`${this.base()}/section/${encodeURIComponent(secId)}/deepen`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blockId, prompt }),
+    });
+  }
+
   getComments(): Promise<ApiComment[]> { return this.json(`${this.base()}/comments`); }
 
   postComment(c: Partial<ApiComment>): Promise<ApiComment> {
