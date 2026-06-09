@@ -442,6 +442,14 @@ function splitImplication(detail: string): { body: string; impl: string } {
   return { body: detail.slice(0, m.index).trim(), impl: detail.slice(m.index + m[0].length).trim() };
 }
 
+/** Bold currency + percentage figures so the zone color highlights them — the
+ *  insight cards emphasise metrics, but generated prose often leaves them plain.
+ *  Skipped when the text already carries its own <strong> emphasis. */
+function highlightFigures(html: string): string {
+  if (/<strong>[^<]*\d/.test(html)) return html;     // model already bolded a figure → leave it
+  return html.replace(/(R\$\s?\d[\d.,]*(?:\s?(?:k|mil|M|mi|bi))?|[+\-−]?\d[\d.,]*\s?%)/g, '<strong>$1</strong>');
+}
+
 function renderFindBlock(w: FindBlockWidget): HTMLElement {
   const color = w.tagColor || 'p';
   const div = el('div', `find-block${w.card ? ' find-block--card' : ''} fb-${color}`);
@@ -450,7 +458,7 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
   div.appendChild(el('div', 'find-title', w.title || ''));
   if (w.detail) {
     const { body, impl } = splitImplication(w.detail);
-    if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = body; div.appendChild(p); }
+    if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = w.card ? highlightFigures(body) : body; div.appendChild(p); }
     if (impl) {
       const f = el('div', 'fb-impl');
       f.appendChild(el('span', 'fb-impl-tag', 'Implicação'));
