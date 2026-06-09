@@ -10,6 +10,7 @@ import type { Ctx } from './context.js';
 import { registerContent } from './routes/content.js';
 import { registerAnalyses } from './routes/analyses.js';
 import { registerReport } from './routes/report.js';
+import { registerGuia } from './routes/guia.js';
 import { registerLayout } from './routes/layout.js';
 import { registerBlocks } from './routes/blocks.js';
 import { registerComments } from './routes/comments.js';
@@ -44,6 +45,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
 
   registerAnalyses(app, ctx);
   registerReport(app);
+  registerGuia(app);
   registerContent(app, ctx);
   registerLayout(app, ctx);
   registerBlocks(app, ctx);

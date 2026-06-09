@@ -7,46 +7,96 @@
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
   <style>
-    .home-wrap { max-width: 980px; margin: 0 auto; padding: 64px 32px 96px; }
-    .home-head { margin-bottom: 40px; }
-    .home-badge {
-      display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .08em;
-      text-transform: uppercase; color: var(--purple);
-      background: var(--purple-bg); border: 1px solid var(--purple-d);
-      padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
+    body { background: var(--bg-page); }
+
+    /* ── app bar ── */
+    .home-bar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; gap: 11px;
+      height: 52px; padding: 0 22px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
     }
-    .home-title { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
-    .home-sub { color: var(--gray); margin-top: 6px; font-size: 15px; }
+    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
+    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
+    .home-bar-count { margin-left: auto; font-size: 12.5px; color: var(--gray); }
+    .home-bar-count b { color: var(--fg); font-weight: 700; }
 
-    .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+    /* ── page ── */
+    .home-wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 96px; }
+    .home-head { margin-bottom: 34px; }
+    .home-title { font-size: 30px; font-weight: 700; letter-spacing: -.025em; }
+    .home-sub { color: var(--gray); margin-top: 5px; font-size: 14.5px; }
 
+    /* ── guias ── */
+    .guia-sec { margin-bottom: 36px; }
+    .guia-eyebrow { display:block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--gray2); margin-bottom: 13px; }
+    .guia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+    .guia-card { display:flex; gap:13px; text-decoration:none; color:inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 16px 18px; box-shadow: var(--shadow-sm); transition: transform .14s cubic-bezier(.2,.7,.3,1), box-shadow .14s, border-color .14s; }
+    .guia-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--purple) 50%, var(--border)); }
+    .guia-ic { flex-shrink:0; width: 38px; height: 38px; border-radius: 10px; display:grid; place-items:center; color: var(--purple); background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); }
+    .guia-ic svg { width: 19px; height: 19px; }
+    .guia-card-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.25; }
+    .guia-card-sum { display:block; font-size: 12.5px; color: var(--gray); line-height: 1.5; margin-top: 4px; }
+
+    /* ── client group ── */
+    .cli-group { margin-bottom: 30px; }
+    .cli-head { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
+    .cli-mono {
+      width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: 14px; font-weight: 700;
+      color: var(--purple); background: var(--purple-bg);
+      border: 1px solid color-mix(in srgb, var(--purple) 22%, transparent);
+    }
+    .cli-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+    .cli-slug { font-size: 11.5px; color: var(--gray2); font-family: 'JetBrains Mono', ui-monospace, monospace; margin-top: 1px; }
+    .cli-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--gray); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; }
+
+    .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+
+    /* ── analysis card ── */
     .an-card {
-      display: block; text-decoration: none; color: inherit;
+      position: relative; display: flex; flex-direction: column;
+      text-decoration: none; color: inherit; overflow: hidden;
       background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 20px 22px; box-shadow: var(--shadow-card);
-      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      border-radius: 13px; padding: 17px 18px 15px; min-height: 132px;
+      box-shadow: var(--shadow-sm);
+      transition: transform .14s cubic-bezier(.2,.7,.3,1), box-shadow .14s, border-color .14s;
     }
+    /* accent on hover = full-border tint (design rule: no side-stripe borders) */
     .an-card:hover {
-      transform: translateY(-2px); box-shadow: var(--shadow-md);
-      border-color: var(--border-strong);
+      transform: translateY(-3px); box-shadow: var(--shadow-md);
+      border-color: color-mix(in srgb, var(--ac, var(--purple)) 50%, var(--border));
     }
+    .an-card:hover .an-go { opacity: 1; transform: none; }
+
     .an-type {
-      display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--gray);
-      border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; margin-bottom: 12px;
+      align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+      color: var(--ac, var(--purple)); background: var(--acb, var(--purple-bg));
+      border-radius: 6px; padding: 3px 8px; margin-bottom: 11px;
     }
-    .an-title { font-size: 18px; font-weight: 650; letter-spacing: -.01em; line-height: 1.25; }
-    .an-client { color: var(--gray); font-size: 14px; margin-top: 3px; }
+    .an-type::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .an-title { font-size: 16px; font-weight: 650; letter-spacing: -.01em; line-height: 1.3; }
     .an-meta {
-      display: flex; gap: 16px; margin-top: 16px; padding-top: 14px;
-      border-top: 1px solid var(--divider); font-size: 13px; color: var(--gray);
+      display: flex; align-items: center; gap: 14px; margin-top: auto; padding-top: 14px;
+      font-size: 12.5px; color: var(--gray);
     }
-    .an-meta b { color: var(--fg); font-weight: 650; }
-    .an-date { margin-left: auto; }
+    .an-meta span { display: inline-flex; align-items: center; gap: 5px; }
+    .an-meta svg { width: 14px; height: 14px; opacity: .75; }
+    .an-meta b { color: var(--fg); font-weight: 700; }
+    .an-date { margin-left: auto; font-variant-numeric: tabular-nums; }
+    .an-go {
+      position: absolute; top: 15px; right: 15px; color: var(--gray2);
+      opacity: 0; transform: translateX(-4px); transition: opacity .14s, transform .14s;
+    }
+    .an-go svg { width: 17px; height: 17px; }
 
     .home-empty {
-      border: 1px dashed var(--border-strong); border-radius: 8px;
-      padding: 48px 24px; text-align: center; color: var(--gray);
+      border: 1px dashed var(--border-strong); border-radius: 13px;
+      padding: 52px 24px; text-align: center; color: var(--gray); line-height: 1.7;
     }
     .home-empty code {
       font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
@@ -56,17 +106,28 @@
   </style>
 </head>
 <body>
+  <header class="home-bar">
+    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
+    <span class="bar-logo-sep"></span>
+    <span class="home-brand">Dossiê do Consultor<small>Analytics</small></span>
+    <span class="home-bar-count" id="bar-count"></span>
+  </header>
+
   <div class="home-wrap">
     <header class="home-head">
-      <span class="home-badge">Analytics App</span>
       <h1 class="home-title">Análises</h1>
       <p class="home-sub">Selecione um relatório para abrir o dashboard.</p>
     </header>
-    <main id="home-list" class="home-grid"></main>
+    <section id="home-guias" class="guia-sec" hidden>
+      <span class="guia-eyebrow">Guias das análises</span>
+      <div class="guia-grid" id="guia-grid"></div>
+    </section>
+    <main id="home-list"></main>
   </div>
 
   <script type="module">
     const list = document.getElementById('home-list');
+    const barCount = document.getElementById('bar-count');
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const fmtDate = (iso) => {
@@ -74,6 +135,32 @@
       const d = new Date(iso);
       return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
     };
+    const mono = (name) => esc(String(name || '?').trim().charAt(0).toUpperCase() || '?');
+
+    // type → accent color + label
+    const TYPE = {
+      dashboard: { label: 'Dashboard', ac: 'var(--purple)', acb: 'var(--purple-bg)' },
+      ltv:       { label: 'LTV',       ac: 'var(--green)',  acb: 'var(--green-bg)' },
+    };
+    const ICON = {
+      sec:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg>',
+      cmt:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg>',
+      arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"/></svg>',
+    };
+
+    // ── Guias (seção no corpo da home) ──
+    try {
+      const guias = ((await (await fetch('/guias.json')).json()).guias) || [];
+      if (guias.length) {
+        const BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>';
+        document.getElementById('home-guias').hidden = false;
+        document.getElementById('guia-grid').innerHTML = guias.map(g => `
+          <a class="guia-card" href="/guia/${encodeURIComponent(g.slug)}">
+            <span class="guia-ic">${BOOK}</span>
+            <span><span class="guia-card-title">${esc(g.title)}</span><span class="guia-card-sum">${esc(g.summary || '')}</span></span>
+          </a>`).join('');
+      }
+    } catch { /* guias.json ausente → seção fica oculta */ }
 
     try {
       const res = await fetch('/api/analyses');
@@ -81,25 +168,49 @@
       const rows = await res.json();
 
       if (!rows.length) {
-        list.outerHTML = `<div class="home-empty">
+        list.innerHTML = `<div class="home-empty">
           Nenhuma análise encontrada em <code>output/</code>.<br>
-          Rode <code>/ltv-analysis</code> ou adicione uma pasta <code>output/&lt;cliente&gt;/&lt;slug&gt;/</code>.
+          Rode <code>/ltv-analysis</code> ou <code>/conversao-perfil</code>, ou adicione uma pasta <code>output/&lt;cliente&gt;/&lt;slug&gt;/</code>.
         </div>`;
       } else {
-        list.innerHTML = rows.map((r) => `
-          <a class="an-card" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
-            ${r.type ? `<span class="an-type">${esc(r.type)}</span>` : ''}
+        const groups = new Map();
+        for (const r of rows) {
+          if (!groups.has(r.client)) groups.set(r.client, { name: r.clientName || r.client, slug: r.client, items: [] });
+          groups.get(r.client).items.push(r);
+        }
+        const ordered = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        const nClients = ordered.length, nAn = rows.length;
+        barCount.innerHTML = `<b>${nAn}</b> ${nAn === 1 ? 'análise' : 'análises'} · <b>${nClients}</b> ${nClients === 1 ? 'cliente' : 'clientes'}`;
+
+        const card = (r) => {
+          const t = TYPE[r.type] || { label: r.type || '', ac: 'var(--gray)', acb: 'var(--surface)' };
+          return `
+          <a class="an-card" style="--ac:${t.ac};--acb:${t.acb}" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
+            <span class="an-go">${ICON.arrow}</span>
+            ${t.label ? `<span class="an-type">${esc(t.label)}</span>` : ''}
             <div class="an-title">${esc(r.title || r.slug)}</div>
-            <div class="an-client">${esc(r.client)}</div>
             <div class="an-meta">
-              <span><b>${r.sectionCount ?? 0}</b> seções</span>
-              <span><b>${r.commentCount ?? 0}</b> comentários</span>
+              <span>${ICON.sec}<b>${r.sectionCount ?? 0}</b></span>
+              <span>${ICON.cmt}<b>${r.commentCount ?? 0}</b></span>
               <span class="an-date">${esc(fmtDate(r.created_at))}</span>
             </div>
-          </a>`).join('');
+          </a>`;
+        };
+        list.innerHTML = ordered.map((g) => `
+          <section class="cli-group">
+            <div class="cli-head">
+              <span class="cli-mono">${mono(g.name)}</span>
+              <div>
+                <div class="cli-name">${esc(g.name)}</div>
+                <div class="cli-slug">${esc(g.slug)}</div>
+              </div>
+              <span class="cli-count">${g.items.length} ${g.items.length === 1 ? 'análise' : 'análises'}</span>
+            </div>
+            <div class="home-grid">${g.items.map(card).join('')}</div>
+          </section>`).join('');
       }
     } catch (err) {
-      list.outerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`;
+      list.innerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`;
     }
   </script>
 </body>

@@ -1,0 +1,90 @@
+{
+  "guias": [
+    {
+      "slug": "conversao-perfil",
+      "title": "Conversão por Perfil — Histórico de Lançamentos",
+      "tag": "Análise",
+      "summary": "Quais perfis de lead convertem melhor (e pior) ao longo de vários lançamentos — para priorizar captação e qualificação e baixar o custo por venda.",
+      "report": { "client": "inde", "slug": "conversao-perfil" },
+      "montador": "conversao-perfil",
+      "sections": [
+        {
+          "title": "Objetivo",
+          "blocks": [
+            { "type": "p", "text": "Identificar quais perfis de lead têm maior probabilidade de compra, para que mídia e copy priorizem a captação e a qualificação dos públicos certos — reduzindo o custo por venda <strong>sem aumentar o investimento</strong>." },
+            { "type": "p", "text": "Na prática, responde três perguntas de negócio:" },
+            { "type": "ul", "items": [
+              "Quem compra de forma <strong>consistente</strong>, lançamento após lançamento (merece mais verba e mensagens direcionadas).",
+              "Quem <strong>nunca converte</strong> apesar de representar volume expressivo da base (está diluindo o resultado médio).",
+              "Quem compra mais no <strong>longo prazo</strong> do que na janela do lançamento (precisa de nutrição diferente antes do próximo evento)."
+            ] },
+            { "type": "p", "text": "O resultado é um ciclo de melhoria de qualidade de lista: a cada lançamento o cliente aperta os critérios de segmentação com base em dados históricos reais, não em intuição." }
+          ]
+        },
+        {
+          "title": "Requisitos dos dados",
+          "blocks": [
+            { "type": "p", "text": "Um <strong>dump multidimensional de pesquisa</strong> (CSV): uma linha por combinação de dimensões × lançamento × canal." },
+            { "type": "ul", "items": [
+              "Colunas fixas: <code>field_conversion</code> (lançamento), <code>tipo_trafego</code> (Pago/Orgânico), <code>total_leads</code>, <code>vendas_lancamento</code> (60d) e <code>vendas_12meses</code>.",
+              "Dimensões (critérios): renda, idade, gênero, tempo de acompanhamento e os <code>custom_field_N</code> de cada cliente.",
+              "Linhas com dimensões vazias = benchmark do lançamento; linhas preenchidas = respondentes da pesquisa.",
+              "Todos os lançamentos com data de início/término na campaign_definition; conversões preenchidas."
+            ] },
+            { "type": "callout", "label": "Benchmark", "text": "O benchmark é sempre a conversão dos <strong>respondentes da pesquisa</strong> daquele critério — nunca o total de leads. Respondentes convertem 2–5× a média, então comparar contra o total inflaria os positivos." }
+          ]
+        },
+        {
+          "title": "Como rodar",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Coloque o CSV em <code>input/[cliente]/</code> e invoque <code>/conversao-perfil</code>.",
+              "Informe o <strong>significado de cada custom_field</strong> (varia por cliente) e o rótulo curto desejado.",
+              "Confirme a <strong>ordem cronológica</strong> dos lançamentos e quais critérios viram página.",
+              "Defina a <strong>janela de conversão</strong> (padrão 60d, contada a partir da 1ª captação).",
+              "Aprovado o plano, a skill gera as 4 camadas e o relatório abre em <code>/report/[cliente]/[slug]</code>."
+            ] }
+          ]
+        },
+        {
+          "title": "Como ler o relatório",
+          "blocks": [
+            { "type": "sub", "text": "Panorama" },
+            { "type": "p", "text": "Visão consolidada: mini-gráficos de variação vs. benchmark por critério (verde acima / vermelho abaixo, escala compartilhada), o comparativo melhor/pior grupo por critério, e tabelas de detalhe com tendência. O toggle <strong>Geral / Pago / Orgânico</strong> refiltra tudo." },
+            { "type": "sub", "text": "Páginas por critério" },
+            { "type": "ul", "items": [
+              "<strong>Ranking</strong>: grupos classificados por consistência (Consistente → Crítico, por wins/N).",
+              "<strong>Consistência por lançamento</strong>: heatmap com abas Variação / Conv. 60d / Uplift.",
+              "<strong>Conversão média</strong> 60d e 12m, com linha da média.",
+              "<strong>Evolução</strong> da conversão por grupo ao longo dos lançamentos.",
+              "<strong>Proporção da base</strong>: composição dos leads por lançamento (por grupo ou por classe)."
+            ] },
+            { "type": "sub", "text": "Insights" },
+            { "type": "p", "text": "Leitura interpretativa em três zonas: conclusões claras (✓), aprofundamento recomendado (↗) e pontos de atenção (!)." },
+            { "type": "sub", "text": "Detalhamentos" },
+            { "type": "p", "text": "Cruzamentos entre critérios e a análise de <strong>relevância × codependência</strong>: quanto cada fator move a conversão (amplitude) e se o sinal é próprio (<em>qualificador</em>) ou apenas proxy de outro (<em>qualificante</em>). Associação ≠ causalidade." },
+            { "type": "callout", "label": "Marcador de filtro", "text": "Quando o canal está em Pago/Orgânico, um <strong>badge roxo</strong> marca os blocos que refletem o filtro. Blocos sem badge mostram o número geral (não filtram)." }
+          ]
+        },
+        {
+          "title": "Cuidados",
+          "blocks": [
+            { "type": "sub", "text": "Com os dados" },
+            { "type": "ul", "items": [
+              "Setar o prazo ideal da conversão do lançamento (padrão 60d, a partir da 1ª captação).",
+              "Padronizar os campos de pesquisa antes de consolidar a fonte — campos muito despadronizados (ex.: profissão) geram custo excessivo.",
+              "Conferir se a quebra entre orgânico e pago não gerou erro."
+            ] },
+            { "type": "sub", "text": "Com a skill" },
+            { "type": "ul", "items": [
+              "Renomear/mapear todos os custom_fields antes de rodar.",
+              "Garantir que os lançamentos estão na ordem cronológica correta.",
+              "Conferir que todos os campos que você queria avaliar foram plotados.",
+              "Os insights buscam padrões antes de classificar — são ponto de partida, não limite da sua análise."
+            ] }
+          ]
+        }
+      ]
+    }
+  ]
+}

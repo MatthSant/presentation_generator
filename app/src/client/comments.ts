@@ -27,6 +27,7 @@ export class Comments {
   private pending: PendingCtx | null = null;
   private selType: string | null = null;
   private ctxTarget: PendingCtx | null = null;
+  private editingId: string | null = null;
 
   constructor(
     private api: Api,
@@ -82,8 +83,18 @@ export class Comments {
       });
     }
     el('cp-list').addEventListener('click', e => {
-      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-del]');
-      if (btn) void this.remove(btn.dataset.del!);
+      const t = e.target as HTMLElement;
+      const del = t.closest<HTMLElement>('[data-del]');
+      if (del) { void this.remove(del.dataset.del!); return; }
+      const ed = t.closest<HTMLElement>('[data-edit]');
+      if (ed) { this.editingId = ed.dataset.edit!; this.renderPanel(); return; }
+      const cx = t.closest<HTMLElement>('[data-cancel-edit]');
+      if (cx) { this.editingId = null; this.renderPanel(); return; }
+      const sv = t.closest<HTMLElement>('[data-save-edit]');
+      if (sv) {
+        const ta = sv.closest('.cp-item')?.querySelector('textarea') as HTMLTextAreaElement | null;
+        void this.saveEdit(sv.dataset.saveEdit!, ta?.value ?? '');
+      }
     });
     el('cp-export-btn').addEventListener('click', () => {
       window.open(this.api.commentsCsvUrl(), '_blank');
@@ -120,14 +131,53 @@ export class Comments {
     hd.append(type, span('cp-sec', c.sectionLabel));
     item.appendChild(hd);
     if (c.anchor) item.appendChild(span('cp-anchor', `"${c.anchor}"`));
+
+    if (c.id === this.editingId) {
+      const ta = document.createElement('textarea');
+      ta.className = 'cp-edit-ta';
+      ta.value = c.text;
+      ta.addEventListener('keydown', ev => {
+        if (ev.ctrlKey && ev.key === 'Enter') { ev.preventDefault(); void this.saveEdit(c.id, ta.value); }
+        else if (ev.key === 'Escape') { this.editingId = null; this.renderPanel(); }
+      });
+      const acts = document.createElement('div');
+      acts.className = 'cp-edit-acts';
+      const cancel = document.createElement('button');
+      cancel.className = 'cp-edit-cancel'; cancel.textContent = 'Cancelar'; cancel.dataset.cancelEdit = c.id;
+      const save = document.createElement('button');
+      save.className = 'cp-edit-save'; save.textContent = 'Salvar'; save.dataset.saveEdit = c.id;
+      acts.append(cancel, save);
+      item.append(ta, acts, span('cp-date', fmtDate(c.createdAt)));
+      setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+      return item;
+    }
+
     item.appendChild(span('cp-text', c.text));
     item.appendChild(span('cp-date', fmtDate(c.createdAt)));
+    const edit = document.createElement('button');
+    edit.className = 'cp-edit';
+    edit.dataset.edit = c.id;
+    edit.title = 'Editar';
+    edit.innerHTML = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    item.appendChild(edit);
     const del = document.createElement('button');
     del.className = 'cp-del';
     del.dataset.del = c.id;
     del.innerHTML = '&#215;';
     item.appendChild(del);
     return item;
+  }
+
+  /** Persist an edited comment text (optimistic). Empty text discards the edit. */
+  private async saveEdit(id: string, raw: string): Promise<void> {
+    const text = raw.trim();
+    this.editingId = null;
+    if (!text) { this.renderPanel(); return; }
+    const c = this.list.find(x => x.id === id);
+    if (c) c.text = text;
+    this.renderPanel();
+    this.onChange();
+    try { await this.api.patchComment(id, { text }); } catch (e) { console.error('edit comment failed', e); }
   }
 
   /* ── modal ── */

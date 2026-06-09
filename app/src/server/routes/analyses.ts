@@ -30,7 +30,8 @@ export function registerAnalyses(app: Express, ctx: Ctx): void {
             .get(client, slug) as { n: number }).n;
           const sectionCount = data.pages?.reduce((n, p) => n + (p.sections?.length || 0), 0) || 0;
           // Folder client/slug are the routing keys and must win over any meta.client.
-          rows.push({ ...data.meta, client, slug, sectionCount, commentCount });
+          // Keep meta.client as the display name (clientName) for grouping on the home.
+          rows.push({ ...data.meta, client, slug, clientName: data.meta?.client || client, sectionCount, commentCount });
         } catch { /* skip malformed data.json */ }
       }
     }

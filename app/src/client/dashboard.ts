@@ -5,7 +5,7 @@
  * Bound widgets are tracked so a filter change re-resolves them in place:
  * charts updateSeries (animated), kpi/table/heatmap re-render their tile. */
 
-import type { Section, Widget, DataMap, ActiveFilters, LayoutItem, Bind, ResolvedBind } from '../shared/types.js';
+import type { Section, Widget, DataMap, ActiveFilters, LayoutItem, Bind, ResolvedBind, FilterDef } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, type ChartDef } from './charts.js';
@@ -16,7 +16,7 @@ const DEFAULT_W: Record<string, number> = {
   'heatmap': 8, 'find-block': 4, 'ni': 4, 'ni-vertical': 4,
   'kpi': 3,
 };
-const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap']);
+const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap', 'rank-card']);
 
 /** Row height (px) used only while the Gridstack editor is open. The read path
  *  uses content-sized tracks, so this just gives the editor a sane drag grid. */
@@ -50,6 +50,9 @@ interface TileRef { widget: Widget; tile: HTMLElement; chartElId?: string; }
 export interface DashboardOpts {
   datasets: DataMap;
   getActive: () => ActiveFilters;
+  /** Filter definitions (id/default), used to mark which tiles reflect a
+   *  non-default filter — so the unmarked ones read as the general number. */
+  getFilterDefs?: () => FilterDef[];
   layout?: LayoutItem[];
   /** Persist new grid coords on save. Throwing keeps the editor open (caller shows the error). */
   onSaveLayout?: (sectionId: string, items: LayoutItem[]) => Promise<void>;
@@ -95,6 +98,61 @@ export class Dashboard {
 
   private layoutFor(id: string): LayoutItem | undefined {
     return this.opts.layout?.find(l => l.id === id);
+  }
+
+  /** Filter columns whose active value differs from the filter's default — i.e.
+   *  the report is showing a non-general slice on that column. */
+  private activeNonDefaultCols(): Set<string> {
+    const active = this.opts.getActive() || {};
+    const defs = this.opts.getFilterDefs?.() || [];
+    const def = new Map(defs.map(d => [d.id, d.default ?? d.allValue]));
+    const out = new Set<string>();
+    for (const [id, val] of Object.entries(active)) {
+      if (val != null && val !== def.get(id)) out.add(id);
+    }
+    return out;
+  }
+
+  /** Dataset names a widget pulls from (top-level bind + toggle tabs). */
+  private widgetDatasets(widget: Widget): string[] {
+    const w = widget as { bind?: Bind; tabs?: { bind?: Bind; chart?: { bind?: Bind } }[] };
+    const names: string[] = [];
+    if (w.bind?.dataset) names.push(w.bind.dataset);
+    for (const t of w.tabs || []) {
+      if (t.bind?.dataset) names.push(t.bind.dataset);
+      if (t.chart?.bind?.dataset) names.push(t.chart.bind.dataset);
+    }
+    return names;
+  }
+
+  /** True when a widget reflects a non-default filter (so it gets the badge).
+   *  Inline/static widgets (no bind) never qualify — they're the general number. */
+  private isFiltered(widget: Widget, cols: Set<string>): boolean {
+    if (!cols.size) return false;
+    for (const name of this.widgetDatasets(widget)) {
+      const t = this.opts.datasets[name] as { filters?: string[] } | undefined;
+      if (t?.filters?.some(c => cols.has(c))) return true;
+    }
+    return false;
+  }
+
+  /** Pin a small purple filter badge on every tile whose data reflects the active
+   *  (non-default) filter. Unmarked tiles are the general/unfiltered number. */
+  private updateFilterBadges(): void {
+    const cols = this.activeNonDefaultCols();
+    for (const ref of this.tiles) {
+      const on = this.isFiltered(ref.widget, cols);
+      let badge = ref.tile.querySelector(':scope > .tile-filter-badge') as HTMLElement | null;
+      if (on && !badge) {
+        badge = document.createElement('span');
+        badge.className = 'tile-filter-badge';
+        badge.title = 'Reflete o filtro ativo';
+        badge.innerHTML = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6.3 7.4V19L10.3 21v-8.6z"/></svg>';
+        ref.tile.appendChild(badge);
+      } else if (!on && badge) {
+        badge.remove();
+      }
+    }
   }
 
   /** A section with a saved layout renders as a true coordinate grid (honoring
@@ -143,6 +201,8 @@ export class Dashboard {
     }
     this.host.appendChild(this.grid);
     for (const { elId, def } of ctx.charts) this.charts.create(elId, def);
+    this.charts.reflow();
+    this.updateFilterBadges();
   }
 
   /** Re-resolve every bound widget against the current filters, updating in place. */
@@ -166,6 +226,7 @@ export class Dashboard {
       const ctx = this.resolveCtx();
       this.replaceTile(ref, renderWidget(ref.widget, ctx), ctx.charts[0]?.elId);
     }
+    this.updateFilterBadges();
   }
 
   private replaceTile(ref: TileRef, fresh: HTMLElement, newChartElId?: string): void {

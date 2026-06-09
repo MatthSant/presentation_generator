@@ -76,10 +76,11 @@ export type ChartType =
   | 'mixed' | 'stacked' | 'radialBar' | 'scatter' | 'radar' | 'treemap';
 
 export const WIDGET_TYPES = [
-  'kpi', 'chart', 'table', 'heatmap',
+  'kpi', 'chart', 'table', 'heatmap', 'rank-card',
   'find-block', 'find-note', 'highlight', 'ni', 'ni-vertical',
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
+  'eyebrow', 'kpi-strip', 'heatmap-toggle', 'chart-toggle',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -115,6 +116,19 @@ export interface ChartWidget extends WidgetBase {
   labels?: string[];
   colors?: string[];
   distributed?: boolean;
+  /** Bar only: color each bar by the sign of its value — green when ≥0, red when
+   *  <0 — for diverging metrics (diff vs. benchmark). Reads green/red from the
+   *  live palette, so it stays theme-aware. Overrides `colors`/`distributed`. */
+  diverging?: boolean;
+  /** Format the value axis + data labels as a rounded percentage ("15%"). */
+  pct?: boolean;
+  /** Fixed value-axis bounds. Leave empty for auto-scale; set the same min/max on a
+   *  group of charts to make them visually comparable (shared domain). */
+  axisMin?: number;
+  axisMax?: number;
+  /** Draw a dashed reference line at the mean of all plotted values, with a "média X%"
+   *  label. Vertical on horizontal bars, horizontal otherwise. */
+  meanLine?: boolean;
   stackType?: string;
   /** Raw ApexCharts options override; may contain serialized "function(){}" strings. */
   options?: Record<string, unknown>;
@@ -141,15 +155,104 @@ export interface TableWidget extends WidgetBase {
   rows?: TableCell[][];
   bind?: Bind;
   caption?: string;
+  /** Optional title block above the table (tt-name + tt-sub). */
+  title?: string;
+  sub?: string;
+  /** Per-column metric definitions → an "i" info icon with a tooltip on the header. */
+  defs?: Record<string, string>;
+  /** Per-column heat coloring from the cell value: 'diff' (diverging vs. benchmark)
+   *  or 'uplift' (long-term scale). Empty → no coloring. */
+  colorScale?: Record<string, 'diff' | 'uplift' | 'amp' | 'surv'>;
 }
 
 export interface HeatCell { value: string | number; cls?: string; title?: string }
 export interface HeatRow { label: string; cells: HeatCell[] }
 export interface HeatmapWidget extends WidgetBase {
   type: 'heatmap';
-  cols: string[];
-  rows: HeatRow[];
+  /** Column headers. Optional when bound — derived from the `colKey` column. */
+  cols?: string[];
+  /** Inline rows. Optional when bound — pivoted from the dataset rows. */
+  rows?: HeatRow[];
   caption?: string;
+  /** Bind a long-format table (one row per cell) and pivot it into the grid so
+   *  the channel toggle re-filters it. Row → `rowKey`, column → `colKey`, value
+   *  → `valKey`, optional CSS class → `clsKey`, optional tooltip → `titleKey`. */
+  bind?: Bind;
+  rowKey?: string;
+  colKey?: string;
+  valKey?: string;
+  clsKey?: string;
+  titleKey?: string;
+}
+
+/** One tab of a heatmap-toggle: its own bound dataset + pivot keys. */
+export interface HeatmapTab {
+  label: string;
+  sub?: string;
+  bind: Bind;
+  rowKey?: string;
+  colKey?: string;
+  valKey?: string;
+  clsKey?: string;
+  titleKey?: string;
+}
+/** A single heatmap card whose content switches between N bound datasets via a
+ *  segmented toggle. The tab count is data-driven (add/remove tabs in the JSON). */
+export interface HeatmapToggleWidget extends WidgetBase {
+  type: 'heatmap-toggle';
+  /** Fixed card title; if omitted, the active tab's label is shown. */
+  title?: string;
+  tabs: HeatmapTab[];
+}
+
+/** One tab of a chart-toggle: a full chart config (minus type/id). */
+export interface ChartToggleTab { label: string; sub?: string; chart: Omit<ChartWidget, 'type' | 'id'>; }
+/** A single card whose chart switches between N configs via a segmented toggle.
+ *  All charts mount up front; the toggle shows/hides them. Tab count is data-driven. */
+export interface ChartToggleWidget extends WidgetBase {
+  type: 'chart-toggle';
+  title?: string;
+  sub?: string;
+  tabs: ChartToggleTab[];
+}
+
+/** Consistency classification of a ranking group, precomputed upstream. */
+export type RankClass = 'cons' | 'pos' | 'var' | 'neg' | 'crit';
+
+/** One ranking card (inline form). Numbers are percentages already in %. */
+export interface RankCard {
+  pos?: number;
+  name: string;
+  /** Main variation vs benchmark (launch window), in %. */
+  diffMain: number;
+  /** Long-term (12m) variation vs benchmark, in %. */
+  diff12m?: number;
+  /** Representativeness of the group, in %. */
+  rep?: number;
+  /** Launches above benchmark. */
+  wins?: number;
+  /** Total launches considered. */
+  total?: number;
+  classe?: RankClass;
+}
+
+/** A consistency ranking: renders its own grid of colored cards, one per group.
+ *  Bind to a dataset (rows per group, filtered by channel) so the channel toggle
+ *  re-filters it; or pass `cards` inline. Column keys default to the conversion
+ *  analysis names. Sort is by `diffMain` desc unless rows carry `pos`. */
+export interface RankCardWidget extends WidgetBase {
+  type: 'rank-card';
+  title?: string;
+  bind?: Bind;
+  cards?: RankCard[];
+  /** Dataset column → card field overrides (bound form). */
+  nameKey?: string;
+  mainKey?: string;
+  m12Key?: string;
+  repKey?: string;
+  winsKey?: string;
+  totalKey?: string;
+  classeKey?: string;
 }
 
 export interface FindBlockWidget extends WidgetBase {
@@ -158,8 +261,13 @@ export interface FindBlockWidget extends WidgetBase {
   tagColor?: ColorToken;
   title: string;
   detail?: string;
-  /** Id of a modal in the section's `modals`. */
+  /** Id of a modal in the section's `modals`. Adds the "↗ ver detalhamento" link. */
   modal?: string;
+  /** Override the modal link label (default "↗ ver detalhamento"). */
+  linkLabel?: string;
+  /** Render as an elevated card (white bg + border + left accent bar) instead of
+   *  the flat read-path narrative. The two find-block formats. */
+  card?: boolean;
 }
 
 export interface FindNoteWidget extends WidgetBase {
@@ -241,14 +349,30 @@ export interface GrpListWidget extends WidgetBase {
   items: GrpItem[];
 }
 
+export interface EyebrowWidget extends WidgetBase {
+  type: 'eyebrow';
+  /** Badge content: a number/index ("1") or a glyph icon ("✓", "↗", "!"). */
+  n?: string | number;
+  /** Color variant of the badge: purple (default), green, amber, red. */
+  color?: 'purple' | 'green' | 'amber' | 'red';
+  title: string;
+  caption?: string;
+}
+export interface KpiStripItem { value: string; label: string; sub?: string; small?: boolean; }
+export interface KpiStripWidget extends WidgetBase {
+  type: 'kpi-strip';
+  items: KpiStripItem[];
+}
+
 export type Widget =
-  | KpiWidget | ChartWidget | TableWidget | HeatmapWidget
+  | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
-  | DefStepWidget | MdefBlockWidget | GrpListWidget;
+  | DefStepWidget | MdefBlockWidget | GrpListWidget
+  | EyebrowWidget | KpiStripWidget | HeatmapToggleWidget | ChartToggleWidget;
 
 /** Widgets that carry a data binding. */
-export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap'] as const;
+export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
 
 export interface Modal {
   id: string;
@@ -305,6 +429,8 @@ export interface ReportMeta {
   theme?: 'light' | 'dark';
   created_at?: string;
   filters?: FilterDef[];
+  /** Optional cover block shown once at the top of the report content. */
+  cover?: { eyebrow?: string; meta?: string[] };
 }
 
 export interface PageRef {

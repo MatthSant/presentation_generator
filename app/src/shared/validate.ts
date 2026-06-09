@@ -136,11 +136,23 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       }
       break;
     case 'heatmap':
-      if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'heatmap requires a cols array');
-      if (!Array.isArray(w.rows)) c.err(`${path}.rows`, 'heatmap requires a rows array');
-      else w.rows.forEach((r, i) => {
-        if (!isObj(r) || !isStr(r.label) || !Array.isArray(r.cells)) {
-          c.err(`${path}.rows[${i}]`, 'heatmap row needs { label, cells[] }');
+      if (!hasBind) {
+        if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'heatmap requires a cols array when there is no bind');
+        if (!Array.isArray(w.rows)) c.err(`${path}.rows`, 'heatmap requires a rows array when there is no bind');
+        else w.rows.forEach((r, i) => {
+          if (!isObj(r) || !isStr(r.label) || !Array.isArray(r.cells)) {
+            c.err(`${path}.rows[${i}]`, 'heatmap row needs { label, cells[] }');
+          }
+        });
+      }
+      break;
+    case 'rank-card':
+      if (!hasBind && !Array.isArray(w.cards)) {
+        c.err(`${path}.cards`, 'rank-card requires cards[] when there is no bind');
+      }
+      if (Array.isArray(w.cards)) w.cards.forEach((card, i) => {
+        if (!isObj(card) || !isNonEmptyStr(card.name)) {
+          c.err(`${path}.cards[${i}]`, 'rank card needs a name');
         }
       });
       break;

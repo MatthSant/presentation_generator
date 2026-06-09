@@ -103,6 +103,8 @@ html, body {
   transition: color .15s, background .15s;
 }
 .tn-home:hover { color: var(--purple); background: var(--purple-bg); }
+.tn-logo { height: 19px; width: auto; display: block; margin: 0 2px; }
+[data-theme="dark"] .tn-logo { filter: brightness(0) invert(1); }
 
 /* Brand — esquerda */
 .tn-brand {
@@ -232,8 +234,8 @@ html, body {
 }
 .ctb-has #ctb-n { display: inline; }
 
-/* Print button */
-#print-btn {
+/* Export-HTML button */
+#export-html-btn {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -251,7 +253,23 @@ html, body {
   transition: border-color .15s, color .15s;
   white-space: nowrap;
 }
-#print-btn:hover { border-color: var(--purple); color: var(--purple); }
+#export-html-btn:hover { border-color: var(--purple); color: var(--purple); }
+#export-html-btn:disabled { opacity: .55; cursor: default; }
+
+/* Layout-edit inline actions (replace the Layout button while editing) */
+#tn-edit-actions { display: inline-flex; align-items: center; gap: 6px; }
+#tn-edit-actions[hidden] { display: none; }
+.tn-edit-btn {
+  font-family: 'Exo 2', sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
+  padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.tn-edit-cancel { color: var(--gray2); }
+.tn-edit-cancel:hover { border-color: var(--red); color: var(--red); }
+.tn-edit-save { color: var(--green); border-color: var(--green); background: var(--green-bg); }
+.tn-edit-save:hover { background: var(--green); color: #fff; }
+.tn-edit-save:disabled { opacity: .6; cursor: default; }
 
 /* ══════════════════════════════════════════
    SECTION BAR
@@ -354,6 +372,16 @@ html, body {
 .cp-date { font-size:9.5px; color:var(--gray2); }
 .cp-del  { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--gray2); cursor:pointer; font-size:13px; opacity:0; transition:opacity .15s,color .15s; padding:2px 4px; }
 .cp-item:hover .cp-del { opacity:1; } .cp-del:hover { color:var(--red); }
+.cp-edit { position:absolute; top:7px; right:30px; background:none; border:none; color:var(--gray2); cursor:pointer; opacity:0; transition:opacity .15s,color .15s; padding:2px 4px; line-height:0; }
+.cp-edit .svg-ic { width:13px; height:13px; }
+.cp-item:hover .cp-edit { opacity:1; } .cp-edit:hover { color:var(--purple); }
+.cp-edit-ta { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:8px 10px; font-family:'Exo 2',sans-serif; font-size:11.5px; color:var(--fg); resize:vertical; min-height:60px; outline:none; transition:border-color .15s; }
+.cp-edit-ta:focus { border-color:var(--purple); }
+.cp-edit-acts { display:flex; justify-content:flex-end; gap:6px; margin:6px 0 2px; }
+.cp-edit-cancel { background:none; border:1px solid var(--border); border-radius:4px; padding:4px 11px; font-family:'Exo 2',sans-serif; font-size:10.5px; font-weight:600; color:var(--gray2); cursor:pointer; transition:border-color .15s,color .15s; }
+.cp-edit-cancel:hover { border-color:var(--fg); color:var(--fg); }
+.cp-edit-save { background:var(--purple); border:1px solid var(--purple); border-radius:4px; padding:4px 14px; font-family:'Exo 2',sans-serif; font-size:10.5px; font-weight:700; color:#fff; cursor:pointer; transition:opacity .15s; }
+.cp-edit-save:hover { opacity:.85; }
 .cp-foot { padding:10px 12px; border-top:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
 #cp-export-btn { width:100%; background:transparent; border:1px solid var(--border); border-radius:3px; padding:7px 14px; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:700; color:var(--gray2); cursor:pointer; letter-spacing:1px; text-transform:uppercase; transition:border-color .15s,color .15s; }
 #cp-export-btn:hover { border-color:var(--green); color:var(--green); }
@@ -673,6 +701,59 @@ ul.bul li strong { color:var(--fg); }
 .hm-r2 { background:#f87171; color:#450a0a; }
 .hm-lo { background:#dc2626; color:#fff; }
 
+/* ── Diverging diff scale (variação vs benchmark) — heatmap cells & table cells.
+   Fine 7-step palette ported field-for-field from the approved redesign so the
+   greens/reds read as a gradient (≥70 / ≥25 / ≥8 / ±8 / −28 / −60 / rest). ── */
+.csp { background:#5C9A33; color:#fff; }
+.cp2 { background:#8FBE54; color:#1B3B06; }
+.cp  { background:#C7DFA6; color:#2E5410; }
+.cn0 { background:#EFEDE4; color:#6A695F; }
+.cn  { background:#F8D0C5; color:#7A2D1C; }
+.csn { background:#EE9379; color:#42180A; }
+.cxn { background:#DC5048; color:#fff; }
+/* Long-term uplift scale (≥80 / ≥50 / ≥25 / >0; ≤0 falls back to neutral cn0) */
+.cup  { background:#1F8A5B; color:#fff; }
+.cup2 { background:#5BAE85; color:#06301F; }
+.cup3 { background:#A6D2BC; color:#06301F; }
+.cup4 { background:#DCEFE6; color:#0A5B49; }
+
+/* ── Trend reading cells (LAST2 vs PREV2) — color the table cell text ── */
+.tr-gg { color:#27500A; font-weight:600; }
+.tr-rg { color:#85621A; font-weight:600; }
+.tr-gr { color:#854F0B; font-weight:600; }
+.tr-rr { color:#A32D2D; font-weight:600; }
+
+/* ── Benchmark reference box (pills above detail tables) ── */
+.bench-ref { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:9px 14px;
+  background:var(--purple-bg); border:1px solid var(--border); border-radius:8px; margin-bottom:10px; }
+.bench-ref-t { font-size:11px; font-weight:600; color:var(--purple); }
+.bench-pill { font-size:11px; background:var(--bg); border:1px solid var(--border); padding:3px 10px;
+  border-radius:6px; font-weight:500; white-space:nowrap; color:var(--gray); }
+.bench-pill strong { color:var(--purple); font-weight:600; }
+
+/* ── Ranking cards (rank-card) — own grid of consistency-classified cards ── */
+.rank-wrap { width:100%; }
+.rank-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+.rank-card { border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:var(--surface); }
+.rank-pos { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:var(--gray2); margin-bottom:6px; }
+.rank-cls { font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.04em; }
+.rank-name { font-size:13px; font-weight:600; color:var(--fg); margin-bottom:8px; line-height:1.3; }
+.rank-diff-main { font-size:26px; font-weight:700; letter-spacing:-.02em; line-height:1; color:var(--fg); }
+.rank-diff-12m { font-size:12px; font-weight:500; color:var(--gray); margin-top:3px; }
+.rank-meta { margin-top:10px; font-size:11px; color:var(--gray); display:flex; flex-direction:column; gap:3px; }
+.rank-bar-wrap { background:var(--divider); border-radius:3px; height:4px; margin-top:8px; overflow:hidden; }
+.rank-bar-fill { height:4px; border-radius:3px; background:var(--purple); opacity:.5; }
+.rk-cons { border-color:#97C459; background:rgba(151,196,89,.10); }
+.rk-cons .rank-diff-main { color:#3B6D11; } .rk-cons .rank-cls { background:#EAF3DE; color:#27500A; } .rk-cons .rank-bar-fill { background:#3B6D11; }
+.rk-pos  { border-color:#C0DD97; background:rgba(151,196,89,.06); }
+.rk-pos  .rank-diff-main { color:#3B6D11; } .rk-pos .rank-cls { background:#EAF3DE; color:#3B6D11; } .rk-pos .rank-bar-fill { background:#3B6D11; }
+.rk-var  { border-color:#FAC775; background:rgba(217,119,6,.07); }
+.rk-var  .rank-diff-main { color:#854F0B; } .rk-var .rank-cls { background:#FAEEDA; color:#854F0B; } .rk-var .rank-bar-fill { background:#B45309; }
+.rk-neg  { border-color:#F5C4B3; background:rgba(234,88,12,.07); }
+.rk-neg  .rank-diff-main { color:#993C1D; } .rk-neg .rank-cls { background:#FAECE7; color:#993C1D; } .rk-neg .rank-bar-fill { background:#993C1D; }
+.rk-crit { border-color:#F7C1C1; background:rgba(220,38,38,.07); }
+.rk-crit .rank-diff-main { color:#A32D2D; } .rk-crit .rank-cls { background:#FCEBEB; color:#A32D2D; } .rk-crit .rank-bar-fill { background:#A32D2D; }
+
 /* ── Tabela ── */
 .tw { border:1px solid var(--border); border-radius:4px; overflow:hidden; box-shadow:var(--shadow-sm); }
 table { width:100%; border-collapse:collapse; font-size:12px; }
@@ -682,7 +763,7 @@ table th:first-child { text-align:left; }
 table td { padding:10px 12px; font-size:12px; font-variant-numeric:tabular-nums lining-nums; text-align:right; color:var(--fg); border-bottom:1px solid var(--divider); }
 table td:first-child { text-align:left; font-weight:600; }
 table tr:last-child td { border-bottom:none; }
-table tr:nth-child(even) td { background:var(--surface); }
+table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(.cxn):not(.cup):not(.cup2) { background:var(--surface); }
 
 /* ── Layout ── */
 .row    { display:flex; gap:24px; }
@@ -768,6 +849,9 @@ table tr:nth-child(even) td { background:var(--surface); }
    DASHBOARD GRID (read path — plain 12-col CSS grid)
    ══════════════════════════════════════════ */
 .sec-header { margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid var(--divider); display:flex; flex-direction:column; gap:8px; }
+/* The badge is a tag, not a band: stop the column flex's stretch from blowing it
+   full-width (title/sub keep stretch so their text still wraps normally). */
+.sec-header .badge { align-self:flex-start; }
 .sec-title { font-size:22px; font-weight:700; color:var(--fg); letter-spacing:-0.01em; line-height:1.2; }
 
 .dash-grid {
@@ -798,6 +882,19 @@ table tr:nth-child(even) td { background:var(--surface); }
 body.edit-mode .tile-cmark, body.edit-mode .dash-tile.has-comment { outline:none; }
 body.edit-mode .tile-cmark { display:none; }
 @media print { .tile-cmark { display:none !important; } .dash-tile.has-comment { outline:none; } }
+
+/* Filter badge — small purple circle marking tiles whose data reflects the active
+   (non-default) filter. Unmarked tiles are the general/unfiltered number. */
+.tile-filter-badge {
+  position:absolute; top:6px; right:6px; z-index:5;
+  width:20px; height:20px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--purple); color:#fff; box-shadow:0 1px 4px rgba(60,52,137,.30);
+}
+.tile-filter-badge .svg-ic { width:12px; height:12px; }
+.dash-tile.has-comment .tile-filter-badge { right:auto; left:6px; }  /* clear the comment marker */
+body.edit-mode .tile-filter-badge { display:none; }
+@media print { .tile-filter-badge { display:none !important; } }
 
 /* Coordinate mode (a saved layout exists): tiles place at their x/y/w/h on
    content-sized rows, so an undersized cell grows to fit instead of clipping and
@@ -1027,3 +1124,192 @@ body.edit-mode .tile-cmark { display:none; }
 }
 .rpt-hint-x:hover { color:var(--fg); }
 @media print { .rpt-hint { display:none !important; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN ADJUST — refined content layer (charts/tables/titles)
+   Ported from the approved redesign. Scoped to the read path so the
+   editor, modals and slide components keep their own chrome.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* — Refined elevated chart cards — */
+.dash-grid:not(.grid-active) .widget-chart {
+  background: var(--bg);
+  border: 1px solid oklch(91.5% 0.006 284);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px oklch(22% .02 285/.045), 0 8px 20px -12px oklch(22% .02 285/.14);
+  padding: 18px 18px 14px;
+  transition: box-shadow .22s ease, border-color .22s ease, transform .22s ease;
+}
+[data-theme="dark"] .dash-grid:not(.grid-active) .widget-chart {
+  border-color: var(--border); box-shadow: var(--shadow-card);
+}
+.dash-grid:not(.grid-active) .widget-chart:hover {
+  border-color: oklch(80% 0.05 290);
+  box-shadow: 0 2px 4px oklch(22% .02 285/.05), 0 18px 34px -16px oklch(22% .02 285/.24);
+  transform: translateY(-2px);
+}
+
+/* — Chart title: leading gradient dot + divider — */
+.chart-title {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 11.5px; letter-spacing: 1px; text-transform: uppercase;
+  font-weight: 800; color: var(--fg);
+  padding-bottom: 12px; margin-bottom: 13px;
+  border-bottom: 1px solid var(--divider);
+}
+.chart-title::before {
+  content: ''; width: 8px; height: 8px; border-radius: 2.5px; flex-shrink: 0;
+  background: linear-gradient(135deg, #7C3AED, #9F67FF);
+}
+.chart-wrap { min-height: 232px; padding-top: 2px; }
+
+/* — Refined tables — */
+.dash-grid:not(.grid-active) .tw {
+  border-radius: 16px;
+  border: 1px solid oklch(91.5% 0.006 284);
+  box-shadow: 0 1px 2px oklch(22% .02 285/.045), 0 8px 20px -12px oklch(22% .02 285/.14);
+}
+[data-theme="dark"] .dash-grid:not(.grid-active) .tw { border-color: var(--border); box-shadow: var(--shadow-card); }
+.dash-grid:not(.grid-active) .tw thead tr {
+  background: linear-gradient(180deg, oklch(97.4% 0.014 290), oklch(96% 0.012 290));
+  border-bottom: 1px solid oklch(88% 0.022 292);
+}
+[data-theme="dark"] .dash-grid:not(.grid-active) .tw thead tr { background: var(--purple-bg); border-bottom: 1px solid var(--border); }
+.dash-grid:not(.grid-active) .tw th { color: var(--purple); font-size: 10px; letter-spacing: .7px; padding: 13px 14px; }
+
+/* — Report cover title block — */
+#report-header {
+  text-align: center; padding: 44px 56px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border-bottom: 1px solid var(--divider);
+}
+#report-header .sec-title, #main > header:first-child .sec-title {
+  font-size: 38px; letter-spacing: -0.025em; line-height: 1.08; max-width: 22ch; margin-top: 4px; font-weight: 800;
+}
+#report-header .cover-meta { justify-content: center; }
+#report-header .cover-rule { margin-left: auto; margin-right: auto; }
+.cover-meta {
+  display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+  font-size: 11px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--gray2); margin-top: 8px;
+}
+.cover-meta .cm-dot { color: var(--border-strong); margin: 0 12px; }
+.cover-rule { width: 64px; height: 3px; border-radius: 2px; margin-top: 10px; background: linear-gradient(90deg, #7C3AED, #A874FF); }
+
+/* — Group eyebrow (numbered zone separator) — */
+.grp-eyebrow { display: flex; align-items: center; gap: 14px; margin: 30px 0 20px; }
+.grp-eyebrow .ge-i {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, #7C3AED, #9F67FF);
+  box-shadow: 0 2px 6px oklch(55% .2 295/.35);
+}
+.grp-eyebrow .ge-t { font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--fg); white-space: nowrap; }
+.grp-eyebrow .ge-c { font-size: 11.5px; font-weight: 600; color: var(--gray2); }
+.grp-eyebrow .ge-rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+
+/* — KPI strip — */
+.kpi-strip {
+  display: flex; margin: 4px 0 8px;
+  border: 1px solid oklch(91% 0.007 284); border-radius: 16px; overflow: hidden;
+  background: linear-gradient(180deg, var(--bg), oklch(98.6% 0.005 285));
+  box-shadow: 0 1px 2px oklch(22% .02 285/.04), inset 0 1px 0 #fff;
+}
+[data-theme="dark"] .kpi-strip { background: var(--surface); box-shadow: var(--shadow-sm); border-color: var(--border); }
+.kpi-strip .kpi { flex: 1; padding: 16px 20px; border-right: 1px solid var(--divider); }
+.kpi-strip .kpi:last-child { border-right: none; }
+.kpi-n { font-size: 27px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 3px; }
+.kpi-n--sm { font-size: 19px; }
+.kpi-n .kpi-sep { color: var(--border-strong); font-weight: 500; margin: 0 3px; }
+.kpi-l { font-size: 10.5px; font-weight: 700; letter-spacing: .6px; color: var(--gray2); line-height: 1.35; text-transform: uppercase; margin-top: 6px; }
+
+/* — Find-block CARD format: elevated card + left accent bar (vs the flat default).
+     Higher specificity than the read-path strip so it survives inside .dash-grid. */
+.dash-grid .find-block.find-block--card {
+  position: relative;
+  background: var(--bg); border: 1px solid oklch(91.5% 0.006 284); border-top: 1px solid oklch(91.5% 0.006 284);
+  border-radius: 14px; padding: 20px 22px 18px;
+  box-shadow: 0 1px 2px oklch(22% .02 285/.045), 0 9px 22px -13px oklch(22% .02 285/.18);
+}
+[data-theme="dark"] .dash-grid .find-block.find-block--card { background: var(--surface); border-color: var(--border); box-shadow: var(--shadow-card); }
+.find-block--card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  border-radius: 14px 0 0 14px; background: var(--purple);
+}
+.find-block--card:has(.find-tag-g)::before { background: #0F9D63; }
+.find-block--card:has(.find-tag-a)::before { background: #D97706; }
+.find-block--card:has(.find-tag-r)::before { background: #DC5048; }
+.find-block--card .find-title { font-size: 17px; }
+
+/* — Eyebrow color variants (insights zones: ✓ green / ↗ amber / ! red) — */
+.grp-eyebrow.ge-green .ge-i { background: linear-gradient(135deg, #0F9D63, #34C98A); box-shadow: 0 2px 7px rgba(15,157,99,.34); }
+.grp-eyebrow.ge-amber .ge-i { background: linear-gradient(135deg, #D97706, #F0A93C); box-shadow: 0 2px 7px rgba(217,119,6,.34); }
+.grp-eyebrow.ge-red   .ge-i { background: linear-gradient(135deg, #DC5048, #EE8079); box-shadow: 0 2px 7px rgba(220,80,72,.34); }
+
+/* — Find-block detail link (format B: card with "↗ ver detalhamento") — */
+.fn-link { display: inline-flex; align-items: center; gap: 5px; margin-top: 13px; font-size: 12px; font-weight: 700; letter-spacing: .2px; color: var(--purple); cursor: pointer; transition: gap .15s, color .15s; }
+.fn-link:hover { gap: 8px; color: #5B21B6; }
+
+/* — Chart toggle card: the card IS the frame, so flatten the inner chart — */
+.chart-toggle-card .widget-chart {
+  background: transparent !important; border: none !important; box-shadow: none !important;
+  border-radius: 0 !important; padding: 0 !important; transform: none !important;
+}
+.chart-toggle-card .widget-chart > .chart-title { display: none; }
+
+/* — Linha de média (annotation) — engrossa + halo para ler sobre o grid claro E
+   sobre as barras (roxas). A linha fica acima das barras no SVG; o problema era só
+   contraste (1px escuro sobre roxo). — */
+.apexcharts-xaxis-annotations line,
+.apexcharts-yaxis-annotations line {
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 1.6px rgba(255,255,255,.95));
+}
+[data-theme="dark"] .apexcharts-xaxis-annotations line,
+[data-theme="dark"] .apexcharts-yaxis-annotations line {
+  filter: drop-shadow(0 0 1.6px rgba(0,0,0,.85));
+}
+.apexcharts-xaxis-annotation-label,
+.apexcharts-yaxis-annotation-label { letter-spacing:.3px; }
+
+/* — Heatmap toggle card (one card, N data-driven tabs) — */
+.hm-card {
+  background: var(--bg); border: 1px solid oklch(91.5% 0.006 284); border-radius: 16px;
+  box-shadow: 0 1px 2px oklch(22% .02 285/.045), 0 8px 20px -12px oklch(22% .02 285/.14);
+  padding: 18px 20px 16px;
+}
+[data-theme="dark"] .hm-card { border-color: var(--border); box-shadow: var(--shadow-card); }
+.hm-card-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 16px; flex-wrap: wrap; }
+.hm-card-hd .tbl-title { margin: 0; }
+.hm-toggle { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 3px; gap: 2px; flex-shrink: 0; }
+.hm-seg { font-family: 'Exo 2', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .2px; padding: 6px 12px; border: none; border-radius: 6px; background: transparent; color: var(--gray2); cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, box-shadow .15s; }
+.hm-seg:hover { color: var(--fg); }
+.hm-seg-on { background: var(--bg); color: var(--purple); box-shadow: 0 1px 2px oklch(22% .02 285/.14); }
+.hm-host { overflow-x: auto; }
+.hm-host .hm-grid { grid-template-columns: auto repeat(var(--hm-cols,9), minmax(58px,1fr)); gap: 4px; min-width: 600px; }
+.hm-host .hm-th { font-size: 10.5px; padding: 2px 4px 9px; }
+.hm-host .hm-rh { font-size: 12px; font-weight: 600; }
+.hm-host .hm-cell { font-size: 11.5px; font-weight: 700; padding: 8px 4px; border-radius: 5px; font-variant-numeric: tabular-nums; }
+
+/* — Section bar band: match the base page-band's near-white gradient — */
+#section-bar { background: linear-gradient(180deg, oklch(99% 0.004 285), #fff); }
+[data-theme="dark"] #section-bar { background: var(--bg-sidebar); }
+
+/* — Metric-definition info badge in table headers (editorial serif "i") — */
+.th-i {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; margin-left: 5px; border-radius: 50%;
+  border: 1px solid currentColor;
+  font-family: Georgia, 'Times New Roman', serif; font-size: 8px; font-weight: 700; font-style: italic;
+  line-height: 1; text-transform: none; letter-spacing: 0;
+  opacity: .42; cursor: help; vertical-align: middle; position: relative; top: -1px;
+  transition: opacity .15s;
+}
+.th-i:hover { opacity: 1; }
+
+/* — Title above a table/group — */
+.tbl-title { display: flex; align-items: baseline; gap: 11px; margin: 0 0 12px; flex-wrap: wrap; }
+.tbl-title .tt-name { font-size: 13px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--fg); display: inline-flex; align-items: center; }
+.tbl-title .tt-name::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: linear-gradient(135deg, #7C3AED, #9F67FF); margin-right: 9px; }
+.tbl-title .tt-sub { font-size: 11px; color: var(--gray2); font-weight: 600; letter-spacing: .2px; }

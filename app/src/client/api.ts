@@ -58,6 +58,9 @@ export class Api {
   commentsCsvUrl(): string { return `${this.base()}/comments.csv`; }
 
   watch(onSection: (id: string) => void): () => void {
+    // Static mode (?static): skip the live-reload SSE so headless tooling
+    // (screenshots/print) can reach network-idle.
+    if (new URLSearchParams(location.search).has('static')) return () => {};
     const es = new EventSource(`${this.base()}/watch`);
     es.onmessage = ({ data }) => { if (data && data !== 'connected') onSection(data); };
     let closed = false;

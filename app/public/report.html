@@ -19,6 +19,7 @@
     <a class="tn-home" href="/" title="Início" aria-label="Início">
       <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
     </a>
+    <img class="tn-logo" src="/assets/witly-logo.png" alt="Witly" />
     <div class="tn-brand">
       <span class="tn-badge">Relatório</span>
       <span class="tn-sep"></span>
@@ -30,13 +31,17 @@
         <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M10 10v10"/></svg>
         <span>Layout</span>
       </button>
+      <span id="tn-edit-actions" hidden>
+        <button id="tn-edit-cancel" class="tn-edit-btn tn-edit-cancel">Cancelar</button>
+        <button id="tn-edit-save" class="tn-edit-btn tn-edit-save">Salvar</button>
+      </span>
       <button id="comment-toggle-btn" title="Mostrar ou ocultar comentários">
         <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg>
         <span>Comentários</span><span id="ctb-n">0</span>
       </button>
-      <button id="print-btn" onclick="window.print()" title="Exportar relatório em PDF">
-        <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10.5 4 4 4-4"/><path d="M5 18.5h14"/></svg>
-        <span>PDF</span>
+      <button id="export-html-btn" title="Exportar relatório como HTML standalone (offline)">
+        <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="M13.5 6 10.5 18"/></svg>
+        <span>HTML</span>
       </button>
     </div>
   </nav>
@@ -109,14 +114,7 @@
     </div>
   </div>
 
-  <!-- ── LAYOUT EDIT BAR ── (visible only while editing the grid) -->
-  <div id="edit-bar" hidden>
-    <span class="eb-label">Editando layout</span>
-    <button class="eb-cancel" id="edit-cancel">Cancelar</button>
-    <button class="eb-save" id="edit-save">Salvar</button>
-  </div>
-
-  <!-- ── FILTER FAB + MODAL ── -->
+<!-- ── FILTER FAB + MODAL ── -->
   <button id="filter-fab" hidden title="Filtrar os dados do relatório">
     <span class="flt-icon"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6.3 7.4V19L10.3 21v-8.6z"/></svg></span>
     <span>Filtros</span>
