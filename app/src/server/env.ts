@@ -18,6 +18,9 @@ if (fs.existsSync(ENV_FILE)) {
     const key = t.slice(0, eq).trim();
     let val = t.slice(eq + 1).trim();
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
-    if (key && !(key in process.env)) process.env[key] = val;
+    // Load from .env when the var is absent OR present-but-empty. An empty inherited
+    // var (some sandboxes inject ANTHROPIC_API_KEY="") shouldn't shadow the file; a
+    // real non-empty env var still wins.
+    if (key && !process.env[key]) process.env[key] = val;
   }
 }
