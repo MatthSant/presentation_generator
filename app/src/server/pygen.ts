@@ -76,6 +76,27 @@ export async function runGeneration(key: string, args: BuildReportArgs): Promise
   }
 }
 
+// --- Perguntas norteadoras: cálculo fixo de relevância ----------------------
+
+const PERGUNTAS_SCRIPT = path.join(PYSRC, 'perguntas', 'perguntas_calc.py');
+
+/** Run the deterministic relevance calc: perguntas_input.json → perguntas.json.
+ *  Pure Python (stdlib), no LLM. Returns the PyResult so callers can surface stderr. */
+export async function runPerguntasCalc(inputPath: string, outputPath: string): Promise<PyResult> {
+  const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
+  const args = [...prefix, PERGUNTAS_SCRIPT, inputPath, outputPath];
+  await acquireSlot();
+  return new Promise<PyResult>((resolve) => {
+    const child = spawn(PYTHON_BIN, args, PY_SPAWN);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => { stdout += d.toString(); });
+    child.stderr.on('data', (d) => { stderr += d.toString(); });
+    child.on('error', (e) => resolve({ ok: false, stdout, stderr: `${stderr}\n${e.message}`, code: null }));
+    child.on('close', (code) => resolve({ ok: code === 0, stdout, stderr, code }));
+  }).finally(releaseSlot);
+}
+
 // --- Fase 3b: on-demand query over the retained base ------------------------
 
 const QUERY_SCRIPT = path.join(PYSRC, 'conversao-perfil', 'query_api.py');

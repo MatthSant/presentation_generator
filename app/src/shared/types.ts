@@ -44,6 +44,10 @@ export interface Bind {
   agg?: AggFn;
   /** Explicit series name when there is a single series (defaults to `y`). */
   name?: string;
+  /** Static row filter: keep only rows where each column equals the given value
+   *  (e.g. {mes:"Jan"}). Same mechanism as the active channel filter, but fixed
+   *  per widget — lets a widget isolate one slice (a month, a category) honestly. */
+  where?: Record<string, string | number>;
 }
 
 /** One resolved series, ApexCharts-compatible. */
@@ -437,6 +441,45 @@ export interface PageRef {
   id: string;
   label: string;
   sections: { id: string; label: string }[];
+  /** Special page renderers. Omitted → a normal section-grid page. "perguntas"
+   *  renders the guiding-questions board instead of a section. */
+  kind?: 'perguntas';
+}
+
+/* ─────────────────────────────  Perguntas norteadoras  ───────────────────────────── */
+
+/** A mini-stat shown on a question card (label + already-formatted value). */
+export interface PerguntaKpi { label: string; value: string }
+
+/** Where "Adicionar" routes: the block whose Claude detalhamento answers the question. */
+export interface PerguntaDeepen { sectionId: string; blockId: string; prompt: string }
+
+/** Banda de relevância calculada em Python (perguntas_calc.py). */
+export type PerguntaNivel = 'alta' | 'media' | 'baixa';
+
+/** One guiding question, ranked by a fixed Python relevance calc. The prose is
+ *  authored; the numbers (relevancia, kpis) come from the calc / signals. */
+export interface Pergunta {
+  id: string;
+  pergunta: string;
+  justificativa: string;
+  kpis: PerguntaKpi[];
+  /** 0–100, from perguntas_calc.py. Absent for custom (manually added) questions. */
+  relevancia?: number;
+  nivel?: PerguntaNivel;
+  deepen: PerguntaDeepen;
+  /** Manually added by the consultant — no relevance calc; detalhamento created on add. */
+  custom?: boolean;
+  /** Live status merged from perguntas_history; absent in the on-disk file. */
+  status?: 'seguida' | 'ignorada';
+  /** Where the generated detalhamento lives (a section on the Detalhamentos page). */
+  det?: { pageId: string; sectionId: string };
+}
+
+export interface PerguntasDoc {
+  pesos?: Record<string, number>;
+  efeito_ref?: number;
+  perguntas: Pergunta[];
 }
 
 export interface ReportData {

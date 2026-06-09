@@ -12,8 +12,9 @@ import { Filters } from './filters.js';
 import { Dashboard } from './dashboard.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
+import { PerguntasView } from './perguntas.js';
 import { resolveBind } from '../shared/bind.js';
-import type { Bind, ResolvedBind, Modal, Section, LayoutItem } from '../shared/types.js';
+import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
 
 const ROOT = document.getElementById('export-root')!;
 const MODAL_ROOT = document.getElementById('modal-root')!;
@@ -32,6 +33,7 @@ class App {
   private editing = false;
   /** Modal id to auto-open after the next section (re)render — set by deepen. */
   private pendingModal: string | null = null;
+  private perguntas: PerguntasView | null = null;
 
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
@@ -120,6 +122,12 @@ class App {
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
 
+    if (this.store.page(pageId)?.kind === 'perguntas') {
+      await this.renderPerguntas();
+      window.scrollTo({ top: 0 });
+      return;
+    }
+
     let section = this.store.getSection(sectionId);
     if (!section) {
       ROOT.innerHTML = '<div style="padding:60px 56px 80px"><p class="sm" style="color:var(--gray2)">Carregando…</p></div>';
@@ -166,6 +174,109 @@ class App {
     if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
       this.openModal(this.pendingModal);
       this.pendingModal = null;
+    }
+  }
+
+  /* ───────────────────────────  Perguntas norteadoras  ─────────────────────────── */
+
+  /** Render the guiding-questions board (a special page, not a section grid). */
+  private async renderPerguntas(): Promise<void> {
+    this.dashboard?.destroy(); this.dashboard = null;
+    this.modalCharts.destroyAll();
+    this.modalChartDefs.clear();
+    this.openedModals.clear();
+    MODAL_ROOT.replaceChildren();
+    ROOT.replaceChildren();
+
+    const host = document.createElement('section');
+    host.id = 'perguntas-host';
+    ROOT.appendChild(host);
+
+    const view = new PerguntasView(host, {
+      seguir: (p) => void this.seguirPergunta(p),
+      ignorar: (p) => void this.ignorarPergunta(p),
+      abrir: (p) => void this.abrirPergunta(p),
+      adicionar: () => this.adicionarPergunta(),
+    });
+    this.perguntas = view;
+    host.innerHTML = '<div class="pg-wrap"><p class="pg-loading">Carregando perguntas…</p></div>';
+    try {
+      const r = await this.api.getPerguntas();
+      view.setData(r.perguntas || []);
+    } catch (e) {
+      host.innerHTML = `<div class="pg-wrap"><p class="pg-loading">Erro ao carregar perguntas: ${esc((e as Error).message)}</p></div>`;
+    }
+  }
+
+  /** Follow a question: the server generates its detalhamento as a new section on
+   *  the Detalhamentos page; we refresh the nav and jump straight to it. */
+  private async seguirPergunta(p: Pergunta): Promise<void> {
+    this.toast('Gerando detalhamento…');
+    try {
+      const r = await this.api.seguirPergunta(p.id);
+      // The nav map changed (new section, maybe a new page) → reload + rebuild.
+      this.store.data = await this.api.getData();
+      this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+      this.nav.build();
+      await this.go(r.pageId, r.sectionId);
+      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
+    } catch (e) {
+      this.toast(`Falha ao seguir a pergunta: ${(e as Error).message}`);
+    }
+  }
+
+  private async ignorarPergunta(p: Pergunta): Promise<void> {
+    try {
+      await this.api.ignorarPergunta(p.id);
+      this.perguntas?.patch(p.id, { status: 'ignorada' });
+    } catch (e) {
+      this.toast(`Falha ao ignorar: ${(e as Error).message}`);
+    }
+  }
+
+  /** Open an already-generated detalhamento: navigate to its section. */
+  private async abrirPergunta(p: Pergunta): Promise<void> {
+    if (!p.det) return;
+    await this.go(p.det.pageId, p.det.sectionId);
+  }
+
+  /** Compose a custom question; the server saves it (no relevance calc) and
+   *  generates its detalhamento right away. */
+  private adicionarPergunta(): void {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'deepen-dlg';
+    dlg.innerHTML = `<form method="dialog" class="deepen-form">
+      <h3>Adicionar pergunta</h3>
+      <p class="deepen-card">Sua pergunta vira um detalhamento na hora (sem cálculo de relevância).</p>
+      <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
+      <div class="deepen-actions">
+        <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
+        <button value="go" class="deepen-btn" type="submit">Criar detalhamento</button>
+      </div></form>`;
+    document.body.appendChild(dlg);
+    const ta = dlg.querySelector('textarea')!;
+    dlg.addEventListener('close', () => {
+      const text = ta.value.trim();
+      const go = dlg.returnValue === 'go';
+      dlg.remove();
+      if (!go || !text) return;
+      void this.criarPerguntaCustom(text);
+    });
+    dlg.showModal();
+    ta.focus();
+  }
+
+  private async criarPerguntaCustom(text: string): Promise<void> {
+    this.toast('Criando detalhamento…');
+    try {
+      const r = await this.api.addCustomPergunta(text);
+      this.store.data = await this.api.getData();
+      this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+      this.nav.build();
+      await this.go(r.pageId, r.sectionId);
+      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
+    } catch (e) {
+      this.toast(`Falha ao adicionar pergunta: ${(e as Error).message}`);
     }
   }
 

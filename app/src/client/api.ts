@@ -1,6 +1,6 @@
 /* api.ts — typed fetch wrappers around the server routes. */
 
-import type { ReportData, DataMap, Section, Layout, LayoutItem } from '../shared/types.js';
+import type { ReportData, DataMap, Section, Layout, LayoutItem, Pergunta } from '../shared/types.js';
 
 export class Api {
   constructor(private client: string, private slug: string) {}
@@ -36,6 +36,24 @@ export class Api {
     return this.json(`${this.base()}/section/${encodeURIComponent(secId)}/deepen`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blockId, prompt, prev }),
+    });
+  }
+
+  getPerguntas(): Promise<{ perguntas: Pergunta[] }> { return this.json(`${this.base()}/perguntas`); }
+
+  seguirPergunta(pid: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean }> {
+    return this.json(`${this.base()}/perguntas/${encodeURIComponent(pid)}/seguir`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+  }
+  ignorarPergunta(pid: string): Promise<{ ok: boolean }> {
+    return this.json(`${this.base()}/perguntas/${encodeURIComponent(pid)}/ignorar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+  }
+  addCustomPergunta(pergunta: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean }> {
+    return this.json(`${this.base()}/perguntas/custom`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pergunta }),
     });
   }
 

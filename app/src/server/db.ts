@@ -45,6 +45,24 @@ const SCHEMA = `
     client  TEXT NOT NULL,
     PRIMARY KEY (user_id, client)
   );
+
+  CREATE TABLE IF NOT EXISTS perguntas_history (
+    id          TEXT PRIMARY KEY,
+    client      TEXT NOT NULL,
+    slug        TEXT NOT NULL,
+    pergunta_id TEXT NOT NULL,
+    pergunta    TEXT NOT NULL DEFAULT '',
+    acao        TEXT NOT NULL,
+    relevancia  REAL,
+    nivel       TEXT NOT NULL DEFAULT '',
+    section_id  TEXT NOT NULL DEFAULT '',
+    block_id    TEXT NOT NULL DEFAULT '',
+    modal_id    TEXT NOT NULL DEFAULT '',
+    prompt      TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ph ON perguntas_history(client, slug, created_at);
+  CREATE INDEX IF NOT EXISTS idx_ph_q ON perguntas_history(client, slug, pergunta_id, created_at);
 `;
 
 /** Open (and initialize) a SQLite store at the given path. `:memory:` works for tests. */
