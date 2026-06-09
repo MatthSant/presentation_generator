@@ -1157,10 +1157,10 @@ body.edit-mode .tile-filter-badge { display:none; }
 .find-block--card .sm { color: var(--gray); line-height: 1.6; }
 
 /* subtle tint per zone + colored numbers + "Implicação" footer (matches the design) */
-.dash-grid .find-block.find-block--card.fb-g { background: color-mix(in oklch, var(--green)  4%, var(--bg)); border-color: color-mix(in oklch, var(--green)  16%, var(--border)); }
-.dash-grid .find-block.find-block--card.fb-a { background: color-mix(in oklch, var(--amber)  4%, var(--bg)); border-color: color-mix(in oklch, var(--amber)  16%, var(--border)); }
-.dash-grid .find-block.find-block--card.fb-r { background: color-mix(in oklch, var(--red)    4%, var(--bg)); border-color: color-mix(in oklch, var(--red)    16%, var(--border)); }
-.dash-grid .find-block.find-block--card.fb-p { background: color-mix(in oklch, var(--purple) 4%, var(--bg)); border-color: color-mix(in oklch, var(--purple) 16%, var(--border)); }
+.dash-grid .find-block.find-block--card.fb-g { background: color-mix(in srgb, var(--green)  6%, var(--bg)); border-color: color-mix(in srgb, var(--green)  24%, var(--border)); }
+.dash-grid .find-block.find-block--card.fb-a { background: color-mix(in srgb, var(--amber)  6%, var(--bg)); border-color: color-mix(in srgb, var(--amber)  24%, var(--border)); }
+.dash-grid .find-block.find-block--card.fb-r { background: color-mix(in srgb, var(--red)    6%, var(--bg)); border-color: color-mix(in srgb, var(--red)    24%, var(--border)); }
+.dash-grid .find-block.find-block--card.fb-p { background: color-mix(in srgb, var(--purple) 6%, var(--bg)); border-color: color-mix(in srgb, var(--purple) 24%, var(--border)); }
 
 .find-block--card .fb-body strong { font-weight: 800; }
 .find-block--card.fb-g .fb-body strong { color: var(--green); }
