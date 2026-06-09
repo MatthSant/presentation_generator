@@ -18,12 +18,15 @@ import { registerEdits } from './routes/edits.js';
 import { registerWatch } from './routes/watch.js';
 import { registerGenerate } from './routes/generate.js';
 import { registerDeepen } from './routes/deepen.js';
+import { installAuth } from './routes/authRoutes.js';
 
 export interface CreateAppOptions {
   /** Output root holding [client]/[slug] files. Defaults to paths.OUT. */
   out?: string;
   /** SQLite store. Defaults to the process-wide db. When provided, the caller owns it. */
   db?: DB;
+  /** Enforce auth + multi-tenant isolation. Off by default (tests); on in index.ts. */
+  auth?: boolean;
 }
 
 export interface CreatedApp {
@@ -39,10 +42,12 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
     db: opts.db ?? defaultDb,
     out: opts.out ?? OUT,
     skipNextSSE: new Set<string>(),
+    auth: opts.auth ?? false,
   };
 
   const app = express();
   app.use(express.json({ limit: '4mb' }));
+  if (ctx.auth) installAuth(app, ctx);   // /auth/* routes + the session/tenant gate (before static)
   app.use(express.static(PUBLIC));
 
   registerAnalyses(app, ctx);

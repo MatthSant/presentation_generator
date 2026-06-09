@@ -6,6 +6,8 @@ import type { Express } from 'express';
 import type { Ctx } from '../context.js';
 import type { ReportData } from '../../shared/types.js';
 import { migrateCsv } from '../db.js';
+import { clientsOf } from '../auth.js';
+import type { AuthedRequest } from './authRoutes.js';
 
 function listDirs(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -15,10 +17,14 @@ function listDirs(dir: string): string[] {
 }
 
 export function registerAnalyses(app: Express, ctx: Ctx): void {
-  app.get('/api/analyses', (_req, res) => {
+  app.get('/api/analyses', (req, res) => {
     const rows: Record<string, unknown>[] = [];
+    // Multi-tenant: a consultant sees only the clients they own.
+    const user = (req as AuthedRequest).user;
+    const owned = ctx.auth && user ? clientsOf(ctx.db, user.id) : null;
 
     for (const client of listDirs(ctx.out)) {
+      if (owned && !owned.has(client)) continue;
       for (const slug of listDirs(path.join(ctx.out, client))) {
         const dataFile = path.join(ctx.out, client, slug, 'data.json');
         if (!fs.existsSync(dataFile)) continue;

@@ -7,4 +7,6 @@ export interface Ctx {
   out: string;
   /** Filenames whose next fs.watch event should be ignored (our own writes). */
   skipNextSSE: Set<string>;
+  /** When true, auth + multi-tenant isolation is enforced (off in unit tests). */
+  auth?: boolean;
 }

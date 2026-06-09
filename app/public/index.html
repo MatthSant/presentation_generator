@@ -26,6 +26,9 @@
     .home-new svg { width: 15px; height: 15px; }
     .home-bar-count { margin-left: 14px; font-size: 12.5px; color: var(--gray); }
     .home-bar-count b { color: var(--fg); font-weight: 700; }
+    .bar-logout { margin-left: 14px; display: none; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--gray); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 11px; cursor: pointer; }
+    .bar-logout:hover { color: var(--fg); border-color: var(--border-strong); }
+    .bar-logout b { color: var(--fg); font-weight: 700; }
 
     /* ── page ── */
     .home-wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 96px; }
@@ -115,6 +118,7 @@
     <span class="home-brand">Dossiê do Consultor<small>Analytics</small></span>
     <a class="home-new" href="/gerar.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nova análise</a>
     <span class="home-bar-count" id="bar-count"></span>
+    <button class="bar-logout" id="logout" type="button" title="Sair">Sair</button>
   </header>
 
   <div class="home-wrap">
@@ -216,6 +220,16 @@
     } catch (err) {
       list.innerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`;
     }
+  </script>
+  <script>
+    // Show "Sair" only when auth is on and the consultant is logged in.
+    fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
+      if (!me) return;
+      const b = document.getElementById('logout');
+      b.innerHTML = `<b>${me.email}</b> · Sair`;
+      b.style.display = 'inline-flex';
+      b.onclick = async () => { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login.html'; };
+    }).catch(() => {});
   </script>
 </body>
 </html>

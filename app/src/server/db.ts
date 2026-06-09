@@ -41,6 +41,25 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_be ON block_edits(client, slug);
   CREATE INDEX IF NOT EXISTS idx_be_action ON block_edits(action, created_at);
+
+  CREATE TABLE IF NOT EXISTS users (
+    id         TEXT PRIMARY KEY,
+    email      TEXT UNIQUE NOT NULL,
+    pass_hash  TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS sessions (
+    token      TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sess_user ON sessions(user_id);
+  CREATE TABLE IF NOT EXISTS user_clients (
+    user_id TEXT NOT NULL,
+    client  TEXT NOT NULL,
+    PRIMARY KEY (user_id, client)
+  );
 `;
 
 /** Open (and initialize) a SQLite store at the given path. `:memory:` works for tests. */

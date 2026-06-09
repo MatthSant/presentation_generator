@@ -20,6 +20,8 @@ import { SCRATCH } from '../paths.js';
 import { runGeneration } from '../pygen.js';
 import { buildDigest } from '../datasetCatalog.js';
 import { generateInsights } from '../claude.js';
+import { assignClient } from '../auth.js';
+import type { AuthedRequest } from './authRoutes.js';
 import { validateAnalysis } from '../../shared/validate.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -82,6 +84,9 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
         res.status(500).json({ error: 'falha na geração', stderr: tail(result.stderr || result.stdout, 2000) });
         return;
       }
+      // Multi-tenant: the consultant who generated owns this client from now on.
+      const uid = (req as AuthedRequest).user?.id;
+      if (uid) assignClient(ctx.db, uid, client);
 
       // Optional Layer B1: generate insight prose from the freshly computed
       // aggregates (CSV still in scratch), then re-emit the views with it.
