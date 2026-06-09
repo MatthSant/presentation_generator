@@ -104,6 +104,8 @@ com widgets do app. Regras inegociáveis:
 - A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
 - No máximo UM gráfico; não despeje a tabela inteira.
 - Se o recorte pedido não existir no catálogo, diga isso num find-note — nunca invente.
+- Se vier "modal_anterior", AJUSTE/aprofunde essa modal conforme a "instrucao",
+  partindo dela e mantendo o que faz sentido (emita a modal final completa).
 - Responda exclusivamente chamando a ferramenta emit_modal.`;
 
 function bindSchema(tableNames: string[]): unknown {
@@ -141,13 +143,13 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
 export interface ModalResult { modal: unknown; mocked: boolean }
 interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown; tabs?: unknown; pagina?: string; criterio?: string }
 
-export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string): Promise<ModalResult> {
+export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: mockModal(catalog, card), mocked: true };
 
   const names = catalog.tables.map((t) => t.name);
   const client = new Anthropic({ apiKey });
-  const payload = { instrucao: prompt, card, catalogo: catalog.tables, reparar: repair };
+  const payload = { instrucao: prompt, card, catalogo: catalog.tables, reparar: repair, modal_anterior: prev };
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 3072,
@@ -199,6 +201,11 @@ que o bloco usa) para entender o assunto exato do bloco e escolher o recorte mai
 relevante a ELE (ex.: um bloco de "proporção/representatividade" pede métrica de
 participação por lançamento; um bloco de conversão pede a métrica de conversão).
 
+AJUSTE/ITERAÇÃO: se vier "modal_anterior", o consultor quer AJUSTAR ou APROFUNDAR
+essa modal já existente — PARTA dela, mantenha o que ainda faz sentido e aplique
+exatamente o que a "instrucao" pede (ex.: trocar o gráfico, encurtar, focar num
+grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
+
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
 catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
 "nao_disponivel", diga isso na prosa — nunca invente número.`;
@@ -227,13 +234,13 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta }) }];
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta, modal_anterior: prev }) }];
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const names = [...catalog.tables.map((t) => t.name), ...registered];

@@ -157,7 +157,9 @@ class App {
       onSaveLayout: (id, items) => this.persistLayout(id, items),
     });
 
-    for (const modal of section.modals || []) this.renderModal(modal);
+    for (const modal of section.modals || []) {
+      this.renderModal(modal, section.widgets.find((w) => (w as { modal?: string }).modal === modal.id)?.id);
+    }
     this.markBlocks();
     this.markDeepen(section);
 
@@ -225,10 +227,10 @@ class App {
     ta.focus();
   }
 
-  private async runDeepen(secId: string, blockId: string, prompt: string): Promise<void> {
-    this.toast('Gerando detalhamento…');
+  private async runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<void> {
+    this.toast(prev ? 'Ajustando o detalhamento…' : 'Gerando detalhamento…');
     try {
-      const r = await this.api.deepen(secId, blockId, prompt);
+      const r = await this.api.deepen(secId, blockId, prompt, prev);
       this.pendingModal = r.modal.id;
       // Deep mode added new aggregate tables → refresh the dataset before re-render.
       if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
@@ -293,7 +295,7 @@ class App {
     return wrap;
   }
 
-  private renderModal(modal: Modal): void {
+  private renderModal(modal: Modal, ownerBlockId?: string): void {
     const overlay = document.createElement('div');
     overlay.className = 'ic-overlay';
     overlay.id = modal.id;
@@ -313,6 +315,26 @@ class App {
 
     const ctx = this.resolveCtx();
     for (const w of modal.widgets || []) dialog.appendChild(renderWidget(w, ctx));
+
+    // Iterate: ask the model to adjust or deepen THIS detalhamento further.
+    if (ownerBlockId) {
+      const foot = document.createElement('form');
+      foot.className = 'ic-deepen';
+      foot.innerHTML = '<input type="text" placeholder="Ajustar ou aprofundar este detalhamento… (ex.: troque o gráfico, foque na faixa alta, cruze com patrimônio)" />'
+        + '<button type="submit">Enviar</button>';
+      foot.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inp = foot.querySelector('input') as HTMLInputElement;
+        const btn = foot.querySelector('button') as HTMLButtonElement;
+        const q = inp.value.trim();
+        if (!q) return;
+        btn.disabled = true; btn.textContent = '…';
+        await this.runDeepen(this.store.currentSectionId, ownerBlockId, q, modal);
+        if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Enviar'; } // only on failure (success re-renders)
+      });
+      dialog.appendChild(foot);
+    }
+
     overlay.appendChild(dialog);
     MODAL_ROOT.appendChild(overlay);
     for (const { elId, def } of ctx.charts) this.modalCharts.create(elId, def);

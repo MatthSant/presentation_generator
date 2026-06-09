@@ -37,10 +37,10 @@ export class Api {
     });
   }
 
-  deepen(secId: string, blockId: string, prompt: string): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean; datasetChanged?: boolean }> {
+  deepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean; datasetChanged?: boolean }> {
     return this.json(`${this.base()}/section/${encodeURIComponent(secId)}/deepen`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blockId, prompt }),
+      body: JSON.stringify({ blockId, prompt, prev }),
     });
   }
 

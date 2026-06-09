@@ -54,6 +54,9 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const blockId = String(body.blockId || '');
     const prompt = String(body.prompt || '').trim();
     if (!prompt) { res.status(400).json({ error: 'prompt required' }); return; }
+    // When adjusting/iterating an existing detalhamento, the client sends the
+    // current modal so the model starts from it instead of from scratch.
+    const prev = body.prev && typeof body.prev === 'object' ? body.prev : undefined;
 
     const card = section.widgets.find((w) => w.id === blockId);
     if (!card) { res.status(404).json({ error: 'card not found' }); return; }
@@ -123,7 +126,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
           },
           validate: (modal) => validate(assignIds({ ...(modal as Modal), id: modalId })),
         };
-        const r = await generateModalDeep(prompt, cardCtx, catalog, deps);
+        const r = await generateModalDeep(prompt, cardCtx, catalog, deps, prev);
         mocked = r.mocked;
         const cand = assignIds({ ...(r.modal as Modal), id: modalId });
         errors = validate(cand);
@@ -132,7 +135,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         // Shallow: bind only to already-computed tables; 1 repair turn.
         for (let attempt = 0; attempt < 2; attempt++) {
           const repair = attempt === 0 ? undefined : `A modal anterior foi rejeitada: ${errors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
-          const r = await generateModal(prompt, cardCtx, catalog, repair);
+          const r = await generateModal(prompt, cardCtx, catalog, repair, prev);
           mocked = r.mocked;
           const cand = assignIds({ ...(r.modal as Modal), id: modalId });
           errors = validate(cand);

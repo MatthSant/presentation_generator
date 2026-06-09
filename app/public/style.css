@@ -913,6 +913,14 @@ body.edit-mode .tile-deepen { display:none; }
 .deepen-btn.ghost { background:transparent; color:var(--gray); border:1px solid var(--border); }
 .deepen-btn:hover { opacity:.9; }
 
+/* Iterate footer inside an open detalhamento modal: ask to adjust / deepen more. */
+.ic-deepen { display:flex; gap:8px; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+.ic-deepen input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-family:'Exo 2',sans-serif; font-size:13px; color:var(--fg); outline:none; }
+.ic-deepen input:focus { border-color:var(--purple); }
+.ic-deepen button { font-size:13px; font-weight:700; color:#fff; background:var(--purple); border:none; border-radius:8px; padding:9px 16px; cursor:pointer; flex-shrink:0; }
+.ic-deepen button:disabled { opacity:.6; cursor:default; }
+@media print { .ic-deepen { display:none !important; } }
+
 /* Filter badge — small purple circle marking tiles whose data reflects the active
    (non-default) filter. Unmarked tiles are the general/unfiltered number. */
 .tile-filter-badge {
