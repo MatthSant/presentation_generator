@@ -29,6 +29,8 @@ export interface Digest {
  *  columns + a couple sample rows. Claude may only `bind` to these names. */
 export interface CatalogTable {
   name: string; columns: string[]; dims: string[]; filters: string[]; rowCount: number;
+  /** Columns safe to plot as a chart y (real numbers, not formatted strings). */
+  numericCols: string[];
   /** Distinct values per dimension (capped) — the valid keys for a bind.where filter. */
   dimValues: Record<string, string[]>;
   sample: Array<Record<string, unknown>>;
@@ -53,7 +55,8 @@ export function buildCatalog(dataset: DataMap): DeepenCatalog {
       }
       dimValues[d] = [...seen];
     }
-    tables.push({ name, columns, dims, filters: t.filters ?? [], rowCount: rows.length, dimValues, sample: rows.slice(0, 2) });
+    const numericCols = columns.filter((c) => rows.some((r) => typeof r[c] === 'number'));
+    tables.push({ name, columns, dims, filters: t.filters ?? [], rowCount: rows.length, numericCols, dimValues, sample: rows.slice(0, 2) });
   }
   return { tables };
 }

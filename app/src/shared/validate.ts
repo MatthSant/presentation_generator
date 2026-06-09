@@ -72,6 +72,15 @@ function tableColumns(table: unknown): Set<string> {
   return cols;
 }
 
+/** True when at least one row carries a real number under `col` — i.e. the column
+ *  is plottable. Display tables hold formatted strings ("16,7%"), which aren't. */
+function isNumericColumn(datasets: DataMap | undefined, dataset: unknown, col: string): boolean {
+  if (!datasets || !isStr(dataset)) return true;     // can't verify → don't block
+  const table = datasets[dataset] as unknown;
+  if (!isObj(table) || !Array.isArray(table.rows)) return true;
+  return table.rows.some((r) => isObj(r) && typeof r[col] === 'number');
+}
+
 /* ─────────────────────────────  View / Section  ───────────────────────────── */
 
 function validateBind(c: Collector, path: string, bind: unknown, datasets?: DataMap): void {
@@ -134,6 +143,14 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       }
       if (!hasBind && w.series === undefined) {
         c.err(`${path}.series`, 'chart requires inline series when there is no bind');
+      }
+      // A chart's y must be a NUMERIC column — a formatted-string column (e.g. the
+      // display "*_detail" tables: "16,7%") resolves to 0 and renders an empty chart.
+      if (hasBind && datasets) {
+        const b = w.bind as Obj;
+        if (b.y !== undefined && isStr(b.y) && !isNumericColumn(datasets, b.dataset, b.y)) {
+          c.err(`${path}.bind.y`, `chart y "${b.y}" is not numeric — bind to a numeric column (e.g. *_rank / *_grp), not a formatted *_detail column`);
+        }
       }
       break;
     case 'table':

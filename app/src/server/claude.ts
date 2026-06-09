@@ -153,6 +153,11 @@ com widgets do app. Regras inegociáveis:
   ele usa) e aprofunde sobre ESSE assunto.
 - Widgets de gráfico/tabela NÃO carregam números — eles fazem "bind" a uma tabela do
   CATÁLOGO. Use SOMENTE nomes de tabela e colunas que existem no catálogo fornecido.
+- O "y" de um GRÁFICO tem que ser uma coluna NUMÉRICA (veja "numericCols" de cada
+  tabela). Tabelas de exibição (colunas formatadas como "16,7%", tipicamente as "_detail")
+  são TEXTO — use só em widgets de TABELA; num gráfico elas renderizam zerado. Para
+  representatividade/diff/conversão num gráfico, use as tabelas numéricas (ex.: *_rank,
+  *_grp).
 - A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
 - RECORTE POR VALOR (where): cada linha da tabela é uma combinação das "dims". Para
   ISOLAR um valor de uma dimensão (um mês, uma categoria), use bind.where — ex.:
@@ -211,10 +216,14 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
 
   const names = catalog.tables.map((t) => t.name);
   const client = new Anthropic({ apiKey });
-  const payload = { instrucao: prompt, card, catalogo: catalog.tables, reparar: repair, modal_anterior: prev };
+  // Drop the per-table sample rows: with dozens of tables they dominate the input
+  // (the display "_detail" rows are huge), and columns + numericCols + dimValues
+  // already tell the model what it needs.
+  const lean = catalog.tables.map(({ sample, ...t }) => t);
+  const payload = { instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev };
   const msg = await loggedCreate(client, {
     model: MODEL,
-    max_tokens: 3072,
+    max_tokens: 4096,
     system: [{ type: 'text', text: MODAL_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [{ name: 'emit_modal', description: 'Emite a modal de aprofundamento.', input_schema: modalSchema(names) }],
     tool_choice: { type: 'tool', name: 'emit_modal' },
@@ -312,7 +321,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
-      model: MODEL, max_tokens: 3072,
+      model: MODEL, max_tokens: 4096,
       system: [{ type: 'text', text: DEEP_SYSTEM, cache_control: { type: 'ephemeral' } }],
       tools: [consultarTool(deps), emitModalTool(names)],
       tool_choice: { type: 'any' },
