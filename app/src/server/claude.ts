@@ -156,6 +156,108 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   return { modal: tu.input, mocked: false };
 }
 
+// --- B2 deep: model-driven query loop over the retained base ----------------
+
+export interface QueryReply { status: string; table?: { dims: string[]; filters: string[]; rows: Array<Record<string, unknown>> }; summary?: string; motivo?: string }
+export interface DeepDeps {
+  meta: { criterios: Array<{ id: string; label: string }>; canais: string[]; metricas: string[] };
+  /** Run a catalog query (the app computes; returns only aggregates). */
+  runQuery: (fn: string, args: Record<string, unknown>) => Promise<QueryReply>;
+  /** Merge a returned table into the dataset; returns the new dataset key to bind to. */
+  registerTable: (table: { dims: string[]; filters: string[]; rows: Array<Record<string, unknown>> }, summary: string) => string;
+}
+
+const DEEP_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil. Você NÃO recebe o
+dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
+devolve só agregados. Faça quantas consultas precisar; cada resultado ganha um
+"dataset_key" que você pode usar no bind de um gráfico/tabela. Quando tiver o
+suficiente, chame "emit_modal". Regras: gráficos/tabelas só via bind a um
+dataset_key retornado (ou a uma tabela do catálogo inicial); a prosa vai em
+find-note (números permitidos). Se uma consulta voltar "nao_disponivel", diga isso
+na prosa — nunca invente número.`;
+
+function consultarTool(deps: DeepDeps): Anthropic.Tool {
+  const ids = deps.meta.criterios.map((c) => c.id);
+  return {
+    name: 'consultar',
+    description: 'Calcula um recorte agregado sobre o dado retido (o app computa).',
+    input_schema: {
+      type: 'object',
+      required: ['funcao'],
+      properties: {
+        funcao: { type: 'string', enum: ['cut_by_criterion', 'trend', 'crosstab', 'association'] },
+        criterio: { type: 'string', enum: ids },
+        cruzar_com: { type: 'string', enum: ids },
+        canal: { type: 'string', enum: deps.meta.canais },
+        metrica: { type: 'string', enum: deps.meta.metricas },
+      },
+    } as unknown as Anthropic.Tool.InputSchema,
+  };
+}
+function emitModalTool(tableNames: string[]): Anthropic.Tool {
+  return { name: 'emit_modal', description: 'Emite a modal final.', input_schema: modalSchema(tableNames) };
+}
+
+const MAX_TURNS = 6;
+
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps): Promise<ModalResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
+
+  const client = new Anthropic({ apiKey });
+  const registered: string[] = [];
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta }) }];
+
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
+    const names = [...catalog.tables.map((t) => t.name), ...registered];
+    const msg = await client.messages.create({
+      model: MODEL, max_tokens: 3072,
+      system: [{ type: 'text', text: DEEP_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      tools: [consultarTool(deps), emitModalTool(names)],
+      tool_choice: { type: 'any' },
+      messages,
+    });
+    messages.push({ role: 'assistant', content: msg.content });
+    const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+    if (!tu) throw new Error('Claude não chamou nenhuma tool');
+    if (tu.name === 'emit_modal') return { modal: tu.input, mocked: false };
+
+    const { funcao, ...args } = tu.input as { funcao: string; [k: string]: unknown };
+    const r = await deps.runQuery(funcao, args);
+    let result: unknown;
+    if (r.status === 'ok' && r.table) {
+      const key = deps.registerTable(r.table, r.summary ?? '');
+      result = { status: 'ok', dataset_key: key, columns: Object.keys(r.table.rows[0] ?? {}), sample: r.table.rows.slice(0, 3), summary: r.summary };
+    } else {
+      result = { status: r.status, motivo: r.motivo };
+    }
+    messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(result) }] });
+  }
+  throw new Error('loop de aprofundamento sem emit_modal');
+}
+
+/** Offline deep modal: runs one real crosstab (card criterion × another factor)
+ *  through the query catalog, registers it, and binds a chart to it. */
+async function mockModalDeep(card: CardCtx, _catalog: DeepenCatalog, deps: DeepDeps): Promise<unknown> {
+  const ids = deps.meta.criterios.map((c) => c.id);
+  const bindName = (card.bind as { dataset?: string } | undefined)?.dataset || '';
+  const m = bindName.match(/^crit_([a-z0-9]+)_/i);
+  const criterio = (m && ids.includes(m[1]) ? m[1] : ids[0]) || ids[0];
+  const cruzar = ids.find((x) => x !== criterio) || criterio;
+  const canal = deps.meta.canais[0] || 'Geral';
+
+  const widgets: unknown[] = [];
+  const r = await deps.runQuery('crosstab', { criterio, cruzar_com: cruzar, canal });
+  if (r.status === 'ok' && r.table) {
+    const key = deps.registerTable(r.table, r.summary ?? '');
+    widgets.push({ type: 'find-note', text: `Cruzamento sob demanda: <strong>${criterio}</strong> × <strong>${cruzar}</strong> (${canal}). ${r.summary ?? ''} <em>[mock]</em>` });
+    widgets.push({ type: 'chart', title: r.summary ?? 'Cruzamento', chartType: 'bar', bind: { dataset: key, x: 'grupo', y: 'valor', series: 'cruzar' } });
+  } else {
+    widgets.push({ type: 'find-note', text: `Recorte não disponível: ${r.motivo ?? 'sem dados'}. <em>[mock]</em>` });
+  }
+  return { id: 'modal-mock', title: `Detalhe — ${card.title ?? 'card'}`, widgets };
+}
+
 /** Offline modal: prose + the criterion's "variação por grupo" chart, bound to a
  *  real catalog table. Proves the mechanism without an API key. */
 function mockModal(catalog: DeepenCatalog, card: CardCtx): unknown {

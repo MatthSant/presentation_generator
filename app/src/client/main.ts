@@ -230,6 +230,8 @@ class App {
     try {
       const r = await this.api.deepen(secId, blockId, prompt);
       this.pendingModal = r.modal.id;
+      // Deep mode added new aggregate tables → refresh the dataset before re-render.
+      if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
       this.store.dropSection(secId);
       await this.go(this.store.currentPageId, secId);
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');

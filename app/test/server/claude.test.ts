@@ -3,7 +3,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateInsights, generateModal } from '../../src/server/claude.js';
+import { generateInsights, generateModal, generateModalDeep, type DeepDeps } from '../../src/server/claude.js';
 import type { Digest, DeepenCatalog } from '../../src/server/datasetCatalog.js';
 
 let prevKey: string | undefined;
@@ -67,4 +67,34 @@ test('generateModal (mock): empty catalog → prose only, no broken bind', async
   const { modal } = await generateModal('x', { title: 'Y' }, { tables: [] });
   const m = modal as { widgets: Array<{ type: string; bind?: unknown }> };
   assert.ok(m.widgets.every((w) => !w.bind), 'no chart bind when no tables');
+});
+
+function fakeDeps(reply: { status: string; table?: unknown; motivo?: string }): { deps: DeepDeps; registered: unknown[]; calls: Array<{ fn: string; args: unknown }> } {
+  const registered: unknown[] = [];
+  const calls: Array<{ fn: string; args: unknown }> = [];
+  const deps: DeepDeps = {
+    meta: { criterios: [{ id: 'renda', label: 'Renda' }, { id: 'idade', label: 'Idade' }], canais: ['Geral'], metricas: ['diff'] },
+    runQuery: async (fn, args) => { calls.push({ fn, args }); return reply as never; },
+    registerTable: (table) => { registered.push(table); return `q-test-${registered.length - 1}`; },
+  };
+  return { deps, registered, calls };
+}
+
+test('generateModalDeep (mock): runs a query, registers the table, binds to it', async () => {
+  const { deps, registered, calls } = fakeDeps({ status: 'ok', table: { dims: ['grupo', 'cruzar'], filters: [], rows: [{ grupo: 'A', cruzar: 'X', valor: 5 }] }, summary: 's' });
+  const { modal, mocked } = await generateModalDeep('cruze renda com idade', { bind: { dataset: 'crit_renda_conv' } }, { tables: [] }, deps);
+  assert.equal(mocked, true);
+  assert.equal(calls[0].fn, 'crosstab');                 // the app was asked to compute a cut
+  assert.equal(registered.length, 1);                    // and its result merged as a table
+  const m = modal as { widgets: Array<{ type: string; bind?: { dataset: string } }> };
+  const chart = m.widgets.find((w) => w.type === 'chart');
+  assert.ok(chart && chart.bind?.dataset === 'q-test-0', 'chart binds to the registered key');
+});
+
+test('generateModalDeep (mock): nao_disponivel → prose only, no table registered', async () => {
+  const { deps, registered } = fakeDeps({ status: 'nao_disponivel', motivo: 'sem respondentes' });
+  const { modal } = await generateModalDeep('x', {}, { tables: [] }, deps);
+  assert.equal(registered.length, 0);
+  const m = modal as { widgets: Array<{ type: string; bind?: unknown }> };
+  assert.ok(m.widgets.every((w) => !w.bind), 'no bind when the cut is unavailable');
 });

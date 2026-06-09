@@ -8,16 +8,21 @@
  * A modal só referencia agregados existentes; nenhum número novo é fabricado. */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import type { Express } from 'express';
 import type { Ctx } from '../context.js';
 import type { Section, Widget, Modal } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
+import { BASE } from '../paths.js';
 import { buildCatalog } from '../datasetCatalog.js';
-import { generateModal } from '../claude.js';
+import { generateModal, generateModalDeep, type DeepDeps } from '../claude.js';
+import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 
-type DataMap = Record<string, { rows: Array<Record<string, unknown>> }>;
+interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
+type DataMap = Record<string, DataTable>;
+interface BaseConfig { criterios: Array<{ id: string; label?: string }>; channels?: string[] }
 
 function assignIds(modal: Modal): Modal {
   (modal.widgets || []).forEach((w, i) => { if (!w.id) (w as { id: string }).id = `${modal.id}-w${i}`; });
@@ -59,25 +64,59 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
       bind: (card as { bind?: unknown }).bind,
     };
     const modalId = `modal-${blockId}-${crypto.randomBytes(3).toString('hex')}`;
+    const validate = (modal: Modal): string[] =>
+      validateSection({ ...section, modals: [...(section.modals || []), modal] }, dataset as unknown as Parameters<typeof validateSection>[1])
+        .map((e) => `${e.path}: ${e.message}`);
+
+    // Deep mode is available when this analysis kept its base data (Fase 3b).
+    const baseDir = path.join(BASE, client, slug);
+    const hasBase = fs.existsSync(path.join(baseDir, 'dump.csv')) && fs.existsSync(path.join(baseDir, 'config.json'));
 
     try {
       let mocked = false;
       let modal: Modal | null = null;
-      let lastErrors: string[] = [];
-      // up to 2 attempts: initial + one repair fed the validation errors
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const repair = attempt === 0 ? undefined : `A modal anterior foi rejeitada: ${lastErrors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
-        const r = await generateModal(prompt, cardCtx, catalog, repair);
-        mocked = r.mocked;
-        modal = assignIds({ ...(r.modal as Modal), id: modalId });
-        const errs = validateSection({ ...section, modals: [...(section.modals || []), modal] }, dataset as unknown as Parameters<typeof validateSection>[1]);
-        if (errs.length === 0) { lastErrors = []; break; }
-        lastErrors = errs.map((e) => `${e.path}: ${e.message}`);
-        modal = null;
-        if (mocked) break; // mock won't self-repair
-      }
-      if (!modal) { res.status(422).json({ error: 'modal inválida', detail: lastErrors }); return; }
+      let datasetChanged = false;
+      let errors: string[] = [];
 
+      if (hasBase) {
+        // The model decides which cuts to request; the app computes them over the
+        // retained base and merges the aggregates into the dataset to bind to.
+        const config = readJson<BaseConfig>(path.join(baseDir, 'config.json'));
+        let qn = 0;
+        const deps: DeepDeps = {
+          meta: {
+            criterios: (config?.criterios || []).map((c) => ({ id: c.id, label: c.label || c.id })),
+            canais: config?.channels || ['Geral'],
+            metricas: ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'],
+          },
+          runQuery: async (fn, args) => (await runQuery(client, slug, fn, args)) ?? { status: 'erro', motivo: 'sem base' },
+          registerTable: (table, _summary) => {
+            const key = `q-${modalId}-${qn++}`;
+            dataset[key] = { dims: table.dims, filters: table.filters, rows: table.rows };
+            datasetChanged = true;
+            return key;
+          },
+        };
+        const r = await generateModalDeep(prompt, cardCtx, catalog, deps);
+        mocked = r.mocked;
+        const cand = assignIds({ ...(r.modal as Modal), id: modalId });
+        errors = validate(cand);
+        if (errors.length === 0) modal = cand;
+      } else {
+        // Shallow: bind only to already-computed tables; 1 repair turn.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const repair = attempt === 0 ? undefined : `A modal anterior foi rejeitada: ${errors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
+          const r = await generateModal(prompt, cardCtx, catalog, repair);
+          mocked = r.mocked;
+          const cand = assignIds({ ...(r.modal as Modal), id: modalId });
+          errors = validate(cand);
+          if (errors.length === 0) { modal = cand; break; }
+          if (mocked) break;
+        }
+      }
+      if (!modal) { res.status(422).json({ error: 'modal inválida', detail: errors }); return; }
+
+      if (datasetChanged) writeJson(path.join(dir, 'dataset.json'), dataset);
       section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id), modal];
       (card as { modal?: string }).modal = modal.id;
 
@@ -93,7 +132,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         created_at: new Date().toISOString(),
       });
 
-      res.json({ ok: true, modal, mocked, blockId });
+      res.json({ ok: true, modal, mocked, blockId, datasetChanged });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
