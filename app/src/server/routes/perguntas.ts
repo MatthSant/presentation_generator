@@ -75,10 +75,36 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     return m;
   }
 
-  app.get('/api/:client/:slug/perguntas', (req, res) => {
+  /** Ensure the report nav has a "Perguntas norteadoras" page (kind: perguntas). */
+  function ensurePerguntasPage(dir: string): void {
+    const dataFile = path.join(dir, 'data.json');
+    const data = readJson<ReportData>(dataFile);
+    if (!data) return;
+    const pages = (data.pages ||= []);
+    if (pages.some((p) => p.kind === 'perguntas')) return;
+    pages.push({ id: 'perguntas', label: 'Perguntas norteadoras', kind: 'perguntas',
+      sections: [{ id: 'perguntas', label: 'Perguntas norteadoras' }] } as PageRef);
+    ctx.skipNextSSE.add('data.json');
+    writeJson(dataFile, data);
+  }
+
+  /** Run the relevance calc (bank for standard analyses, else legacy input) and,
+   *  when it yields questions, surface the board as a report page. */
+  async function generateDoc(dir: string): Promise<void> {
+    ctx.skipNextSSE.add('perguntas.json');
+    await runPerguntasCalc(path.join(dir, 'dataset.json'), path.join(dir, 'perguntas.json'));
+    const doc = readJson<PerguntasDoc>(path.join(dir, 'perguntas.json'));
+    if (doc && (doc.perguntas || []).length) ensurePerguntasPage(dir);
+  }
+
+  app.get('/api/:client/:slug/perguntas', async (req, res) => {
     const { client, slug } = req.params;
     const dir = analysisDir(ctx.out, client, slug);
     const file = docPath(client, slug);
+    // First access: derive the ranked questions from the analysis data on demand.
+    if (dir && file && !fs.existsSync(file) && fs.existsSync(path.join(dir, 'dataset.json'))) {
+      await generateDoc(dir).catch(() => { /* fall through to empty */ });
+    }
     const doc = file ? readJson<PerguntasDoc>(file) : null;
     const custom = dir ? readJson<PerguntasDoc>(customPath(dir)) : null;
     const list = [...(doc?.perguntas || []), ...(custom?.perguntas || [])];
@@ -204,11 +230,9 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const { client, slug } = req.params;
     const dir = analysisDir(ctx.out, client, slug);
     if (!dir) { res.status(400).json({ error: 'bad path' }); return; }
-    const input = path.join(dir, 'perguntas_input.json');
-    const output = path.join(dir, 'perguntas.json');
-    if (!fs.existsSync(input)) { res.status(404).json({ error: 'perguntas_input.json ausente' }); return; }
+    if (!fs.existsSync(path.join(dir, 'dataset.json'))) { res.status(404).json({ error: 'dataset.json ausente' }); return; }
     ctx.skipNextSSE.add('perguntas.json');
-    const r = await runPerguntasCalc(input, output);
+    const r = await runPerguntasCalc(path.join(dir, 'dataset.json'), path.join(dir, 'perguntas.json'));
     if (!r.ok) { res.status(500).json({ error: 'calc falhou', detail: r.stderr.trim() }); return; }
     res.json({ ok: true });
   });
