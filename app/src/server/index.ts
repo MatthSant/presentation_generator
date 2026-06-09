@@ -1,5 +1,6 @@
 /* index.ts — process entrypoint: build the app and start listening. */
 
+import './env.js'; // load app/.env before anything reads process.env
 import fs from 'node:fs';
 import { createApp } from './app.js';
 import { PORT, OUT } from './paths.js';

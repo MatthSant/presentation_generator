@@ -4,6 +4,7 @@ temp/
 output/
 .claude/settings.local.json
 app/node_modules/
+app/.env
 
 # Dados de cliente / artefatos pesados — nunca versionar (LGPD)
 *.csv
