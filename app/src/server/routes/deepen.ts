@@ -25,7 +25,11 @@ type DataMap = Record<string, DataTable>;
 interface BaseConfig { criterios: Array<{ id: string; label?: string }>; channels?: string[] }
 
 function assignIds(modal: Modal): Modal {
-  (modal.widgets || []).forEach((w, i) => { if (!w.id) (w as { id: string }).id = `${modal.id}-w${i}`; });
+  // The model can emit a malformed `widgets` (the tool schema isn't strictly
+  // enforced) — coerce to an array so we never crash on .forEach.
+  const ws = Array.isArray(modal.widgets) ? modal.widgets : [];
+  ws.forEach((w, i) => { if (!w.id) (w as { id: string }).id = `${modal.id}-w${i}`; });
+  modal.widgets = ws;
   return modal;
 }
 
@@ -64,9 +68,13 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
       bind: (card as { bind?: unknown }).bind,
     };
     const modalId = `modal-${blockId}-${crypto.randomBytes(3).toString('hex')}`;
-    const validate = (modal: Modal): string[] =>
-      validateSection({ ...section, modals: [...(section.modals || []), modal] }, dataset as unknown as Parameters<typeof validateSection>[1])
+    const validate = (modal: Modal): string[] => {
+      if (!Array.isArray(modal.widgets) || modal.widgets.length === 0) {
+        return ['widgets deve ser uma lista não-vazia (find-note / chart / table)'];
+      }
+      return validateSection({ ...section, modals: [...(section.modals || []), modal] }, dataset as unknown as Parameters<typeof validateSection>[1])
         .map((e) => `${e.path}: ${e.message}`);
+    };
 
     // Deep mode is available when this analysis kept its base data (Fase 3b).
     const baseDir = path.join(BASE, client, slug);
