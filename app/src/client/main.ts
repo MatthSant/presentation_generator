@@ -168,21 +168,36 @@ class App {
     }
   }
 
-  /** Add a "detalhar" (deepen) button to every find-block card tile. */
+  /** Content widget types worth deepening (skips eyebrows, notes, kpi strips). */
+  private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card', 'heatmap-toggle', 'chart-toggle']);
+  private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>';
+
+  /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
+   *  is attached. Works across all pages/blocks, not just insight cards. */
   private markDeepen(section: Section): void {
     for (const w of section.widgets) {
-      if (w.type !== 'find-block' || !w.id) continue;
+      if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
       if (!tile || tile.querySelector(':scope > .tile-deepen')) continue;
+      const existing = (w as { modal?: string }).modal;
+      const title = (w as { title?: string }).title || '';
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'tile-deepen';
-      btn.title = 'Detalhar este card com IA';
-      btn.innerHTML = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>detalhar';
-      const title = (w as { title?: string }).title || '';
-      btn.addEventListener('click', (e) => { e.stopPropagation(); this.openDeepenComposer(section.id, w.id!, title); });
+      btn.className = 'tile-deepen' + (existing ? ' has-modal' : '');
+      btn.title = existing ? 'Ver detalhamento' : 'Detalhar este bloco com IA';
+      btn.innerHTML = App.SPARKLE + (existing ? 'ver detalhe' : 'detalhar');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (existing) this.openModalById(existing);
+        else this.openDeepenComposer(section.id, w.id!, title);
+      });
       tile.appendChild(btn);
     }
+  }
+
+  private openModalById(id: string): void {
+    const m = document.getElementById(id);
+    if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
   }
 
   /** Prompt the consultant for what to deepen, call the API, then reload + open. */

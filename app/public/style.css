@@ -894,6 +894,7 @@ body.edit-mode .tile-cmark { display:none; }
   opacity:0; transition:opacity .12s;
 }
 .dash-tile:hover .tile-deepen { opacity:1; }
+.tile-deepen.has-modal { opacity:1; background:var(--purple); color:#fff; border-color:var(--purple); }
 .tile-deepen:hover { background:var(--purple); color:#fff; }
 .tile-deepen .svg-ic { width:12px; height:12px; }
 body.edit-mode .tile-deepen { display:none; }

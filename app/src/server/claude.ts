@@ -134,7 +134,7 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
 }
 
 export interface ModalResult { modal: unknown; mocked: boolean }
-interface CardCtx { title?: string; detail?: string }
+interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown }
 
 export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;

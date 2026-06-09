@@ -52,7 +52,12 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const dataset = readJson<DataMap>(path.join(dir, 'dataset.json'));
     if (!dataset) { res.status(400).json({ error: 'dataset ausente' }); return; }
     const catalog = buildCatalog(dataset);
-    const cardCtx = { title: (card as { title?: string }).title, detail: (card as { detail?: string }).detail };
+    const cardCtx = {
+      title: (card as { title?: string }).title,
+      detail: (card as { detail?: string }).detail,
+      type: (card as Widget).type,
+      bind: (card as { bind?: unknown }).bind,
+    };
     const modalId = `modal-${blockId}-${crypto.randomBytes(3).toString('hex')}`;
 
     try {
