@@ -1,0 +1,19 @@
+/* claudeLog.ts — read the append-only log of Claude API calls (debug/audit).
+ * GET /api/claude-log?limit=N → the last N records (request + response/error). */
+
+import fs from 'node:fs';
+import type { Express } from 'express';
+import type { Ctx } from '../context.js';
+import { CLAUDE_LOG } from '../paths.js';
+
+export function registerClaudeLog(app: Express, _ctx: Ctx): void {
+  app.get('/api/claude-log', (req, res) => {
+    if (!fs.existsSync(CLAUDE_LOG)) { res.json({ total: 0, entries: [] }); return; }
+    const lines = fs.readFileSync(CLAUDE_LOG, 'utf8').trim().split('\n').filter(Boolean);
+    const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 50));
+    const entries = lines.slice(-limit).map((l) => {
+      try { return JSON.parse(l) as unknown; } catch { return { raw: l }; }
+    });
+    res.json({ total: lines.length, entries });
+  });
+}

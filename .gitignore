@@ -16,6 +16,9 @@ inde-conversao-perfil*.html
 __pycache__/
 *.pyc
 
+# Dados de runtime (SQLite + log das chamadas Claude) — nunca versionar
+app/data/
+
 # Scratch de uploads (CSV bruto transitório) — nunca versionar
 app/.scratch/
 # Dado-base retido por análise (Fase 3b) — dado de cliente, nunca versionar

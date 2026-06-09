@@ -11,6 +11,8 @@ export const APP_ROOT = path.join(here, '..', '..');           // app/
 export const PUBLIC   = path.join(APP_ROOT, 'public');
 export const OUT      = process.env.APP_OUT || path.join(APP_ROOT, '..', 'output');
 export const DB_PATH  = process.env.APP_DB  || path.join(APP_ROOT, 'data', 'comments.db');
+/** Append-only JSONL log of every Claude API call (request + response/error). */
+export const CLAUDE_LOG = process.env.CLAUDE_LOG || path.join(APP_ROOT, 'data', 'claude-log.jsonl');
 export const PORT     = Number(process.env.PORT) || 3131;
 
 /** Vendored Python pipeline (build_report/conv_calc). Container-safe — does not

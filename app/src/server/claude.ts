@@ -6,10 +6,34 @@
  * CLAUDE_MOCK=1), so the whole flow is testable offline. Claude only ever sees the
  * aggregated digest — never raw CSV rows. */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { Digest, DeepenCatalog } from './datasetCatalog.js';
+import { CLAUDE_LOG } from './paths.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+
+/** Append a record of one Claude call (what was sent + what came back) to the
+ *  JSONL log. Never throws — logging must not break the call. */
+function logClaude(kind: string, request: unknown, result: Record<string, unknown>): void {
+  try {
+    fs.mkdirSync(path.dirname(CLAUDE_LOG), { recursive: true });
+    fs.appendFileSync(CLAUDE_LOG, JSON.stringify({ ts: new Date().toISOString(), kind, model: MODEL, request, ...result }) + '\n');
+  } catch { /* ignore logging failures */ }
+}
+
+/** messages.create wrapped so every call (and its result or error) is logged. */
+async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreateParamsNonStreaming, kind: string): Promise<Anthropic.Message> {
+  try {
+    const msg = await client.messages.create(params);
+    logClaude(kind, params, { response: msg.content, usage: msg.usage, stop_reason: msg.stop_reason });
+    return msg;
+  } catch (e) {
+    logClaude(kind, params, { error: (e as Error).message });
+    throw e;
+  }
+}
 
 const SYSTEM = `Você é um analista sênior de marketing/dados. A partir de um DIGEST de números
 JÁ CALCULADOS (agregados, sem dados brutos) de uma análise de conversão por perfil,
@@ -73,7 +97,7 @@ export async function generateInsights(digest: Digest, opts?: { tone?: string })
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { content: mockContent(digest), mocked: true };
 
   const client = new Anthropic({ apiKey });
-  const msg = await client.messages.create({
+  const msg = await loggedCreate(client, {
     model: MODEL,
     max_tokens: 4096,
     system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
@@ -85,7 +109,7 @@ export async function generateInsights(digest: Digest, opts?: { tone?: string })
     }],
     tool_choice: { type: 'tool', name: 'emit_content' },
     messages: [{ role: 'user', content: JSON.stringify({ digest, tone: opts?.tone ?? 'executivo' }) }],
-  });
+  }, 'insights');
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
   if (!tu) throw new Error('Claude não retornou tool_use');
   return { content: tu.input, mocked: false };
@@ -150,14 +174,14 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   const names = catalog.tables.map((t) => t.name);
   const client = new Anthropic({ apiKey });
   const payload = { instrucao: prompt, card, catalogo: catalog.tables, reparar: repair, modal_anterior: prev };
-  const msg = await client.messages.create({
+  const msg = await loggedCreate(client, {
     model: MODEL,
     max_tokens: 3072,
     system: [{ type: 'text', text: MODAL_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [{ name: 'emit_modal', description: 'Emite a modal de aprofundamento.', input_schema: modalSchema(names) }],
     tool_choice: { type: 'tool', name: 'emit_modal' },
     messages: [{ role: 'user', content: JSON.stringify(payload) }],
-  });
+  }, 'modal-raso');
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
   if (!tu) throw new Error('Claude não retornou tool_use');
   return { modal: tu.input, mocked: false };
@@ -244,13 +268,13 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const names = [...catalog.tables.map((t) => t.name), ...registered];
-    const msg = await client.messages.create({
+    const msg = await loggedCreate(client, {
       model: MODEL, max_tokens: 3072,
       system: [{ type: 'text', text: DEEP_SYSTEM, cache_control: { type: 'ephemeral' } }],
       tools: [consultarTool(deps), emitModalTool(names)],
       tool_choice: { type: 'any' },
       messages,
-    });
+    }, 'modal-fundo');
     messages.push({ role: 'assistant', content: msg.content });
     const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');

@@ -25,6 +25,10 @@ class App {
   private filters: Filters;
   private dashboard: Dashboard | null = null;
   private modalCharts = new ChartManager();
+  /** Chart defs per modal, mounted lazily the first time the modal opens (a chart
+   *  mounted in a hidden/0-size dialog renders blank). */
+  private modalChartDefs = new Map<string, { elId: string; def: ChartDef }[]>();
+  private openedModals = new Set<string>();
   private editing = false;
   /** Modal id to auto-open after the next section (re)render — set by deepen. */
   private pendingModal: string | null = null;
@@ -134,6 +138,8 @@ class App {
   private renderSection(section: Section): void {
     this.dashboard?.destroy();
     this.modalCharts.destroyAll();
+    this.modalChartDefs.clear();
+    this.openedModals.clear();
     ROOT.replaceChildren();
     MODAL_ROOT.replaceChildren();
 
@@ -158,8 +164,7 @@ class App {
     this.markDeepen(section);
 
     if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
-      const el = document.getElementById(this.pendingModal);
-      if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+      this.openModal(this.pendingModal);
       this.pendingModal = null;
     }
   }
@@ -292,8 +297,22 @@ class App {
 
     overlay.appendChild(dialog);
     MODAL_ROOT.appendChild(overlay);
-    for (const { elId, def } of ctx.charts) this.modalCharts.create(elId, def);
-    this.modalCharts.reflow();
+    // Defer chart creation until the modal first opens — mounting in a hidden
+    // dialog draws a blank/0-size chart.
+    this.modalChartDefs.set(modal.id, ctx.charts);
+  }
+
+  /** Open a modal; mount its charts on first open (and reflow once visible). */
+  private openModal(id: string): void {
+    const m = document.getElementById(id);
+    if (!m) return;
+    m.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (!this.openedModals.has(id)) {
+      this.openedModals.add(id);
+      for (const { elId, def } of this.modalChartDefs.get(id) || []) this.modalCharts.create(elId, def);
+    }
+    requestAnimationFrame(() => this.modalCharts.reflow());
   }
 
   private resolveCtx(): RenderCtx {
@@ -308,11 +327,7 @@ class App {
   private wireModals(): void {
     document.addEventListener('click', e => {
       const opener = (e.target as HTMLElement).closest<HTMLElement>('[data-modal]');
-      if (opener) {
-        const m = document.getElementById(opener.dataset.modal!);
-        if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
-        return;
-      }
+      if (opener) { this.openModal(opener.dataset.modal!); return; }
       const closer = (e.target as HTMLElement).closest<HTMLElement>('[data-ic-close]');
       if (closer) { closeOverlay(closer.closest('.ic-overlay')); return; }
       if ((e.target as HTMLElement).classList.contains('ic-overlay')) closeOverlay(e.target as HTMLElement);

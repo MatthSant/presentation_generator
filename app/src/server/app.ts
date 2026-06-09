@@ -18,6 +18,7 @@ import { registerWatch } from './routes/watch.js';
 import { registerGenerate } from './routes/generate.js';
 import { registerDeepen } from './routes/deepen.js';
 import { registerQuery } from './routes/query.js';
+import { registerClaudeLog } from './routes/claudeLog.js';
 import { installAuth } from './routes/authRoutes.js';
 
 export interface CreateAppOptions {
@@ -60,6 +61,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerGenerate(app, ctx);
   registerDeepen(app, ctx);
   registerQuery(app, ctx);
+  registerClaudeLog(app, ctx);
   const closeWatch = registerWatch(app, ctx);
 
   return {
