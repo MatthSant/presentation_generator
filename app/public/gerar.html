@@ -106,7 +106,8 @@
     </div>
 
     <div class="g-actions">
-      <button class="g-go" id="go" disabled>Gerar análise</button>
+      <label class="g-ckbox" style="margin-bottom:12px"><input type="checkbox" id="f-insights" checked style="width:16px;height:16px;accent-color:var(--purple)" /> Gerar insights com IA (prosa de Insights/Detalhamentos a partir dos números)</label>
+      <div><button class="g-go" id="go" disabled>Gerar análise</button></div>
       <div class="g-msg" id="msg"></div>
     </div>
   </div>
@@ -204,16 +205,22 @@
       if (!CSV_FILE) { show('err', 'Escolha o arquivo CSV.'); return; }
       if (!cfg.criterios.length) { show('err', 'Marque ao menos um critério.'); return; }
       $('go').disabled = true;
-      show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
+      show('work', $('f-insights').checked ? 'Calculando os números e gerando os insights no servidor…' : 'Gerando a análise no servidor (pode levar alguns segundos)…');
       try {
         const fd = new FormData();
         fd.append('csv', CSV_FILE);
         fd.append('config', JSON.stringify(cfg));
+        fd.append('insights', $('f-insights').checked ? 'true' : 'false');
         const r = await fetch(`/api/${encodeURIComponent(cfg.client)}/${encodeURIComponent(cfg.slug)}/generate`, { method: 'POST', body: fd });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
         if (!d.ok) { show('err', 'Gerou, mas a validação acusou ' + (d.validation?.errors.length || '?') + ' erro(s). Veja o console.'); console.warn(d.validation); }
-        else { show('ok', 'Pronto! Abrindo o relatório…'); setTimeout(() => { location.href = d.report; }, 700); }
+        else {
+          const ins = d.insights || {};
+          const note = ins.error ? ' (insights não gerados: ' + ins.error + ')' : (ins.applied && ins.mocked ? ' (insights em modo mock — configure ANTHROPIC_API_KEY para a geração real)' : '');
+          show('ok', 'Pronto! Abrindo o relatório…' + note);
+          setTimeout(() => { location.href = d.report; }, note ? 2200 : 700);
+        }
       } catch (err) {
         show('err', '⚠ ' + err.message);
       } finally {

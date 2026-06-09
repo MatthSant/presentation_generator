@@ -18,6 +18,8 @@ import type { Ctx } from '../context.js';
 import { analysisDir, writeJson, readJson } from '../fsutil.js';
 import { SCRATCH } from '../paths.js';
 import { runGeneration } from '../pygen.js';
+import { buildDigest } from '../datasetCatalog.js';
+import { generateInsights } from '../claude.js';
 import { validateAnalysis } from '../../shared/validate.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -80,13 +82,32 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
         res.status(500).json({ error: 'falha na geração', stderr: tail(result.stderr || result.stdout, 2000) });
         return;
       }
+
+      // Optional Layer B1: generate insight prose from the freshly computed
+      // aggregates (CSV still in scratch), then re-emit the views with it.
+      let insights: { applied: boolean; mocked?: boolean; error?: string } = { applied: false };
+      if (String(req.body?.insights ?? '') === 'true') {
+        try {
+          const ds = readJson<Record<string, { rows: Array<Record<string, unknown>> }>>(path.join(outDir, 'dataset.json'));
+          if (!ds) throw new Error('dataset ausente para o digest');
+          const digest = buildDigest(config as Parameters<typeof buildDigest>[0], ds);
+          const { content: real, mocked } = await generateInsights(digest);
+          writeJson(contentPath, real);
+          const r2 = await runGeneration(`${client}/${slug}`, { csvPath, configPath, contentPath, outDir });
+          if (!r2.ok) throw new Error(`rebuild com insights falhou: ${tail(r2.stderr, 300)}`);
+          insights = { applied: true, mocked };
+        } catch (e) {
+          insights = { applied: false, error: (e as Error).message };
+        }
+      }
+
       const dataset = readJson<unknown>(path.join(outDir, 'dataset.json'));
       const layout = readJson<unknown>(path.join(outDir, 'layout.json'));
       const sections = fs.readdirSync(outDir)
         .filter((f) => /^s\d+\.json$/.test(f))
         .map((f) => readJson<unknown>(path.join(outDir, f)));
       const v = validateAnalysis({ dataset: dataset ?? undefined, sections, layout: layout ?? undefined });
-      res.json({ ok: v.ok, report: `/report/${client}/${slug}`, stdout: tail(result.stdout, 1000), validation: v });
+      res.json({ ok: v.ok, report: `/report/${client}/${slug}`, insights, stdout: tail(result.stdout, 1000), validation: v });
     } catch (e) {
       const msg = (e as Error).message;
       res.status(msg === 'busy' ? 409 : 500).json({ error: msg });
