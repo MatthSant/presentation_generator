@@ -35,10 +35,6 @@
         <button id="tn-edit-cancel" class="tn-edit-btn tn-edit-cancel">Cancelar</button>
         <button id="tn-edit-save" class="tn-edit-btn tn-edit-save">Salvar</button>
       </span>
-      <button id="comment-toggle-btn" title="Mostrar ou ocultar comentários">
-        <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg>
-        <span>Comentários</span><span id="ctb-n">0</span>
-      </button>
       <button id="export-html-btn" title="Exportar relatório como HTML standalone (offline)">
         <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="M13.5 6 10.5 18"/></svg>
         <span>HTML</span>
@@ -57,62 +53,8 @@
     <div id="export-root"></div>
   </main>
 
-  <!-- modal overlays (find-block detail dialogs) render here -->
+  <!-- modal overlays (detalhamento dialogs) render here -->
   <div id="modal-root"></div>
-
-  <!-- ── COMMENT PANEL ── -->
-  <aside id="comment-panel">
-    <div class="cp-head">
-      <span class="cp-title">Comentários</span>
-      <span class="cp-count" id="cp-total">0</span>
-      <button class="cp-close" id="cp-close-btn">&#215;</button>
-    </div>
-    <div class="cp-filters">
-      <button class="cp-filter cp-active" data-filter="todos">Todos</button>
-      <button class="cp-filter" data-filter="detalhar"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m20 20-5.2-5.2"/></svg>Detalhar</button>
-      <button class="cp-filter" data-filter="insight"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 17.5h5"/><path d="M10 20.5h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 1 1.6h5c.1-.6.4-1.2 1-1.6A6 6 0 0 0 12 3Z"/></svg>Insight</button>
-      <button class="cp-filter" data-filter="acao"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m8.2 12.3 2.8 2.7 4.8-5.5"/></svg>Ação</button>
-    </div>
-    <div class="cp-list" id="cp-list"></div>
-    <div class="cp-foot">
-      <button id="cp-export-btn">↓ Exportar CSV</button>
-    </div>
-  </aside>
-
-  <!-- ── COMMENT MODAL ── -->
-  <div id="comment-modal">
-    <div class="cm-dialog">
-      <div class="cm-hd">
-        <div>
-          <div class="cm-title">Adicionar comentário</div>
-          <div class="cm-sec-lbl" id="cm-sec-lbl"></div>
-        </div>
-        <button class="cm-x" id="cm-x">&#215;</button>
-      </div>
-      <div class="cm-anchor-block" id="cm-anchor-block">
-        <div class="cm-anchor-lbl">Contexto capturado</div>
-        <div class="cm-anchor-txt" id="cm-anchor-txt"></div>
-      </div>
-      <div class="cm-types">
-        <button class="cm-type" data-type="detalhar"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m20 20-5.2-5.2"/></svg>Detalhar</button>
-        <button class="cm-type" data-type="insight"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 17.5h5"/><path d="M10 20.5h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4.9 1 1 1.6h5c.1-.6.4-1.2 1-1.6A6 6 0 0 0 12 3Z"/></svg>Insight</button>
-        <button class="cm-type" data-type="acao"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m8.2 12.3 2.8 2.7 4.8-5.5"/></svg>Ação</button>
-      </div>
-      <textarea class="cm-ta" id="cm-ta" placeholder="Escreva seu comentário… (Ctrl+Enter para salvar)"></textarea>
-      <div class="cm-actions">
-        <button class="cm-cancel" id="cm-cancel">Cancelar</button>
-        <button class="cm-save" id="cm-save">Salvar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── CONTEXT MENU ── -->
-  <div id="ctx-menu">
-    <div class="ctx-item" id="ctx-comment">
-      <span class="ctx-icon"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg></span>
-      <span>Adicionar comentário</span>
-    </div>
-  </div>
 
 <!-- ── FILTER FAB + MODAL ── -->
   <button id="filter-fab" hidden title="Filtrar os dados do relatório">

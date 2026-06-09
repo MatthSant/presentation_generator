@@ -2,14 +2,13 @@
  *
  * URL shape: /report/:client/:slug[?<filter>=<value>…]. We load the three data
  * layers, build navigation, then render sections on demand. A section renders as
- * a CSS-grid Dashboard inside a [data-report-section] host (so right-click
- * comments and the "+" trigger work); its modals render as .ic-overlay dialogs. */
+ * a CSS-grid Dashboard inside a [data-report-section] host; detalhamento modals
+ * render as .ic-overlay dialogs in #modal-root. */
 
 import { Api } from './api.js';
 import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Filters } from './filters.js';
-import { Comments, type BlockMark } from './comments.js';
 import { Dashboard } from './dashboard.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
@@ -24,7 +23,6 @@ class App {
   private api: Api;
   private nav: Navigation;
   private filters: Filters;
-  private comments: Comments;
   private dashboard: Dashboard | null = null;
   private modalCharts = new ChartManager();
   private editing = false;
@@ -34,8 +32,7 @@ class App {
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
     this.nav = new Navigation(this.store, (p, s) => void this.go(p, s));
-    this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); this.markBlocks(); });
-    this.comments = new Comments(this.api, () => this.markBlocks());
+    this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); });
     this.wireModals();
     this.wireLayoutEditor();
     document.getElementById('export-html-btn')?.addEventListener('click', () => void this.exportHtml());
@@ -63,7 +60,6 @@ class App {
 
     this.nav.build();
     this.filters.init();
-    await this.comments.load();
     this.watch();
 
     const first = this.store.allSections()[0];
@@ -71,9 +67,9 @@ class App {
     else ROOT.innerHTML = '<div style="padding:60px 56px"><p class="sm">Relatório sem seções.</p></div>';
   }
 
-  /** Surface the two features a first-time consultant won't otherwise discover:
-   *  right-click-to-comment and the layout editor. A flat note on the paper,
-   *  dismissed once and remembered — never a modal. */
+  /** Surface the features a first-time consultant won't otherwise discover:
+   *  "detalhar" a block (AI deepening) and the layout editor. A flat note on the
+   *  paper, dismissed once and remembered — never a modal. */
   private maybeShowFirstRunHint(): void {
     let dismissed = false;
     try { dismissed = localStorage.getItem('rpt-hint-v1') === '1'; } catch { /* storage unavailable */ }
@@ -84,7 +80,7 @@ class App {
     hint.className = 'rpt-hint';
     hint.innerHTML =
       '<svg class="rpt-hint-ic svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v4.5"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg>'
-      + '<div class="rpt-hint-body">Clique com o <strong>botão direito</strong> em qualquer bloco para anotar um comentário (uma marca fica fixada no bloco). Use o botão <strong>Layout</strong> na barra superior para reorganizar os blocos.</div>'
+      + '<div class="rpt-hint-body">Passe o mouse sobre um bloco e clique em <strong>detalhar</strong> para gerar um aprofundamento com IA (vira um link "↗ ver detalhamento" no bloco). Use o botão <strong>Layout</strong> na barra superior para reorganizar os blocos.</div>'
       + '<button class="rpt-hint-x" type="button" aria-label="Dispensar dica">&#215;</button>';
     hint.querySelector('.rpt-hint-x')?.addEventListener('click', () => {
       hint.remove();
@@ -146,7 +142,6 @@ class App {
     host.id = section.id;
     host.dataset.reportSection = ref?.label || section.header?.title || section.id;
     host.appendChild(this.headerEl(section));
-    host.appendChild(this.triggerEl(section.id, host.dataset.reportSection));
     ROOT.appendChild(host);
 
     this.dashboard = new Dashboard(section, host, {
@@ -160,7 +155,6 @@ class App {
     for (const modal of section.modals || []) {
       this.renderModal(modal, section.widgets.find((w) => (w as { modal?: string }).modal === modal.id)?.id);
     }
-    this.markBlocks();
     this.markDeepen(section);
 
     if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
@@ -180,26 +174,27 @@ class App {
     for (const w of section.widgets) {
       if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
-      if (!tile || tile.querySelector(':scope > .tile-deepen')) continue;
+      if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link')) continue;
       const existing = (w as { modal?: string }).modal;
       const title = (w as { title?: string }).title || '';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'tile-deepen' + (existing ? ' has-modal' : '');
-      btn.title = existing ? 'Ver detalhamento' : 'Detalhar este bloco com IA';
-      btn.innerHTML = App.SPARKLE + (existing ? 'ver detalhe' : 'detalhar');
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (existing) this.openModalById(existing);
-        else this.openDeepenComposer(section.id, w.id!, title);
-      });
-      tile.appendChild(btn);
+      if (existing) {
+        // find-blocks already render an in-card "↗ ver detalhamento" link.
+        if (w.type === 'find-block') continue;
+        const a = document.createElement('a');
+        a.className = 'tile-detail-link';
+        a.dataset.modal = existing;   // opened by wireModals
+        a.textContent = '↗ ver detalhamento';
+        tile.appendChild(a);
+      } else {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tile-deepen';
+        btn.title = 'Detalhar este bloco com IA';
+        btn.innerHTML = App.SPARKLE + 'detalhar';
+        btn.addEventListener('click', (e) => { e.stopPropagation(); this.openDeepenComposer(section.id, w.id!, title); });
+        tile.appendChild(btn);
+      }
     }
-  }
-
-  private openModalById(id: string): void {
-    const m = document.getElementById(id);
-    if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
   }
 
   /** Prompt the consultant for what to deepen, call the API, then reload + open. */
@@ -242,33 +237,6 @@ class App {
     }
   }
 
-  /** Pin a comment marker on every block that carries annotations, so comments
-   *  live on the block they reference instead of a section-tab badge. Re-run on
-   *  every (re)render: filter changes and the layout editor rebuild the tiles. */
-  private markBlocks(): void {
-    const sectionId = this.store.currentSectionId;
-    const marks = sectionId ? this.comments.markersFor(sectionId) : new Map<string, BlockMark>();
-    for (const tile of ROOT.querySelectorAll<HTMLElement>('[data-widget-id]')) {
-      tile.querySelector(':scope > .tile-cmark')?.remove();
-      const mark = marks.get(tile.dataset.widgetId || '');
-      tile.classList.toggle('has-comment', !!mark);
-      if (mark) tile.appendChild(this.cmarkEl(mark));
-    }
-  }
-
-  private cmarkEl(mark: BlockMark): HTMLElement {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'tile-cmark';
-    btn.title = `${mark.count} comentário${mark.count > 1 ? 's' : ''} neste bloco`;
-    btn.setAttribute('aria-label', btn.title);
-    btn.innerHTML =
-      '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg>'
-      + `<span class="tile-cmark-n">${mark.count}</span>`;
-    btn.addEventListener('click', e => { e.stopPropagation(); this.comments.openPanel(); });
-    return btn;
-  }
-
   private headerEl(section: Section): HTMLElement {
     const h = section.header || { title: '' };
     const wrap = document.createElement('header');
@@ -279,19 +247,6 @@ class App {
     t.textContent = h.title || '';
     wrap.appendChild(t);
     if (h.sub) { const s = document.createElement('p'); s.className = 'sm'; s.innerHTML = h.sub; wrap.appendChild(s); }
-    return wrap;
-  }
-
-  private triggerEl(secId: string, label: string): HTMLElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'sc-trigger';
-    const add = document.createElement('button');
-    add.className = 'sc-add';
-    add.dataset.secId = secId;
-    add.dataset.secLabel = label;
-    add.textContent = '+';
-    add.title = 'Adicionar comentário';
-    wrap.appendChild(add);
     return wrap;
   }
 
@@ -395,7 +350,8 @@ class App {
     try {
       await this.dashboard.exitEditMode(save);
       this.clearEditUI();
-      this.markBlocks(); // the editor rebuilt the tiles — re-pin the markers
+      const cur = this.store.getSection(this.store.currentSectionId);
+      if (cur) this.markDeepen(cur); // editor rebuilt the tiles — re-pin deepen affordances
       if (save) this.toast('Layout salvo');
     } catch {
       this.toast('Erro ao salvar layout'); // editor stays open so the user can retry
@@ -531,8 +487,7 @@ class App {
               const clone = host.cloneNode(true) as HTMLElement;
               clone.classList.add('export-section');
               pinHeights(host, clone);
-              clone.querySelectorAll('.sc-trigger, .tile-cmark').forEach(n => n.remove());
-              clone.querySelectorAll('.has-comment').forEach(n => n.classList.remove('has-comment'));
+              clone.querySelectorAll('.tile-deepen, .tile-detail-link').forEach(n => n.remove());
               secs.push(clone.outerHTML);
             }
             if (label) label.textContent = `Gerando ${Math.round((++done / total) * 100)}%`;

@@ -2,11 +2,6 @@
 
 import type { ReportData, DataMap, Section, Layout, LayoutItem } from '../shared/types.js';
 
-export interface ApiComment {
-  id: string; sectionId: string; sectionLabel: string; widgetId: string;
-  type: string; text: string; anchor: string; status: string; createdAt: string;
-}
-
 export class Api {
   constructor(private client: string, private slug: string) {}
 
@@ -43,26 +38,6 @@ export class Api {
       body: JSON.stringify({ blockId, prompt, prev }),
     });
   }
-
-  getComments(): Promise<ApiComment[]> { return this.json(`${this.base()}/comments`); }
-
-  postComment(c: Partial<ApiComment>): Promise<ApiComment> {
-    return this.json(`${this.base()}/comments`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c),
-    });
-  }
-
-  patchComment(id: string, changes: Partial<ApiComment>): Promise<ApiComment> {
-    return this.json(`${this.base()}/comments/${encodeURIComponent(id)}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes),
-    });
-  }
-
-  async deleteComment(id: string): Promise<void> {
-    await fetch(`${this.base()}/comments/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  }
-
-  commentsCsvUrl(): string { return `${this.base()}/comments.csv`; }
 
   watch(onSection: (id: string) => void): () => void {
     // Static mode (?static): skip the live-reload SSE so headless tooling

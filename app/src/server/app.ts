@@ -13,7 +13,6 @@ import { registerReport } from './routes/report.js';
 import { registerGuia } from './routes/guia.js';
 import { registerLayout } from './routes/layout.js';
 import { registerBlocks } from './routes/blocks.js';
-import { registerComments } from './routes/comments.js';
 import { registerEdits } from './routes/edits.js';
 import { registerWatch } from './routes/watch.js';
 import { registerGenerate } from './routes/generate.js';
@@ -57,7 +56,6 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerContent(app, ctx);
   registerLayout(app, ctx);
   registerBlocks(app, ctx);
-  registerComments(app, ctx);
   registerEdits(app, ctx);
   registerGenerate(app, ctx);
   registerDeepen(app, ctx);

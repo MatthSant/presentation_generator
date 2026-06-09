@@ -209,31 +209,6 @@ html, body {
 .tn-filter-btn:hover { color: var(--fg); }
 .tn-filter-btn.tn-filter-active { background: var(--purple-bg); color: var(--purple); }
 
-/* Comment button */
-#comment-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: transparent;
-  font-family: 'Exo 2', sans-serif;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--gray2);
-  cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
-  white-space: nowrap;
-}
-#comment-toggle-btn:hover { border-color: var(--purple); color: var(--purple); }
-#comment-toggle-btn.ctb-on { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
-#ctb-n {
-  font-size: 9px; padding: 1px 5px; border-radius: 2px;
-  background: var(--purple-bg); color: var(--purple); display: none;
-}
-.ctb-has #ctb-n { display: inline; }
-
 /* Export-HTML button */
 #export-html-btn {
   display: flex;
@@ -337,105 +312,11 @@ html, body {
 [data-report-section] { scroll-margin-top: 32px; position: relative; }
 [data-report-section].card { border-radius: 8px; margin-bottom: 12px; }
 
-/* ══════════════════════════════════════════
-   COMMENT PANEL (drawer direita)
-   ══════════════════════════════════════════ */
-#comment-panel {
-  position: fixed; top: 48px; right: 0; bottom: 0; width: 300px;
-  background: var(--bg-sidebar); border-left: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  transform: translateX(100%); transition: transform .22s ease; z-index: 80;
-}
-#comment-panel.open { transform: translateX(0); }
-.cp-head { display:flex; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.cp-title { font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--fg); flex:1; }
-.cp-count { font-size:10px; color:var(--purple); background:var(--purple-bg); padding:1px 6px; border-radius:3px; font-weight:700; }
-.cp-close { background:none; border:none; color:var(--gray2); cursor:pointer; font-size:16px; padding:2px 5px; border-radius:3px; transition:color .15s; }
-.cp-close:hover { color:var(--fg); }
-.cp-filters { display:flex; padding:8px 10px; gap:4px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.cp-filter { display:inline-flex; align-items:center; justify-content:center; gap:5px; font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:4px 8px; border-radius:3px; border:1px solid transparent; background:none; color:var(--gray2); cursor:pointer; font-family:'Exo 2',sans-serif; transition:color .15s,background .15s; }
-.cp-filter:hover { color:var(--fg); }
-.cp-filter.cp-active { background:var(--purple-bg); color:var(--purple); }
-.cp-list { flex:1; overflow-y:auto; padding:4px 0; }
-.cp-list::-webkit-scrollbar { width:2px; } .cp-list::-webkit-scrollbar-thumb { background:var(--border); }
-.cp-empty { padding:36px 16px; text-align:center; font-size:11.5px; color:var(--gray2); line-height:1.7; }
-.cp-item { padding:10px 14px; border-bottom:1px solid var(--divider); position:relative; }
-.cp-item:last-child { border-bottom:none; }
-.cp-item-hd { display:flex; align-items:center; gap:6px; margin-bottom:5px; flex-wrap:wrap; }
-.cp-type { display:inline-flex; align-items:center; gap:4px; font-size:8px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; padding:2px 6px; border-radius:2px; }
-.cp-type .svg-ic { width:11px; height:11px; }
-.cp-type-detalhar { background:var(--amber-bg); color:var(--amber); }
-.cp-type-insight   { background:var(--purple-bg); color:var(--purple); }
-.cp-type-acao      { background:var(--green-bg); color:var(--green); }
-.cp-sec  { font-size:9.5px; color:var(--gray2); font-weight:600; }
-.cp-text { font-size:11.5px; color:var(--fg); line-height:1.55; margin-bottom:4px; }
-.cp-date { font-size:9.5px; color:var(--gray2); }
-.cp-del  { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--gray2); cursor:pointer; font-size:13px; opacity:0; transition:opacity .15s,color .15s; padding:2px 4px; }
-.cp-item:hover .cp-del { opacity:1; } .cp-del:hover { color:var(--red); }
-.cp-edit { position:absolute; top:7px; right:30px; background:none; border:none; color:var(--gray2); cursor:pointer; opacity:0; transition:opacity .15s,color .15s; padding:2px 4px; line-height:0; }
-.cp-edit .svg-ic { width:13px; height:13px; }
-.cp-item:hover .cp-edit { opacity:1; } .cp-edit:hover { color:var(--purple); }
-.cp-edit-ta { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:8px 10px; font-family:'Exo 2',sans-serif; font-size:11.5px; color:var(--fg); resize:vertical; min-height:60px; outline:none; transition:border-color .15s; }
-.cp-edit-ta:focus { border-color:var(--purple); }
-.cp-edit-acts { display:flex; justify-content:flex-end; gap:6px; margin:6px 0 2px; }
-.cp-edit-cancel { background:none; border:1px solid var(--border); border-radius:4px; padding:4px 11px; font-family:'Exo 2',sans-serif; font-size:10.5px; font-weight:600; color:var(--gray2); cursor:pointer; transition:border-color .15s,color .15s; }
-.cp-edit-cancel:hover { border-color:var(--fg); color:var(--fg); }
-.cp-edit-save { background:var(--purple); border:1px solid var(--purple); border-radius:4px; padding:4px 14px; font-family:'Exo 2',sans-serif; font-size:10.5px; font-weight:700; color:#fff; cursor:pointer; transition:opacity .15s; }
-.cp-edit-save:hover { opacity:.85; }
-.cp-foot { padding:10px 12px; border-top:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
-#cp-export-btn { width:100%; background:transparent; border:1px solid var(--border); border-radius:3px; padding:7px 14px; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:700; color:var(--gray2); cursor:pointer; letter-spacing:1px; text-transform:uppercase; transition:border-color .15s,color .15s; }
-#cp-export-btn:hover { border-color:var(--green); color:var(--green); }
-
-/* ── Section comment trigger ── */
-.sc-trigger { position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:4px; z-index:5; }
-.sc-add { width:22px; height:22px; border-radius:3px; border:1px solid var(--border); background:var(--bg); color:var(--gray2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .15s,border-color .15s,color .15s; }
-[data-report-section]:hover .sc-add { opacity:1; }
-.sc-add:hover { border-color:var(--purple); color:var(--purple); }
-.sc-badge { font-size:14px; padding:1px 4px; border-radius:3px; background:var(--surface); cursor:pointer; letter-spacing:0; line-height:1; opacity:.7; transition:opacity .15s; }
-.sc-badge:hover { opacity:1; }
-
-/* ── Comment creation modal ── */
-#comment-modal { position:fixed; inset:0; z-index:9100; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; pointer-events:none; transition:opacity .18s; }
-#comment-modal.open { opacity:1; pointer-events:auto; }
-.cm-dialog { background:var(--bg); border:1px solid var(--border); border-radius:6px; width:min(460px,100%); padding:24px 26px 20px; display:flex; flex-direction:column; gap:14px; box-shadow:var(--shadow-md); }
-.cm-hd { display:flex; justify-content:space-between; align-items:flex-start; }
-.cm-title { font-size:13px; font-weight:700; color:var(--fg); }
-.cm-sec-lbl { font-size:10px; color:var(--gray2); margin-top:2px; }
-.cm-x { background:none; border:none; font-size:18px; color:var(--gray2); cursor:pointer; padding:0 4px; transition:color .15s; }
-.cm-x:hover { color:var(--fg); }
-.cm-types { display:flex; gap:6px; }
-.cm-type { display:flex; align-items:center; justify-content:center; gap:5px; flex:1; padding:8px 4px; border-radius:3px; border:1px solid var(--border); background:none; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gray2); cursor:pointer; transition:all .15s; }
-.cm-type:hover { color:var(--fg); border-color:var(--fg); }
-.cm-type.sel-detalhar { background:var(--amber-bg);  border-color:var(--amber);  color:var(--amber); }
-.cm-type.sel-insight   { background:var(--purple-bg); border-color:var(--purple); color:var(--purple); }
-.cm-type.sel-acao      { background:var(--green-bg);  border-color:var(--green);  color:var(--green); }
-.cm-ta { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:10px 12px; font-family:'Exo 2',sans-serif; font-size:12px; color:var(--fg); resize:vertical; min-height:88px; outline:none; transition:border-color .15s; }
-.cm-ta:focus { border-color:var(--purple); }
-.cm-ta::placeholder { color:var(--gray2); }
-.cm-actions { display:flex; justify-content:flex-end; gap:8px; }
-.cm-cancel { background:none; border:1px solid var(--border); border-radius:4px; padding:7px 16px; font-family:'Exo 2',sans-serif; font-size:11px; font-weight:600; color:var(--gray2); cursor:pointer; transition:border-color .15s,color .15s; }
-.cm-cancel:hover { border-color:var(--fg); color:var(--fg); }
-.cm-save { background:var(--purple); border:1px solid var(--purple); border-radius:4px; padding:7px 20px; font-family:'Exo 2',sans-serif; font-size:11px; font-weight:700; color:#fff; cursor:pointer; transition:opacity .15s; }
-.cm-save:hover { opacity:.85; }
-
-/* ── Context menu (right-click) ── */
-#ctx-menu { position:fixed; z-index:9300; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:4px 0; box-shadow:var(--shadow-md); display:none; min-width:194px; }
-#ctx-menu.open { display:block; }
-.ctx-item { padding:9px 14px; font-size:12px; color:var(--fg); cursor:pointer; display:flex; align-items:center; gap:9px; transition:background .12s,color .12s; user-select:none; }
-.ctx-item:hover { background:var(--purple-bg); color:var(--purple); }
-.ctx-icon { display:flex; align-items:center; flex-shrink:0; color:var(--gray2); }
-
 /* Monoline icon glyphs (replace emoji across the chrome). Stroke inherits the
    button's currentColor so hover/active states recolor the icon for free.
    Named .svg-ic to avoid colliding with the .ic interactive-card component. */
 .svg-ic { width:14px; height:14px; flex-shrink:0; display:block; }
 
-/* ── Anchor: painel + modal ── */
-.cp-anchor { font-size:10.5px; color:var(--gray2); border-left:1px solid var(--divider); padding:3px 8px; margin-bottom:5px; font-style:italic; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.cm-anchor-block { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:8px 12px; display:none; }
-.cm-anchor-block.visible { display:block; }
-.cm-anchor-lbl { font-size:8.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--gray2); margin-bottom:3px; }
-.cm-anchor-txt { font-size:11px; color:var(--gray); line-height:1.4; font-style:italic; }
 
 /* ── Print ── */
 /* ═══════════════════════════════════════════════════════════════
@@ -865,23 +746,6 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
 .dash-tile { position:relative; min-width:0; display:flex; flex-direction:column; }
 .dash-tile > * { min-width:0; }
 
-/* Comment marker — pins annotations to the block they reference (a section tab
-   no longer carries them). Sits in the tile corner; the whole block gets a faint
-   ring so an annotated block is legible at a glance. */
-.dash-tile.has-comment { outline:1px solid var(--purple-bg); outline-offset:-1px; border-radius:8px; }
-.tile-cmark {
-  position:absolute; top:6px; right:6px; z-index:6;
-  display:inline-flex; align-items:center; gap:3px;
-  padding:2px 6px 2px 5px; border-radius:999px;
-  border:1px solid var(--purple); background:var(--purple-bg); color:var(--purple);
-  cursor:pointer; line-height:1; transition:background .15s,color .15s;
-}
-.tile-cmark:hover { background:var(--purple); color:var(--bg); }
-.tile-cmark .svg-ic { width:12px; height:12px; }
-.tile-cmark-n { font-size:10px; font-weight:800; }
-body.edit-mode .tile-cmark, body.edit-mode .dash-tile.has-comment { outline:none; }
-body.edit-mode .tile-cmark { display:none; }
-@media print { .tile-cmark { display:none !important; } .dash-tile.has-comment { outline:none; } }
 
 /* Deepen — "detalhar este card" affordance on find-block tiles (bottom-right). */
 .tile-deepen {
@@ -894,9 +758,18 @@ body.edit-mode .tile-cmark { display:none; }
   opacity:0; transition:opacity .12s;
 }
 .dash-tile:hover .tile-deepen { opacity:1; }
-.tile-deepen.has-modal { opacity:1; background:var(--purple); color:#fff; border-color:var(--purple); }
 .tile-deepen:hover { background:var(--purple); color:#fff; }
 .tile-deepen .svg-ic { width:12px; height:12px; }
+
+/* Hyperlink "↗ ver detalhamento" on chart/table blocks that carry a detalhamento. */
+.tile-detail-link {
+  position:absolute; bottom:7px; right:9px; z-index:6;
+  font-size:11px; font-weight:700; color:var(--purple); cursor:pointer;
+  text-decoration:none; border-bottom:1px solid color-mix(in srgb, var(--purple) 45%, transparent);
+  background:color-mix(in srgb, var(--bg) 88%, transparent); padding:1px 3px; border-radius:3px;
+}
+.tile-detail-link:hover { border-bottom-color:var(--purple); }
+@media print { .tile-detail-link { display:none !important; } }
 body.edit-mode .tile-deepen { display:none; }
 @media print { .tile-deepen { display:none !important; } }
 
@@ -930,7 +803,6 @@ body.edit-mode .tile-deepen { display:none; }
   background:var(--purple); color:#fff; box-shadow:0 1px 4px rgba(60,52,137,.30);
 }
 .tile-filter-badge .svg-ic { width:12px; height:12px; }
-.dash-tile.has-comment .tile-filter-badge { right:auto; left:6px; }  /* clear the comment marker */
 body.edit-mode .tile-filter-badge { display:none; }
 @media print { .tile-filter-badge { display:none !important; } }
 
@@ -1144,7 +1016,7 @@ body.edit-mode .tile-filter-badge { display:none; }
 .app-toast.show { opacity:1; transform:translate(-50%, 0); }
 
 /* First-run hint — a flat note on the paper (never a modal) that surfaces the
-   two discoverable-only features: right-click to comment and the layout editor.
+   discoverable features (detalhar a block, the layout editor).
    Shown once per browser; dismissal is remembered in localStorage. */
 .rpt-hint {
   display:flex; align-items:flex-start; gap:12px;

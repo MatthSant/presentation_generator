@@ -5,7 +5,6 @@ import path from 'node:path';
 import type { Express } from 'express';
 import type { Ctx } from '../context.js';
 import type { ReportData } from '../../shared/types.js';
-import { migrateCsv } from '../db.js';
 import { clientsOf } from '../auth.js';
 import type { AuthedRequest } from './authRoutes.js';
 
@@ -30,14 +29,10 @@ export function registerAnalyses(app: Express, ctx: Ctx): void {
         if (!fs.existsSync(dataFile)) continue;
         try {
           const data = JSON.parse(fs.readFileSync(dataFile, 'utf8')) as ReportData;
-          migrateCsv(ctx.db, ctx.out, client, slug);
-          const commentCount = (ctx.db
-            .prepare('SELECT COUNT(*) AS n FROM comments WHERE client = ? AND slug = ?')
-            .get(client, slug) as { n: number }).n;
           const sectionCount = data.pages?.reduce((n, p) => n + (p.sections?.length || 0), 0) || 0;
           // Folder client/slug are the routing keys and must win over any meta.client.
           // Keep meta.client as the display name (clientName) for grouping on the home.
-          rows.push({ ...data.meta, client, slug, clientName: data.meta?.client || client, sectionCount, commentCount });
+          rows.push({ ...data.meta, client, slug, clientName: data.meta?.client || client, sectionCount });
         } catch { /* skip malformed data.json */ }
       }
     }
