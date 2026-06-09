@@ -21,7 +21,10 @@
     .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
     .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
     .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .home-bar-count { margin-left: auto; font-size: 12.5px; color: var(--gray); }
+    .home-new { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #fff; background: var(--purple); text-decoration: none; padding: 7px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(124, 58, 237, .28); }
+    .home-new:hover { opacity: .92; }
+    .home-new svg { width: 15px; height: 15px; }
+    .home-bar-count { margin-left: 14px; font-size: 12.5px; color: var(--gray); }
     .home-bar-count b { color: var(--fg); font-weight: 700; }
 
     /* ── page ── */
@@ -110,6 +113,7 @@
     <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
     <span class="bar-logo-sep"></span>
     <span class="home-brand">Dossiê do Consultor<small>Analytics</small></span>
+    <a class="home-new" href="/gerar.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nova análise</a>
     <span class="home-bar-count" id="bar-count"></span>
   </header>
 

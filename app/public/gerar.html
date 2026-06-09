@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nova análise — Conversão por Perfil</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
+    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .home-brand small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
+    .bar-back { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
+
+    .g-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 36px 120px; }
+    .g-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .g-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 12px 0 0; }
+    .g-sub { font-size: 14px; color: var(--gray); margin-top: 6px; max-width: 72ch; line-height: 1.6; }
+
+    .g-card { background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 20px 22px; box-shadow: var(--shadow-sm); margin-top: 18px; }
+    .g-step { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gray2); margin-bottom: 14px; display: flex; align-items: center; gap: 9px; }
+    .g-step b { display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 50%; background: var(--purple); color: #fff; font-size: 11px; font-weight: 800; }
+
+    .g-row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .g-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+    .g-field label { font-size: 12px; font-weight: 700; color: var(--fg); }
+    .g-field input, .g-field select { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: 'Exo 2', sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .g-field input:focus, .g-field select:focus { border-color: var(--purple); }
+    .g-hint { font-size: 11.5px; color: var(--gray2); margin-top: 4px; line-height: 1.5; }
+
+    .g-file { display: flex; align-items: center; gap: 12px; }
+    .g-file-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 40%, var(--border)); border-radius: 9px; padding: 10px 16px; cursor: pointer; }
+    .g-file-btn:hover { background: color-mix(in srgb, var(--purple) 12%, var(--bg)); }
+    .g-file-name { font-size: 13px; color: var(--gray); }
+
+    .g-crit { border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin-bottom: 11px; background: var(--surface); }
+    .g-crit-head { display: flex; align-items: center; gap: 10px; }
+    .g-crit-head input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--purple); flex-shrink: 0; }
+    .g-crit-col { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--gray2); }
+    .g-crit-body { margin-top: 11px; display: none; gap: 12px; flex-wrap: wrap; }
+    .g-crit.on .g-crit-body { display: flex; }
+    .g-crit-body .g-field { min-width: 130px; }
+    .g-ord { flex-basis: 100%; }
+    .g-ord textarea { width: 100%; box-sizing: border-box; min-height: 92px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; line-height: 1.5; color: var(--fg); outline: none; resize: vertical; }
+    .g-ord textarea:focus { border-color: var(--purple); }
+    .g-ckbox { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); }
+
+    .g-actions { position: sticky; bottom: 0; margin-top: 22px; padding: 16px 0 0; }
+    .g-go { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 800; color: #fff; background: var(--purple); border: none; border-radius: 10px; padding: 12px 22px; cursor: pointer; box-shadow: 0 3px 12px rgba(124, 58, 237, .32); }
+    .g-go:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+    .g-go:not(:disabled):hover { transform: translateY(-1px); }
+    .g-msg { margin-top: 12px; font-size: 13.5px; line-height: 1.6; padding: 11px 14px; border-radius: 9px; display: none; }
+    .g-msg.show { display: block; }
+    .g-msg.err { background: color-mix(in srgb, var(--red) 9%, var(--bg)); border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); color: var(--fg); }
+    .g-msg.ok { background: color-mix(in srgb, var(--green) 10%, var(--bg)); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); color: var(--fg); }
+    .g-msg.work { background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 22%, transparent); color: var(--fg); }
+    .g-disabled { opacity: .45; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header class="home-bar">
+    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
+    <span class="bar-logo-sep"></span>
+    <span class="home-brand">Dossiê do Consultor<small>Nova análise</small></span>
+    <a class="bar-back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar</a>
+  </header>
+
+  <div class="g-wrap">
+    <span class="g-tag">Conversão por Perfil</span>
+    <h1 class="g-title">Nova análise</h1>
+    <p class="g-sub">Suba o dump de pesquisa (uma linha por combinação de dimensões × lançamento × canal), confirme os critérios e gere a análise. Os números são calculados no servidor; o arquivo bruto não é guardado.</p>
+
+    <!-- Passo 1 -->
+    <div class="g-card">
+      <div class="g-step"><b>1</b> Identificação</div>
+      <div class="g-row">
+        <div class="g-field"><label>Cliente</label><input id="f-client" placeholder="Ex.: Instituto Singular" /><span class="g-hint">Vira o slug da pasta (sem acento, em minúsculas).</span></div>
+        <div class="g-field"><label>Título do relatório</label><input id="f-title" placeholder="Conversão por Perfil — Histórico" /></div>
+      </div>
+      <div class="g-row" style="margin-top:12px">
+        <div class="g-field"><label>Slug da análise</label><input id="f-slug" value="conversao-perfil" /></div>
+        <div class="g-field"><label>Janela longa</label><select id="f-long"><option value="12m">12 meses</option><option value="6m">6 meses</option></select></div>
+      </div>
+    </div>
+
+    <!-- Passo 2 -->
+    <div class="g-card">
+      <div class="g-step"><b>2</b> Arquivo de dados (CSV)</div>
+      <div class="g-file">
+        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Escolher CSV<input id="f-csv" type="file" accept=".csv" hidden /></label>
+        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
+      </div>
+      <p class="g-hint" id="f-csv-info"></p>
+    </div>
+
+    <!-- Passo 3 -->
+    <div class="g-card g-disabled" id="crit-card">
+      <div class="g-step"><b>3</b> Critérios (dimensões que viram páginas)</div>
+      <p class="g-hint" style="margin-bottom:14px">Marque as dimensões a analisar. Em cada uma, edite a lista de grupos: uma por linha, na ordem desejada. Para juntar variantes duplicadas, use <code>texto bruto =&gt; nome final</code>.</p>
+      <div id="crit-list"></div>
+    </div>
+
+    <div class="g-actions">
+      <button class="g-go" id="go" disabled>Gerar análise</button>
+      <div class="g-msg" id="msg"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const FIXED = new Set(['field_conversion', 'tipo_trafego', 'total_leads', 'vendas_lancamento', 'vendas_6meses', 'vendas_12meses']);
+    const CORES = ['#6D28D9', '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD', '#5B21B6', '#4C1D95', '#DDD6FE'];
+    const slugify = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    let CSV_FILE = null, INSPECT = null;
+
+    $('f-client').addEventListener('input', () => { if (!$('f-slug').dataset.touched) {} });
+
+    $('f-csv').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      CSV_FILE = file;
+      $('f-csv-name').textContent = file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)';
+      $('f-csv-info').textContent = 'Lendo colunas…';
+      try {
+        const fd = new FormData(); fd.append('csv', file);
+        const r = await fetch('/api/inspect-csv', { method: 'POST', body: fd });
+        INSPECT = await r.json();
+        if (!r.ok) throw new Error(INSPECT.error || 'falha ao ler CSV');
+        renderCriterios();
+        $('f-csv-info').textContent = INSPECT.columns.length + ' colunas · separador "' + INSPECT.sep + '"';
+        $('crit-card').classList.remove('g-disabled');
+        $('go').disabled = false;
+      } catch (err) {
+        $('f-csv-info').textContent = '⚠ ' + err.message;
+      }
+    });
+
+    function renderCriterios() {
+      const cand = INSPECT.columns.filter((c) => !FIXED.has(c));
+      $('crit-list').innerHTML = cand.map((col) => {
+        const vals = (INSPECT.distinct[col] || []);
+        const guessLabel = col.startsWith('custom_field') ? '' : col.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+        const ordinal = /idade|renda|patrim|tempo|faixa/i.test(col);
+        return `
+        <div class="g-crit" data-col="${col}">
+          <div class="g-crit-head">
+            <input type="checkbox" data-on />
+            <strong style="font-size:13.5px">${guessLabel || col}</strong>
+            <span class="g-crit-col">${col}</span>
+            <span style="margin-left:auto;font-size:11.5px;color:var(--gray2)">${vals.length} grupos</span>
+          </div>
+          <div class="g-crit-body">
+            <div class="g-field"><label>Rótulo (página)</label><input data-label value="${guessLabel}" placeholder="ex.: Renda Mensal" /></div>
+            <div class="g-field" style="max-width:140px"><label>Abreviação</label><input data-abbr value="${guessLabel.split(' ')[0] || ''}" /></div>
+            <div class="g-field" style="flex:0 0 auto;justify-content:flex-end"><label>&nbsp;</label><span class="g-ckbox"><input type="checkbox" data-ordinal ${ordinal ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple)" /> ordinal (faixa)</span></div>
+            <div class="g-field g-ord"><label>Grupos (uma linha cada · <code>bruto =&gt; final</code> para juntar)</label><textarea data-order>${vals.join('\n')}</textarea></div>
+          </div>
+        </div>`;
+      }).join('');
+      $('crit-list').querySelectorAll('.g-crit [data-on]').forEach((cb) => {
+        cb.addEventListener('change', () => cb.closest('.g-crit').classList.toggle('on', cb.checked));
+      });
+    }
+
+    function buildConfig() {
+      const client = $('f-client').value.trim();
+      const slug = slugify($('f-slug').value) || 'conversao-perfil';
+      const criterios = [];
+      for (const el of $('crit-list').querySelectorAll('.g-crit')) {
+        if (!el.querySelector('[data-on]').checked) continue;
+        const col = el.dataset.col;
+        const label = el.querySelector('[data-label]').value.trim() || col;
+        const abbr = el.querySelector('[data-abbr]').value.trim() || label;
+        const ordinal = el.querySelector('[data-ordinal]').checked;
+        const lines = el.querySelector('[data-order]').value.split('\n').map((l) => l.trim()).filter(Boolean);
+        const order = [], aliases = {};
+        for (const ln of lines) {
+          const m = ln.split('=>');
+          if (m.length === 2) { const raw = m[0].trim(), fin = m[1].trim(); aliases[raw] = fin; if (!order.includes(fin)) order.push(fin); }
+          else if (!order.includes(ln)) order.push(ln);
+        }
+        criterios.push({
+          id: slugify(abbr) || slugify(col), col, label, tab: label, abbr,
+          order, short_labels: {}, cores: CORES.slice(), aliases, ordinal,
+        });
+      }
+      return {
+        client: slugify(client) || 'cliente', title: $('f-title').value.trim() || label_default(client), slug,
+        channels: ['Geral', 'Pago', 'Orgânico'], window: 'lcto', long_window: $('f-long').value,
+        criterios,
+      };
+    }
+    const label_default = (c) => 'Conversão por Perfil — ' + (c || '');
+
+    $('go').addEventListener('click', async () => {
+      const msg = $('msg');
+      const cfg = buildConfig();
+      if (!cfg.client || cfg.client === 'cliente') { show('err', 'Informe o nome do cliente.'); return; }
+      if (!CSV_FILE) { show('err', 'Escolha o arquivo CSV.'); return; }
+      if (!cfg.criterios.length) { show('err', 'Marque ao menos um critério.'); return; }
+      $('go').disabled = true;
+      show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
+      try {
+        const fd = new FormData();
+        fd.append('csv', CSV_FILE);
+        fd.append('config', JSON.stringify(cfg));
+        const r = await fetch(`/api/${encodeURIComponent(cfg.client)}/${encodeURIComponent(cfg.slug)}/generate`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
+        if (!d.ok) { show('err', 'Gerou, mas a validação acusou ' + (d.validation?.errors.length || '?') + ' erro(s). Veja o console.'); console.warn(d.validation); }
+        else { show('ok', 'Pronto! Abrindo o relatório…'); setTimeout(() => { location.href = d.report; }, 700); }
+      } catch (err) {
+        show('err', '⚠ ' + err.message);
+      } finally {
+        $('go').disabled = false;
+      }
+    });
+
+    function show(kind, text) { const m = $('msg'); m.className = 'g-msg show ' + kind; m.textContent = text; }
+  </script>
+</body>
+</html>

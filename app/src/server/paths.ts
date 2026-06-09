@@ -12,3 +12,12 @@ export const PUBLIC   = path.join(APP_ROOT, 'public');
 export const OUT      = process.env.APP_OUT || path.join(APP_ROOT, '..', 'output');
 export const DB_PATH  = process.env.APP_DB  || path.join(APP_ROOT, 'data', 'comments.db');
 export const PORT     = Number(process.env.PORT) || 3131;
+
+/** Vendored Python pipeline (build_report/conv_calc). Container-safe — does not
+ *  depend on .claude/ being present. Override with PYSRC_DIR. */
+export const PYSRC    = process.env.PYSRC_DIR || path.join(APP_ROOT, 'pysrc');
+/** Scratch dir for raw uploads + transient config/content. NOT served by
+ *  express.static (lives outside PUBLIC and OUT) so raw CSVs can't leak. */
+export const SCRATCH  = process.env.APP_SCRATCH || path.join(APP_ROOT, '.scratch');
+/** Python interpreter. Windows uses the `py -3` launcher; *nix `python3`. */
+export const PYTHON_BIN = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'py' : 'python3');

@@ -16,6 +16,7 @@ import { registerBlocks } from './routes/blocks.js';
 import { registerComments } from './routes/comments.js';
 import { registerEdits } from './routes/edits.js';
 import { registerWatch } from './routes/watch.js';
+import { registerGenerate } from './routes/generate.js';
 
 export interface CreateAppOptions {
   /** Output root holding [client]/[slug] files. Defaults to paths.OUT. */
@@ -51,6 +52,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerBlocks(app, ctx);
   registerComments(app, ctx);
   registerEdits(app, ctx);
+  registerGenerate(app, ctx);
   const closeWatch = registerWatch(app, ctx);
 
   return {
