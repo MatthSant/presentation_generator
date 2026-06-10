@@ -13,6 +13,9 @@ async function sendJsonFile(res: Response, file: string, missingMsg: string): Pr
   try {
     const raw = await fs.promises.readFile(file, 'utf8');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    // Sempre revalidar (ETag) — após seguir/detalhar, getData precisa do data.json
+    // recém-escrito (nav com a página nova), nunca de um cache heurístico.
+    res.setHeader('Cache-Control', 'no-cache');
     res.send(raw);
   } catch (e) {
     res.status(500).json({ error: 'read error', detail: (e as Error).message });

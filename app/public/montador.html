@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Montador da query</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
+    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
+    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); transition: border-color .14s, color .14s; }
+    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
+    .bar-back svg { width: 15px; height: 15px; }
+
+    .m-wrap { max-width: 1640px; margin: 0 auto; padding: 34px 36px 90px; }
+    .m-head { margin-bottom: 24px; }
+    .m-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .m-tag::before { content:''; width:5px; height:5px; border-radius:50%; background: currentColor; }
+    .m-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 12px 0 0; }
+    .m-sub { font-size: 14px; color: var(--gray); margin-top: 6px; max-width: 70ch; line-height: 1.6; }
+
+    .m-grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; }
+    @media (max-width: 900px) { .m-grid { grid-template-columns: 1fr; } }
+
+    .m-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 18px; box-shadow: var(--shadow-sm); }
+    .m-block { margin-bottom: 20px; }
+    .m-block:last-child { margin-bottom: 0; }
+    .m-label { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gray2); margin-bottom: 10px; }
+    .m-win { display:flex; align-items:center; gap:9px; }
+    .m-win input { width: 78px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; font-family:'Exo 2',sans-serif; font-size: 14px; color: var(--fg); outline:none; }
+    .m-win input:focus { border-color: var(--purple); }
+    .m-win span { font-size: 13px; color: var(--gray); }
+
+    .m-pago-row { display:flex; align-items:center; gap:9px; padding: 5px 0; }
+    .m-pago-row .m-pago-k { font-size: 12.5px; color: var(--fg); width: 132px; flex-shrink:0; }
+    .m-pago-row input { flex:1; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; font-family:'Exo 2',sans-serif; font-size: 12.5px; color: var(--fg); outline:none; }
+    .m-pago-row input:focus { border-color: var(--purple); }
+
+    .m-opt { display:flex; align-items:center; gap:9px; padding: 6px 0; font-size: 13.5px; color: var(--fg); cursor: pointer; }
+    .m-opt input { width:16px; height:16px; accent-color: var(--purple); cursor:pointer; }
+    .m-opt code { font-family:'JetBrains Mono',ui-monospace,monospace; font-size: 11px; color: var(--gray2); margin-left: auto; }
+
+    .m-cf { display:flex; align-items:center; gap:8px; padding: 5px 0; }
+    .m-cf input[type=checkbox] { width:16px; height:16px; accent-color: var(--purple); flex-shrink:0; }
+    .m-cf code { font-family:'JetBrains Mono',ui-monospace,monospace; font-size: 11px; color: var(--gray2); width: 96px; flex-shrink:0; }
+    .m-cf input[type=text] { flex:1; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; font-family:'Exo 2',sans-serif; font-size: 12.5px; color: var(--fg); outline:none; }
+    .m-cf input[type=text]:focus { border-color: var(--purple); }
+    .m-cf input[type=text]:disabled { opacity:.45; }
+    .m-cf-add { margin-top:8px; font-size: 12px; font-weight:600; color: var(--purple); background:none; border:1px dashed color-mix(in srgb,var(--purple) 35%,var(--border)); border-radius:7px; padding:6px 10px; cursor:pointer; width:100%; }
+    .m-cf-add:hover { background: var(--purple-bg); }
+
+    .m-out { position: relative; }
+    .m-out-bar { display:flex; align-items:center; gap:10px; margin-bottom: 10px; }
+    .m-out-title { font-size: 13px; font-weight: 700; color: var(--fg); }
+    .m-out-meta { font-size: 12px; color: var(--gray2); }
+    .m-copy { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size: 12px; font-weight: 700; color:#fff; background: var(--purple); border:none; border-radius: 8px; padding: 7px 13px; cursor:pointer; transition: opacity .14s; }
+    .m-copy:hover { opacity:.88; }
+    .m-copy svg { width: 14px; height: 14px; }
+    .m-sql { background: oklch(17% 0.01 280); color: oklch(92% 0.01 280); border-radius: 11px; padding: 16px 18px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size: 12px; line-height: 1.55; white-space: pre; overflow:auto; max-height: 70vh; border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <header class="home-bar">
+    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
+    <span class="bar-logo-sep"></span>
+    <span class="home-brand">Dossiê do Consultor<small>Montador da query</small></span>
+    <a class="bar-back" href="/guia/conversao-perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar ao guia</a>
+  </header>
+
+  <div class="m-wrap">
+    <div class="m-head">
+      <span class="m-tag">Conversão por Perfil</span>
+      <h1 class="m-title">Montador da query de extração</h1>
+      <p class="m-sub">Marque as dimensões e os <code>custom_field</code> (com a tradução de cada um) e ajuste a janela do lançamento. A SQL é gerada espelhando as dimensões no <code>SELECT</code> e no <code>GROUP BY</code> — pronta para rodar no banco e exportar o CSV.</p>
+    </div>
+
+    <div class="m-grid">
+      <div class="m-panel">
+        <div class="m-block">
+          <div class="m-label">Janela do lançamento</div>
+          <label class="m-win"><input type="number" id="win" value="60" min="1" max="365" /> <span>dias (conversão de curto prazo, a partir da 1ª captação)</span></label>
+        </div>
+
+        <div class="m-block">
+          <div class="m-label">Definição de Pago / Orgânico</div>
+          <label class="m-pago-row"><span class="m-pago-k">Coluna de origem</span><input type="text" id="pago-col" value="utm_source" /></label>
+          <label class="m-pago-row"><span class="m-pago-k">Termos que marcam "Pago"</span><input type="text" id="pago-pat" value="ads" placeholder="ads, cpc, paid" /></label>
+          <p style="font-size:11.5px;color:var(--gray2);margin-top:7px;line-height:1.5">Lead cujo <code>utm_source</code> contém qualquer um desses termos vira <b>Pago</b>; o restante é <b>Orgânico</b>. Separe por vírgula. Essa regra define o canal usado em toda a análise.</p>
+        </div>
+
+        <div class="m-block">
+          <div class="m-label">Dimensões de perfil</div>
+          <div id="dims"></div>
+        </div>
+
+        <div class="m-block">
+          <div class="m-label">Custom fields (com tradução)</div>
+          <div id="cfs"></div>
+          <button class="m-cf-add" id="cf-add">+ adicionar custom_field</button>
+          <button class="m-cf-add" id="dict-dl" style="margin-top:7px;border-style:solid;color:#fff;background:var(--purple);border-color:var(--purple)">↓ Baixar dicionário de custom_fields</button>
+          <p style="font-size:11.5px;color:var(--gray2);margin-top:7px;line-height:1.5">A tradução não entra na SQL (vira comentário). Baixe o dicionário e informe à skill ao rodar a análise.</p>
+        </div>
+
+        <div class="m-block">
+          <div class="m-label">Extras (opcional)</div>
+          <div id="flags"></div>
+        </div>
+      </div>
+
+      <div class="m-out">
+        <div class="m-out-bar">
+          <span class="m-out-title">SQL gerada</span>
+          <span class="m-out-meta" id="meta"></span>
+          <button class="m-copy" id="copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copiar</span></button>
+        </div>
+        <pre class="m-sql" id="sql"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '');
+
+    // Dimensões de perfil padrão (label, coluna). tipo_trafego é sempre incluído (canal).
+    const DIMS = [
+      { col: 'renda_mensal', label: 'Renda mensal', on: true },
+      { col: 'idade', label: 'Idade', on: true },
+      { col: 'genero', label: 'Gênero', on: true },
+      { col: 'tempo_acompanhamento', label: 'Tempo de acompanhamento', on: true },
+      { col: 'escolaridade', label: 'Escolaridade', on: false },
+      { col: 'profissao', label: 'Profissão (cuidado: alto volume de valores)', on: false },
+    ];
+    const FLAGS = [
+      { col: 'utm_source', label: 'utm_source (origem crua)' },
+      { col: 'cliente_inscrito', label: 'cliente_inscrito' },
+      { col: 'lead_novo', label: 'lead_novo' },
+      { col: 'hotlead', label: 'hotlead' },
+    ];
+    // custom fields: começa com 1,2,3,4,5 (padrão da pesquisa); usuário marca e traduz.
+    let CFS = [1, 2, 3, 4, 5].map(n => ({ n, on: false, label: '' }));
+
+    function renderControls() {
+      $('dims').innerHTML = DIMS.map((d, i) => `
+        <label class="m-opt"><input type="checkbox" data-dim="${i}" ${d.on ? 'checked' : ''}/> ${esc(d.label)} <code>${d.col}</code></label>`).join('');
+      $('flags').innerHTML = FLAGS.map((f, i) => `
+        <label class="m-opt"><input type="checkbox" data-flag="${i}"/> ${esc(f.label)}</label>`).join('');
+      $('cfs').innerHTML = CFS.map((c, i) => `
+        <div class="m-cf">
+          <input type="checkbox" data-cf="${i}" ${c.on ? 'checked' : ''}/>
+          <code>custom_field_${c.n}</code>
+          <input type="text" data-cflabel="${i}" placeholder="o que esse campo significa?" value="${esc(c.label)}" ${c.on ? '' : 'disabled'}/>
+        </div>`).join('');
+    }
+
+    function readState() {
+      DIMS.forEach((d, i) => { d.on = $('dims').querySelector(`[data-dim="${i}"]`).checked; });
+      CFS.forEach((c, i) => { c.on = $('cfs').querySelector(`[data-cf="${i}"]`).checked; c.label = $('cfs').querySelector(`[data-cflabel="${i}"]`).value; });
+      FLAGS.forEach((f, i) => { f.on = $('flags').querySelector(`[data-flag="${i}"]`).checked; });
+    }
+
+    function selectedCols() {
+      const dims = DIMS.filter(d => d.on).map(d => d.col);
+      const cfs = CFS.filter(c => c.on).map(c => `custom_field_${c.n}`);
+      const flags = FLAGS.filter(f => f.on).map(f => f.col);
+      return [...dims, ...cfs, ...flags];
+    }
+
+    function pagoConfig() {
+      const col = ($('pago-col').value || 'utm_source').trim().replace(/[^a-zA-Z0-9_]/g, '') || 'utm_source';
+      const pats = ($('pago-pat').value || '').split(',').map(s => s.trim().toLowerCase().replace(/'/g, '')).filter(Boolean);
+      return { col, pats };
+    }
+
+    function buildSQL() {
+      const win = Math.max(1, parseInt($('win').value || '60', 10));
+      const cols = selectedCols();
+      const cfsOn = CFS.filter(c => c.on);
+      const { col: pagoCol, pats: pagoPats } = pagoConfig();
+
+      // CASE that classifies each lead's channel — built from the user's terms.
+      const likes = pagoPats.map(p => `lower(i.${pagoCol}) LIKE '%${p}%'`);
+      const pagoCond = likes.length ? likes.join('\n               OR ') : 'FALSE';
+      const pagoCase = `CASE WHEN ${pagoCond}\n             THEN 'Pago' ELSE 'Orgânico' END AS tipo_trafego`;
+      const pagoComment = `-- Canal (tipo_trafego): "Pago" = ${pagoCol} contém ${pagoPats.length ? pagoPats.map(p => `"${p}"`).join(' / ') : '(nada → tudo Orgânico)'}; senão "Orgânico"\n`;
+
+      const inSel = cols.map(c => `        i.${c}`).join(',\n');
+      const lcSel = cols.map(c => `        i.${c}`).join(',\n');
+      const lcGrp = ['i.email', 'i.field_conversion', 'i.data_inscricao', 'i.tipo_trafego',
+        ...cols.map(c => `i.${c}`), 'p.dias_lancamento'].join(',\n        ');
+      const finSel = cols.map(c => `    ${c}`).join(',\n');
+      const finGrp = ['lc.field_conversion', 'tipo_trafego', ...cols.map(c => `${c}`)].join(',\n    ');
+
+      const cfHeader = cfsOn.length
+        ? '-- Tradução dos custom fields (informe na skill):\n' +
+          cfsOn.map(c => `--   custom_field_${c.n} = ${c.label || '???'}`).join('\n') + '\n'
+        : '-- (nenhum custom_field selecionado)\n';
+
+      return `-- ============================================================
+-- Conversão por Perfil — dump de extração
+${cfHeader}${pagoComment}-- Janela de curto prazo: ${win} dias (a partir da 1ª captação)
+-- ============================================================
+WITH params AS (
+    SELECT ${win} AS dias_lancamento
+),
+
+-- 1. INSCRIÇÕES — uma linha por (email, field_conversion), menor data
+inscricoes AS (
+    SELECT DISTINCT ON (i.email, i.field_conversion)
+        i.email,
+        i.field_conversion,
+        i.data AS data_inscricao,
+        ${pagoCase}${cols.length ? ',' : ''}
+${inSel}
+    FROM public."MAT_V2_inscricoes_geral_det" i
+    WHERE i.email IS NOT NULL AND i.data IS NOT NULL
+    ORDER BY i.email, i.field_conversion, i.data ASC
+),
+
+-- 2. TRANSAÇÕES APROVADAS — primeira compra por e-mail
+transacoes AS (
+    SELECT lower(t.field_email) AS field_email,
+           MIN(t.field_transaction_date) AS field_transaction_date
+    FROM public."VW_wtl_transactions" t
+    WHERE t.field_transaction_status = 'approved'
+      AND coalesce(t.field_charge_amount, 1) = 1
+      AND t.field_email IS NOT NULL
+    GROUP BY lower(t.field_email)
+),
+
+-- 3. LEAD × CONVERSÃO — flags 0/1 por janela temporal
+lead_conversoes AS (
+    SELECT
+        i.email,
+        i.field_conversion,
+        i.data_inscricao,
+        i.tipo_trafego${cols.length ? ',' : ''}
+${lcSel}
+        ${cols.length ? ',' : ''}
+        MAX(CASE WHEN t.field_transaction_date >  i.data_inscricao
+                  AND t.field_transaction_date <= i.data_inscricao + (p.dias_lancamento || ' days')::interval
+                 THEN 1 ELSE 0 END) AS venda_lancamento,
+        MAX(CASE WHEN t.field_transaction_date >  i.data_inscricao
+                  AND t.field_transaction_date <= i.data_inscricao + INTERVAL '6 months'
+                 THEN 1 ELSE 0 END) AS venda_6meses,
+        MAX(CASE WHEN t.field_transaction_date >  i.data_inscricao
+                  AND t.field_transaction_date <= i.data_inscricao + INTERVAL '12 months'
+                 THEN 1 ELSE 0 END) AS venda_12meses
+    FROM inscricoes i
+    CROSS JOIN params p
+    LEFT JOIN transacoes t ON lower(t.field_email) = lower(i.email)
+    GROUP BY
+        ${lcGrp}
+)
+
+-- 4. AGREGAÇÃO FINAL — uma linha por dimensão × lançamento × canal
+SELECT
+    lc.field_conversion,
+    tipo_trafego${cols.length ? ',' : ''}
+${finSel}
+    ${cols.length ? ',' : ''}
+    COUNT(*)              AS total_leads,
+    SUM(venda_lancamento) AS vendas_lancamento,
+    SUM(venda_6meses)     AS vendas_6meses,
+    SUM(venda_12meses)    AS vendas_12meses
+FROM lead_conversoes lc
+INNER JOIN wtl_campaign_definition wcd ON lc.field_conversion = wcd.field_conversion
+GROUP BY
+    ${finGrp}
+ORDER BY field_conversion, total_leads DESC;`;
+    }
+
+    function refresh() {
+      readState();
+      // toggle the label inputs enabled state without full re-render (keep focus)
+      CFS.forEach((c, i) => { const t = $('cfs').querySelector(`[data-cflabel="${i}"]`); if (t) t.disabled = !c.on; });
+      const sql = buildSQL();
+      $('sql').textContent = sql;
+      const nCols = selectedCols().length;
+      $('meta').textContent = `${nCols} ${nCols === 1 ? 'dimensão' : 'dimensões'} + 4 métricas`;
+    }
+
+    renderControls();
+    refresh();
+
+    document.querySelector('.m-grid').addEventListener('input', refresh);
+    $('cf-add').addEventListener('click', () => {
+      readState();
+      const used = new Set(CFS.map(c => c.n));
+      let n = 1; while (used.has(n)) n++;
+      CFS.push({ n, on: true, label: '' });
+      renderControls(); refresh();
+    });
+    $('copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText($('sql').textContent); const s = $('copy').querySelector('span'); s.textContent = 'Copiado!'; setTimeout(() => s.textContent = 'Copiar', 1500); } catch {}
+    });
+    $('dict-dl').addEventListener('click', () => {
+      readState();
+      const on = CFS.filter(c => c.on);
+      const rows = on.length ? on.map(c => `| custom_field_${c.n} | ${c.label || '(definir)'} |`).join('\n') : '| — | nenhum custom_field selecionado |';
+      const dims = DIMS.filter(d => d.on).map(d => `- \`${d.col}\` — ${d.label}`).join('\n');
+      const { col: pagoCol, pats: pagoPats } = pagoConfig();
+      const pagoTxt = pagoPats.length
+        ? `\`Pago\` = \`${pagoCol}\` contém ${pagoPats.map(p => `\`${p}\``).join(' / ')}; senão \`Orgânico\`.`
+        : `Sem termos definidos → todos os leads ficam como \`Orgânico\`.`;
+      const md = `# Dicionário de custom_fields — Conversão por Perfil\n\n`
+        + `Significado de cada custom_field, para informar à skill \`/conversao-perfil\` ao rodar a análise.\n\n`
+        + `## Custom fields\n\n| Coluna | Significado |\n|---|---|\n${rows}\n\n`
+        + `## Definição de canal (Pago / Orgânico)\n${pagoTxt}\n\n`
+        + `## Dimensões de perfil incluídas\n${dims || '- (nenhuma)'}\n\n`
+        + `Janela do lançamento: ${Math.max(1, parseInt($('win').value || '60', 10))} dias.\n`;
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'dicionario-custom-fields.md'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    });
+  </script>
+</body>
+</html>

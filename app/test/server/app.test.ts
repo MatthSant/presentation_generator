@@ -71,7 +71,7 @@ test('GET /api/analyses → [] when output is empty', async () => {
   assert.deepEqual(res.body, []);
 });
 
-test('GET /api/analyses → one row with meta, sectionCount, commentCount', async () => {
+test('GET /api/analyses → one row with meta, sectionCount', async () => {
   writeFixture('data.json', DATA);
   const res = await request(created.app).get('/api/analyses');
   assert.equal(res.status, 200);
@@ -80,7 +80,6 @@ test('GET /api/analyses → one row with meta, sectionCount, commentCount', asyn
   assert.equal(res.body[0].slug, SLUG);
   assert.equal(res.body[0].title, 'LTV');
   assert.equal(res.body[0].sectionCount, 1);
-  assert.equal(res.body[0].commentCount, 0);
 });
 
 test('GET /api/analyses → skips malformed data.json', async () => {
@@ -230,73 +229,6 @@ test('PATCH section: missing section file → 404', async () => {
     .patch(`/api/${CLIENT}/${SLUG}/section/s01`)
     .send({ action: 'update', blockId: 'f1', changes: {} });
   assert.equal(res.status, 404);
-});
-
-/* ── comments ── */
-
-test('comments: POST → GET → PATCH status → DELETE', async () => {
-  const post = await request(created.app)
-    .post(`/api/${CLIENT}/${SLUG}/comments`)
-    .send({ sectionId: 's01', sectionLabel: 'Receita', widgetId: 'f1', type: 'detalhar', text: 'rever isto' });
-  assert.equal(post.status, 200);
-  const id = post.body.id;
-  assert.ok(id);
-  assert.equal(post.body.status, 'novo');
-  assert.equal(post.body.widgetId, 'f1');
-
-  const list = await request(created.app).get(`/api/${CLIENT}/${SLUG}/comments`);
-  assert.equal(list.body.length, 1);
-  assert.equal(list.body[0].text, 'rever isto');
-  assert.equal(list.body[0].widgetId, 'f1');
-
-  const patch = await request(created.app)
-    .patch(`/api/${CLIENT}/${SLUG}/comments/${id}`).send({ status: 'resolvido' });
-  assert.equal(patch.status, 200);
-  assert.equal(patch.body.status, 'resolvido');
-
-  const del = await request(created.app).delete(`/api/${CLIENT}/${SLUG}/comments/${id}`);
-  assert.equal(del.status, 200);
-  const empty = await request(created.app).get(`/api/${CLIENT}/${SLUG}/comments`);
-  assert.equal(empty.body.length, 0);
-});
-
-test('comments: POST without text → 400', async () => {
-  const res = await request(created.app).post(`/api/${CLIENT}/${SLUG}/comments`).send({ text: '' });
-  assert.equal(res.status, 400);
-});
-
-test('comments: PATCH invalid status → 400', async () => {
-  const post = await request(created.app)
-    .post(`/api/${CLIENT}/${SLUG}/comments`).send({ text: 'x' });
-  const res = await request(created.app)
-    .patch(`/api/${CLIENT}/${SLUG}/comments/${post.body.id}`).send({ status: 'banana' });
-  assert.equal(res.status, 400);
-});
-
-test('comments: CSV export has header + row', async () => {
-  await request(created.app).post(`/api/${CLIENT}/${SLUG}/comments`)
-    .send({ sectionId: 's01', text: 'linha um' });
-  const res = await request(created.app).get(`/api/${CLIENT}/${SLUG}/comments.csv`);
-  assert.equal(res.status, 200);
-  assert.match(res.headers['content-type'], /text\/csv/);
-  const lines = res.text.trim().split('\n');
-  assert.equal(lines[0], 'id,sectionId,sectionLabel,widgetId,type,text,anchor,status,createdAt');
-  assert.equal(lines.length, 2);
-});
-
-test('comments: legacy comments.csv migrates into SQLite (idempotent)', async () => {
-  const dir = path.join(tmp, CLIENT, SLUG);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'comments.csv'),
-    'id,sectionId,sectionLabel,type,text,anchor,status,createdAt\n' +
-    'c1,s01,"Receita",detalhar,"texto legado","",novo,2026-05-02T00:00:00Z\n', 'utf8');
-
-  const first = await request(created.app).get(`/api/${CLIENT}/${SLUG}/comments`);
-  assert.equal(first.body.length, 1);
-  assert.equal(first.body[0].text, 'texto legado');
-
-  const second = await request(created.app).get(`/api/${CLIENT}/${SLUG}/comments`);
-  assert.equal(second.body.length, 1); // not duplicated
 });
 
 /* ── edits (global) ── */

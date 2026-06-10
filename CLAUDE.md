@@ -53,6 +53,8 @@ presentation_generator/
 │
 └── .claude/
     └── skills/
+        ├── setup/
+        │   └── SKILL.md               ← deixa o app no ar (checa Node → install → build → sobe → abre)
         ├── plan-slides/
         │   └── SKILL.md               ← skill conversacional (4 fases)
         ├── build-slides/
@@ -149,6 +151,15 @@ presentation_generator/
 
 ## Skills
 
+### `/setup`
+Deixa o **app de visualização** (`app/`) no ar do zero, com o mínimo de fricção — pensada para o consultor não-técnico.
+
+**Faz:** detecta SO → checa Node 18+ (orienta instalar se faltar) → `npm install` → `npm run build` → libera a porta 3131 → sobe o servidor em segundo plano → abre `http://localhost:3131` → checa Python.
+
+**Pré-requisitos:** **Node 18+** para o app (obrigatório); **Python 3.8+** só para *gerar* análises (`/ltv-analysis`, `/conversao-perfil`) — **sem `pip`**, os scripts usam só a biblioteca padrão (no Windows o Python é chamado por `py -3`). Tem "modo só subir" quando já foi instalado antes. O servidor é **local** (sem autenticação) — entrega ao cliente é outro fluxo.
+
+---
+
 ### `/plan-slides`
 Pipeline conversacional que transforma uma análise em `temp/slides_plan.md`.
 
@@ -218,6 +229,17 @@ Análise completa de LTV a partir de um CSV transacional — por produto, por co
 - `temp/[cliente]/[analise]/plano_analise.md` — seções planejadas e progresso
 - `output/[cliente]/[analise]/data.json` — mapa de navegação
 - `output/[cliente]/[analise]/sXX.json` — seções em typed blocks JSON
+
+---
+
+### `/conversao-perfil`
+Análise de conversão por perfil ao longo de vários lançamentos, a partir de um **dump multidimensional de pesquisa** (uma linha por combinação de dimensões × lançamento × canal). Gera, no app, Panorama + uma página por critério + Insights + Detalhamentos (com **análise de codependência** entre fatores: qualificador vs qualificante).
+
+**Estrutura de pastas:** igual ao `/ltv-analysis` (`input/`/`temp/`/`output/[cliente]/[slug]`).
+
+**5 fases:** localizar dump → contexto → perguntas → setup + exploração → dicionário/plano (aprovação) → execução. Os cálculos são feitos por `conversao-perfil/conv_calc.py` (benchmark = respondentes da pesquisa; conversões já em %; lançamentos cronológicos; normalização de grupos duplicados). O LLM escreve a prosa de Insights/Detalhamentos; números só via `bind`.
+
+**Auxiliares da skill** (`.claude/skills/conversao-perfil/`): `conv_calc.py` (motor de cálculo), `build_report.py` (gerador genérico das 4 camadas — `build(csv, config, content, out_dir)`), `calc-rules.md`, `BLOCKS.md`, `dictionary.md`, `template.json`, `sections/{PANORAMA,CRITERIO,INSIGHTS,DETALHAMENTOS}.md`. Invocação de exemplo (caso INDÊ, do CSV bruto): `temp/inde/gen_inde.py` + `inde_config.json`/`inde_content.json`.
 
 ---
 

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Uso — Dossiê do Consultor</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
+    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .home-brand small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
+    .bar-back { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
+
+    .u-wrap { max-width: 1100px; margin: 0 auto; padding: 34px 36px 90px; }
+    .u-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .u-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .u-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 12px 0 0; }
+    .u-sub { font-size: 14px; color: var(--gray); margin-top: 6px; max-width: 72ch; line-height: 1.6; }
+
+    .u-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 22px; }
+    @media (max-width: 760px) { .u-kpis { grid-template-columns: repeat(2, 1fr); } }
+    .u-kpi { background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 16px 18px; box-shadow: var(--shadow-sm); }
+    .u-kpi-v { font-size: 24px; font-weight: 760; letter-spacing: -.02em; color: var(--fg); }
+    .u-kpi-l { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--gray2); margin-top: 5px; }
+
+    .u-h2 { font-size: 12.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin: 30px 0 13px; display: flex; align-items: center; gap: 10px; }
+    .u-h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+
+    .u-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 760px) { .u-kinds { grid-template-columns: 1fr; } }
+    .u-kind { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px 17px; box-shadow: var(--shadow-sm); }
+    .u-kind-h { font-size: 13.5px; font-weight: 750; color: var(--fg); }
+    .u-kind-row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--gray); margin-top: 8px; }
+    .u-kind-row b { color: var(--fg); font-weight: 700; }
+
+    .u-table { width: 100%; border-collapse: collapse; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); }
+    .u-table th { text-align: left; font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--gray2); padding: 11px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .u-table td { font-size: 12.5px; color: var(--fg); padding: 10px 14px; border-bottom: 1px solid var(--divider); }
+    .u-table tr:last-child td { border-bottom: none; }
+    .u-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .u-chip { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+    .u-chip.k-insights { background: var(--green-bg); color: var(--green); }
+    .u-chip.k-raso { background: var(--amber-bg); color: var(--amber); }
+    .u-chip.k-fundo { background: var(--purple-bg); color: var(--purple); }
+    .u-chip.k-outro { background: var(--surface); color: var(--gray2); }
+    .u-err { color: var(--red); font-weight: 700; }
+    .u-empty { color: var(--gray); padding: 50px 0; text-align: center; }
+    .u-note { font-size: 11.5px; color: var(--gray2); margin-top: 12px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header class="home-bar">
+    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
+    <span class="bar-logo-sep"></span>
+    <span class="home-brand">Dossiê do Consultor<small>Uso</small></span>
+    <a class="bar-back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar</a>
+  </header>
+
+  <div class="u-wrap" id="wrap">
+    <span class="u-tag">Consumo de IA</span>
+    <h1 class="u-title">Uso da API do Claude</h1>
+    <p class="u-sub">Custo e tokens das gerações de insights e aprofundamentos. Os valores usam o preço configurado do modelo; ajuste em <code>app/.env</code> se necessário.</p>
+    <div id="body"><p class="u-empty">Carregando…</p></div>
+  </div>
+
+  <script type="module">
+    const KIND = {
+      'insights': { label: 'Insights', cls: 'k-insights' },
+      'modal-raso': { label: 'Aprofundamento (raso)', cls: 'k-raso' },
+      'modal-fundo': { label: 'Aprofundamento (fundo)', cls: 'k-fundo' },
+    };
+    const kindOf = (k) => KIND[k] || { label: k || 'outro', cls: 'k-outro' };
+    const usd = (n) => 'US$ ' + (n ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    const num = (n) => (n ?? 0).toLocaleString('pt-BR');
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const dt = (s) => { try { return new Date(s).toLocaleString('pt-BR'); } catch { return s || ''; } };
+
+    try {
+      const d = await (await fetch('/api/claude-log?limit=100')).json();
+      const body = document.getElementById('body');
+      if (!d.total) { body.innerHTML = '<p class="u-empty">Nenhuma chamada à API ainda. Gere uma análise com insights ou um detalhamento.</p>'; }
+      else {
+        const t = d.totals;
+        const kinds = Object.entries(d.byKind).sort((a, b) => b[1].usd - a[1].usd);
+        body.innerHTML = `
+          <div class="u-kpis">
+            <div class="u-kpi"><div class="u-kpi-v">${usd(t.usd)}</div><div class="u-kpi-l">Custo total</div></div>
+            <div class="u-kpi"><div class="u-kpi-v">${num(d.total)}</div><div class="u-kpi-l">Chamadas${d.errors ? ` · <span class="u-err">${d.errors} erro(s)</span>` : ''}</div></div>
+            <div class="u-kpi"><div class="u-kpi-v">${num(t.input_tokens)}</div><div class="u-kpi-l">Tokens de entrada</div></div>
+            <div class="u-kpi"><div class="u-kpi-v">${num(t.output_tokens)}</div><div class="u-kpi-l">Tokens de saída</div></div>
+          </div>
+
+          <div class="u-h2">Por tipo</div>
+          <div class="u-kinds">
+            ${kinds.map(([k, v]) => `<div class="u-kind">
+              <div class="u-kind-h"><span class="u-chip ${kindOf(k).cls}">${esc(kindOf(k).label)}</span></div>
+              <div class="u-kind-row"><span>Chamadas</span><b>${num(v.count)}</b></div>
+              <div class="u-kind-row"><span>Custo</span><b>${usd(v.usd)}</b></div>
+              <div class="u-kind-row"><span>Tokens (in/out)</span><b>${num(v.in)} / ${num(v.out)}</b></div>
+            </div>`).join('')}
+          </div>
+
+          <div class="u-h2">Últimas chamadas</div>
+          <table class="u-table">
+            <thead><tr><th>Quando</th><th>Tipo</th><th class="num">Custo</th><th class="num">Tokens (in/out)</th><th>Status</th></tr></thead>
+            <tbody>
+              ${d.entries.map((e) => `<tr>
+                <td>${esc(dt(e.ts))}</td>
+                <td><span class="u-chip ${kindOf(e.kind).cls}">${esc(kindOf(e.kind).label)}</span></td>
+                <td class="num">${e.cost ? usd(e.cost.usd) : '—'}</td>
+                <td class="num">${e.cost ? (num(e.cost.tokens?.in) + ' / ' + num(e.cost.tokens?.out)) : '—'}</td>
+                <td>${e.error ? '<span class="u-err">erro</span>' : 'ok'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+          <p class="u-note">Uso agregado da equipe (todas as análises). Mostrando as últimas ${d.entries.length} de ${num(d.total)} chamadas.</p>`;
+      }
+    } catch (err) {
+      document.getElementById('body').innerHTML = '<p class="u-empty">Erro ao carregar o uso: ' + esc(err.message) + '</p>';
+    }
+  </script>
+</body>
+</html>

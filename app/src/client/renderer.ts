@@ -6,9 +6,10 @@
 
 import type {
   Widget, Bind, ResolvedBind, KpiWidget, ChartWidget, TableWidget,
-  HeatmapWidget, FindBlockWidget, FindNoteWidget, HighlightWidget, NiWidget,
+  HeatmapWidget, HeatRow, HeatCell, FindBlockWidget, FindNoteWidget, HighlightWidget, NiWidget,
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
-  DefStepWidget, MdefBlockWidget, GrpListWidget,
+  DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
+  EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, type ChartDef } from './charts.js';
@@ -59,6 +60,28 @@ function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
   return card;
 }
 
+/** Robust per-series outlier removal — turns outliers into gaps. Combines MAD
+ *  (median absolute deviation) and Tukey IQR fences: MAD catches a single big spike
+ *  even in sparse series (≈3–4 pts), where IQR fails because the spike inflates Q3
+ *  (and 2σ fails because it inflates σ). Used by the per-chart "outliers" toggle. */
+function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
+  const median = (a: number[]) => { const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+  return series.map(s => {
+    const nums = s.data.filter((v): v is number => typeof v === 'number');
+    if (nums.length < 4) return s;
+    const sorted = [...nums].sort((a, b) => a - b);
+    const med = median(sorted);
+    const mad = median(nums.map(v => Math.abs(v - med)).sort((a, b) => a - b));
+    const q = (p: number) => { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); };
+    const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
+    const madThr = mad > 0 ? 3.5 * 1.4826 * mad : Infinity;
+    const lo = iqr > 0 ? q1 - 1.5 * iqr : -Infinity, hi = iqr > 0 ? q3 + 1.5 * iqr : Infinity;
+    const isOut = (v: number) => Math.abs(v - med) > madThr || v < lo || v > hi;
+    if (madThr === Infinity && !(iqr > 0)) return s;
+    return { name: s.name, data: s.data.map(v => (typeof v === 'number' && isOut(v)) ? null : v) };
+  });
+}
+
 /* ── chart ── */
 function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'widget-chart');
@@ -70,6 +93,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const variant = {
     trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
     showLabels: w.showLabels, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
+    dashLast: w.dashLast, valueFormat: w.valueFormat,
   };
   let def: ChartDef | null = null;
   if (w.bind) {
@@ -78,14 +102,16 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
       wrap.appendChild(empty());
       return wrap;
     }
-    def = defFromResolved(w.chartType, resolved, {
-      height, colors: w.colors, distributed: w.distributed,
+    const series = (w as { outliers?: boolean }).outliers ? dropOutliers(resolved.series) : resolved.series;
+    def = defFromResolved(w.chartType, { categories: resolved.categories, series }, {
+      height, colors: w.colors, distributed: w.distributed, diverging: w.diverging, pct: w.pct,
+      axisMin: w.axisMin, axisMax: w.axisMax, meanLine: w.meanLine,
       stackType: w.stackType, options: w.options, ...variant,
     });
   } else if (w.series != null) {
     def = {
       type: w.chartType, series: w.series, categories: w.categories, labels: w.labels,
-      colors: w.colors, distributed: w.distributed, stackType: w.stackType,
+      colors: w.colors, distributed: w.distributed, diverging: w.diverging, pct: w.pct, axisMin: w.axisMin, axisMax: w.axisMax, meanLine: w.meanLine, stackType: w.stackType,
       height, options: w.options, ...variant,
     };
   } else {
@@ -100,13 +126,255 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   return wrap;
 }
 
+/* ── eyebrow ── numbered zone separator (badge + title + caption + rule) */
+function renderEyebrow(w: EyebrowWidget): HTMLElement {
+  const wrap = el('div', `grp-eyebrow${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
+  if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
+  wrap.appendChild(el('span', 'ge-t', w.title));
+  if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
+  wrap.appendChild(el('span', 'ge-rule'));
+  return wrap;
+}
+
+/* ── kpi-strip ── a row of tabular KPIs (optional variation `sub` + trend spark) */
+function renderKpiStrip(w: KpiStripWidget): HTMLElement {
+  const wrap = el('div', 'kpi-strip');
+  for (const item of w.items || []) {
+    const k = el('div', 'kpi');
+    const n = el('div', item.small ? 'kpi-n kpi-n--sm' : 'kpi-n');
+    n.innerHTML = String(item.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
+    k.append(n, el('div', 'kpi-l', item.label));
+    if (item.sub) k.appendChild(el('div', `kpi-sub kpi-sub--${item.subTone || 'neutral'}`, item.sub));
+    if (item.spark && item.spark.length > 1) { const s = sparkSvg(item.spark); if (s) k.appendChild(s); }
+    wrap.appendChild(k);
+  }
+  return wrap;
+}
+
+/** Tiny inline trend sparkline (SVG polyline). Nulls are skipped (gaps). */
+function sparkSvg(data: (number | null)[]): SVGElement | null {
+  const W = 96, H = 20, P = 2;
+  const pts = data.map((v, i) => ({ v, i })).filter(p => typeof p.v === 'number') as { v: number; i: number }[];
+  if (pts.length < 2) return null;
+  const vals = pts.map(p => p.v);
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = (mx - mn) || 1;
+  const lastX = data.length - 1 || 1;
+  const x = (i: number) => P + (i / lastX) * (W - 2 * P);
+  const y = (v: number) => P + (1 - (v - mn) / rng) * (H - 2 * P);
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', 'kpi-spark');
+  const d = pts.map((p, j) => `${j ? 'L' : 'M'}${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', d); path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-width', '1.5');
+  path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(path);
+  const last = pts[pts.length - 1];
+  const dot = document.createElementNS(NS, 'circle');
+  dot.setAttribute('cx', x(last.i).toFixed(1)); dot.setAttribute('cy', y(last.v).toFixed(1));
+  dot.setAttribute('r', '1.8'); dot.setAttribute('fill', 'currentColor');
+  svg.appendChild(dot);
+  return svg;
+}
+
+/* ── kpi-card ── one elevated metric card (feature = icon+pill+spark; volume = bar) */
+const ICONS: Record<string, string> = {
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+  bolt: '<path d="M13 2.5 L5 13.5 H11 L10 21.5 L19 9.5 H13 Z" fill="currentColor" stroke="none"/>',
+  'trending-up': '<path d="M3 17 L9.5 10.5 L13.5 14.5 L21 7"/><path d="M15.5 7 H21 V12.5"/>',
+  database: '<ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5 V18 c0 1.55 3.13 2.8 7 2.8 s7 -1.25 7 -2.8 V5.5"/><path d="M5 11.8 c0 1.55 3.13 2.8 7 2.8 s7 -1.25 7 -2.8"/>',
+  coin: '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.3 V16.7 M9.6 9.2 a2.6 2 0 0 1 4.8 -0.2 M9.6 14.8 a2.6 2 0 0 0 4.8 0.2"/>',
+  users: '<circle cx="9" cy="8.5" r="3.1"/><path d="M3 19.5 a6 6 0 0 1 12 0"/><path d="M15.5 5.7 a3.1 3.1 0 0 1 0 5.6 M16.5 13.8 a6 6 0 0 1 4.5 5.7"/>',
+  'shopping-cart': '<circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/><path d="M3 4 H5.2 L7.3 15 H18 L20 7 H6"/>',
+  'arrow-back-up': '<path d="M9 7 L4.5 11.5 L9 16"/><path d="M4.5 11.5 H14 a5 5 0 0 1 5 5 V18.5"/>',
+  refresh: '<path d="M20 11.5 a8 8 0 1 0 -2.2 6.2"/><path d="M20 5 V11.5 H13.5"/>',
+  star: '<path d="M12 3 L14.6 9 L21 9.5 L16.1 13.8 L17.7 20 L12 16.5 L6.3 20 L7.9 13.8 L3 9.5 L9.4 9 Z" fill="currentColor" stroke="none"/>',
+  'circle-check': '<circle cx="12" cy="12" r="8.8"/><path d="M8 12 l3 3 l5 -6"/>',
+  'arrows-left-right': '<path d="M8 6.5 L4 11 H20"/><path d="M16 17.5 L20 13 H4"/>',
+};
+
+function iconBox(icon?: string, color?: string): HTMLElement {
+  const box = el('div', 'kc-ico');
+  if (color) box.style.setProperty('--ic', color);
+  if (icon && ICONS[icon]) {
+    box.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`;
+  }
+  return box;
+}
+
+function barEl(segs: { pct: number; color: string }[]): HTMLElement {
+  const bar = el('div', 'kc-bar');
+  let used = 0;
+  for (const s of segs) {
+    const pct = Math.max(0, Math.min(100, s.pct || 0));
+    const seg = el('span', 'kc-seg');
+    seg.style.width = `${pct}%`; seg.style.background = s.color;
+    bar.appendChild(seg); used += pct;
+  }
+  if (100 - used > 0.5) {
+    const t = el('span', 'kc-seg kc-seg--track');
+    t.style.width = `${100 - used}%`;
+    bar.appendChild(t);
+  }
+  return bar;
+}
+
+function renderKpiCard(w: KpiCardWidget): HTMLElement {
+  const feature = w.tier !== 'volume';
+  const card = el('div', `kc kc--${feature ? 'feature' : 'volume'}`);
+  const head = el('div', 'kc-head');
+  if (feature) {
+    head.appendChild(iconBox(w.icon, w.iconColor));
+    if (w.delta) head.appendChild(el('span', `kc-pill kc-pill--${w.deltaTone || 'neutral'}`, w.delta));
+  } else {
+    head.appendChild(el('span', 'kc-lbl', w.label));
+    head.appendChild(iconBox(w.icon, w.iconColor));
+  }
+  card.appendChild(head);
+  const val = el('div', 'kc-val');
+  val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
+  if (feature) {
+    card.appendChild(el('div', 'kc-lbl', w.label));
+    const row = el('div', 'kc-valrow');
+    row.appendChild(val);
+    if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
+    card.appendChild(row);
+    if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+  } else {
+    card.appendChild(val);
+    if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+    card.appendChild(barEl(w.bar || []));
+  }
+  return card;
+}
+
+/* ── metric-toggle ── inline indicator selector; recomputes the breakdown below */
+function renderMetricToggle(w: MetricToggleWidget): HTMLElement {
+  const bar = el('div', 'mtoggle');
+  for (const m of w.metrics || []) {
+    const b = el('button', 'mtoggle-opt' + (m.id === w.current ? ' on' : ''));
+    (b as HTMLButtonElement).type = 'button';
+    b.textContent = m.label;
+    b.addEventListener('click', () => {
+      if (m.id === w.current) return;
+      for (const x of bar.children) x.classList.toggle('on', x === b);
+      document.dispatchEvent(new CustomEvent('historico-metric', { detail: m.id }));
+    });
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+/* ── chart-table ── one card: chart on top + comparison table below (full-width) */
+function renderChartTable(w: ChartTableWidget, ctx: RenderCtx): HTMLElement {
+  const card = el('div', 'ctbl');
+  if (w.title) card.appendChild(el('div', 'ctbl-title', w.title));
+  const chart = renderChart({ ...w.chart, title: undefined, outliers: (w as { outliers?: boolean }).outliers }, ctx);
+  chart.classList.add('ctbl-chart');
+  card.appendChild(chart);
+  if (w.table) {
+    const table = renderTable({ ...w.table, title: undefined }, ctx);
+    table.classList.add('ctbl-table');
+    card.appendChild(table);
+  }
+  return card;
+}
+
+/* ── heat class from a cell value ── diverging diff scale or long-term uplift scale */
+function heatClass(value: unknown, scale: 'diff' | 'uplift' | 'amp' | 'surv'): string {
+  const n = parseFloat(String(value).replace(/−/g, '-').replace(/[^0-9.\-]/g, ''));
+  if (!Number.isFinite(n)) return '';
+  if (scale === 'amp') {            // amplitude / relevância (% vs benchmark)
+    if (n >= 30) return 'cup';
+    if (n >= 12) return 'cup3';
+    return 'cn0';
+  }
+  if (scale === 'surv') {           // independência (% do sinal que sobrevive)
+    return n >= 50 ? 'cp' : 'cn';
+  }
+  if (scale === 'uplift') {
+    if (n <= 0) return 'cn0';
+    if (n >= 80) return 'cup';
+    if (n >= 50) return 'cup2';
+    if (n >= 25) return 'cup3';
+    return 'cup4';
+  }
+  if (n >= 70) return 'csp';
+  if (n >= 25) return 'cp2';
+  if (n >= 8) return 'cp';
+  if (n > -8) return 'cn0';
+  if (n > -28) return 'cn';
+  if (n > -60) return 'csn';
+  return 'cxn';
+}
+
+/* ── i-info badge ── small "i" with a native tooltip carrying the metric definition */
+function infoBadge(def: string): HTMLElement {
+  const i = el('span', 'th-i', 'i');
+  i.title = def;
+  i.setAttribute('aria-label', def);
+  return i;
+}
+
+/* ── chart-toggle ── one card, N chart configs, switched by a segmented toggle.
+ *  Every chart mounts up front (pushed to ctx.charts); the toggle shows/hides them
+ *  (a hidden chart re-measures via the ChartManager observer when shown). */
+function renderChartToggle(w: ChartToggleWidget, ctx: RenderCtx): HTMLElement {
+  const tabs = w.tabs || [];
+  const card = el('div', 'hm-card chart-toggle-card');
+  const hd = el('div', 'hm-card-hd');
+  const tt = el('div', 'tbl-title');
+  const name = el('span', 'tt-name', w.title || '');
+  const sub = el('span', 'tt-sub');
+  tt.append(name, sub);
+  const toggle = el('div', 'hm-toggle');
+  hd.append(tt, toggle);
+  const host = el('div', 'ct-host');
+  card.append(hd, host);
+
+  const panes: HTMLElement[] = [];
+  tabs.forEach((tab, i) => {
+    const pane = el('div', 'ct-pane');
+    if (i !== 0) pane.style.display = 'none';
+    pane.appendChild(renderChart({ type: 'chart', id: `${w.id}-t${i}`, ...tab.chart } as ChartWidget, ctx));
+    host.appendChild(pane);
+    panes.push(pane);
+
+    const b = el('button', `hm-seg${i === 0 ? ' hm-seg-on' : ''}`, tab.label) as HTMLButtonElement;
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      panes.forEach((p, j) => { p.style.display = j === i ? 'block' : 'none'; });
+      [...toggle.children].forEach((btn, j) => btn.classList.toggle('hm-seg-on', j === i));
+      sub.textContent = tab.sub || w.sub || '';
+      window.dispatchEvent(new Event('resize')); // re-measure the now-visible chart
+    });
+    toggle.appendChild(b);
+  });
+  sub.textContent = tabs[0]?.sub || w.sub || '';
+  return card;
+}
+
 /* ── table ── */
 function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
-  const wrap = el('div', 'tw');
+  const wrap = el('div');
+  if (w.title) {
+    const tt = el('div', 'tbl-title');
+    tt.appendChild(el('span', 'tt-name', w.title));
+    if (w.sub) tt.appendChild(el('span', 'tt-sub', w.sub));
+    wrap.appendChild(tt);
+  }
+  const tw = el('div', 'tw');
   const table = el('table');
   const thead = el('thead');
   const hrow = el('tr');
-  for (const h of w.cols || []) hrow.appendChild(el('th', '', h));
+  for (const h of w.cols || []) {
+    const th = el('th', '', h);
+    const def = w.defs?.[h];
+    if (def) { th.appendChild(document.createTextNode(' ')); th.appendChild(infoBadge(def)); }
+    hrow.appendChild(th);
+  }
   thead.appendChild(hrow);
   table.appendChild(thead);
 
@@ -114,41 +382,83 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   let rows: TableCell[][];
   if (w.bind) {
     const resolved = ctx.resolve(w.bind);
-    if (!resolved || resolved.rows.length === 0) { wrap.append(table); wrap.appendChild(empty()); return wrap; }
+    if (!resolved || resolved.rows.length === 0) { tw.append(table); wrap.append(tw, empty()); return wrap; }
     rows = resolved.rows.map(r => (w.cols || []).map(c => (r[c] ?? '') as TableCell));
   } else {
     rows = w.rows || [];
   }
 
+  const cols = w.cols || [];
   for (const r of rows) {
     const tr = el('tr');
-    for (const cell of r) {
+    r.forEach((cell, i) => {
       const td = el('td');
-      if (cell && typeof cell === 'object') {
-        td.textContent = formatValue(cell.value);
-        if (cell.cls) td.classList.add(cell.cls);
-        if (cell.title) td.title = cell.title;
+      const value = (cell && typeof cell === 'object') ? cell.value : cell;
+      const obj = (cell && typeof cell === 'object') ? cell : null;
+      if (obj && obj.delta) {
+        td.classList.add('td-metric');
+        td.appendChild(el('span', 'tm-val', formatValue(value)));
+        td.appendChild(el('span', `tm-pill tm-${obj.tone || 'neutral'}`, obj.delta));
+        if (obj.rel) td.appendChild(el('span', 'tm-rel', obj.rel));
       } else {
-        td.textContent = formatValue(cell);
+        td.textContent = formatValue(value);
       }
+      if (obj) {
+        if (obj.cls) td.classList.add(obj.cls);
+        if (obj.title) td.title = obj.title;
+      }
+      const scale = w.colorScale?.[cols[i]];
+      if (scale) { const cls = heatClass(value, scale); if (cls) td.classList.add(cls); }
       tr.appendChild(td);
-    }
+    });
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
-  wrap.appendChild(table);
+  tw.appendChild(table);
+  wrap.appendChild(tw);
   if (w.caption) wrap.appendChild(el('p', 'xs', w.caption));
   return wrap;
 }
 
-/* ── heatmap ── */
-function renderHeatmap(w: HeatmapWidget): HTMLElement {
-  const wrap = el('div', 'hm-wrap');
+/* ── heatmap ── inline rows, or bound (pivot a long-format table so the channel
+ *  toggle re-filters it: one dataset row per cell → grid). */
+interface HeatSpec { bind?: Bind; rowKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string }
+function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: HeatRow[] } | null {
+  const r = ctx.resolve(w.bind);
+  if (!r || r.rows.length === 0) return null;
+  const rowKey = w.rowKey || 'grupo';
+  const colKey = w.colKey || 'lancamento';
+  const valKey = w.valKey || 'valor';
+  const clsKey = w.clsKey || 'cls';
+  const titleKey = w.titleKey;
+  const cols: string[] = [];
+  const rowOrder: string[] = [];
+  const byRow = new Map<string, Map<string, HeatCell>>();
+  for (const row of r.rows) {
+    const rk = String(row[rowKey] ?? '');
+    const ck = String(row[colKey] ?? '');
+    if (!cols.includes(ck)) cols.push(ck);
+    if (!byRow.has(rk)) { byRow.set(rk, new Map()); rowOrder.push(rk); }
+    byRow.get(rk)!.set(ck, {
+      value: row[valKey] as string | number,
+      cls: row[clsKey] != null ? String(row[clsKey]) : undefined,
+      title: titleKey && row[titleKey] != null ? String(row[titleKey]) : undefined,
+    });
+  }
+  const rows: HeatRow[] = rowOrder.map(rk => ({
+    label: rk,
+    cells: cols.map(ck => byRow.get(rk)!.get(ck) ?? { value: '—' }),
+  }));
+  return { cols, rows };
+}
+
+/** Build a heatmap grid element from cols + rows (shared by heatmap + toggle). */
+function buildHeatGrid(cols: string[], rows: HeatRow[]): HTMLElement {
   const grid = el('div', 'hm-grid');
-  grid.style.setProperty('--hm-cols', String((w.cols || []).length));
+  grid.style.setProperty('--hm-cols', String(cols.length));
   grid.appendChild(el('div'));
-  for (const c of w.cols || []) grid.appendChild(el('div', 'hm-th', c));
-  for (const r of w.rows || []) {
+  for (const c of cols) grid.appendChild(el('div', 'hm-th', c));
+  for (const r of rows) {
     grid.appendChild(el('div', 'hm-rh', r.label));
     for (const cell of r.cells || []) {
       const td = el('div', `hm-cell ${cell.cls || 'hm-n'}`, formatValue(cell.value));
@@ -156,19 +466,172 @@ function renderHeatmap(w: HeatmapWidget): HTMLElement {
       grid.appendChild(td);
     }
   }
-  wrap.appendChild(grid);
+  return grid;
+}
+
+function renderHeatmap(w: HeatmapWidget, ctx: RenderCtx): HTMLElement {
+  const wrap = el('div', 'hm-wrap');
+  let cols = w.cols || [];
+  let rows = w.rows || [];
+  if (w.bind) {
+    const pivoted = pivotHeatmap(w, ctx);
+    if (!pivoted) { wrap.appendChild(empty()); return wrap; }
+    cols = pivoted.cols;
+    rows = pivoted.rows;
+  }
+  wrap.appendChild(buildHeatGrid(cols, rows));
   if (w.caption) { const cap = el('p', 'xs', w.caption); cap.style.marginTop = '8px'; wrap.appendChild(cap); }
   return wrap;
 }
 
+/* ── heatmap-toggle ── one card, N tabs, each a bound heatmap dataset. The tab
+ *  count is data-driven; clicking a tab re-pivots with the current filters. */
+function renderHeatmapToggle(w: HeatmapToggleWidget, ctx: RenderCtx): HTMLElement {
+  const tabs = w.tabs || [];
+  const card = el('div', 'hm-card');
+  const hd = el('div', 'hm-card-hd');
+  const tt = el('div', 'tbl-title');
+  const name = el('span', 'tt-name');
+  const sub = el('span', 'tt-sub');
+  tt.append(name, sub);
+  const toggle = el('div', 'hm-toggle');
+  hd.append(tt, toggle);
+  const host = el('div', 'hm-host');
+  card.append(hd, host);
+
+  const show = (idx: number) => {
+    const tab = tabs[idx];
+    if (!tab) return;
+    name.textContent = w.title || tab.label;
+    sub.textContent = tab.sub || '';
+    const piv = pivotHeatmap(tab, ctx);
+    host.replaceChildren(piv ? buildHeatGrid(piv.cols, piv.rows) : empty());
+    [...toggle.children].forEach((b, i) => b.classList.toggle('hm-seg-on', i === idx));
+  };
+  tabs.forEach((tab, i) => {
+    const b = el('button', 'hm-seg', tab.label) as HTMLButtonElement;
+    b.type = 'button';
+    b.addEventListener('click', () => show(i));
+    toggle.appendChild(b);
+  });
+  show(0);
+  return card;
+}
+
+/* ── rank-card ── consistency ranking; renders its own grid of colored cards.
+ *  Bound form re-filters on the channel toggle; inline form via `cards`. */
+const RANK_LABEL: Record<RankClass, string> = {
+  cons: 'Consistente', pos: 'Positivo', var: 'Variável', neg: 'Negativo', crit: 'Crítico',
+};
+
+function num(v: unknown): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function pctSigned(v?: number): string {
+  if (v === undefined) return '—';
+  return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+}
+
+function buildRankCard(card: RankCard, pos: number): HTMLElement {
+  const cls: RankClass = card.classe || 'var';
+  const div = el('div', `rank-card rk-${cls}`);
+  const head = el('div', 'rank-pos');
+  head.appendChild(el('span', '', `#${pos}`));
+  if (card.classe) head.appendChild(el('span', 'rank-cls', RANK_LABEL[cls]));
+  div.appendChild(head);
+  div.appendChild(el('div', 'rank-name', card.name));
+  div.appendChild(el('div', 'rank-diff-main', pctSigned(card.diffMain)));
+  if (card.diff12m !== undefined) div.appendChild(el('div', 'rank-diff-12m', `12m: ${pctSigned(card.diff12m)}`));
+  const meta = el('div', 'rank-meta');
+  if (card.rep !== undefined) meta.appendChild(el('span', '', `Representa ${card.rep.toFixed(0)}% dos leads`));
+  if (card.wins !== undefined && card.total !== undefined) {
+    meta.appendChild(el('span', '', `${card.wins}/${card.total} lançamentos acima do benchmark`));
+  }
+  div.appendChild(meta);
+  if (card.wins !== undefined && card.total) {
+    const barWrap = el('div', 'rank-bar-wrap');
+    const fill = el('div', 'rank-bar-fill');
+    fill.style.width = `${Math.round((card.wins / card.total) * 100)}%`;
+    barWrap.appendChild(fill);
+    div.appendChild(barWrap);
+  }
+  return div;
+}
+
+function renderRankCard(w: RankCardWidget, ctx: RenderCtx): HTMLElement {
+  const wrap = el('div', 'rank-wrap');
+  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  let cards: RankCard[];
+  if (w.bind) {
+    const r = ctx.resolve(w.bind);
+    if (!r || r.rows.length === 0) { wrap.appendChild(empty()); return wrap; }
+    const nameK = w.nameKey || 'grupo';
+    const mainK = w.mainKey || 'diff_lcto';
+    const m12K = w.m12Key || 'diff_12m';
+    const repK = w.repKey || 'rep';
+    const winsK = w.winsKey || 'wins';
+    const totalK = w.totalKey || 'n';
+    const classeK = w.classeKey || 'classe';
+    cards = r.rows.map(row => ({
+      name: String(row[nameK] ?? ''),
+      diffMain: num(row[mainK]) ?? 0,
+      diff12m: num(row[m12K]),
+      rep: num(row[repK]),
+      wins: num(row[winsK]),
+      total: num(row[totalK]),
+      classe: row[classeK] as RankClass | undefined,
+    }));
+  } else {
+    cards = w.cards || [];
+  }
+  const hasPos = cards.length > 0 && cards.every(c => typeof c.pos === 'number');
+  cards = hasPos
+    ? [...cards].sort((a, b) => (a.pos as number) - (b.pos as number))
+    : [...cards].sort((a, b) => (b.diffMain ?? -Infinity) - (a.diffMain ?? -Infinity));
+  const grid = el('div', 'rank-grid');
+  cards.forEach((c, i) => grid.appendChild(buildRankCard(c, c.pos ?? i + 1)));
+  wrap.appendChild(grid);
+  return wrap;
+}
+
 /* ── narrative widgets ── */
+
+/** Insight cards embed the takeaway as "…<strong>Implicação:</strong> …". Split it
+ *  out so it renders as a labelled footer block (matches the design). */
+function splitImplication(detail: string): { body: string; impl: string } {
+  const m = detail.match(/(?:<strong>\s*)?implica[çc][ãa]o\s*:?\s*(?:<\/strong>)?\s*:?\s*/i);
+  if (!m || m.index === undefined) return { body: detail, impl: '' };
+  return { body: detail.slice(0, m.index).trim(), impl: detail.slice(m.index + m[0].length).trim() };
+}
+
+/** Bold currency + percentage figures so the zone color highlights them — the
+ *  insight cards emphasise metrics, but generated prose often leaves them plain.
+ *  Skipped when the text already carries its own <strong> emphasis. */
+function highlightFigures(html: string): string {
+  if (/<strong>[^<]*\d/.test(html)) return html;     // model already bolded a figure → leave it
+  return html.replace(/(R\$\s?\d[\d.,]*(?:\s?(?:k|mil|M|mi|bi))?|[+\-−]?\d[\d.,]*\s?%)/g, '<strong>$1</strong>');
+}
+
 function renderFindBlock(w: FindBlockWidget): HTMLElement {
-  const div = el('div', 'find-block');
+  const color = w.tagColor || 'p';
+  const div = el('div', `find-block${w.card ? ' find-block--card' : ''} fb-${color}`);
   if (w.modal) { div.dataset.modal = w.modal; }
-  div.appendChild(el('span', `find-tag find-tag-${w.tagColor || 'p'}`, w.tag || ''));
+  div.appendChild(el('span', `find-tag find-tag-${color}`, w.tag || ''));
   div.appendChild(el('div', 'find-title', w.title || ''));
-  if (w.detail) { const p = el('p', 'sm'); p.innerHTML = w.detail; div.appendChild(p); }
-  if (w.modal) div.appendChild(el('span', 'fn-more', '↗ ver detalhamento'));
+  if (w.detail) {
+    const { body, impl } = splitImplication(w.detail);
+    if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = w.card ? highlightFigures(body) : body; div.appendChild(p); }
+    if (impl) {
+      const f = el('div', 'fb-impl');
+      f.appendChild(el('span', 'fb-impl-tag', 'Implicação'));
+      const t = el('span', 'fb-impl-txt'); t.innerHTML = impl; f.appendChild(t);
+      div.appendChild(f);
+    }
+  }
+  if (w.modal) { const a = el('a', 'fn-link', w.linkLabel || '↗ ver detalhamento'); div.appendChild(a); }
   return div;
 }
 
@@ -295,9 +758,17 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
   try {
     switch (widget.type) {
       case 'kpi':         return renderKpi(widget, ctx);
+      case 'kpi-strip':   return renderKpiStrip(widget);
+      case 'kpi-card':    return renderKpiCard(widget);
+      case 'metric-toggle': return renderMetricToggle(widget);
+      case 'chart-table': return renderChartTable(widget, ctx);
+      case 'eyebrow':     return renderEyebrow(widget);
       case 'chart':       return renderChart(widget, ctx);
       case 'table':       return renderTable(widget, ctx);
-      case 'heatmap':     return renderHeatmap(widget);
+      case 'heatmap':     return renderHeatmap(widget, ctx);
+      case 'heatmap-toggle': return renderHeatmapToggle(widget, ctx);
+      case 'chart-toggle': return renderChartToggle(widget, ctx);
+      case 'rank-card':   return renderRankCard(widget, ctx);
       case 'find-block':  return renderFindBlock(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);

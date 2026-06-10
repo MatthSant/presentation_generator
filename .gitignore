@@ -4,3 +4,22 @@ temp/
 output/
 .claude/settings.local.json
 app/node_modules/
+app/.env
+
+# Dados de cliente / artefatos pesados — nunca versionar (LGPD)
+*.csv
+guia-exemplo/
+Ajsute de design/
+inde-conversao-perfil*.html
+
+# Python
+__pycache__/
+*.pyc
+
+# Dados de runtime (SQLite + log das chamadas Claude) — nunca versionar
+app/data/
+
+# Scratch de uploads (CSV bruto transitório) — nunca versionar
+app/.scratch/
+# Dado-base retido por análise (Fase 3b) — dado de cliente, nunca versionar
+app/.base/

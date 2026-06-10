@@ -1,0 +1,12 @@
+**/node_modules
+app/dist
+app/.scratch
+output
+input
+temp
+_source
+guia-exemplo
+"Ajsute de design"
+.git
+*.csv
+*.log

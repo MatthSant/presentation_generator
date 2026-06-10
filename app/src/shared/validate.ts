@@ -72,6 +72,15 @@ function tableColumns(table: unknown): Set<string> {
   return cols;
 }
 
+/** True when at least one row carries a real number under `col` — i.e. the column
+ *  is plottable. Display tables hold formatted strings ("16,7%"), which aren't. */
+function isNumericColumn(datasets: DataMap | undefined, dataset: unknown, col: string): boolean {
+  if (!datasets || !isStr(dataset)) return true;     // can't verify → don't block
+  const table = datasets[dataset] as unknown;
+  if (!isObj(table) || !Array.isArray(table.rows)) return true;
+  return table.rows.some((r) => isObj(r) && typeof r[col] === 'number');
+}
+
 /* ─────────────────────────────  View / Section  ───────────────────────────── */
 
 function validateBind(c: Collector, path: string, bind: unknown, datasets?: DataMap): void {
@@ -94,6 +103,13 @@ function validateBind(c: Collector, path: string, bind: unknown, datasets?: Data
   if (bind.metrics !== undefined) {
     if (!Array.isArray(bind.metrics)) c.err(`${path}.metrics`, 'metrics must be an array');
     else bind.metrics.forEach((m, i) => checkCol(`metrics[${i}]`, m));
+  }
+  if (bind.where !== undefined) {
+    if (!isObj(bind.where)) { c.err(`${path}.where`, 'where must be an object of column → value'); }
+    else for (const [col, val] of Object.entries(bind.where)) {
+      if (!cols.has(col)) c.err(`${path}.where.${col}`, `column "${col}" not in dataset "${bind.dataset}"`);
+      if (!(isStr(val) || isNum(val))) c.err(`${path}.where.${col}`, 'where value must be a string or number');
+    }
   }
 }
 
@@ -128,6 +144,14 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       if (!hasBind && w.series === undefined) {
         c.err(`${path}.series`, 'chart requires inline series when there is no bind');
       }
+      // A chart's y must be a NUMERIC column — a formatted-string column (e.g. the
+      // display "*_detail" tables: "16,7%") resolves to 0 and renders an empty chart.
+      if (hasBind && datasets) {
+        const b = w.bind as Obj;
+        if (b.y !== undefined && isStr(b.y) && !isNumericColumn(datasets, b.dataset, b.y)) {
+          c.err(`${path}.bind.y`, `chart y "${b.y}" is not numeric — bind to a numeric column (e.g. *_rank / *_grp), not a formatted *_detail column`);
+        }
+      }
       break;
     case 'table':
       if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'table requires a cols array');
@@ -136,11 +160,23 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       }
       break;
     case 'heatmap':
-      if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'heatmap requires a cols array');
-      if (!Array.isArray(w.rows)) c.err(`${path}.rows`, 'heatmap requires a rows array');
-      else w.rows.forEach((r, i) => {
-        if (!isObj(r) || !isStr(r.label) || !Array.isArray(r.cells)) {
-          c.err(`${path}.rows[${i}]`, 'heatmap row needs { label, cells[] }');
+      if (!hasBind) {
+        if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'heatmap requires a cols array when there is no bind');
+        if (!Array.isArray(w.rows)) c.err(`${path}.rows`, 'heatmap requires a rows array when there is no bind');
+        else w.rows.forEach((r, i) => {
+          if (!isObj(r) || !isStr(r.label) || !Array.isArray(r.cells)) {
+            c.err(`${path}.rows[${i}]`, 'heatmap row needs { label, cells[] }');
+          }
+        });
+      }
+      break;
+    case 'rank-card':
+      if (!hasBind && !Array.isArray(w.cards)) {
+        c.err(`${path}.cards`, 'rank-card requires cards[] when there is no bind');
+      }
+      if (Array.isArray(w.cards)) w.cards.forEach((card, i) => {
+        if (!isObj(card) || !isNonEmptyStr(card.name)) {
+          c.err(`${path}.cards[${i}]`, 'rank card needs a name');
         }
       });
       break;

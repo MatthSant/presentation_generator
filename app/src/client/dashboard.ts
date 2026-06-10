@@ -5,18 +5,18 @@
  * Bound widgets are tracked so a filter change re-resolves them in place:
  * charts updateSeries (animated), kpi/table/heatmap re-render their tile. */
 
-import type { Section, Widget, DataMap, ActiveFilters, LayoutItem, Bind, ResolvedBind } from '../shared/types.js';
+import type { Section, Widget, DataMap, ActiveFilters, LayoutItem, Bind, ResolvedBind, FilterDef } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, type ChartDef } from './charts.js';
 
 const DEFAULT_W: Record<string, number> = {
-  'label-sec': 12, 'find-note': 12, 'xs': 12,
+  'label-sec': 12, 'find-note': 12, 'xs': 12, 'chart-table': 12,
   'chart': 6, 'table': 6, 'highlight': 6, 'request': 6,
   'heatmap': 8, 'find-block': 4, 'ni': 4, 'ni-vertical': 4,
   'kpi': 3,
 };
-const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap']);
+const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap', 'rank-card']);
 
 /** Row height (px) used only while the Gridstack editor is open. The read path
  *  uses content-sized tracks, so this just gives the editor a sane drag grid. */
@@ -50,9 +50,16 @@ interface TileRef { widget: Widget; tile: HTMLElement; chartElId?: string; }
 export interface DashboardOpts {
   datasets: DataMap;
   getActive: () => ActiveFilters;
+  /** Filter definitions (id/default), used to mark which tiles reflect a
+   *  non-default filter — so the unmarked ones read as the general number. */
+  getFilterDefs?: () => FilterDef[];
   layout?: LayoutItem[];
   /** Persist new grid coords on save. Throwing keeps the editor open (caller shows the error). */
   onSaveLayout?: (sectionId: string, items: LayoutItem[]) => Promise<void>;
+  /** Add a per-chart "outliers" toggle (>2σ → gap). Used by the histórico view. */
+  outlierToggle?: boolean;
+  /** When set, chart tiles get a "filtered" badge with this text (histórico launch filter). */
+  filterBadge?: string | null;
 }
 
 export class Dashboard {
@@ -97,6 +104,61 @@ export class Dashboard {
     return this.opts.layout?.find(l => l.id === id);
   }
 
+  /** Filter columns whose active value differs from the filter's default — i.e.
+   *  the report is showing a non-general slice on that column. */
+  private activeNonDefaultCols(): Set<string> {
+    const active = this.opts.getActive() || {};
+    const defs = this.opts.getFilterDefs?.() || [];
+    const def = new Map(defs.map(d => [d.id, d.default ?? d.allValue]));
+    const out = new Set<string>();
+    for (const [id, val] of Object.entries(active)) {
+      if (val != null && val !== def.get(id)) out.add(id);
+    }
+    return out;
+  }
+
+  /** Dataset names a widget pulls from (top-level bind + toggle tabs). */
+  private widgetDatasets(widget: Widget): string[] {
+    const w = widget as { bind?: Bind; tabs?: { bind?: Bind; chart?: { bind?: Bind } }[] };
+    const names: string[] = [];
+    if (w.bind?.dataset) names.push(w.bind.dataset);
+    for (const t of w.tabs || []) {
+      if (t.bind?.dataset) names.push(t.bind.dataset);
+      if (t.chart?.bind?.dataset) names.push(t.chart.bind.dataset);
+    }
+    return names;
+  }
+
+  /** True when a widget reflects a non-default filter (so it gets the badge).
+   *  Inline/static widgets (no bind) never qualify — they're the general number. */
+  private isFiltered(widget: Widget, cols: Set<string>): boolean {
+    if (!cols.size) return false;
+    for (const name of this.widgetDatasets(widget)) {
+      const t = this.opts.datasets[name] as { filters?: string[] } | undefined;
+      if (t?.filters?.some(c => cols.has(c))) return true;
+    }
+    return false;
+  }
+
+  /** Pin a small purple filter badge on every tile whose data reflects the active
+   *  (non-default) filter. Unmarked tiles are the general/unfiltered number. */
+  private updateFilterBadges(): void {
+    const cols = this.activeNonDefaultCols();
+    for (const ref of this.tiles) {
+      const on = this.isFiltered(ref.widget, cols);
+      let badge = ref.tile.querySelector(':scope > .tile-filter-badge') as HTMLElement | null;
+      if (on && !badge) {
+        badge = document.createElement('span');
+        badge.className = 'tile-filter-badge';
+        badge.title = 'Reflete o filtro ativo';
+        badge.innerHTML = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6.3 7.4V19L10.3 21v-8.6z"/></svg>';
+        ref.tile.appendChild(badge);
+      } else if (!on && badge) {
+        badge.remove();
+      }
+    }
+  }
+
   /** A section with a saved layout renders as a true coordinate grid (honoring
    *  y/h) so the read path matches the editor exactly. Without one, tiles flow
    *  content-sized in document order at their default widths. */
@@ -127,6 +189,22 @@ export class Dashboard {
     tile.appendChild(renderWidget(widget, ctx));
     const newCharts = ctx.charts.slice(beforeCharts);
     this.tiles.push({ widget, tile, chartElId: newCharts[0]?.elId });
+    if (this.opts.outlierToggle && (widget.type === 'chart' || widget.type === 'chart-table') && newCharts.length) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tile-outlier' + ((widget as { outliers?: boolean }).outliers ? ' on' : '');
+      btn.title = 'Excluir outliers (fora das cercas de Tukey) deste gráfico';
+      btn.textContent = 'Remover outliers';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); this.toggleOutliers(widget.id); });
+      tile.appendChild(btn);
+    }
+    if (this.opts.filterBadge && (widget.type === 'chart' || widget.type === 'chart-table') && newCharts.length) {
+      const badge = document.createElement('span');
+      badge.className = 'tile-filtered';
+      badge.title = `Filtrado · ${this.opts.filterBadge}`;
+      badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.3 7.4V19L10.3 21v-8.6z"/></svg>';
+      tile.appendChild(badge);
+    }
     return tile;
   }
 
@@ -143,6 +221,8 @@ export class Dashboard {
     }
     this.host.appendChild(this.grid);
     for (const { elId, def } of ctx.charts) this.charts.create(elId, def);
+    this.charts.reflow();
+    this.updateFilterBadges();
   }
 
   /** Re-resolve every bound widget against the current filters, updating in place. */
@@ -165,6 +245,23 @@ export class Dashboard {
       // kpi / table / heatmap (and charts that had no live instance): full re-render
       const ctx = this.resolveCtx();
       this.replaceTile(ref, renderWidget(ref.widget, ctx), ctx.charts[0]?.elId);
+    }
+    this.updateFilterBadges();
+  }
+
+  /** Per-chart outlier toggle (>2σ → gap): flip the widget flag and re-render that
+   *  chart in place (same path as a filter change). */
+  toggleOutliers(widgetId: string): void {
+    const ref = this.tiles.find(t => t.widget.id === widgetId);
+    if (!ref || (ref.widget.type !== 'chart' && ref.widget.type !== 'chart-table')) return;
+    const w = ref.widget as { outliers?: boolean };
+    w.outliers = !w.outliers;
+    ref.tile.querySelector<HTMLElement>(':scope > .tile-outlier')?.classList.toggle('on', !!w.outliers);
+    if (ref.chartElId && this.charts.has(ref.chartElId)) {
+      const ctx = this.resolveCtx();
+      renderWidget(ref.widget, ctx);          // rebuild def (with/without outliers) into ctx.charts
+      const spec = ctx.charts[0];
+      if (spec) this.charts.update(ref.chartElId, spec.def);
     }
   }
 

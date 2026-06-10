@@ -1,0 +1,144 @@
+{
+  "_nota": "Exemplo ILUSTRATIVO das 4 camadas (não é carregado pelo app — no app cada chave vira um arquivo: dataset.json, data.json, layout.json, sXX.json). Mostra o shape de cada widget do redesign. Gerador que produz tudo isto: conversao-perfil/build_report.py. Linhas de dataset truncadas para 1 critério (renda) e poucas combinações.",
+
+  "dataset.json": {
+    "crit_renda_rank": {
+      "dims": ["grupo"], "filters": ["canal"],
+      "rows": [
+        {"canal": "Geral", "grupo": "Mais de R$15.000", "pos": 1, "diff_lcto": 106.5, "diff_12m": 96.6, "rep": 17.0, "wins": 9, "n": 9, "classe": "cons"},
+        {"canal": "Geral", "grupo": "Menos de R$1.500", "pos": 8, "diff_lcto": -82.0, "diff_12m": -80.2, "rep": 5.0, "wins": 0, "n": 9, "classe": "crit"}
+      ]
+    },
+    "crit_renda_grp": {
+      "dims": ["grupo"], "filters": ["canal"],
+      "rows": [
+        {"canal": "Geral", "grupo": ">R$15k", "diff_lcto": 106.5, "conv_lcto": 15.83, "conv_12m": 19.12, "uplift": 27.0},
+        {"canal": "Geral", "grupo": "<R$1,5k", "diff_lcto": -82.0, "conv_lcto": 1.38, "conv_12m": 2.04, "uplift": 47.8}
+      ]
+    },
+    "crit_renda_diff": {
+      "dims": ["grupo", "lancamento"], "filters": ["canal"],
+      "rows": [
+        {"canal": "Geral", "grupo": ">R$15k", "lancamento": "ago/23", "valor": "+58%", "cls": "cp2"},
+        {"canal": "Geral", "grupo": ">R$15k", "lancamento": "mai/26", "valor": "+147%", "cls": "csp"}
+      ]
+    },
+    "crit_renda_rep": {
+      "dims": ["grupo", "lancamento"], "filters": ["canal"],
+      "rows": [
+        {"canal": "Geral", "grupo": ">R$15k", "lancamento": "ago/23", "valor": 17.2},
+        {"canal": "Geral", "grupo": "<R$1,5k", "lancamento": "ago/23", "valor": 3.8}
+      ]
+    },
+    "crit_renda_repclass": {
+      "dims": ["classe", "lancamento"], "filters": ["canal"],
+      "rows": [
+        {"canal": "Geral", "classe": "Consistente", "lancamento": "ago/23", "valor": 39.3},
+        {"canal": "Geral", "classe": "Crítico", "lancamento": "ago/23", "valor": 30.1}
+      ]
+    },
+    "panorama_comp": {
+      "dims": ["Critério"], "filters": ["canal"],
+      "rows": [
+        {"canal": "Geral", "Critério": "Renda Mensal", "Melhor grupo": ">R$15k",
+         "Diff melhor": {"value": "+106,5%", "cls": "csp"}, "Pior grupo": "<R$1,5k",
+         "Diff pior": {"value": "−82,0%", "cls": "cxn"}, "Positivos": "4/8",
+         "Uplift méd.": {"value": "+34,8%", "cls": "cup3"}}
+      ]
+    }
+  },
+
+  "s02.json": {
+    "id": "s02",
+    "header": {"badge": "Critério", "title": "Renda Mensal", "sub": "Conversão por renda mensal ao longo de 9 lançamentos · benchmark = respondentes da pesquisa."},
+    "widgets": [
+      {"id": "renda-kpi", "type": "kpi-strip", "items": [
+        {"value": "+106,5%", "label": "Melhor grupo · >R$15k"},
+        {"value": "−82,0%", "label": "Pior grupo · <R$1,5k"},
+        {"value": "7,69%", "label": "Conversão benchmark 60d", "small": true}]},
+      {"id": "renda-eb1", "type": "eyebrow", "n": "1", "title": "RANKING DOS GRUPOS", "caption": "ordenado por variação vs. benchmark (60d)"},
+      {"id": "renda-rank", "type": "rank-card", "title": "Ranking de Grupos · ordenado por variação vs. benchmark", "bind": {"dataset": "crit_renda_rank"}},
+      {"id": "renda-hmtoggle", "type": "heatmap-toggle", "tabs": [
+        {"label": "Variação vs. bench", "sub": "diff % por lançamento", "bind": {"dataset": "crit_renda_diff"}},
+        {"label": "Conv. 60d", "sub": "conversão real 60d", "bind": {"dataset": "crit_renda_conv"}},
+        {"label": "Uplift 12m", "sub": "ganho 12m vs 60d", "bind": {"dataset": "crit_renda_uplift"}}]},
+      {"id": "renda-conv60", "type": "chart", "chartType": "bar-horizontal", "title": "Conversão média · Lançamento 60d", "height": 300, "showLabels": true, "colors": ["#7C3AED"], "pct": true, "meanLine": true, "bind": {"dataset": "crit_renda_grp", "x": "grupo", "y": "conv_lcto", "agg": "avg"}},
+      {"id": "renda-conv12", "type": "chart", "chartType": "bar-horizontal", "title": "Conversão média · Long-term 12m", "height": 300, "showLabels": true, "colors": ["#7C3AED"], "pct": true, "meanLine": true, "bind": {"dataset": "crit_renda_grp", "x": "grupo", "y": "conv_12m", "agg": "avg"}},
+      {"id": "renda-upliftbar", "type": "chart", "chartType": "bar-horizontal", "title": "Uplift médio por grupo", "height": 300, "showLabels": true, "colors": ["#7C3AED"], "pct": true, "meanLine": true, "bind": {"dataset": "crit_renda_grp", "x": "grupo", "y": "uplift", "agg": "avg"}},
+      {"id": "renda-evol", "type": "chart", "chartType": "line", "title": "Evolução da conversão 60d por grupo", "height": 360, "colors": ["#4C1D95", "#6D28D9", "#7C3AED"], "pct": true, "bind": {"dataset": "crit_renda_evol", "x": "lancamento", "y": "valor", "series": "grupo", "agg": "avg"}},
+      {"id": "renda-eb-rep", "type": "eyebrow", "n": "%", "color": "purple", "title": "PROPORÇÃO DA BASE", "caption": "composição dos leads por lançamento"},
+      {"id": "renda-reptoggle", "type": "chart-toggle", "title": "Proporção de leads por lançamento", "sub": "participação de cada grupo na base, por lançamento", "tabs": [
+        {"label": "Por grupo", "sub": "participação de cada grupo na base", "chart": {"chartType": "stacked", "stackType": "100%", "height": 320, "pct": true, "colors": ["#4C1D95", "#7C3AED", "#0EA5E9"], "bind": {"dataset": "crit_renda_rep", "x": "lancamento", "series": "grupo", "y": "valor", "agg": "sum"}}},
+        {"label": "Por classificação", "sub": "participação por classe de conversão", "chart": {"chartType": "stacked", "stackType": "100%", "height": 320, "pct": true, "colors": ["#5C9A33", "#DC5048"], "bind": {"dataset": "crit_renda_repclass", "x": "lancamento", "series": "classe", "y": "valor", "agg": "sum"}}}]},
+      {"id": "renda-nota", "type": "find-note", "text": "Benchmark = taxa de conversão dos <strong>respondentes da pesquisa</strong>. Diff % = (conv grupo − bench) / bench × 100."}
+    ]
+  },
+
+  "s01.json (panorama, trecho)": {
+    "id": "s01",
+    "header": {"badge": "Panorama", "title": "Panorama Geral", "sub": "Visão consolidada · 9 lançamentos."},
+    "widgets": [
+      {"id": "pan-kpi", "type": "kpi-strip", "items": [{"value": "9", "label": "Lançamentos analisados"}, {"value": "8", "label": "Critérios de perfil"}, {"value": "60d / 12m", "label": "Janelas", "small": true}]},
+      {"id": "pan-eb1", "type": "eyebrow", "title": "PERFIL DA BASE", "caption": "variação vs. benchmark por grupo"},
+      {"id": "pan-renda", "type": "chart", "chartType": "bar-horizontal", "diverging": true, "title": "Renda Mensal", "height": 232, "showLabels": true, "axisMin": -120, "axisMax": 120, "bind": {"dataset": "crit_renda_grp", "x": "grupo", "y": "diff_lcto", "agg": "avg"}},
+      {"id": "pan-eb2", "type": "eyebrow", "title": "COMPARATIVO POR CRITÉRIO"},
+      {"id": "pan-comp", "type": "table", "title": "Comparativo por Critério", "cols": ["Critério", "Melhor grupo", "Diff melhor", "Pior grupo", "Diff pior", "Positivos", "Uplift méd."], "colorScale": {"Diff melhor": "diff", "Diff pior": "diff", "Uplift méd.": "uplift"}, "bind": {"dataset": "panorama_comp"}}
+    ]
+  },
+
+  "s10.json (insights, trecho)": {
+    "id": "s10",
+    "header": {"badge": "Insights", "title": "Insights Estratégicos", "sub": "Análise interpretativa · canal Geral."},
+    "widgets": [
+      {"id": "ins-sec0", "type": "eyebrow", "n": "✓", "color": "green", "title": "Conclusões claras", "caption": "achados com evidência forte e ação direta"},
+      {"id": "ins-0-0", "type": "find-block", "card": true, "tag": "Oportunidade", "tagColor": "g", "title": "Alta renda converte 2× acima do benchmark", "detail": "Renda > R$15k em <strong>+106,5%</strong> (9/9). <strong>Implicação:</strong> concentrar aquisição em renda média-alta."}
+    ]
+  },
+
+  "s11.json (detalhamentos, trecho)": {
+    "id": "s11",
+    "header": {"badge": "Detalhamentos", "title": "Detalhamentos", "sub": "Aprofundamentos que cruzam critérios."},
+    "widgets": [
+      {"id": "det-eb3", "type": "eyebrow", "n": "⚖", "color": "purple", "title": "CODEPENDÊNCIA ENTRE FATORES", "caption": "associação entre critérios (Cramér's V)"},
+      {"id": "det-cod-hm", "type": "heatmap", "cols": ["Renda", "Patrim."], "rows": [
+        {"label": "Renda", "cells": [{"value": "—", "cls": "cn0"}, {"value": "0.25", "cls": "cup3"}]},
+        {"label": "Patrim.", "cells": [{"value": "0.25", "cls": "cup3"}, {"value": "—", "cls": "cn0"}]}],
+        "caption": "Quanto mais escuro, mais os dois critérios se explicam mutuamente."},
+      {"id": "det-cod-q1", "type": "find-block", "card": true, "tag": "Qualificador", "tagColor": "g", "title": "Renda — qualificador", "detail": "Mantém <strong>78%</strong> do sinal mesmo controlando pelo fator mais associado. Discrimina conversão por conta própria."},
+      {"id": "det-cod-q2", "type": "find-block", "card": true, "tag": "Qualificante", "tagColor": "a", "title": "Tem Assessor? — qualificante", "detail": "Controlando por <strong>Tempo</strong>, o poder cai para <strong>42%</strong> — é em boa parte um proxy."},
+      {"id": "det-cod-note", "type": "find-note", "text": "Associação ≠ causalidade — indício de priorização, confirmar no nível do lead."}
+    ]
+  },
+
+  "layout.json": {
+    "sections": {
+      "s02": [
+        {"id": "renda-kpi", "x": 0, "y": 0, "w": 12, "h": 2},
+        {"id": "renda-eb1", "x": 0, "y": 2, "w": 12, "h": 1},
+        {"id": "renda-rank", "x": 0, "y": 3, "w": 12, "h": 4},
+        {"id": "renda-hmtoggle", "x": 0, "y": 7, "w": 12, "h": 6},
+        {"id": "renda-conv60", "x": 0, "y": 13, "w": 6, "h": 4},
+        {"id": "renda-conv12", "x": 6, "y": 13, "w": 6, "h": 4},
+        {"id": "renda-upliftbar", "x": 0, "y": 17, "w": 12, "h": 4},
+        {"id": "renda-evol", "x": 0, "y": 21, "w": 12, "h": 5},
+        {"id": "renda-eb-rep", "x": 0, "y": 26, "w": 12, "h": 1},
+        {"id": "renda-reptoggle", "x": 0, "y": 27, "w": 12, "h": 6},
+        {"id": "renda-nota", "x": 0, "y": 33, "w": 12, "h": 1}
+      ]
+    }
+  },
+
+  "data.json": {
+    "meta": {
+      "client": "Indê", "title": "Conversão por Perfil — Histórico de Lançamentos",
+      "type": "dashboard", "theme": "light", "created_at": "2026-06-06",
+      "filters": [{"id": "canal", "label": "Canal", "options": ["Geral", "Pago", "Orgânico"], "default": "Geral", "allValue": "Geral"}]
+    },
+    "pages": [
+      {"id": "panorama", "label": "Panorama", "sections": [{"id": "s01", "label": "Panorama Geral"}]},
+      {"id": "insights", "label": "Insights", "sections": [{"id": "s10", "label": "Insights Estratégicos"}]},
+      {"id": "detalhamentos", "label": "Detalhamentos", "sections": [{"id": "s11", "label": "Detalhamentos"}]},
+      {"id": "renda", "label": "Renda Mensal", "sections": [{"id": "s02", "label": "Renda Mensal"}]}
+    ]
+  }
+}

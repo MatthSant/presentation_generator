@@ -11,6 +11,7 @@
   },
   "pages": [
     { "id": "p1", "label": "Resumo",  "sections": [{ "id": "s01", "label": "Visão Geral" }] },
-    { "id": "p2", "label": "Detalhe", "sections": [{ "id": "s02", "label": "Por Categoria" }] }
+    { "id": "p2", "label": "Detalhe", "sections": [{ "id": "s02", "label": "Por Categoria" }] },
+    { "id": "p3", "label": "Perguntas norteadoras", "kind": "perguntas", "sections": [{ "id": "perguntas", "label": "Perguntas norteadoras" }] }
   ]
 }

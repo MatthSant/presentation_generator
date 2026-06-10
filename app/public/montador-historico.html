@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gerar SQL — Histórico de Lançamentos</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .bar-logo { height: 20px; width: auto; display: block; }
+    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); }
+    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
+    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
+    .bar-back svg { width: 15px; height: 15px; }
+
+    .m-wrap { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
+    .m-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .m-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
+    .m-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 22px; max-width: 70ch; }
+    .m-card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow-sm); margin-bottom: 18px; }
+    .m-h { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); margin: 0 0 14px; }
+    .m-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 13px; }
+    .m-field { display:flex; flex-direction:column; gap:5px; }
+    .m-field label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--gray2); }
+    .m-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: var(--fg); outline: none; }
+    .m-field input:focus { border-color: var(--purple); }
+    .m-field small { font-size: 11px; color: var(--gray2); }
+    .m-actions { display:flex; gap:10px; margin-top: 4px; }
+    .m-btn { display:inline-flex; align-items:center; gap:7px; font-size: 13.5px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 9px 16px; cursor: pointer; }
+    .m-btn--ghost { background: var(--bg); color: var(--purple); border: 1px solid color-mix(in srgb, var(--purple) 40%, var(--border)); }
+    .m-sql { width: 100%; min-height: 380px; background: #0E0E14; color: #E6E6F0; border: 1px solid var(--border); border-radius: 11px; padding: 16px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.55; white-space: pre; overflow: auto; resize: vertical; }
+    .m-note { font-size: 12.5px; color: var(--gray); line-height: 1.6; }
+    .m-note code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
+    .m-ok { font-size: 12.5px; font-weight: 700; color: #27500A; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <header class="home-bar">
+    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
+    <span class="bar-logo-sep"></span>
+    <span class="home-brand">Dossiê do Consultor<small>Gerar SQL</small></span>
+    <a class="bar-back" href="/guia/historico-lancamentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar ao guia</a>
+  </header>
+
+  <div class="m-wrap">
+    <span class="m-tag">Histórico de Lançamentos</span>
+    <h1 class="m-title">Gerar a query consolidada</h1>
+    <p class="m-sub">Query padrão sobre <code>MAT_V2_inscricoes_geral_consolidado</code> — uma linha por evento × tráfego × plataforma × temperatura. Ajuste os termos de classificação do cliente (variam por conta) e copie o SQL.</p>
+
+    <div class="m-card">
+      <p class="m-h">Termos de classificação (ajuste por cliente)</p>
+      <div class="m-grid">
+        <div class="m-field"><label>Keyword Hot</label><input id="t-hot" value="-quente-" /><small>em field_campaign_name</small></div>
+        <div class="m-field"><label>Keyword Warm</label><input id="t-warm" value="-morno-" /></div>
+        <div class="m-field"><label>Keyword Cold</label><input id="t-cold" value="-frio-" /></div>
+        <div class="m-field"><label>Keyword Advantage</label><input id="t-adv" value="advantage" /></div>
+        <div class="m-field"><label>Fonte Meta (utm_source)</label><input id="t-meta" value="meta-ads,facebook-ads" /><small>separe por vírgula</small></div>
+        <div class="m-field"><label>Fonte Google (utm_source)</label><input id="t-google" value="google-ads,search" /></div>
+      </div>
+      <div class="m-actions" style="margin-top:16px">
+        <button class="m-btn" id="gen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar SQL</button>
+        <button class="m-btn m-btn--ghost" id="copy">Copiar</button>
+        <span class="m-ok" id="ok" hidden>copiado ✓</span>
+      </div>
+    </div>
+
+    <textarea class="m-sql" id="sql" readonly spellcheck="false"></textarea>
+    <p class="m-note" style="margin-top:14px"><strong>Cuidados:</strong> confira a classificação de temperatura/canal e o volume de <code>N/C</code>/UTM quebrado antes de usar; valide se vendas, leads e pesquisa estão preenchidos e coerentes. As colunas <code>vendas_mql</code>/<code>vendas_nao_mql</code> vêm marcadas — confirme com o time de dados.</p>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/'/g, "''");
+    const platLikes = (raw, label) => raw.split(',').map(s => s.trim()).filter(Boolean)
+      .map(s => `utm_source LIKE '${esc(s)}%'`).join('\n            OR  ') || `utm_source LIKE 'ads%'`;
+
+    function buildSql() {
+      const hot = esc($('t-hot').value.trim()), warm = esc($('t-warm').value.trim());
+      const cold = esc($('t-cold').value.trim()), adv = esc($('t-adv').value.trim());
+      const metaLikes = $('t-meta').value.split(',').map(s => s.trim()).filter(Boolean);
+      const googleLikes = $('t-google').value.split(',').map(s => s.trim()).filter(Boolean);
+      const platCase = [
+        ...metaLikes.map(s => `      WHEN utm_source LIKE '${esc(s)}%' THEN 'Meta Ads'`),
+        ...googleLikes.map(s => `      WHEN utm_source LIKE '${esc(s)}%' THEN 'Google Ads'`),
+        `      WHEN utm_source LIKE '%ads%'       THEN 'Ads (outros)'`,
+        `      ELSE NULL`,
+      ].join('\n');
+      return `-- Consolidado por evento × tráfego × plataforma × temperatura
+-- Origem: MAT_V2_inscricoes_geral_consolidado  ·  PostgreSQL
+WITH classificado AS (
+  SELECT
+    field_conversion,
+    CASE
+      WHEN field_conversion LIKE 'lcto-%' THEN 'Lançamento'
+      WHEN field_conversion LIKE 'lco-%'  THEN 'Lançamento'
+      WHEN field_conversion LIKE 'ppt-%'  THEN 'Perpétuo'
+      WHEN field_conversion LIKE 'ppto-%' THEN 'Perpétuo'
+      ELSE 'Outros'
+    END AS tipo_lancamento,
+    CASE WHEN utm_source LIKE '%ads%' THEN 'Pago' ELSE 'Orgânico' END AS tipo_trafego,
+    CASE
+${platCase}
+    END AS plataforma,
+    CASE
+      WHEN utm_source NOT LIKE '%ads%' THEN 'Orgânico'
+      WHEN utm_source LIKE 'meta-ads%26%' OR utm_source LIKE '%{{%'
+        OR field_campaign_name ~ '^[0-9]+$' THEN 'UTM Quebrado'
+      WHEN LOWER(field_campaign_name) LIKE '%${adv}%'  THEN 'Advantage'
+      WHEN LOWER(field_campaign_name) LIKE '%${hot}%'  THEN 'Hot'
+      WHEN LOWER(field_campaign_name) LIKE '%${warm}%' THEN 'Warm'
+      WHEN LOWER(field_campaign_name) LIKE '%${cold}%' THEN 'Cold'
+      ELSE 'N/C'
+    END AS temperatura_lead,
+    COALESCE(invest_total::NUMERIC,0) AS invest_total,
+    COALESCE(paidmedia_tax::NUMERIC,0) AS paidmedia_tax,
+    COALESCE(impressoes::NUMERIC,0) AS impressoes,
+    COALESCE(link_clicks::NUMERIC,0) AS link_clicks,
+    COALESCE(leads::NUMERIC,0) AS leads,
+    COALESCE(leads_mqls::NUMERIC,0) AS leads_mqls,
+    COALESCE(leads_antigos::NUMERIC,0) AS recap_antigos,
+    COALESCE(respostas::NUMERIC,0) AS respostas,
+    COALESCE(vendas::NUMERIC,0) AS vendas,
+    COALESCE(faturamento::NUMERIC,0) AS faturamento,
+    COALESCE(vendas_sale::NUMERIC,0) AS vendas_sale,
+    COALESCE(vendas_mql::NUMERIC,0) AS vendas_mql,
+    COALESCE(vendas_nao_mql::NUMERIC,0) AS vendas_nao_mql,
+    COALESCE(sales_tax::NUMERIC,0) AS sales_tax,
+    COALESCE(broker_fee::NUMERIC,0) AS broker_fee,
+    COALESCE(refunds::NUMERIC,0) AS refunds,
+    COALESCE(refunded_value::NUMERIC,0) AS refunded_value
+  FROM "MAT_V2_inscricoes_geral_consolidado"
+)
+SELECT
+  classificado.field_conversion,
+  wcd.date_start,
+  tipo_lancamento, tipo_trafego, plataforma, temperatura_lead,
+  SUM(invest_total)   AS invest_total,
+  SUM(paidmedia_tax)  AS paidmedia_tax,
+  SUM(impressoes)     AS impressoes,
+  SUM(link_clicks)    AS link_clicks,
+  SUM(leads)          AS leads,
+  SUM(leads_mqls)     AS leads_mqls,
+  SUM(recap_antigos)  AS recap_antigos,
+  SUM(respostas)      AS respostas_pesquisa,
+  SUM(vendas)         AS vendas,
+  SUM(faturamento)    AS faturamento,
+  SUM(vendas_sale)    AS vendas_sale,
+  SUM(vendas_mql)     AS vendas_mql,
+  SUM(vendas_nao_mql) AS vendas_nao_mql,
+  SUM(sales_tax)      AS sales_tax,
+  SUM(broker_fee)     AS broker_fee,
+  SUM(refunds)        AS refunds,
+  SUM(refunded_value) AS refunded_value
+FROM classificado
+INNER JOIN wtl_campaign_definition wcd
+  ON classificado.field_conversion = wcd.field_conversion
+GROUP BY classificado.field_conversion, wcd.date_start,
+  tipo_lancamento, tipo_trafego, plataforma, temperatura_lead
+ORDER BY date_start, field_conversion, tipo_trafego DESC,
+  CASE temperatura_lead
+    WHEN 'Hot' THEN 1 WHEN 'Warm' THEN 2 WHEN 'Cold' THEN 3
+    WHEN 'Advantage' THEN 4 WHEN 'Orgânico' THEN 5 WHEN 'UTM Quebrado' THEN 6 ELSE 7
+  END;`;
+    }
+
+    const render = () => { $('sql').value = buildSql(); };
+    $('gen').addEventListener('click', render);
+    $('copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText($('sql').value); const ok = $('ok'); ok.hidden = false; setTimeout(() => ok.hidden = true, 1600); } catch {}
+    });
+    render();
+  </script>
+</body>
+</html>

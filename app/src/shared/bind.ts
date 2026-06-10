@@ -82,8 +82,13 @@ export function resolveBind(
   requireCol(bind.y, 'y');
   requireCol(bind.series, 'series');
   (bind.metrics ?? []).forEach((m, i) => requireCol(m, `metrics[${i}]`));
+  for (const col of Object.keys(bind.where ?? {})) requireCol(col, `where.${col}`);
 
-  const rows = applyFilters(table.rows, table.filters ?? [], active);
+  let rows = applyFilters(table.rows, table.filters ?? [], active);
+  if (bind.where) {
+    const conds = Object.entries(bind.where);
+    rows = rows.filter(r => conds.every(([c, v]) => String(r[c] ?? '') === String(v)));
+  }
   const agg: AggFn = bind.agg ?? 'sum';
 
   // Totals per numeric column (kpi widgets consume these via the `key` field).
@@ -96,6 +101,14 @@ export function resolveBind(
   let categories: string[] = [];
   let series: ResolvedSeries[] = [];
 
+  // Aggregate a category's y values, but return null (a CHART GAP) when there is
+  // no real datum — so missing/empty points break the line instead of plunging to
+  // 0. An explicit numeric 0 is kept (it's real data, not a gap).
+  const aggOrNull = (subset: DatasetRow[]): number | null => {
+    const raw = subset.map(r => r[bind.y!]).filter(v => v !== null && v !== undefined && v !== '');
+    return raw.length ? aggregate(raw.map(toNum), agg) : null;
+  };
+
   if (bind.x && bind.y) {
     categories = distinct(rows, bind.x);
 
@@ -103,20 +116,13 @@ export function resolveBind(
       const seriesKeys = distinct(rows, bind.series);
       series = seriesKeys.map(sk => ({
         name: sk,
-        data: categories.map(cat => {
-          const vals = rows
-            .filter(r => String(r[bind.x!] ?? '') === cat && String(r[bind.series!] ?? '') === sk)
-            .map(r => toNum(r[bind.y!]));
-          return aggregate(vals, agg);
-        }),
+        data: categories.map(cat => aggOrNull(
+          rows.filter(r => String(r[bind.x!] ?? '') === cat && String(r[bind.series!] ?? '') === sk))),
       }));
     } else {
       series = [{
         name: bind.name ?? bind.y,
-        data: categories.map(cat => {
-          const vals = rows.filter(r => String(r[bind.x!] ?? '') === cat).map(r => toNum(r[bind.y!]));
-          return aggregate(vals, agg);
-        }),
+        data: categories.map(cat => aggOrNull(rows.filter(r => String(r[bind.x!] ?? '') === cat))),
       }];
     }
   }
