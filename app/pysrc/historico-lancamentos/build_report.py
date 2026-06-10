@@ -12,17 +12,13 @@ Descritivo/determinístico; a IA (Insights) entra via `content`. A vista interat
 de novo no servidor (routes/historico.ts → render_view.py).
 """
 import sys, os, json, datetime
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _here)                    # irmãos (calc)
+sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
-
-
-class Grid:
-    def __init__(s): s.items, s.x, s.y, s.rowh = [], 0, 0, 0
-    def add(s, wid, typ, w, h):
-        if s.x + w > 12: s.x = 0; s.y += s.rowh; s.rowh = 0
-        s.items.append({'id': wid, 'type': typ, 'x': s.x, 'y': s.y, 'w': w, 'h': h})
-        s.x += w; s.rowh = max(s.rowh, h)
-
+from common.layout import Grid
+from common.fmt import money, pctf, xf, intf, safe, fmtval
+from common.preserve import preserve
 
 LINE_COLORS = ['#4C1D95', '#7C3AED', '#3B82F6', '#0EA5E9', '#0D9488', '#10B981']
 METRIC_LABELS = {'cpm': 'CPM', 'ctr': 'CTR', 'cpc': 'CPC', 'cpl': 'CPL', 'conv_paga': 'Conversão paga', 'cpa': 'CPA'}
@@ -41,23 +37,6 @@ BRK_INFO = {
     'reembolso':      {'label': 'Reembolso',         'cost': True,  'fmt': 'pct'},
     'roas':           {'label': 'ROAS',              'cost': False, 'fmt': 'x'},
 }
-
-
-def money(v):
-    v = v or 0
-    if abs(v) >= 1e6: return f'R$ {v / 1e6:.1f}M'
-    if abs(v) >= 1e3: return f'R$ {v / 1e3:.0f}k'
-    return f'R$ {v:.0f}'
-def pctf(v): return '—' if v is None else f'{v:.1f}%'
-def xf(v): return '—' if v is None else f'{v:.2f}×'
-def intf(v): return f'{int(v or 0):,}'.replace(',', '.')
-def safe(n, d): return (n / d) if d and d > 0 else None
-def fmtval(fmt, x):
-    if x is None: return '—'
-    if fmt == 'money': return money(x)
-    if fmt == 'int': return intf(x)
-    if fmt == 'x': return xf(x)
-    return pctf(x)
 
 
 def assemble(rows, config, content, opts=None):
@@ -437,48 +416,11 @@ def assemble(rows, config, content, opts=None):
             'sections': sections}
 
 
-def _preserve_followups(out_dir, data):
-    """Regenerar não pode perder o trabalho do consultor: re-registra na nav os
-    detalhamentos seguidos (arquivos det-*.json no disco) e a página de perguntas
-    de uma geração anterior. Sem isso, um rebuild deixaria seções órfãs."""
-    pages = data['pages']
-    # 1) recupera/garante a página de Detalhamentos a partir dos arquivos det-*.json
-    dets = sorted(f[:-5] for f in os.listdir(out_dir)
-                  if f.startswith('det-') and f.endswith('.json'))
-    if dets:
-        detp = next((p for p in pages if p.get('id') == 'detalhamentos'), None)
-        if detp is None:
-            detp = {'id': 'detalhamentos', 'label': 'Detalhamentos', 'sections': []}
-            idx = next((i for i, p in enumerate(pages) if p.get('kind') == 'perguntas'), len(pages))
-            pages.insert(idx, detp)
-        # reconstrói a lista a partir dos arquivos no disco → labels limpos (texto da
-        # pergunta, sem id) e sem órfãos
-        detp['sections'] = []
-        for sid in dets:
-            try:
-                sec = json.load(open(os.path.join(out_dir, f'{sid}.json'), encoding='utf-8'))
-                label = (sec.get('header', {}).get('title') or sid)[:42]
-            except Exception:
-                label = sid
-            detp['sections'].append({'id': sid, 'label': label})
-    # 2) preserva a página de perguntas (re-criada sob demanda, mas mantemos se já existia)
-    prev_path = os.path.join(out_dir, 'data.json')
-    if os.path.exists(prev_path) and not any(p.get('kind') == 'perguntas' for p in pages):
-        try:
-            prev = json.load(open(prev_path, encoding='utf-8'))
-            pp = next((p for p in prev.get('pages', []) if p.get('kind') == 'perguntas'), None)
-            if pp:
-                pages.append(pp)
-        except Exception:
-            pass
-    return data
-
-
 def build(csv_path, config, content, out_dir):
     os.makedirs(out_dir, exist_ok=True)
     rows = calc.load_rows(csv_path)
     r = assemble(rows, config, content, {})
-    _preserve_followups(out_dir, r['data'])
+    preserve(out_dir, r['data'], r['sections'])
     def dump(name, obj):
         json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])

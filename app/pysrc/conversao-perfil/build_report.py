@@ -21,8 +21,12 @@ Uso por CLI:
   opcional; a zona de codependência é sempre gerada.
 """
 import sys, os, json, datetime
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _here)                    # irmãos (conv_calc)
+sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import conv_calc as cc
+from common.layout import Grid
+from common.preserve import preserve
 
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 def lcto_label(slug):
@@ -46,16 +50,6 @@ def assoc_cls(v):
     if v >= 0.2: return 'cup3'
     if v > 0.08: return 'cup4'
     return 'cn0'
-
-class Grid:
-    def __init__(s): s.items, s.x, s.y, s.rowh = [], 0, 0, 0
-    def add(s, wid, typ, w, h):
-        if s.x + w > 12: s.x = 0; s.y += s.rowh; s.rowh = 0
-        s.items.append({'id': wid, 'type': typ, 'x': s.x, 'y': s.y, 'w': w, 'h': h})
-        s.x += w; s.rowh = max(s.rowh, h)
-    def newrow(s):
-        if s.x: s.x = 0; s.y += s.rowh; s.rowh = 0
-
 
 def build(csv_path, config, content, out_dir):
     os.makedirs(out_dir, exist_ok=True)
@@ -380,6 +374,8 @@ def build(csv_path, config, content, out_dir):
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard', 'theme': 'light',
                           'created_at': created, 'filters': [{'id': 'canal', 'label': 'Canal', 'options': CANAIS, 'default': CANAIS[0]}]},
                  'pages': all_pages}
+
+    preserve(out_dir, data_json, sections)   # detalhamentos, perguntas e modais sobrevivem à regeneração
 
     def dump(name, obj): json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', dataset); dump('data.json', data_json)
