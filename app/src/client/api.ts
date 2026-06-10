@@ -60,7 +60,7 @@ export class Api {
   }
 
   historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {
-    return this.json(`${this.base()}/historico/render`, {
+    return this.json(`${this.base()}/render`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ launches, metric }),
     });

@@ -19,10 +19,11 @@ import { buildCatalog } from '../datasetCatalog.js';
 import { generateModal, generateModalDeep, type DeepDeps } from '../claude.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
+import { typeOf } from '../typeRegistry.js';
+import { buildCardContext } from '../cardContext.js';
 
 interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
 type DataMap = Record<string, DataTable>;
-interface BaseConfig { criterios: Array<{ id: string; label?: string }>; channels?: string[] }
 
 function assignIds(modal: Modal): Modal {
   // The model can emit a malformed `widgets` (the tool schema isn't strictly
@@ -64,29 +65,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const dataset = readJson<DataMap>(path.join(dir, 'dataset.json'));
     if (!dataset) { res.status(400).json({ error: 'dataset ausente' }); return; }
     const catalog = buildCatalog(dataset);
-    // Criterion-page widgets are id-prefixed ("renda-reptoggle" → "renda").
-    // Validate the prefix against the real dataset criteria so we anchor the model
-    // on the card's own criterion instead of letting it wander to another one.
-    const critIds = new Set<string>();
-    for (const t of catalog.tables) { const mm = t.name.match(/^crit_([a-z0-9]+)_/i); if (mm) critIds.add(mm[1]); }
-    const prefix = blockId.includes('-') ? blockId.slice(0, blockId.indexOf('-')) : '';
-    // What the block itself shows — for toggles the binds live in `tabs` (not at
-    // the top level), so surface the datasets/labels each tab uses.
-    const rawTabs = (card as { tabs?: Array<Record<string, unknown>> }).tabs;
-    const tabs = Array.isArray(rawTabs)
-      ? rawTabs
-          .map((t) => ({ label: t.label, dataset: (t.bind as { dataset?: string })?.dataset ?? (t.chart as { bind?: { dataset?: string } })?.bind?.dataset }))
-          .filter((t) => t.dataset)
-      : undefined;
-    const cardCtx = {
-      title: (card as { title?: string }).title,
-      detail: (card as { detail?: string }).detail,
-      type: (card as Widget).type,
-      bind: (card as { bind?: unknown }).bind,
-      tabs,
-      pagina: section.header?.title,
-      criterio: critIds.has(prefix) ? prefix : undefined,
-    };
+    const cardCtx = buildCardContext(section, blockId, catalog);
     const modalId = `modal-${blockId}-${crypto.randomBytes(3).toString('hex')}`;
     const validate = (modal: Modal): string[] => {
       if (!Array.isArray(modal.widgets) || modal.widgets.length === 0) {
@@ -96,9 +75,12 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         .map((e) => `${e.path}: ${e.message}`);
     };
 
-    // Deep mode is available when this analysis kept its base data (Fase 3b).
+    // Deep mode: precisa da base retida E de um tipo com query de aprofundamento
+    // (registry.buildDeepenMeta != null). Sem isso (ex.: histórico), modo raso.
     const baseDir = path.join(BASE, client, slug);
     const hasBase = fs.existsSync(path.join(baseDir, 'dump.csv')) && fs.existsSync(path.join(baseDir, 'config.json'));
+    const baseConfig = hasBase ? readJson<Record<string, unknown>>(path.join(baseDir, 'config.json')) : null;
+    const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
 
     try {
       let mocked = false;
@@ -106,17 +88,12 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
       let datasetChanged = false;
       let errors: string[] = [];
 
-      if (hasBase) {
+      if (deepenMeta) {
         // The model decides which cuts to request; the app computes them over the
         // retained base and merges the aggregates into the dataset to bind to.
-        const config = readJson<BaseConfig>(path.join(baseDir, 'config.json'));
         let qn = 0;
         const deps: DeepDeps = {
-          meta: {
-            criterios: (config?.criterios || []).map((c) => ({ id: c.id, label: c.label || c.id })),
-            canais: config?.channels || ['Geral'],
-            metricas: ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'],
-          },
+          meta: deepenMeta,
           runQuery: async (fn, args) => (await runQuery(client, slug, fn, args)) ?? { status: 'erro', motivo: 'sem base' },
           registerTable: (table, _summary) => {
             const key = `q-${modalId}-${qn++}`;

@@ -15,10 +15,11 @@ import { buildCatalog } from './datasetCatalog.js';
 import { generateModal, generateModalDeep, type DeepDeps } from './claude.js';
 import { runQuery } from './pygen.js';
 import { validateSection } from '../shared/validate.js';
+import { typeOf } from './typeRegistry.js';
+import { buildCardContext } from './cardContext.js';
 
 interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
 type DataMap = Record<string, DataTable>;
-interface BaseConfig { criterios: Array<{ id: string; label?: string }>; channels?: string[] }
 
 export interface DetalheInput {
   out: string; client: string; slug: string;
@@ -41,25 +42,7 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
   if (!dataset) throw new Error('dataset ausente');
   const catalog = buildCatalog(dataset);
 
-  const card = section?.widgets.find((w) => w.id === inp.blockId);
-  const critIds = new Set<string>();
-  for (const t of catalog.tables) { const mm = t.name.match(/^crit_([a-z0-9]+)_/i); if (mm) critIds.add(mm[1]); }
-  const prefix = inp.blockId.includes('-') ? inp.blockId.slice(0, inp.blockId.indexOf('-')) : '';
-  const rawTabs = (card as { tabs?: Array<Record<string, unknown>> } | undefined)?.tabs;
-  const tabs = Array.isArray(rawTabs)
-    ? rawTabs
-        .map((t) => ({ label: t.label, dataset: (t.bind as { dataset?: string })?.dataset ?? (t.chart as { bind?: { dataset?: string } })?.bind?.dataset }))
-        .filter((t) => t.dataset)
-    : undefined;
-  const cardCtx = {
-    title: (card as { title?: string } | undefined)?.title,
-    detail: (card as { detail?: string } | undefined)?.detail,
-    type: (card as Widget | undefined)?.type,
-    bind: (card as { bind?: unknown } | undefined)?.bind,
-    tabs,
-    pagina: section?.header?.title,
-    criterio: critIds.has(prefix) ? prefix : undefined,
-  };
+  const cardCtx = buildCardContext(section, inp.blockId, catalog);
 
   const ensureIds = (ws: Widget[]): Widget[] => {
     ws.forEach((w, i) => { if (!w.id) (w as { id: string }).id = `${inp.resultId}-w${i}`; });
@@ -74,21 +57,18 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
 
   const baseDir = path.join(BASE, inp.client, inp.slug);
   const hasBase = fs.existsSync(path.join(baseDir, 'dump.csv')) && fs.existsSync(path.join(baseDir, 'config.json'));
+  const baseConfig = hasBase ? readJson<Record<string, unknown>>(path.join(baseDir, 'config.json')) : null;
+  const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
 
   let mocked = false;
   let datasetChanged = false;
   let widgets: Widget[] | null = null;
   let errors: string[] = [];
 
-  if (hasBase) {
-    const config = readJson<BaseConfig>(path.join(baseDir, 'config.json'));
+  if (deepenMeta) {
     let qn = 0;
     const deps: DeepDeps = {
-      meta: {
-        criterios: (config?.criterios || []).map((c) => ({ id: c.id, label: c.label || c.id })),
-        canais: config?.channels || ['Geral'],
-        metricas: ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'],
-      },
+      meta: deepenMeta,
       runQuery: async (fn, args) => (await runQuery(inp.client, inp.slug, fn, args)) ?? { status: 'erro', motivo: 'sem base' },
       registerTable: (table, _summary) => {
         const key = `q-${inp.resultId}-${qn++}`;

@@ -4,6 +4,7 @@
  * o main faz o POST e re-renderiza, marcando os gráficos filtrados. */
 
 import type { ReportMeta } from '../shared/types.js';
+import { wireFilterShell } from './filters.js';
 
 type Controls = NonNullable<ReportMeta['controls']>;
 export interface HistoricoHandlers { apply: (launches: string[]) => void; }
@@ -23,11 +24,8 @@ export class HistoricoFilters {
     this.count = must('filter-count');
     this.launches = new Set(cfg.launches);
 
-    this.fab.addEventListener('click', () => this.modal.classList.add('open'));
-    must('filter-close').addEventListener('click', () => this.modal.classList.remove('open'));
+    wireFilterShell(this.fab, this.modal, must('filter-close'));
     must('filter-clear').addEventListener('click', () => this.selectAll());
-    this.modal.addEventListener('click', e => { if (e.target === this.modal) this.modal.classList.remove('open'); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') this.modal.classList.remove('open'); });
 
     this.renderBody();
     this.updateBadge();

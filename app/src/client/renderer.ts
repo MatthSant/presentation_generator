@@ -263,7 +263,7 @@ function renderMetricToggle(w: MetricToggleWidget): HTMLElement {
     b.addEventListener('click', () => {
       if (m.id === w.current) return;
       for (const x of bar.children) x.classList.toggle('active', x === b);
-      document.dispatchEvent(new CustomEvent('historico-metric', { detail: m.id }));
+      document.dispatchEvent(new CustomEvent('metric-change', { detail: m.id }));
     });
     bar.appendChild(b);
   }

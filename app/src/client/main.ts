@@ -191,7 +191,9 @@ class App {
       getFilterDefs: () => this.store.filterDefs,
       layout: this.store.layoutFor(section.id),
       onSaveLayout: (id, items) => this.persistLayout(id, items),
-      outlierToggle: !!this.store.data?.meta?.controls,
+      // botão "Remover outliers" por gráfico — disponível p/ QUALQUER tipo
+      // (feature flag; desativável com meta.features.outliers = false)
+      outlierToggle: this.store.data?.meta?.features?.outliers !== false,
       filterBadge: this.histSel ? `${this.histSel.length} de ${this.store.data?.meta?.controls?.launches.length ?? 0} lançamentos` : null,
     });
 
@@ -211,7 +213,9 @@ class App {
   /** Mount the launch/metric control bar above the report when meta.controls says so. */
   private setupHistorico(): void {
     const controls = this.store.data?.meta?.controls;
-    if (!controls) return;
+    // Dispatch por kind: cada tipo com controles interativos registra o seu setup
+    // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
+    if (!controls || controls.kind !== 'historico-lancamentos') return;
     this.histMetric = controls.metrics[0]?.id || 'conv';
     const total = controls.launches.length;
     this.hist = new HistoricoFilters(controls, {
@@ -219,7 +223,7 @@ class App {
     });
     // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
     // changing it recomputes only the metric-driven breakdown below.
-    document.addEventListener('historico-metric', (e) => {
+    document.addEventListener('metric-change', (e) => {
       this.histMetric = (e as CustomEvent<string>).detail;
       void this.recompute();
     });

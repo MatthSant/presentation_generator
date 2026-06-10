@@ -18,6 +18,7 @@ import type { Ctx } from '../context.js';
 import { analysisDir, writeJson, readJson } from '../fsutil.js';
 import { SCRATCH, BASE } from '../paths.js';
 import { runGeneration } from '../pygen.js';
+import { TYPES } from '../typeRegistry.js';
 import { buildDigest } from '../datasetCatalog.js';
 import { generateInsights } from '../claude.js';
 import { assignClient } from '../auth.js';
@@ -61,11 +62,13 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     let config: ConfigShape;
     try { config = JSON.parse(String(req.body?.config ?? '')) as ConfigShape; }
     catch { res.status(400).json({ error: 'config inválido (JSON)' }); return; }
-    const type = typeof config?.type === 'string' ? config.type : 'conversao-perfil';
-    // criterios é requisito do conversao-perfil; outros tipos (ex.: histórico) não usam
-    if (type === 'conversao-perfil' && (!config || !Array.isArray(config.criterios) || config.criterios.length === 0)) {
-      res.status(400).json({ error: 'config.criterios vazio' }); return;
-    }
+    // Whitelist do registry: nunca montar caminho de script a partir de string livre.
+    const rawType = typeof config?.type === 'string' ? config.type : 'conversao-perfil';
+    if (!TYPES[rawType]) { res.status(400).json({ error: `tipo desconhecido: ${rawType}` }); return; }
+    const def = TYPES[rawType];
+    const type = def.type;
+    const cfgErrors = def.validateConfig(config);
+    if (cfgErrors.length) { res.status(400).json({ error: cfgErrors.join('; ') }); return; }
     let content: unknown;
     try { content = req.body?.content ? JSON.parse(String(req.body.content)) : defaultContent(); }
     catch { res.status(400).json({ error: 'content inválido (JSON)' }); return; }
@@ -106,7 +109,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       // Optional Layer B1: generate insight prose from the freshly computed
       // aggregates (CSV still in scratch), then re-emit the views with it.
       let insights: { applied: boolean; mocked?: boolean; error?: string } = { applied: false };
-      if (type === 'conversao-perfil' && String(req.body?.insights ?? '') === 'true') {
+      if (def.supportsInsights && String(req.body?.insights ?? '') === 'true') {
         try {
           const ds = readJson<Record<string, { rows: Array<Record<string, unknown>> }>>(path.join(outDir, 'dataset.json'));
           if (!ds) throw new Error('dataset ausente para o digest');

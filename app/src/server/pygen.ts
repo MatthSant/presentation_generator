@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PYSRC, PYTHON_BIN, BASE } from './paths.js';
+import { typeOf } from './typeRegistry.js';
 
 export interface BuildReportArgs {
   csvPath: string;
@@ -26,8 +27,16 @@ export interface PyResult {
   code: number | null;
 }
 
-/** Each analysis type vends its own build_report.py under pysrc/<type>/. */
-const buildScript = (type?: string) => path.join(PYSRC, type || 'conversao-perfil', 'build_report.py');
+/** Each analysis type vends its own build_report.py under pysrc/<dir>/ (registry). */
+const buildScript = (type?: string) => path.join(PYSRC, typeOf(type).pysrcDir, 'build_report.py');
+
+/** Tipo da análise a partir do config retido em .base (fallback: conversao-perfil). */
+function baseType(baseDir: string): ReturnType<typeof typeOf> {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(baseDir, 'config.json'), 'utf8')) as { type?: string };
+    return typeOf(cfg);
+  } catch { return typeOf(undefined); }
+}
 
 /** Force Python stdout/stderr to UTF-8 — on Windows the default codepage (cp1252)
  *  would mangle acentos in the JSON the Node side captures (→ "n�o"). */
@@ -100,20 +109,22 @@ export async function runPerguntasCalc(inputPath: string, outputPath: string): P
   }).finally(releaseSlot);
 }
 
-// --- Histórico de lançamentos: recálculo da vista (filtro/métrica) ----------
+// --- Recompute da vista filtrada (controles interativos), por tipo ----------
 
-const HIST_RENDER_SCRIPT = path.join(PYSRC, 'historico-lancamentos', 'render_view.py');
-
-/** Recompute the historico view for a launch/metric cut over the retained base.
- *  Returns null when the analysis has no retained base. Reuses build_report.assemble. */
-export async function runHistoricoRender(client: string, slug: string, opts: unknown): Promise<Record<string, unknown> | null> {
+/** Recompute the filtered view over the retained base, using the type's
+ *  renderScript (registry). Returns null when there is no base or the type has
+ *  no render script. (Antigo runHistoricoRender, generalizado.) */
+export async function runRenderView(client: string, slug: string, opts: unknown): Promise<Record<string, unknown> | null> {
   const baseDir = path.join(BASE, client, slug);
   const config = path.join(baseDir, 'config.json');
   const dump = path.join(baseDir, 'dump.csv');
   if (!fs.existsSync(config) || !fs.existsSync(dump)) return null;
+  const def = baseType(baseDir);
+  if (!def.renderScript) return null;
+  const script = path.join(PYSRC, def.pysrcDir, def.renderScript);
 
   const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
-  const a = [...prefix, HIST_RENDER_SCRIPT, config, dump, JSON.stringify(opts ?? {})];
+  const a = [...prefix, script, config, dump, JSON.stringify(opts ?? {})];
   await acquireSlot();
   return new Promise<Record<string, unknown>>((resolve) => {
     const child = spawn(PYTHON_BIN, a, PY_SPAWN);
@@ -131,20 +142,22 @@ export async function runHistoricoRender(client: string, slug: string, opts: unk
 
 // --- Fase 3b: on-demand query over the retained base ------------------------
 
-const QUERY_SCRIPT = path.join(PYSRC, 'conversao-perfil', 'query_api.py');
-
 export interface QueryResult { status: string; [k: string]: unknown }
 
-/** Run a catalog query over the retained dump. Returns null when this analysis
- *  has no retained base (deep deepen unavailable). Always returns aggregates. */
+/** Run a catalog query over the retained dump, using the type's queryScript
+ *  (registry). Returns null when there is no base OR the type doesn't support
+ *  on-demand queries (deep deepen unavailable). Always returns aggregates. */
 export async function runQuery(client: string, slug: string, fn: string, args: unknown): Promise<QueryResult | null> {
   const baseDir = path.join(BASE, client, slug);
   const config = path.join(baseDir, 'config.json');
   const dump = path.join(baseDir, 'dump.csv');
   if (!fs.existsSync(config) || !fs.existsSync(dump)) return null;
+  const def = baseType(baseDir);
+  if (!def.queryScript) return null;
+  const script = path.join(PYSRC, def.pysrcDir, def.queryScript);
 
   const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
-  const a = [...prefix, QUERY_SCRIPT, config, dump, fn, JSON.stringify(args ?? {})];
+  const a = [...prefix, script, config, dump, fn, JSON.stringify(args ?? {})];
   await acquireSlot();
   return new Promise<QueryResult>((resolve) => {
     const child = spawn(PYTHON_BIN, a, PY_SPAWN);
