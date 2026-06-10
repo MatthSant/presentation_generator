@@ -18,7 +18,9 @@ import { registerWatch } from './routes/watch.js';
 import { registerGenerate } from './routes/generate.js';
 import { registerDeepen } from './routes/deepen.js';
 import { registerPerguntas } from './routes/perguntas.js';
+import { registerHistorico } from './routes/historico.js';
 import { registerQuery } from './routes/query.js';
+import { registerClients } from './routes/clients.js';
 import { registerClaudeLog } from './routes/claudeLog.js';
 import { installAuth } from './routes/authRoutes.js';
 
@@ -50,7 +52,9 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   const app = express();
   app.use(express.json({ limit: '4mb' }));
   if (ctx.auth) installAuth(app, ctx);   // /auth/* routes + the session/tenant gate (before static)
-  app.use(express.static(PUBLIC));
+  // no-cache so CSS/JS revalidate each load (ETag) — avoids stale assets after edits
+  app.use(express.static(PUBLIC, { etag: true, lastModified: true, maxAge: 0, cacheControl: true,
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
 
   registerAnalyses(app, ctx);
   registerReport(app);
@@ -62,7 +66,9 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerGenerate(app, ctx);
   registerDeepen(app, ctx);
   registerPerguntas(app, ctx);
+  registerHistorico(app, ctx);
   registerQuery(app, ctx);
+  registerClients(app);
   registerClaudeLog(app, ctx);
   const closeWatch = registerWatch(app, ctx);
 

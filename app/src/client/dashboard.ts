@@ -11,7 +11,7 @@ import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, type ChartDef } from './charts.js';
 
 const DEFAULT_W: Record<string, number> = {
-  'label-sec': 12, 'find-note': 12, 'xs': 12,
+  'label-sec': 12, 'find-note': 12, 'xs': 12, 'chart-table': 12,
   'chart': 6, 'table': 6, 'highlight': 6, 'request': 6,
   'heatmap': 8, 'find-block': 4, 'ni': 4, 'ni-vertical': 4,
   'kpi': 3,
@@ -56,6 +56,10 @@ export interface DashboardOpts {
   layout?: LayoutItem[];
   /** Persist new grid coords on save. Throwing keeps the editor open (caller shows the error). */
   onSaveLayout?: (sectionId: string, items: LayoutItem[]) => Promise<void>;
+  /** Add a per-chart "outliers" toggle (>2σ → gap). Used by the histórico view. */
+  outlierToggle?: boolean;
+  /** When set, chart tiles get a "filtered" badge with this text (histórico launch filter). */
+  filterBadge?: string | null;
 }
 
 export class Dashboard {
@@ -185,6 +189,22 @@ export class Dashboard {
     tile.appendChild(renderWidget(widget, ctx));
     const newCharts = ctx.charts.slice(beforeCharts);
     this.tiles.push({ widget, tile, chartElId: newCharts[0]?.elId });
+    if (this.opts.outlierToggle && (widget.type === 'chart' || widget.type === 'chart-table') && newCharts.length) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tile-outlier' + ((widget as { outliers?: boolean }).outliers ? ' on' : '');
+      btn.title = 'Excluir outliers (fora das cercas de Tukey) deste gráfico';
+      btn.textContent = 'Remover outliers';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); this.toggleOutliers(widget.id); });
+      tile.appendChild(btn);
+    }
+    if (this.opts.filterBadge && (widget.type === 'chart' || widget.type === 'chart-table') && newCharts.length) {
+      const badge = document.createElement('span');
+      badge.className = 'tile-filtered';
+      badge.title = `Filtrado · ${this.opts.filterBadge}`;
+      badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.3 7.4V19L10.3 21v-8.6z"/></svg>';
+      tile.appendChild(badge);
+    }
     return tile;
   }
 
@@ -227,6 +247,22 @@ export class Dashboard {
       this.replaceTile(ref, renderWidget(ref.widget, ctx), ctx.charts[0]?.elId);
     }
     this.updateFilterBadges();
+  }
+
+  /** Per-chart outlier toggle (>2σ → gap): flip the widget flag and re-render that
+   *  chart in place (same path as a filter change). */
+  toggleOutliers(widgetId: string): void {
+    const ref = this.tiles.find(t => t.widget.id === widgetId);
+    if (!ref || (ref.widget.type !== 'chart' && ref.widget.type !== 'chart-table')) return;
+    const w = ref.widget as { outliers?: boolean };
+    w.outliers = !w.outliers;
+    ref.tile.querySelector<HTMLElement>(':scope > .tile-outlier')?.classList.toggle('on', !!w.outliers);
+    if (ref.chartElId && this.charts.has(ref.chartElId)) {
+      const ctx = this.resolveCtx();
+      renderWidget(ref.widget, ctx);          // rebuild def (with/without outliers) into ctx.charts
+      const spec = ctx.charts[0];
+      if (spec) this.charts.update(ref.chartElId, spec.def);
+    }
   }
 
   private replaceTile(ref: TileRef, fresh: HTMLElement, newChartElId?: string): void {

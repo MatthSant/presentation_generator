@@ -27,6 +27,17 @@
     .home-new { margin-left: 10px; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #fff; background: var(--purple); text-decoration: none; padding: 7px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(124, 58, 237, .28); }
     .home-new:hover { opacity: .92; }
     .home-new svg { width: 15px; height: 15px; }
+    .home-new { border: none; cursor: pointer; font-family: inherit; }
+    .home-new-wrap { position: relative; margin-left: 10px; }
+    .home-new-wrap .home-new { margin-left: 0; }
+    .home-new-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 260px; background: var(--bg); border: 1px solid var(--border); border-radius: 11px; box-shadow: var(--shadow-md); padding: 6px; }
+    .home-new-menu[hidden] { display: none; }
+    .hnm-item { display: flex; gap: 11px; align-items: flex-start; text-decoration: none; color: inherit; padding: 10px 11px; border-radius: 8px; }
+    .hnm-item:hover { background: var(--purple-bg); }
+    .hnm-ic { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--purple); background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); }
+    .hnm-ic svg { width: 16px; height: 16px; }
+    .hnm-t { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; }
+    .hnm-s { display: block; font-size: 11.5px; color: var(--gray); line-height: 1.45; margin-top: 2px; }
     .home-bar-count { margin-left: 14px; font-size: 12.5px; color: var(--gray); }
     .home-bar-count b { color: var(--fg); font-weight: 700; }
     .bar-logout { margin-left: 14px; display: none; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--gray); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 11px; cursor: pointer; }
@@ -49,6 +60,14 @@
     .guia-ic svg { width: 19px; height: 19px; }
     .guia-card-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.25; }
     .guia-card-sum { display:block; font-size: 12.5px; color: var(--gray); line-height: 1.5; margin-top: 4px; }
+    /* ── client cards (browse by client) ── */
+    .clic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 13px; }
+    .clic-card { display:flex; align-items:center; gap: 12px; text-decoration:none; color:inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 14px 16px; box-shadow: var(--shadow-sm); transition: transform .14s, box-shadow .14s, border-color .14s; }
+    .clic-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--purple) 50%, var(--border)); }
+    .clic-info { display:flex; flex-direction:column; min-width:0; flex:1; }
+    .clic-count { font-size: 11.5px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
+    .clic-go { color: var(--gray2); flex-shrink:0; }
+    .clic-go svg { width: 17px; height: 17px; }
 
     /* ── client group ── */
     .cli-group { margin-bottom: 30px; }
@@ -119,8 +138,21 @@
     <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
     <span class="bar-logo-sep"></span>
     <span class="home-brand">Dossiê do Consultor<small>Analytics</small></span>
-    <a class="home-uso" href="/uso.html" title="Custo e tokens das gerações"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg>Uso</a>
-    <a class="home-new" href="/gerar.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nova análise</a>
+    <a class="home-uso" href="/clientes.html" title="Cadastro de clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</a>
+    <a class="home-uso" href="/uso.html" title="Custo e tokens das gerações" style="margin-left:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg>Uso</a>
+    <div class="home-new-wrap">
+      <button class="home-new" id="new-btn" type="button" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nova análise</button>
+      <div class="home-new-menu" id="new-menu" hidden>
+        <a class="hnm-item" href="/gerar.html">
+          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></span>
+          <span><span class="hnm-t">Conversão por Perfil</span><span class="hnm-s">Quais perfis de lead convertem ao longo dos lançamentos.</span></span>
+        </a>
+        <a class="hnm-item" href="/gerar-historico.html">
+          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg></span>
+          <span><span class="hnm-t">Histórico de Lançamentos</span><span class="hnm-s">Evolução de conversão, mídia e reembolso entre eventos.</span></span>
+        </a>
+      </div>
+    </div>
     <span class="home-bar-count" id="bar-count"></span>
     <button class="bar-logout" id="logout" type="button" title="Sair">Sair</button>
   </header>
@@ -140,6 +172,26 @@
   <script type="module">
     const list = document.getElementById('home-list');
     const barCount = document.getElementById('bar-count');
+
+    // Nova análise → menu de escolha do tipo
+    const newBtn = document.getElementById('new-btn');
+    const newMenu = document.getElementById('new-menu');
+    if (newBtn && newMenu) {
+      newBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = newMenu.hidden;
+        newMenu.hidden = !open;
+        newBtn.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', (e) => {
+        if (!newMenu.hidden && !newMenu.contains(e.target) && e.target !== newBtn) {
+          newMenu.hidden = true; newBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { newMenu.hidden = true; newBtn.setAttribute('aria-expanded', 'false'); }
+      });
+    }
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const fmtDate = (iso) => {
@@ -202,23 +254,29 @@
             ${t.label ? `<span class="an-type">${esc(t.label)}</span>` : ''}
             <div class="an-title">${esc(r.title || r.slug)}</div>
             <div class="an-meta">
-              <span>${ICON.sec}<b>${r.sectionCount ?? 0}</b></span>
+              <span class="cli-slug">${esc(r.client)}</span>
               <span class="an-date">${esc(fmtDate(r.created_at))}</span>
             </div>
           </a>`;
         };
-        list.innerHTML = ordered.map((g) => `
-          <section class="cli-group">
-            <div class="cli-head">
-              <span class="cli-mono">${mono(g.name)}</span>
-              <div>
-                <div class="cli-name">${esc(g.name)}</div>
-                <div class="cli-slug">${esc(g.slug)}</div>
-              </div>
-              <span class="cli-count">${g.items.length} ${g.items.length === 1 ? 'análise' : 'análises'}</span>
-            </div>
-            <div class="home-grid">${g.items.map(card).join('')}</div>
-          </section>`).join('');
+        const cliCard = (g) => `
+          <a class="clic-card" href="/cliente/${encodeURIComponent(g.slug)}">
+            <span class="cli-mono">${mono(g.name)}</span>
+            <span class="clic-info"><span class="cli-name">${esc(g.name)}</span><span class="cli-slug">${esc(g.slug)}</span></span>
+            <span class="clic-count">${g.items.length} ${g.items.length === 1 ? 'análise' : 'análises'}</span>
+            <span class="clic-go">${ICON.arrow}</span>
+          </a>`;
+
+        const recent = [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).slice(0, 6);
+        list.innerHTML = `
+          <section class="guia-sec">
+            <span class="guia-eyebrow">Análises recentes</span>
+            <div class="home-grid">${recent.map(card).join('')}</div>
+          </section>
+          <section class="guia-sec">
+            <span class="guia-eyebrow">Clientes</span>
+            <div class="clic-grid">${ordered.map(cliCard).join('')}</div>
+          </section>`;
       }
     } catch (err) {
       list.innerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`;

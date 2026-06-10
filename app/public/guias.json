@@ -7,6 +7,7 @@
       "summary": "Quais perfis de lead convertem melhor (e pior) ao longo de vários lançamentos — para priorizar captação e qualificação e baixar o custo por venda.",
       "report": { "client": "inde", "slug": "conversao-perfil" },
       "montador": "conversao-perfil",
+      "gerar": "/gerar.html",
       "sections": [
         {
           "title": "Objetivo",
@@ -81,6 +82,83 @@
               "Garantir que os lançamentos estão na ordem cronológica correta.",
               "Conferir que todos os campos que você queria avaliar foram plotados.",
               "Os insights buscam padrões antes de classificar — são ponto de partida, não limite da sua análise."
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "historico-lancamentos",
+      "title": "Histórico de Lançamentos",
+      "tag": "Análise",
+      "summary": "A evolução de uma operação de lançamentos ao longo do tempo — conversão, qualidade de lead, eficiência de mídia paga e reembolso — com quebra por canal, plataforma, temperatura e perfil MQL.",
+      "report": { "client": "inde", "slug": "historico-lancamentos" },
+      "gerar": "/gerar-historico.html",
+      "montador": "historico-lancamentos",
+      "sections": [
+        {
+          "title": "Objetivo",
+          "blocks": [
+            { "type": "p", "text": "Mapear a performance da série de lançamentos ao longo do tempo e identificar padrões de melhora ou deterioração em quatro dimensões — <strong>conversão</strong>, <strong>qualidade de lead</strong>, <strong>eficiência de mídia paga</strong> e <strong>reembolso</strong>." },
+            { "type": "p", "text": "Com granularidade para distinguir se um resultado vem da audiência captada, da plataforma de tráfego, da temperatura do lead ou do perfil MQL — orientando decisões táticas nos próximos ciclos." }
+          ]
+        },
+        {
+          "title": "Requisitos dos dados",
+          "blocks": [
+            { "type": "p", "text": "Um CSV consolidado: <strong>uma linha por evento × tipo de tráfego × plataforma × temperatura</strong>." },
+            { "type": "ul", "items": [
+              "Identificação: <code>field_conversion</code> (evento) e <code>date_start</code> (cronologia).",
+              "Dimensões: <code>tipo_trafego</code> (Pago/Orgânico), <code>plataforma</code> (Meta Ads/Google Ads), <code>temperatura_lead</code> (Hot/Warm/Cold/Advantage/N/C).",
+              "Funil: <code>leads</code>, <code>leads_mqls</code>, <code>respostas_pesquisa</code>, <code>recap_antigos</code>.",
+              "Vendas: <code>vendas</code>/<code>vendas_sale</code>, <code>vendas_mql</code>, <code>vendas_nao_mql</code>, <code>faturamento</code>, <code>refunded_value</code>.",
+              "Mídia e taxas: <code>invest_total</code>, <code>paidmedia_tax</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>sales_tax</code>, <code>broker_fee</code>."
+            ] },
+            { "type": "callout", "label": "Produto", "text": "O produto principal é <code>vendas_sale</code> quando preenchida; senão <code>vendas</code>. Em lançamentos pagos, prefira <code>vendas_sale</code> para não somar ingresso + produto." }
+          ]
+        },
+        {
+          "title": "Como criar",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Extraia o consolidado (uma linha por evento × tráfego × plataforma × temperatura) com a query padrão da fonte.",
+              "Antes de gerar, confira a classificação de temperatura/canal e o volume de N/C (UTM quebrado).",
+              "Clique em <strong>Criar esta análise</strong>, informe cliente/título e envie o CSV.",
+              "O relatório abre em <code>/report/[cliente]/[slug]</code>; a aba Perguntas norteadoras aparece sozinha."
+            ] }
+          ]
+        },
+        {
+          "title": "O que o relatório entrega",
+          "blocks": [
+            { "type": "sub", "text": "Panorama" },
+            { "type": "p", "text": "KPIs principais (Conversão, ROAS, ROI, Retorno) com sparkline + cards de volume (investimento, leads, vendas, reembolsos, recapturados, qualidade, conv. MQL, split). O <strong>seletor de indicador</strong> troca os blocos de quebra (geral, pago × orgânico, plataforma, temperatura, perfil MQL) — cada um com gráfico + tabela comparativa entre lançamentos e linha de média." },
+            { "type": "sub", "text": "Investimentos" },
+            { "type": "p", "text": "Mídia paga: CPM, CTR, CPC, CPL, conversão paga, CPA e ROAS pago, por evento e por temperatura, com variação vs. anterior. Outliers (Tukey/IQR) já vêm removidos onde existem — com botão para mostrar." },
+            { "type": "sub", "text": "Perguntas e Detalhamentos" },
+            { "type": "p", "text": "Banco de perguntas norteadoras ranqueadas por relevância; ao seguir uma, a IA gera um detalhamento como nova seção na página Detalhamentos." }
+          ]
+        },
+        {
+          "title": "Indicadores",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Conversão = vendas / leads · Qualificação = MQLs / respostas · Taxa de qualidade = MQLs / leads.",
+              "Conv. MQL = <code>vendas_mql</code> / <code>leads_mqls</code> · Conv. não-MQL = <code>vendas_nao_mql</code> / não-MQLs.",
+              "ROAS = fat. líquido / custo · ROI = (fat. líq. − custo − impostos − broker) / investimento.",
+              "Reembolso = refunds / faturamento (benchmark mínimo de 5%).",
+              "O filtro por lançamento (botão Filtros) recalcula tudo no servidor; gráficos filtrados ganham o ícone de funil."
+            ] }
+          ]
+        },
+        {
+          "title": "Cuidados",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Trocar os termos de classificação de temperatura/canal antes de gerar a query.",
+              "Conferir duplicação de valores e volume alto de N/C (sem trackeamento).",
+              "Poucos lançamentos → tendências e sazonalidade viram hipótese, não padrão.",
+              "<code>vendas_mql</code> / <code>vendas_nao_mql</code> precisam vir preenchidas para o bloco de Perfil (senão fica 0)."
             ] }
           ]
         }

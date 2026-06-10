@@ -15,6 +15,8 @@ export interface BuildReportArgs {
   configPath: string;
   contentPath: string;
   outDir: string;
+  /** Analysis type → which generator runs (pysrc/<type>/build_report.py). */
+  type?: string;
 }
 
 export interface PyResult {
@@ -24,7 +26,8 @@ export interface PyResult {
   code: number | null;
 }
 
-const SCRIPT = path.join(PYSRC, 'conversao-perfil', 'build_report.py');
+/** Each analysis type vends its own build_report.py under pysrc/<type>/. */
+const buildScript = (type?: string) => path.join(PYSRC, type || 'conversao-perfil', 'build_report.py');
 
 /** Force Python stdout/stderr to UTF-8 — on Windows the default codepage (cp1252)
  *  would mangle acentos in the JSON the Node side captures (→ "n�o"). */
@@ -33,7 +36,7 @@ const PY_SPAWN = { windowsHide: true, env: { ...process.env, PYTHONUTF8: '1', PY
 function runBuildReport(a: BuildReportArgs): Promise<PyResult> {
   // The Windows `py` launcher needs `-3` before the script path; `python3` does not.
   const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
-  const args = [...prefix, SCRIPT, a.configPath, a.contentPath, a.csvPath, a.outDir];
+  const args = [...prefix, buildScript(a.type), a.configPath, a.contentPath, a.csvPath, a.outDir];
   return new Promise((resolve) => {
     const child = spawn(PYTHON_BIN, args, PY_SPAWN);
     let stdout = '';
@@ -94,6 +97,35 @@ export async function runPerguntasCalc(inputPath: string, outputPath: string): P
     child.stderr.on('data', (d) => { stderr += d.toString(); });
     child.on('error', (e) => resolve({ ok: false, stdout, stderr: `${stderr}\n${e.message}`, code: null }));
     child.on('close', (code) => resolve({ ok: code === 0, stdout, stderr, code }));
+  }).finally(releaseSlot);
+}
+
+// --- Histórico de lançamentos: recálculo da vista (filtro/métrica) ----------
+
+const HIST_RENDER_SCRIPT = path.join(PYSRC, 'historico-lancamentos', 'render_view.py');
+
+/** Recompute the historico view for a launch/metric cut over the retained base.
+ *  Returns null when the analysis has no retained base. Reuses build_report.assemble. */
+export async function runHistoricoRender(client: string, slug: string, opts: unknown): Promise<Record<string, unknown> | null> {
+  const baseDir = path.join(BASE, client, slug);
+  const config = path.join(baseDir, 'config.json');
+  const dump = path.join(baseDir, 'dump.csv');
+  if (!fs.existsSync(config) || !fs.existsSync(dump)) return null;
+
+  const prefix = PYTHON_BIN === 'py' ? ['-3'] : [];
+  const a = [...prefix, HIST_RENDER_SCRIPT, config, dump, JSON.stringify(opts ?? {})];
+  await acquireSlot();
+  return new Promise<Record<string, unknown>>((resolve) => {
+    const child = spawn(PYTHON_BIN, a, PY_SPAWN);
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => { out += d.toString(); });
+    child.stderr.on('data', (d) => { err += d.toString(); });
+    child.on('error', (e) => resolve({ error: e.message }));
+    child.on('close', () => {
+      try { resolve(JSON.parse(out.trim().split('\n').pop() || '{}') as Record<string, unknown>); }
+      catch { resolve({ error: err || out || 'sem saída' }); }
+    });
   }).finally(releaseSlot);
 }
 

@@ -170,7 +170,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
 
     record(client, slug, p, 'seguir'); // intent (kept even if generation fails)
     try {
-      const { sectionId, mocked } = await buildSection(dir, client, slug, p, `Detalhamento · ${pid}`, `${pid} · ${shortLabel(p.pergunta)}`);
+      const { sectionId, mocked } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta));
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });

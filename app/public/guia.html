@@ -79,8 +79,13 @@
       if (!g) { wrap.innerHTML = '<div class="g-empty">Guia não encontrado.</div>'; }
       else {
         document.title = `Guia · ${g.title}`;
+        const ctaGerar = g.gerar
+          ? `<a class="g-cta" href="${esc(g.gerar)}">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+               Criar esta análise</a>`
+          : '';
         const ctaReport = g.report
-          ? `<a class="g-cta" href="/report/${encodeURIComponent(g.report.client)}/${encodeURIComponent(g.report.slug)}">
+          ? `<a class="g-cta${g.gerar ? ' g-cta--ghost' : ''}" href="/report/${encodeURIComponent(g.report.client)}/${encodeURIComponent(g.report.slug)}">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h6V3H3zM3 21h6v-4H3zM13 21h8V11h-8zM13 7h8V3h-8z"/></svg>
                Abrir relatório de exemplo</a>`
           : '';
@@ -93,7 +98,7 @@
           ${g.tag ? `<span class="g-tag">${esc(g.tag)}</span>` : ''}
           <h1 class="g-title">${esc(g.title)}</h1>
           <p class="g-summary">${esc(g.summary || '')}</p>
-          <div class="g-ctas">${ctaReport}${ctaMontador}</div>
+          <div class="g-ctas">${ctaGerar}${ctaReport}${ctaMontador}</div>
           <div class="g-rule"></div>
           <div class="g-sections">
             ${(g.sections || []).map(s => `

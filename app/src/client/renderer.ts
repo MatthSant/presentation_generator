@@ -9,7 +9,7 @@ import type {
   HeatmapWidget, HeatRow, HeatCell, FindBlockWidget, FindNoteWidget, HighlightWidget, NiWidget,
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
-  EyebrowWidget, KpiStripWidget, HeatmapToggleWidget, ChartToggleWidget,
+  EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, type ChartDef } from './charts.js';
@@ -60,6 +60,28 @@ function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
   return card;
 }
 
+/** Robust per-series outlier removal — turns outliers into gaps. Combines MAD
+ *  (median absolute deviation) and Tukey IQR fences: MAD catches a single big spike
+ *  even in sparse series (≈3–4 pts), where IQR fails because the spike inflates Q3
+ *  (and 2σ fails because it inflates σ). Used by the per-chart "outliers" toggle. */
+function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
+  const median = (a: number[]) => { const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+  return series.map(s => {
+    const nums = s.data.filter((v): v is number => typeof v === 'number');
+    if (nums.length < 4) return s;
+    const sorted = [...nums].sort((a, b) => a - b);
+    const med = median(sorted);
+    const mad = median(nums.map(v => Math.abs(v - med)).sort((a, b) => a - b));
+    const q = (p: number) => { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); };
+    const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
+    const madThr = mad > 0 ? 3.5 * 1.4826 * mad : Infinity;
+    const lo = iqr > 0 ? q1 - 1.5 * iqr : -Infinity, hi = iqr > 0 ? q3 + 1.5 * iqr : Infinity;
+    const isOut = (v: number) => Math.abs(v - med) > madThr || v < lo || v > hi;
+    if (madThr === Infinity && !(iqr > 0)) return s;
+    return { name: s.name, data: s.data.map(v => (typeof v === 'number' && isOut(v)) ? null : v) };
+  });
+}
+
 /* ── chart ── */
 function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'widget-chart');
@@ -71,6 +93,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const variant = {
     trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
     showLabels: w.showLabels, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
+    dashLast: w.dashLast, valueFormat: w.valueFormat,
   };
   let def: ChartDef | null = null;
   if (w.bind) {
@@ -79,7 +102,8 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
       wrap.appendChild(empty());
       return wrap;
     }
-    def = defFromResolved(w.chartType, resolved, {
+    const series = (w as { outliers?: boolean }).outliers ? dropOutliers(resolved.series) : resolved.series;
+    def = defFromResolved(w.chartType, { categories: resolved.categories, series }, {
       height, colors: w.colors, distributed: w.distributed, diverging: w.diverging, pct: w.pct,
       axisMin: w.axisMin, axisMax: w.axisMax, meanLine: w.meanLine,
       stackType: w.stackType, options: w.options, ...variant,
@@ -112,7 +136,7 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
   return wrap;
 }
 
-/* ── kpi-strip ── a row of tabular KPIs */
+/* ── kpi-strip ── a row of tabular KPIs (optional variation `sub` + trend spark) */
 function renderKpiStrip(w: KpiStripWidget): HTMLElement {
   const wrap = el('div', 'kpi-strip');
   for (const item of w.items || []) {
@@ -120,9 +144,142 @@ function renderKpiStrip(w: KpiStripWidget): HTMLElement {
     const n = el('div', item.small ? 'kpi-n kpi-n--sm' : 'kpi-n');
     n.innerHTML = String(item.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
     k.append(n, el('div', 'kpi-l', item.label));
+    if (item.sub) k.appendChild(el('div', `kpi-sub kpi-sub--${item.subTone || 'neutral'}`, item.sub));
+    if (item.spark && item.spark.length > 1) { const s = sparkSvg(item.spark); if (s) k.appendChild(s); }
     wrap.appendChild(k);
   }
   return wrap;
+}
+
+/** Tiny inline trend sparkline (SVG polyline). Nulls are skipped (gaps). */
+function sparkSvg(data: (number | null)[]): SVGElement | null {
+  const W = 96, H = 20, P = 2;
+  const pts = data.map((v, i) => ({ v, i })).filter(p => typeof p.v === 'number') as { v: number; i: number }[];
+  if (pts.length < 2) return null;
+  const vals = pts.map(p => p.v);
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = (mx - mn) || 1;
+  const lastX = data.length - 1 || 1;
+  const x = (i: number) => P + (i / lastX) * (W - 2 * P);
+  const y = (v: number) => P + (1 - (v - mn) / rng) * (H - 2 * P);
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', 'kpi-spark');
+  const d = pts.map((p, j) => `${j ? 'L' : 'M'}${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', d); path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-width', '1.5');
+  path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(path);
+  const last = pts[pts.length - 1];
+  const dot = document.createElementNS(NS, 'circle');
+  dot.setAttribute('cx', x(last.i).toFixed(1)); dot.setAttribute('cy', y(last.v).toFixed(1));
+  dot.setAttribute('r', '1.8'); dot.setAttribute('fill', 'currentColor');
+  svg.appendChild(dot);
+  return svg;
+}
+
+/* ── kpi-card ── one elevated metric card (feature = icon+pill+spark; volume = bar) */
+const ICONS: Record<string, string> = {
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+  bolt: '<path d="M13 2.5 L5 13.5 H11 L10 21.5 L19 9.5 H13 Z" fill="currentColor" stroke="none"/>',
+  'trending-up': '<path d="M3 17 L9.5 10.5 L13.5 14.5 L21 7"/><path d="M15.5 7 H21 V12.5"/>',
+  database: '<ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5 V18 c0 1.55 3.13 2.8 7 2.8 s7 -1.25 7 -2.8 V5.5"/><path d="M5 11.8 c0 1.55 3.13 2.8 7 2.8 s7 -1.25 7 -2.8"/>',
+  coin: '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.3 V16.7 M9.6 9.2 a2.6 2 0 0 1 4.8 -0.2 M9.6 14.8 a2.6 2 0 0 0 4.8 0.2"/>',
+  users: '<circle cx="9" cy="8.5" r="3.1"/><path d="M3 19.5 a6 6 0 0 1 12 0"/><path d="M15.5 5.7 a3.1 3.1 0 0 1 0 5.6 M16.5 13.8 a6 6 0 0 1 4.5 5.7"/>',
+  'shopping-cart': '<circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/><path d="M3 4 H5.2 L7.3 15 H18 L20 7 H6"/>',
+  'arrow-back-up': '<path d="M9 7 L4.5 11.5 L9 16"/><path d="M4.5 11.5 H14 a5 5 0 0 1 5 5 V18.5"/>',
+  refresh: '<path d="M20 11.5 a8 8 0 1 0 -2.2 6.2"/><path d="M20 5 V11.5 H13.5"/>',
+  star: '<path d="M12 3 L14.6 9 L21 9.5 L16.1 13.8 L17.7 20 L12 16.5 L6.3 20 L7.9 13.8 L3 9.5 L9.4 9 Z" fill="currentColor" stroke="none"/>',
+  'circle-check': '<circle cx="12" cy="12" r="8.8"/><path d="M8 12 l3 3 l5 -6"/>',
+  'arrows-left-right': '<path d="M8 6.5 L4 11 H20"/><path d="M16 17.5 L20 13 H4"/>',
+};
+
+function iconBox(icon?: string, color?: string): HTMLElement {
+  const box = el('div', 'kc-ico');
+  if (color) box.style.setProperty('--ic', color);
+  if (icon && ICONS[icon]) {
+    box.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`;
+  }
+  return box;
+}
+
+function barEl(segs: { pct: number; color: string }[]): HTMLElement {
+  const bar = el('div', 'kc-bar');
+  let used = 0;
+  for (const s of segs) {
+    const pct = Math.max(0, Math.min(100, s.pct || 0));
+    const seg = el('span', 'kc-seg');
+    seg.style.width = `${pct}%`; seg.style.background = s.color;
+    bar.appendChild(seg); used += pct;
+  }
+  if (100 - used > 0.5) {
+    const t = el('span', 'kc-seg kc-seg--track');
+    t.style.width = `${100 - used}%`;
+    bar.appendChild(t);
+  }
+  return bar;
+}
+
+function renderKpiCard(w: KpiCardWidget): HTMLElement {
+  const feature = w.tier !== 'volume';
+  const card = el('div', `kc kc--${feature ? 'feature' : 'volume'}`);
+  const head = el('div', 'kc-head');
+  if (feature) {
+    head.appendChild(iconBox(w.icon, w.iconColor));
+    if (w.delta) head.appendChild(el('span', `kc-pill kc-pill--${w.deltaTone || 'neutral'}`, w.delta));
+  } else {
+    head.appendChild(el('span', 'kc-lbl', w.label));
+    head.appendChild(iconBox(w.icon, w.iconColor));
+  }
+  card.appendChild(head);
+  const val = el('div', 'kc-val');
+  val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
+  if (feature) {
+    card.appendChild(el('div', 'kc-lbl', w.label));
+    const row = el('div', 'kc-valrow');
+    row.appendChild(val);
+    if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
+    card.appendChild(row);
+    if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+  } else {
+    card.appendChild(val);
+    if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+    card.appendChild(barEl(w.bar || []));
+  }
+  return card;
+}
+
+/* ── metric-toggle ── inline indicator selector; recomputes the breakdown below */
+function renderMetricToggle(w: MetricToggleWidget): HTMLElement {
+  const bar = el('div', 'mtoggle');
+  for (const m of w.metrics || []) {
+    const b = el('button', 'mtoggle-opt' + (m.id === w.current ? ' on' : ''));
+    (b as HTMLButtonElement).type = 'button';
+    b.textContent = m.label;
+    b.addEventListener('click', () => {
+      if (m.id === w.current) return;
+      for (const x of bar.children) x.classList.toggle('on', x === b);
+      document.dispatchEvent(new CustomEvent('historico-metric', { detail: m.id }));
+    });
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+/* ── chart-table ── one card: chart on top + comparison table below (full-width) */
+function renderChartTable(w: ChartTableWidget, ctx: RenderCtx): HTMLElement {
+  const card = el('div', 'ctbl');
+  if (w.title) card.appendChild(el('div', 'ctbl-title', w.title));
+  const chart = renderChart({ ...w.chart, title: undefined, outliers: (w as { outliers?: boolean }).outliers }, ctx);
+  chart.classList.add('ctbl-chart');
+  card.appendChild(chart);
+  if (w.table) {
+    const table = renderTable({ ...w.table, title: undefined }, ctx);
+    table.classList.add('ctbl-table');
+    card.appendChild(table);
+  }
+  return card;
 }
 
 /* ── heat class from a cell value ── diverging diff scale or long-term uplift scale */
@@ -237,10 +394,18 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
     r.forEach((cell, i) => {
       const td = el('td');
       const value = (cell && typeof cell === 'object') ? cell.value : cell;
-      td.textContent = formatValue(value);
-      if (cell && typeof cell === 'object') {
-        if (cell.cls) td.classList.add(cell.cls);
-        if (cell.title) td.title = cell.title;
+      const obj = (cell && typeof cell === 'object') ? cell : null;
+      if (obj && obj.delta) {
+        td.classList.add('td-metric');
+        td.appendChild(el('span', 'tm-val', formatValue(value)));
+        td.appendChild(el('span', `tm-pill tm-${obj.tone || 'neutral'}`, obj.delta));
+        if (obj.rel) td.appendChild(el('span', 'tm-rel', obj.rel));
+      } else {
+        td.textContent = formatValue(value);
+      }
+      if (obj) {
+        if (obj.cls) td.classList.add(obj.cls);
+        if (obj.title) td.title = obj.title;
       }
       const scale = w.colorScale?.[cols[i]];
       if (scale) { const cls = heatClass(value, scale); if (cls) td.classList.add(cls); }
@@ -594,6 +759,9 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
     switch (widget.type) {
       case 'kpi':         return renderKpi(widget, ctx);
       case 'kpi-strip':   return renderKpiStrip(widget);
+      case 'kpi-card':    return renderKpiCard(widget);
+      case 'metric-toggle': return renderMetricToggle(widget);
+      case 'chart-table': return renderChartTable(widget, ctx);
       case 'eyebrow':     return renderEyebrow(widget);
       case 'chart':       return renderChart(widget, ctx);
       case 'table':       return renderTable(widget, ctx);

@@ -13,6 +13,7 @@ import { Dashboard } from './dashboard.js';
 import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
+import { HistoricoFilters } from './historico-controls.js';
 import { resolveBind } from '../shared/bind.js';
 import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
 
@@ -23,7 +24,7 @@ class App {
   private store = new Store();
   private api: Api;
   private nav: Navigation;
-  private filters: Filters;
+  private filters: Filters | null = null;
   private dashboard: Dashboard | null = null;
   private modalCharts = new ChartManager();
   /** Chart defs per modal, mounted lazily the first time the modal opens (a chart
@@ -34,11 +35,16 @@ class App {
   /** Modal id to auto-open after the next section (re)render — set by deepen. */
   private pendingModal: string | null = null;
   private perguntas: PerguntasView | null = null;
+  private hist: HistoricoFilters | null = null;
+  /** Current launch selection (null = full series) — drives the filtered-chart badge. */
+  private histSel: string[] | null = null;
+  private histLaunches: string[] | null = null;
+  private histMetric = 'conv';
+  private busyEl: HTMLElement | null = null;
 
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
     this.nav = new Navigation(this.store, (p, s) => void this.go(p, s));
-    this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); });
     this.wireModals();
     this.wireLayoutEditor();
     document.getElementById('export-html-btn')?.addEventListener('click', () => void this.exportHtml());
@@ -63,14 +69,33 @@ class App {
     const brand = document.getElementById('tn-client');
     if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
     this.renderCover();
+    this.setupHistorico();
 
     this.nav.build();
-    this.filters.init();
+    if (!this.hist) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
     this.watch();
 
     const first = this.store.allSections()[0];
     if (first) { await this.go(first.pageId, first.id); this.maybeShowFirstRunHint(); }
     else ROOT.innerHTML = '<div style="padding:60px 56px"><p class="sm">Relatório sem seções.</p></div>';
+
+    void this.ensurePerguntasTab();
+  }
+
+  /** Probe /perguntas on load; if the analysis has guiding questions but the nav
+   *  lacks the page (first open of a fresh analysis), add the tab. The server also
+   *  persists it (ensurePerguntasPage) so later loads already include it. */
+  private async ensurePerguntasTab(): Promise<void> {
+    if (this.store.pages.some(p => p.kind === 'perguntas')) return;
+    try {
+      const r = await this.api.getPerguntas();
+      if (!(r.perguntas || []).length) return;
+      if (this.store.pages.some(p => p.kind === 'perguntas')) return;
+      this.store.data.pages.push({ id: 'perguntas', label: 'Perguntas norteadoras', kind: 'perguntas',
+        sections: [{ id: 'perguntas', label: 'Perguntas norteadoras' }] });
+      this.nav.build();
+      this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
+    } catch { /* sem perguntas para este tipo — ok */ }
   }
 
   /** Surface the features a first-time consultant won't otherwise discover:
@@ -116,11 +141,13 @@ class App {
     main.insertBefore(h, ROOT);
   }
 
-  private async go(pageId: string, sectionId: string): Promise<void> {
+  private async go(pageId: string, sectionId: string, keepScroll = false): Promise<void> {
     if (this.editing) this.abortEdit(); // tab switch during edit → drop edits, then navigate
     this.store.currentPageId = pageId;
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
+
+    this.hist?.setPage(pageId);
 
     if (this.store.page(pageId)?.kind === 'perguntas') {
       await this.renderPerguntas();
@@ -140,7 +167,7 @@ class App {
       }
     }
     this.renderSection(section);
-    window.scrollTo({ top: 0 });
+    if (!keepScroll) window.scrollTo({ top: 0 });
   }
 
   private renderSection(section: Section): void {
@@ -164,6 +191,8 @@ class App {
       getFilterDefs: () => this.store.filterDefs,
       layout: this.store.layoutFor(section.id),
       onSaveLayout: (id, items) => this.persistLayout(id, items),
+      outlierToggle: !!this.store.data?.meta?.controls,
+      filterBadge: this.histSel ? `${this.histSel.length} de ${this.store.data?.meta?.controls?.launches.length ?? 0} lançamentos` : null,
     });
 
     for (const modal of section.modals || []) {
@@ -174,6 +203,41 @@ class App {
     if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
       this.openModal(this.pendingModal);
       this.pendingModal = null;
+    }
+  }
+
+  /* ───────────────────────────  Histórico — vista interativa  ─────────────────────────── */
+
+  /** Mount the launch/metric control bar above the report when meta.controls says so. */
+  private setupHistorico(): void {
+    const controls = this.store.data?.meta?.controls;
+    if (!controls) return;
+    this.histMetric = controls.metrics[0]?.id || 'conv';
+    const total = controls.launches.length;
+    this.hist = new HistoricoFilters(controls, {
+      apply: (l) => { this.histLaunches = (l.length >= total || l.length === 0) ? null : l; void this.recompute(); },
+    });
+    // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
+    // changing it recomputes only the metric-driven breakdown below.
+    document.addEventListener('historico-metric', (e) => {
+      this.histMetric = (e as CustomEvent<string>).detail;
+      void this.recompute();
+    });
+  }
+
+  /** Recompute the filtered/metric view server-side and re-render the current section. */
+  private async recompute(): Promise<void> {
+    this.histSel = this.histLaunches;
+    const y = window.scrollY;
+    try {
+      const r = await this.api.historicoRender(this.histLaunches, this.histMetric);
+      this.store.datasets = r.dataset;
+      for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);
+      this.store.layout = { ...this.store.layout, sections: { ...this.store.layout.sections, ...r.layout } };
+      await this.go(this.store.currentPageId, this.store.currentSectionId, true);
+      window.scrollTo({ top: y });
+    } catch (e) {
+      this.toast(`Falha ao recalcular: ${(e as Error).message}`);
     }
   }
 
@@ -208,10 +272,30 @@ class App {
     }
   }
 
+  /** Blocking loading overlay — shown while a detalhamento is generated server-side
+   *  (the LLM call takes a few seconds), so the wait is explicit and clicks are
+   *  locked until we navigate to the result. */
+  private setBusy(on: boolean, msg = 'Carregando…'): void {
+    if (on) {
+      if (!this.busyEl) {
+        const el = document.createElement('div');
+        el.className = 'busy-overlay';
+        el.innerHTML = '<div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div>';
+        document.body.appendChild(el);
+        this.busyEl = el;
+      }
+      const m = this.busyEl.querySelector('.busy-msg');
+      if (m) m.textContent = msg;
+      this.busyEl.hidden = false;
+    } else if (this.busyEl) {
+      this.busyEl.hidden = true;
+    }
+  }
+
   /** Follow a question: the server generates its detalhamento as a new section on
    *  the Detalhamentos page; we refresh the nav and jump straight to it. */
   private async seguirPergunta(p: Pergunta): Promise<void> {
-    this.toast('Gerando detalhamento…');
+    this.setBusy(true, 'Gerando detalhamento…');
     try {
       const r = await this.api.seguirPergunta(p.id);
       // The nav map changed (new section, maybe a new page) → reload + rebuild.
@@ -222,6 +306,8 @@ class App {
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
     } catch (e) {
       this.toast(`Falha ao seguir a pergunta: ${(e as Error).message}`);
+    } finally {
+      this.setBusy(false);
     }
   }
 
@@ -267,7 +353,7 @@ class App {
   }
 
   private async criarPerguntaCustom(text: string): Promise<void> {
-    this.toast('Criando detalhamento…');
+    this.setBusy(true, 'Criando detalhamento…');
     try {
       const r = await this.api.addCustomPergunta(text);
       this.store.data = await this.api.getData();
@@ -277,6 +363,8 @@ class App {
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
     } catch (e) {
       this.toast(`Falha ao adicionar pergunta: ${(e as Error).message}`);
+    } finally {
+      this.setBusy(false);
     }
   }
 
@@ -339,7 +427,7 @@ class App {
   }
 
   private async runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<void> {
-    this.toast(prev ? 'Ajustando o detalhamento…' : 'Gerando detalhamento…');
+    this.setBusy(true, prev ? 'Ajustando o detalhamento…' : 'Gerando detalhamento…');
     try {
       const r = await this.api.deepen(secId, blockId, prompt, prev);
       this.pendingModal = r.modal.id;
@@ -350,6 +438,8 @@ class App {
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
     } catch (e) {
       this.toast(`Falha ao detalhar: ${(e as Error).message}`);
+    } finally {
+      this.setBusy(false);
     }
   }
 

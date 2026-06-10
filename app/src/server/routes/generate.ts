@@ -61,7 +61,9 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     let config: ConfigShape;
     try { config = JSON.parse(String(req.body?.config ?? '')) as ConfigShape; }
     catch { res.status(400).json({ error: 'config inválido (JSON)' }); return; }
-    if (!config || !Array.isArray(config.criterios) || config.criterios.length === 0) {
+    const type = typeof config?.type === 'string' ? config.type : 'conversao-perfil';
+    // criterios é requisito do conversao-perfil; outros tipos (ex.: histórico) não usam
+    if (type === 'conversao-perfil' && (!config || !Array.isArray(config.criterios) || config.criterios.length === 0)) {
       res.status(400).json({ error: 'config.criterios vazio' }); return;
     }
     let content: unknown;
@@ -79,7 +81,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     writeJson(contentPath, content);
 
     try {
-      const result = await runGeneration(`${client}/${slug}`, { csvPath, configPath, contentPath, outDir });
+      const result = await runGeneration(`${client}/${slug}`, { csvPath, configPath, contentPath, outDir, type });
       if (!result.ok) {
         res.status(500).json({ error: 'falha na geração', stderr: tail(result.stderr || result.stdout, 2000) });
         return;
@@ -104,7 +106,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       // Optional Layer B1: generate insight prose from the freshly computed
       // aggregates (CSV still in scratch), then re-emit the views with it.
       let insights: { applied: boolean; mocked?: boolean; error?: string } = { applied: false };
-      if (String(req.body?.insights ?? '') === 'true') {
+      if (type === 'conversao-perfil' && String(req.body?.insights ?? '') === 'true') {
         try {
           const ds = readJson<Record<string, { rows: Array<Record<string, unknown>> }>>(path.join(outDir, 'dataset.json'));
           if (!ds) throw new Error('dataset ausente para o digest');

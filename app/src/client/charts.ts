@@ -34,10 +34,14 @@ export interface ChartDef {
   totalLabel?: string;
   /** Enable per-slice/point value labels (e.g. donut % on slices). */
   showLabels?: boolean;
-  /** Mixed only: 0-based index of the series to plot on a right-hand axis. */
-  secondaryAxis?: number;
+  /** Mixed only: 0-based index (or indices) of the series on a right-hand axis. */
+  secondaryAxis?: number | number[];
   /** Suffix appended to secondary-axis labels (e.g. "%"). */
   secondaryAxisSuffix?: string;
+  /** Line only: render the last series dashed (a reference "Média" line). */
+  dashLast?: boolean;
+  /** Value formatting for axis/tooltip/labels: pct | money | x | int | num. */
+  valueFormat?: string;
 }
 
 type Theme = 'light' | 'dark';
@@ -78,7 +82,7 @@ function getBase(theme: Theme): Base {
     ? ['#8B5CF6', '#10B981', '#F59E0B', '#F97316', '#EF4444']
     : ['#7C3AED', '#059669', '#D97706', '#EA580C', '#DC2626']);
   const base = {
-    chart: { background: 'transparent', fontFamily: "'Exo 2', system-ui, sans-serif", toolbar: { show: false }, animations: EXPORT_MODE ? { enabled: false } : { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
+    chart: { background: 'transparent', fontFamily: "'Exo 2', system-ui, sans-serif", toolbar: { show: false }, zoom: { enabled: false }, selection: { enabled: false }, animations: EXPORT_MODE ? { enabled: false } : { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
     theme: { mode: dark ? 'dark' : 'light' },
     grid: { borderColor: gridColor, strokeDashArray: 3 },
     tooltip: { theme: dark ? 'dark' : 'light' },
@@ -122,6 +126,30 @@ export function mergeDeep<T extends Record<string, unknown>>(target: T, source: 
 
 export function currentTheme(): Theme {
   return (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark') ? 'dark' : 'light';
+}
+
+/* Brazilian number formatting: comma decimal, period thousands; integers without ",0". */
+function brNum(v: number, dec: number): string {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function autoBr(v: number): string {
+  if (v == null || !Number.isFinite(v)) return '';
+  return brNum(v, Math.abs(v - Math.round(v)) < 1e-9 ? 0 : 1);
+}
+function moneyBr(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1e6) return `R$ ${brNum(v / 1e6, 1)}M`;
+  if (a >= 1e3) return `R$ ${brNum(v / 1e3, 0)}k`;
+  return `R$ ${brNum(v, 0)}`;
+}
+function valueFmt(kind?: string): (v: number) => string {
+  switch (kind) {
+    case 'pct': return (v) => `${autoBr(v)}%`;
+    case 'money': return (v) => moneyBr(v);
+    case 'x': return (v) => `${autoBr(v)}×`;
+    case 'int': return (v) => brNum(Math.round(Number(v) || 0), 0);
+    default: return autoBr;
+  }
 }
 
 export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Record<string, unknown> {
@@ -196,11 +224,17 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
     opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)) };
     if (def.secondaryAxis != null) {
-      const sec = def.secondaryAxis;
+      const secs = Array.isArray(def.secondaryAxis) ? def.secondaryAxis : [def.secondaryAxis];
       const suffix = def.secondaryAxisSuffix || '';
-      opts.yaxis = arr.map((_, i) => i === sec
-        ? { opposite: true, labels: { style: { colors: labelColor, fontSize: '11px' }, ...(suffix ? { formatter: (v: number) => `${v}${suffix}` } : {}) } }
-        : { labels: { style: { colors: labelColor, fontSize: '11px' } } });
+      const firstSec = secs[0];
+      const firstPrim = arr.findIndex((_, i) => !secs.includes(i));
+      const lbl = { style: { colors: labelColor, fontSize: '11px' } };
+      // Series sharing an axis (e.g. complementary %s) must share a scale to overlay.
+      // Show labels on the first axis of each side; force 0..100 for % secondaries.
+      opts.yaxis = arr.map((_, i) => secs.includes(i)
+        ? { opposite: true, show: i === firstSec, min: 0, ...(suffix === '%' ? { max: 100 } : {}),
+            labels: { ...lbl, ...(suffix ? { formatter: (v: number) => `${v}${suffix}` } : {}) } }
+        : { show: i === firstPrim, min: axisMin, labels: lbl });
     }
   }
   if (def.type === 'stacked') {
@@ -223,8 +257,15 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     opts.xaxis = { ...b.xaxis, categories: def.categories, min: axisMin };
   }
   if (def.type === 'line') {
-    opts.stroke = { curve: 'smooth', width: 2 };
-    opts.markers = { size: 3 };
+    const n = Array.isArray(series) ? series.length : 0;
+    if (def.dashLast && n > 1) {
+      opts.stroke = { curve: 'smooth', width: Array.from({ length: n }, () => 2),
+        dashArray: Array.from({ length: n }, (_, i) => (i === n - 1 ? 5 : 0)) };
+      opts.markers = { size: Array.from({ length: n }, (_, i) => (i === n - 1 ? 0 : 3)) };
+    } else {
+      opts.stroke = { curve: 'smooth', width: 2 };
+      opts.markers = { size: 3 };
+    }
     opts.yaxis = { ...b.yaxis, min: axisMin };
   }
   if (def.type === 'area') {
@@ -293,17 +334,18 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     else bar.columnWidth = `${Math.min(64, Math.max(24, count * 7))}%`;
     opts.plotOptions = { bar };
 
+    const dvf = def.valueFormat ? valueFmt(def.valueFormat) : null;
     if (def.showLabels) {
       opts.dataLabels = {
         enabled: true,
-        formatter: (v: number) => `${v > 0 ? '+' : ''}${Math.round(v)}%`,
+        formatter: dvf ? (v: number) => dvf(v) : (v: number) => `${v > 0 ? '+' : ''}${Math.round(v)}%`,
         offsetX: 0,
         style: { fontSize: '10px', fontWeight: 800, colors: [dark ? '#C9C9D2' : '#33333D'] },
         dropShadow: { enabled: false },
       };
     }
 
-    const pctFmt = (v: number) => `${Math.round(v)}%`;
+    const pctFmt = dvf ? (v: number) => dvf(v) : (v: number) => `${Math.round(v)}%`;
     const valueAxis = { tickAmount: 4, labels: { formatter: pctFmt, style: { colors: axisInk, fontSize: '9.5px' } }, axisBorder: { show: false }, axisTicks: { show: false } };
     // minWidth floors the label column so ApexCharts' under-measured auto-width
     // doesn't clip group names (e.g. "250-500k" → "50-500k"); maxWidth caps long ones.
@@ -326,20 +368,26 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     opts.tooltip = {
       ...(isObj(opts.tooltip) ? (opts.tooltip as Record<string, unknown>) : {}),
       y: {
-        formatter: (v: number) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}% vs. benchmark`,
+        formatter: dvf ? (v: number) => dvf(v) : (v: number) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}% vs. benchmark`,
         title: { formatter: () => '' },
       },
     };
   }
-  // Percentage value axis + labels (conversion/uplift charts hold % values).
-  if (def.pct) {
-    const fmtPct = (v: number) => `${Math.round(v)}%`;
-    const addFmt = (axis: unknown) => {
+  // Value formatting — Brazilian (comma decimal, period thousands), integers w/o ",0".
+  // pct/money/x get suffix/prefix; default auto-trims decimals. Keeps any explicit
+  // formatter already set (e.g. secondary-axis suffix, diverging diff tooltip).
+  {
+    const f = valueFmt(def.valueFormat || (def.pct ? 'pct' : undefined));
+    const apply = (axis: unknown) => {
       if (!isObj(axis)) return;
-      axis.labels = { ...(isObj(axis.labels) ? axis.labels : {}), formatter: fmtPct };
+      if (isObj(axis.labels) && (axis.labels as Record<string, unknown>).formatter) return;
+      axis.labels = { ...(isObj(axis.labels) ? axis.labels : {}), formatter: f };
     };
-    if (def.type === 'bar-horizontal') addFmt(opts.xaxis); else addFmt(opts.yaxis);
-    if (isObj(opts.dataLabels) && opts.dataLabels.enabled) opts.dataLabels.formatter = fmtPct;
+    const ax = opts[def.type === 'bar-horizontal' ? 'xaxis' : 'yaxis'];
+    if (Array.isArray(ax)) ax.forEach(apply); else apply(ax);
+    const tt = (isObj(opts.tooltip) ? opts.tooltip : (opts.tooltip = {})) as Record<string, unknown>;
+    if (!isObj(tt.y) || !(tt.y as Record<string, unknown>).formatter) tt.y = { ...(isObj(tt.y) ? tt.y : {}), formatter: f };
+    if (isObj(opts.dataLabels) && opts.dataLabels.enabled && !opts.dataLabels.formatter) opts.dataLabels.formatter = f;
   }
   // Explicit value-axis bounds (shared domain → comparable charts). Empty = auto.
   if (def.axisMin != null || def.axisMax != null) {

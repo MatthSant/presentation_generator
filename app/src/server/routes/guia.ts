@@ -9,7 +9,12 @@ export function registerGuia(app: Express): void {
     res.sendFile(path.join(PUBLIC, 'guia.html'));
   });
   // Query builder for an analysis type (content embedded in the page per slug).
-  app.get('/montador/:slug', (_req, res) => {
-    res.sendFile(path.join(PUBLIC, 'montador.html'));
+  app.get('/montador/:slug', (req, res) => {
+    const file = req.params.slug === 'historico-lancamentos' ? 'montador-historico.html' : 'montador.html';
+    res.sendFile(path.join(PUBLIC, file));
+  });
+  // All analyses of one client (the home links to it per client).
+  app.get('/cliente/:slug', (_req, res) => {
+    res.sendFile(path.join(PUBLIC, 'cliente.html'));
   });
 }

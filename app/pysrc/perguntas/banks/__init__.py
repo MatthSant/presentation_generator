@@ -9,8 +9,9 @@ Para adicionar uma análise padrão, importe o módulo e inclua em BANKS.
 A ordem importa: o primeiro `detect` verdadeiro vence.
 """
 from . import conversao_perfil
+from . import historico_lancamentos
 
-BANKS = [conversao_perfil]
+BANKS = [conversao_perfil, historico_lancamentos]
 
 
 def pick_bank(dataset):

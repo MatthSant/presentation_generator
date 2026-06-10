@@ -2,6 +2,8 @@
 
 import type { ReportData, DataMap, Section, Layout, LayoutItem, Pergunta } from '../shared/types.js';
 
+export interface HistoricoView { dataset: DataMap; sections: Record<string, Section>; layout: Record<string, LayoutItem[]>; }
+
 export class Api {
   constructor(private client: string, private slug: string) {}
 
@@ -54,6 +56,13 @@ export class Api {
   addCustomPergunta(pergunta: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean }> {
     return this.json(`${this.base()}/perguntas/custom`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pergunta }),
+    });
+  }
+
+  historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {
+    return this.json(`${this.base()}/historico/render`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ launches, metric }),
     });
   }
 

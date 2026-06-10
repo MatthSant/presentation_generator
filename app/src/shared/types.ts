@@ -53,7 +53,8 @@ export interface Bind {
 /** One resolved series, ApexCharts-compatible. */
 export interface ResolvedSeries {
   name: string;
-  data: number[];
+  /** null = a gap (no datum for that category) — charts break the line there. */
+  data: (number | null)[];
 }
 
 /** Output of resolveBind — everything a widget needs to render, numbers included. */
@@ -84,7 +85,7 @@ export const WIDGET_TYPES = [
   'find-block', 'find-note', 'highlight', 'ni', 'ni-vertical',
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
-  'eyebrow', 'kpi-strip', 'heatmap-toggle', 'chart-toggle',
+  'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -146,13 +147,25 @@ export interface ChartWidget extends WidgetBase {
   totalLabel?: string;
   /** Enable per-slice/point value labels (e.g. donut % on slices). */
   showLabels?: boolean;
-  /** Mixed only: 0-based index of the series to plot on a secondary right-hand axis. */
-  secondaryAxis?: number;
+  /** Line only: render the last series dashed (a reference "Média" line). */
+  dashLast?: boolean;
+  /** Value formatting for axis/tooltip/labels: pct | money | x | int | num (pt-BR). */
+  valueFormat?: string;
+  /** When true, drop per-series outliers (Tukey IQR) before plotting. Toggled in UI. */
+  outliers?: boolean;
+  /** Mixed only: 0-based index (or indices) of the series to plot on a secondary
+   *  right-hand axis. An array groups several series onto one shared right axis. */
+  secondaryAxis?: number | number[];
   /** Suffix for secondary-axis labels (e.g. "%"). */
   secondaryAxisSuffix?: string;
 }
 
-export type TableCell = string | number | { value: string | number; cls?: string; title?: string };
+export type TableCell = string | number | {
+  value: string | number; cls?: string; title?: string;
+  /** Metric cell: variation vs the previous column, shown as a tinted pill + a
+   *  muted relative-% line under the value. `tone` colors the pill. */
+  delta?: string; rel?: string; tone?: 'pos' | 'neg' | 'neutral';
+};
 export interface TableWidget extends WidgetBase {
   type: 'table';
   cols: string[];
@@ -362,10 +375,53 @@ export interface EyebrowWidget extends WidgetBase {
   title: string;
   caption?: string;
 }
-export interface KpiStripItem { value: string; label: string; sub?: string; small?: boolean; }
+export interface KpiStripItem {
+  value: string; label: string; sub?: string; small?: boolean;
+  /** Tone for `sub` (variation vs. previous): pos = green, neg = red, neutral = muted. */
+  subTone?: 'pos' | 'neg' | 'neutral';
+  /** Per-period series for a trend sparkline under the value (nulls = gaps). */
+  spark?: (number | null)[];
+}
 export interface KpiStripWidget extends WidgetBase {
   type: 'kpi-strip';
   items: KpiStripItem[];
+}
+
+/** One metric as an elevated card (vs the flat kpi-strip). `feature` = headline
+ *  card with icon + variation pill + trend sparkline; `volume` = compact card
+ *  with a proportion bar. Laid out one-per-tile on the dashboard grid. */
+export interface KpiCardWidget extends WidgetBase {
+  type: 'kpi-card';
+  tier?: 'feature' | 'volume';
+  label: string;
+  value: string;
+  sub?: string;
+  icon?: string;
+  iconColor?: string;
+  /** Variation badge (feature tier), e.g. "↑ +3.0pp vs anterior". */
+  delta?: string;
+  deltaTone?: 'pos' | 'neg' | 'neutral';
+  /** Trend sparkline series (feature tier); nulls = gaps. */
+  spark?: (number | null)[];
+  /** Proportion bar segments (volume tier); remainder fills as a muted track. */
+  bar?: { pct: number; color: string }[];
+}
+
+/** Inline indicator selector (histórico Panorama). Switching it recomputes the
+ *  breakdown charts/tables below via a `historico-metric` DOM event. */
+export interface MetricToggleWidget extends WidgetBase {
+  type: 'metric-toggle';
+  metrics: { id: string; label: string }[];
+  current: string;
+}
+
+/** Combined block: one chart on top + its comparison table below, in a single
+ *  card (histórico breakdowns). Full-width so the per-launch columns fit. */
+export interface ChartTableWidget extends WidgetBase {
+  type: 'chart-table';
+  title?: string;
+  chart: ChartWidget;
+  table?: TableWidget;
 }
 
 export type Widget =
@@ -373,7 +429,8 @@ export type Widget =
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
   | DefStepWidget | MdefBlockWidget | GrpListWidget
-  | EyebrowWidget | KpiStripWidget | HeatmapToggleWidget | ChartToggleWidget;
+  | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
+  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
@@ -435,6 +492,15 @@ export interface ReportMeta {
   filters?: FilterDef[];
   /** Optional cover block shown once at the top of the report content. */
   cover?: { eyebrow?: string; meta?: string[] };
+  /** Interactive controls (histórico de lançamentos): launch pills + metric toggle.
+   *  When present, the SPA shows a control bar on `pages` and recomputes via the
+   *  /historico/render route. */
+  controls?: {
+    kind: string;
+    pages: string[];
+    launches: string[];
+    metrics: { id: string; label: string }[];
+  };
 }
 
 export interface PageRef {
