@@ -8,20 +8,12 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
-    .bar-back svg { width: 15px; height: 15px; }
 
     .g-wrap { max-width: 640px; margin: 0 auto; padding: 40px 28px 80px; }
     .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
     .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
     .g-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 24px; }
-    .g-card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 22px; box-shadow: var(--shadow-sm); }
+    .g-card { padding: 22px; }
     .g-row { display:flex; gap: 14px; flex-wrap: wrap; }
     .g-field { display:flex; flex-direction:column; gap:5px; margin-bottom: 15px; flex: 1 1 160px; }
     .g-field label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); }
@@ -33,26 +25,22 @@
     .g-go:disabled { opacity: .55; cursor: default; }
     .g-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 9px; padding: 11px 14px; display:none; }
     .g-msg.work { display:block; background: var(--purple-bg); color: var(--purple); }
-    .g-msg.ok { display:block; background: #EAF3DE; color: #27500A; }
-    .g-msg.err { display:block; background: #FCEBEB; color: #A32D2D; }
+    .g-msg.ok { display:block; background: var(--ok-bg); color: var(--ok-fg); }
+    .g-msg.err { display:block; background: var(--err-bg); color: var(--err-fg); }
     .g-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 14px; }
     .g-hint code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Nova análise</small></span>
-    <a class="bar-back" href="/guia/historico-lancamentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar ao guia</a>
-  </header>
+  <header class="home-bar" data-sub="Nova análise" data-back="/guia/historico-lancamentos" data-back-label="Voltar ao guia"></header>
+  <script src="/js/page-chrome.js" defer></script>
 
   <div class="g-wrap">
     <span class="g-tag">Histórico de Lançamentos</span>
     <h1 class="g-title">Nova análise histórica</h1>
     <p class="g-sub">Envie o CSV consolidado (uma linha por evento × tráfego × plataforma × temperatura) e gere o relatório com Panorama, Investimentos e perguntas norteadoras.</p>
 
-    <div class="g-card">
+    <div class="card g-card">
       <div class="g-row">
         <div class="g-field"><label>Cliente</label><input id="f-client" placeholder="ex.: inde" /></div>
         <div class="g-field"><label>Slug da análise</label><input id="f-slug" value="historico-lancamentos" /></div>
@@ -62,7 +50,7 @@
         <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Escolher CSV<input id="f-csv" type="file" accept=".csv" hidden /></label>
         <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
       </div>
-      <button class="g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
+      <button class="btn btn--primary g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
       <div class="g-msg" id="msg"></div>
       <p class="g-hint">Colunas esperadas: <code>field_conversion</code>, <code>date_start</code>, <code>tipo_trafego</code>, <code>plataforma</code>, <code>temperatura_lead</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas_pesquisa</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>vendas_mql</code>, <code>vendas_nao_mql</code>, <code>faturamento</code>, <code>refunded_value</code>, <code>recap_antigos</code>, <code>impressoes</code>, <code>link_clicks</code>.</p>
     </div>

@@ -8,33 +8,18 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); transition: border-color .14s, color .14s; }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
-    .bar-back svg { width: 15px; height: 15px; }
-
     .g-wrap { max-width: 1320px; margin: 0 auto; padding: 40px 36px 100px; }
     .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
     .g-tag::before { content:''; width:5px; height:5px; border-radius:50%; background: currentColor; }
     .g-title { font-size: 30px; font-weight: 750; letter-spacing: -.025em; line-height: 1.15; margin: 14px 0 0; max-width: 26ch; }
     .g-summary { font-size: 16px; color: var(--gray); line-height: 1.6; margin-top: 12px; max-width: 62ch; }
     .g-ctas { display:flex; flex-wrap:wrap; gap:10px; margin-top: 20px; }
-    .g-cta { display:inline-flex; align-items:center; gap:8px; font-size: 13.5px; font-weight: 700; color:#fff; text-decoration:none; background: var(--purple); border-radius: 9px; padding: 9px 16px; box-shadow: 0 2px 8px rgba(124,58,237,.3); transition: opacity .14s, transform .14s; }
-    .g-cta:hover { opacity:.9; transform: translateY(-1px); }
-    .g-cta svg { width: 16px; height: 16px; }
-    .g-cta--ghost { background: var(--bg); color: var(--purple); border: 1px solid color-mix(in srgb, var(--purple) 40%, var(--border)); box-shadow: none; }
-    .g-cta--ghost:hover { background: var(--purple-bg); }
     .g-rule { height:1px; background: var(--divider); margin: 28px 0 26px; }
 
     /* Seções em cards distribuídos em colunas (masonry) — usa a largura da tela. */
     .g-sections { columns: 2; column-gap: 20px; }
     @media (max-width: 880px) { .g-sections { columns: 1; } }
-    .g-sec { break-inside: avoid; -webkit-column-break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 20px;
-      background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 19px 22px; box-shadow: var(--shadow-sm); }
+    .g-sec { break-inside: avoid; -webkit-column-break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 20px; padding: 19px 22px; }
     .g-h2 { font-size: 12.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); display:flex; align-items:center; gap:10px; margin-bottom: 13px; }
     .g-h2::after { content:''; flex:1; height:1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
     .g-sub { font-size: 14.5px; font-weight: 700; color: var(--fg); margin: 16px 0 6px; }
@@ -51,12 +36,8 @@
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Guia</small></span>
-    <a class="bar-back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar</a>
-  </header>
+  <header class="home-bar" data-sub="Guia" data-back="/"></header>
+  <script src="/js/page-chrome.js" defer></script>
   <div class="g-wrap" id="g-wrap"></div>
 
   <script type="module">
@@ -80,17 +61,17 @@
       else {
         document.title = `Guia · ${g.title}`;
         const ctaGerar = g.gerar
-          ? `<a class="g-cta" href="${esc(g.gerar)}">
+          ? `<a class="btn btn--primary" href="${esc(g.gerar)}">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                Criar esta análise</a>`
           : '';
         const ctaReport = g.report
-          ? `<a class="g-cta${g.gerar ? ' g-cta--ghost' : ''}" href="/report/${encodeURIComponent(g.report.client)}/${encodeURIComponent(g.report.slug)}">
+          ? `<a class="btn ${g.gerar ? 'btn--ghost' : 'btn--primary'}" href="/report/${encodeURIComponent(g.report.client)}/${encodeURIComponent(g.report.slug)}">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h6V3H3zM3 21h6v-4H3zM13 21h8V11h-8zM13 7h8V3h-8z"/></svg>
                Abrir relatório de exemplo</a>`
           : '';
         const ctaMontador = g.montador
-          ? `<a class="g-cta g-cta--ghost" href="/montador/${encodeURIComponent(g.montador)}">
+          ? `<a class="btn btn--ghost" href="/montador/${encodeURIComponent(g.montador)}">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="M13.5 6 10.5 18"/></svg>
                Montar a query</a>`
           : '';
@@ -102,7 +83,7 @@
           <div class="g-rule"></div>
           <div class="g-sections">
             ${(g.sections || []).map(s => `
-              <section class="g-sec">
+              <section class="card g-sec">
                 <h2 class="g-h2">${esc(s.title)}</h2>
                 ${(s.blocks || []).map(block).join('')}
               </section>`).join('')}

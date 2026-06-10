@@ -8,13 +8,6 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
 
     .g-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 36px 120px; }
     .g-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
@@ -63,12 +56,8 @@
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Nova análise</small></span>
-    <a class="bar-back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar</a>
-  </header>
+  <header class="home-bar" data-sub="Nova análise" data-back="/"></header>
+  <script src="/js/page-chrome.js" defer></script>
 
   <div class="g-wrap">
     <span class="g-tag">Conversão por Perfil</span>

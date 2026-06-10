@@ -8,14 +8,6 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); transition: border-color .14s, color .14s; }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
-    .bar-back svg { width: 15px; height: 15px; }
 
     .m-wrap { max-width: 1640px; margin: 0 auto; padding: 34px 36px 90px; }
     .m-head { margin-bottom: 24px; }
@@ -65,12 +57,8 @@
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Montador da query</small></span>
-    <a class="bar-back" href="/guia/conversao-perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar ao guia</a>
-  </header>
+  <header class="home-bar" data-sub="Montador" data-back="/guia/conversao-perfil" data-back-label="Voltar ao guia"></header>
+  <script src="/js/page-chrome.js" defer></script>
 
   <div class="m-wrap">
     <div class="m-head">
