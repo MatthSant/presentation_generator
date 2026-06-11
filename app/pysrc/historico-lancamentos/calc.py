@@ -180,9 +180,11 @@ def _overview(rows, fc, produto):
         'reembolso': pct(refunded, faturamento),
         'by': by,
         'leads_antigos': round(soma(d, 'leads_antigos')),
-        # "recapturados" = leads antigos reengajados (coluna recap_antigos)
-        'recap': round(soma(d, 'recap_antigos')),
-        'recap_pago': round(soma(dp, 'recap_antigos')), 'recap_org': round(soma(do, 'recap_antigos')),
+        # "recapturados" = leads já existentes na base reengajados no lançamento. No CSV
+        # consolidado essa é a coluna `leads_antigos` (a antiga `recap_antigos` não existe
+        # neste formato → somava sempre 0, deixando "Leads recapturados" zerado).
+        'recap': round(soma(d, 'leads_antigos')),
+        'recap_pago': round(soma(dp, 'leads_antigos')), 'recap_org': round(soma(do, 'leads_antigos')),
         'vendas_raw': round(soma(d, 'vendas')),
         'vendas_mql': round(soma(d, 'vendas_mql')), 'vendas_nao_mql': round(soma(d, 'vendas_nao_mql')),
         'refunds_qty': round(soma(d, 'refunds')),

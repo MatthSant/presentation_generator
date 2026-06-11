@@ -64,20 +64,30 @@ function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
 /** Robust per-series outlier removal — turns outliers into gaps. Combines MAD
  *  (median absolute deviation) and Tukey IQR fences: MAD catches a single big spike
  *  even in sparse series (≈3–4 pts), where IQR fails because the spike inflates Q3
- *  (and 2σ fails because it inflates σ). Used by the per-chart "outliers" toggle. */
+ *  (and 2σ fails because it inflates σ). Used by the per-chart "outliers" toggle.
+ *
+ *  Cercas DELIBERADAMENTE conservadoras (IQR "far-out" 3×, MAD 5×): numa série
+ *  temporal com tendência (ex.: investimento que cresce a cada lançamento) o ponto
+ *  mais recente é legítimo, não ruído — cercas apertadas (1.5×IQR / 3.5 MAD) o
+ *  cortavam indevidamente. Aqui só sai o pico claramente espúrio (erro de dado),
+ *  não o extremo natural de uma tendência. */
 function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
   const median = (a: number[]) => { const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
   return series.map(s => {
     const nums = s.data.filter((v): v is number => typeof v === 'number');
-    if (nums.length < 4) return s;
+    if (nums.length < 5) return s;
     const sorted = [...nums].sort((a, b) => a - b);
     const med = median(sorted);
     const mad = median(nums.map(v => Math.abs(v - med)).sort((a, b) => a - b));
     const q = (p: number) => { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); };
     const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
-    const madThr = mad > 0 ? 3.5 * 1.4826 * mad : Infinity;
-    const lo = iqr > 0 ? q1 - 1.5 * iqr : -Infinity, hi = iqr > 0 ? q3 + 1.5 * iqr : Infinity;
-    const isOut = (v: number) => Math.abs(v - med) > madThr || v < lo || v > hi;
+    const madThr = mad > 0 ? 5 * 1.4826 * mad : Infinity;
+    const lo = iqr > 0 ? q1 - 3 * iqr : -Infinity, hi = iqr > 0 ? q3 + 3 * iqr : Infinity;
+    // Só remove um ponto se AMBAS as cercas robustas concordam que é espúrio — uma
+    // sozinha dispara fácil demais no extremo de uma tendência (a queixa original).
+    const madOut = (v: number) => Math.abs(v - med) > madThr;
+    const tukeyOut = (v: number) => v < lo || v > hi;
+    const isOut = (v: number) => madOut(v) && tukeyOut(v);
     if (madThr === Infinity && !(iqr > 0)) return s;
     return { name: s.name, data: s.data.map(v => (typeof v === 'number' && isOut(v)) ? null : v) };
   });
