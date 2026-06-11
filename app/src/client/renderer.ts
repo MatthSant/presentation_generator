@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, type ChartDef } from './charts.js';
@@ -899,6 +899,48 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
   return wrap;
 }
 
+/* ── evolution-picker ── linha no tempo com 1 dropdown de métrica; reconstrói a
+ *  série client-side a partir das métricas embutidas (reusa o chrome do scatter-picker). */
+function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
+  const wrap = el('div', 'sp-wrap');
+  const hd = el('div', 'sp-hd');
+  if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
+  const cur = w.current || w.metrics[0]?.id || '';
+  const sel = document.createElement('select');
+  sel.className = 'sp-sel';
+  for (const m of w.metrics) {
+    const o = document.createElement('option');
+    o.value = m.id; o.textContent = m.label; if (m.id === cur) o.selected = true;
+    sel.appendChild(o);
+  }
+  const ctrls = el('div', 'sp-ctrls');
+  ctrls.append(el('span', 'sp-lbl', 'Métrica'), sel);
+  hd.appendChild(ctrls);
+  wrap.appendChild(hd);
+  const host = el('div', 'sp-chart');
+  wrap.appendChild(host);
+
+  const cats = (w.points || []).map(p => p.name);
+  let chart: ApexInstance | null = null;
+  const build = (): void => {
+    const mk = sel.value;
+    const m = w.metrics.find(x => x.id === mk);
+    const data = (w.points || []).map(p => (p.vals[mk] ?? null));
+    const def = {
+      type: 'line', series: [{ name: m?.label || mk, data }], categories: cats,
+      height: w.height ?? 320, colors: ['#7C3AED'], valueFormat: m?.fmt,
+    } as unknown as ChartDef;
+    const opts = buildOptions(def);
+    if (chart) { void chart.updateOptions(opts); return; }
+    if (typeof ApexCharts === 'undefined') return;
+    chart = new ApexCharts(host, opts);
+    void chart.render();
+  };
+  sel.addEventListener('change', build);
+  requestAnimationFrame(build);
+  return wrap;
+}
+
 /* ── dispatch ── */
 export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
   try {
@@ -929,6 +971,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'embed':       return renderEmbed(widget);
       case 'link-card':   return renderLinkCard(widget);
       case 'scatter-picker': return renderScatterPicker(widget);
+      case 'evolution-picker': return renderEvolutionPicker(widget);
       default:            return errorCard((widget as { type: string }).type, 'tipo desconhecido');
     }
   } catch (e) {

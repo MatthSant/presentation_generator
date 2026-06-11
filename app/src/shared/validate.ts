@@ -207,6 +207,10 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       if (!Array.isArray(w.metrics)) c.err(`${path}.metrics`, 'scatter-picker requires a metrics array');
       if (!Array.isArray(w.points)) c.err(`${path}.points`, 'scatter-picker requires a points array');
       break;
+    case 'evolution-picker':
+      if (!Array.isArray(w.metrics)) c.err(`${path}.metrics`, 'evolution-picker requires a metrics array');
+      if (!Array.isArray(w.points)) c.err(`${path}.points`, 'evolution-picker requires a points array');
+      break;
   }
 }
 

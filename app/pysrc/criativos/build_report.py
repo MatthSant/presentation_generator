@@ -160,22 +160,17 @@ def assemble(rows, config, content, opts=None):
 
     eb('cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
 
-    # Evolução diária (eixos Y duplos). Resultado: Investimento × Retorno;
-    # Captação: CPMQL × Investimento (fallback CPL se CPMQL vazio).
-    if mode == 'captacao':
-        has_cpmql = any(d['m'].get('cpmql') is not None for d in B['daily'])
-        m1, m2 = ('cpmql' if has_cpmql else 'cpl'), 'invest'
-    else:
-        m1, m2 = 'invest', 'retorno'
-    l1, l2 = calc.METRICS[m1]['label'], calc.METRICS[m2]['label']
-    cats = [d['data'] for d in B['daily']]
-    pan.append({'id': 'cr-evo', 'type': 'chart', 'chartType': 'mixed', 'title': f'Evolução · {l1} × {l2}', 'height': 320,
-                'colors': ['#534AB7', '#1D9E75'], 'categories': cats,
-                'series': [{'name': l1, 'type': 'line', 'data': [d['m'].get(m1) for d in B['daily']]},
-                           {'name': l2, 'type': 'line', 'data': [d['m'].get(m2) for d in B['daily']]}],
-                'secondaryAxis': 1,
-                'secondaryAxisSuffix': '%' if calc.METRICS[m2]['fmt'] == 'pct' else ''})
-    pg.add('cr-evo', 'chart', 6, 5)
+    # Evolução diária com SELETOR de métrica (evolution-picker): embute as métricas do
+    # modo e deixa o consultor escolher qual ver no tempo. Default = métrica-chave do modo.
+    default_m = 'cpl' if mode == 'captacao' else 'retorno'
+    evo_keys = [k for k in MODE_KPIS[mode] if any(d['m'].get(k) is not None for d in B['daily'])]
+    if default_m not in evo_keys:
+        default_m = evo_keys[0] if evo_keys else default_m
+    evo_metrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in evo_keys]
+    evo_points = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in evo_keys}} for d in B['daily']]
+    pan.append({'id': 'cr-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 320,
+                'metrics': evo_metrics, 'points': evo_points, 'current': default_m})
+    pg.add('cr-evo', 'evolution-picker', 6, 5)
 
     # Dispersão com 2 SELETORES (dropdowns X e Y) — escolhe uma métrica por eixo.
     # Métricas embutidas; o scatter é reconstruído client-side. Nome no hover.
@@ -264,11 +259,15 @@ def assemble(rows, config, content, opts=None):
         if c['daily']:
             dataset[f'cr_{i}_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
                 {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest']} for d in c['daily']]}
-            fw.append({'id': f'{sid}-eb-evo', 'type': 'eyebrow', 'title': 'EVOLUÇÃO NO TEMPO', 'caption': 'leads por dia'})
+            fkeys = [k for k in MODE_KPIS[mode] if any(d['m'].get(k) is not None for d in c['daily'])]
+            fdef = 'leads' if 'leads' in fkeys else (fkeys[0] if fkeys else 'leads')
+            fmetrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in fkeys]
+            fpoints = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in fkeys}} for d in c['daily']]
+            fw.append({'id': f'{sid}-eb-evo', 'type': 'eyebrow', 'title': 'EVOLUÇÃO NO TEMPO', 'caption': 'escolha a métrica'})
             fg.add(f'{sid}-eb-evo', 'eyebrow', 12, 1)
-            fw.append({'id': f'{sid}-evo', 'type': 'chart', 'chartType': 'line', 'title': 'Leads por dia', 'height': 260,
-                       'pct': False, 'colors': ['#534AB7'], 'bind': {'dataset': f'cr_{i}_daily', 'x': 'data', 'y': 'leads'}})
-            fg.add(f'{sid}-evo', 'chart', 12, 4)
+            fw.append({'id': f'{sid}-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 260,
+                       'metrics': fmetrics, 'points': fpoints, 'current': fdef})
+            fg.add(f'{sid}-evo', 'evolution-picker', 12, 4)
         vtag = 'vídeo' if c['is_video'] else 'estático'
         sections[sid] = {'id': sid, 'header': {'badge': f'Ficha · {vtag}', 'title': c['name'],
                          'sub': f'{c["platform"]} · ROAS líquido {fmtm("roas", m["roas"])} · investimento {money(m["invest"])}'}, 'widgets': fw}

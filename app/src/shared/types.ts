@@ -86,7 +86,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -470,13 +470,25 @@ export interface ScatterPickerWidget extends WidgetBase {
   y?: string;
 }
 
+/** Evolução no tempo com seletor de métrica: um dropdown reconstrói a linha
+ *  client-side a partir das métricas embutidas (points.name = data do eixo X).
+ *  Recurso de plataforma — opt-in via widget. */
+export interface EvolutionPickerWidget extends WidgetBase {
+  type: 'evolution-picker';
+  title?: string;
+  height?: number;
+  metrics: ScatterMetric[];
+  points: ScatterPoint[];
+  current?: string;
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
-  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget;
+  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
