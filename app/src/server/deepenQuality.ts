@@ -31,7 +31,7 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
       if (r.categories.length <= 1) {
         issues.push(`"${title}": gráfico com ${r.categories.length} categoria — um gráfico precisa de ≥2 pontos para comparar. Para um número único use um kpi; para comparar, escolha um eixo x com mais categorias.`);
       } else if (r.series.length > MAX_SERIES) {
-        issues.push(`"${title}": ${r.series.length} séries (>${MAX_SERIES}) — fica ilegível. Agregue, foque nas maiores variações, ou troque por um heatmap.`);
+        issues.push(`"${title}": ${r.series.length} séries (>${MAX_SERIES}) — fica ilegível. Se a intenção era comparar DUAS métricas ao longo do tempo (ex.: investimento × faturamento), isso NÃO é uma série por período: ponha as duas métricas como colunas de uma table. Caso contrário, agregue, foque nas maiores variações, ou troque por um heatmap.`);
       } else if (r.categories.length > MAX_CHART_CATS) {
         issues.push(`"${title}": ${r.categories.length} categorias no eixo x — demais para ler. Agregue ou recorte as principais.`);
       }

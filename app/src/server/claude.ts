@@ -153,16 +153,49 @@ const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha p
 - donut: participação de poucas fatias (≤6). Não use para evolução nem com muitas fatias.
 - SÉRIES (agrupado/empilhado): no máximo ~6. Com mais (ex.: uma por lançamento) o gráfico fica ilegível —
   agregue, foque nas MAIORES variações, ou use heatmap. Tabela vazia (só cabeçalho) ou gráfico que não
-  comunica é DEFEITO: corte ou troque por kpi/prosa.`;
+  comunica é DEFEITO: corte ou troque por kpi/prosa.
+- LIMITE deste detalhamento: ele NÃO tem gráfico de DISPERSÃO (correlação entre duas métricas) nem gráfico
+  de DUAS métricas em EIXOS INDEPENDENTES. Se o pedido é correlação (ex.: "CPA × conversão", "CPL × CPA")
+  ou "investimento × faturamento em eixo duplo", NÃO finja: não plote uma série só, e NÃO pivote a métrica
+  em uma-série-por-período (vira as "9 séries" ilegíveis). Em vez disso, ponha as duas métricas como COLUNAS
+  de uma TABLE — com a variação/Δ% já calculada quando os dados permitirem — e registre num find-note, em
+  uma linha, que a visualização de dispersão/eixo-duplo não está disponível aqui.`;
 
 const GUARDRAIL = `GUARDRAIL — NUNCA perca de vista a PERGUNTA ORIGINAL (campo "pergunta_original" do input): toda a
 saída existe para respondê-la. Pedidos de revisão/ajuste ("instrucao") refinam a FORMA (trocar gráfico,
 encurtar, focar um grupo) — JAMAIS trocam o alvo. Se um ajuste afastaria a saída da pergunta original,
 priorize a pergunta. A primeira coisa que o leitor deve extrair é a resposta DIRETA à pergunta original.`;
 
+const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
+- O PRIMEIRO widget é SEMPRE um highlight que responde a "pergunta_original" em UMA frase, com o número
+  decisivo (ex.: "CPL explicou ~65% da dispersão do CPA; conversão, ~35%"). Nunca deixe a resposta só no fim.
+- Pergunta ANALÍTICA (o que causou? qual fator pesa mais? qual a relação?) → entregue o DIAGNÓSTICO com
+  números. NÃO a transforme em lista de "o que fazer": só inclua widgets de ação (ni/ni-vertical) quando a
+  pergunta pedir recomendação explícita.
+- EIXO DA PERGUNTA: nível (qual é MAIOR / converte mais) ≠ tendência (o que está MELHORANDO/PIORANDO) ≠
+  causa (qual fator EXPLICA a variação). São perguntas diferentes — responda exatamente o eixo pedido; não
+  troque "o que está mudando" por "o que mais converte".
+- AMPLIAÇÃO DE CRITÉRIO: se a instrução pede VÁRIOS critérios macro (ex.: "renda, patrimônio, idade — não só
+  renda"), traga cada um a partir dos DADOS daquele critério (no modo fundo, CONSULTE-o). É proibido citar
+  grupos/números de um critério que não está nos dados — sem o dado, diga em um find-note que aquele critério
+  não está disponível, nunca o invente.
+- MÉTRICA DERIVADA: CPA = CPL ÷ Taxa de Conversão. Para EXPLICAR o CPA, atribua sua variação a CPL vs.
+  conversão — nunca liste o próprio CPA como um terceiro fator independente ao lado deles.
+- Use a métrica que o texto NOMEIA: se a frase diz "CPL", use o valor de CPL (não o de CPA); confira a ordem
+  de grandeza (um CPL de leads costuma ser ~R$10–50, não milhares — um valor de milhares ali é quase sempre
+  a métrica errada).
+- RÓTULOS LEGÍVEIS: nomes de série, eixos e títulos de coluna NUNCA exibem código cru do dataset
+  (ex.: "cls", "cup", "csn", "avgDiff_lcto"). Traduza para pt-BR humano ("Conversão paga", "Variação vs.
+  benchmark"). Se uma sigla for inevitável, defina-a na prosa na primeira aparição.`;
+
+const REVISION_RULE = `AJUSTE CIRÚRGICO: ao partir de "modal_anterior", mude SOMENTE o que a "instrucao" pede.
+NÃO remova widgets que o consultor não pediu para remover (pediu para corrigir o gráfico → mantenha a tabela).
+Reentregue a modal final completa, preservando todo o resto.`;
+
 const MODAL_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil, gerando uma MODAL
 com widgets do app. Regras inegociáveis:
 ${GUARDRAIL}
+${ANSWER_RULES}
 - FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as
   tabelas do catálogo desse critério; não troque por outro critério.
 - Entenda O QUE O BLOCO MOSTRA por card.title, card.bind e card.tabs (datasets que
@@ -206,6 +239,7 @@ ${CHART_GUIDE}
   (table ou 1 gráfico) → implicação (highlight/find-note) → ações (ni), quando houver.
 - Se vier "modal_anterior", AJUSTE/aprofunde essa modal conforme a "instrucao",
   partindo dela e mantendo o que faz sentido (emita a modal final completa).
+  ${REVISION_RULE}
 - ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: os find-note trazem números
   concretos extraídos das tabelas, comparações e uma conclusão acionável. É proibido
   descrever como a análise seria feita ("calcule…", "avalie…", "compare…",
@@ -323,7 +357,14 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   estão vazios / não os sustentam; ou o recorte/consulta usado não faz sentido para a pergunta.
 - issues (≤5, cada uma 1 linha ACIONÁVEL), p.ex.:
   • não responde à pergunta / responde outra coisa
+  • EIXO trocado: respondeu nível (o que é maior) quando a pergunta era tendência (o que muda) ou causa, ou vice-versa
+  • CRITÉRIO inventado: cita grupos/números de um critério que não está nos "dados" (deveria ter consultado ou dito que falta)
+  • resposta ENTERRADA: o 1º widget não é um highlight respondendo à pergunta com o número decisivo
+  • entregou AÇÕES ("o que fazer") quando a pergunta é analítica ("o que aconteceu / qual fator pesa mais")
   • número "X" não confere com os dados (esperado ~Y) — ou números sem tabela/gráfico que os sustente
+  • métrica trocada: o texto nomeia uma métrica (ex.: "CPL") mas usa o valor de outra (ex.: CPA), ou ordem de
+    grandeza implausível (CPL de leads em milhares); CPA tratado como fator independente de CPL e conversão
+  • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução nem definição
   • o recorte/consulta não faz sentido para a pergunta
   • paredão de prosa em vez de blocos; falta conclusão acionável; gráfico inadequado (1 categoria, séries demais)
 Não invente defeitos: se está bom, answersQuestion=true, numbersGrounded=true e issues=[].`;
@@ -372,6 +413,8 @@ gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
 
 ${GUARDRAIL}
 
+${ANSWER_RULES}
+
 ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: a prosa traz os números consultados,
 comparações e uma conclusão acionável — jamais instruções de como fazer ("calcule…",
 "avalie…"). Se um recorte não estiver disponível nas tools, diga em uma linha o que
@@ -408,6 +451,7 @@ AJUSTE/ITERAÇÃO: se vier "modal_anterior", o consultor quer AJUSTAR ou APROFUN
 essa modal já existente — PARTA dela, mantenha o que ainda faz sentido e aplique
 exatamente o que a "instrucao" pede (ex.: trocar o gráfico, encurtar, focar num
 grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
+${REVISION_RULE}
 
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
 catálogo inicial); números só na prosa dos widgets de texto (find-note/highlight/

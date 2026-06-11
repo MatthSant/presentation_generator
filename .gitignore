@@ -18,6 +18,12 @@ __pycache__/
 
 # Dados de runtime (SQLite + log das chamadas Claude) — nunca versionar
 app/data/
+# SQLite baixado de produção p/ refino (dado de cliente) + dump de análise — nunca versionar
+*.db
+*.db-wal
+*.db-shm
+comments-prod.db
+temp_feedback_*.md
 
 # Scratch de uploads (CSV bruto transitório) — nunca versionar
 app/.scratch/
