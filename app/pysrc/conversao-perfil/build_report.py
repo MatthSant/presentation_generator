@@ -174,9 +174,9 @@ def build(csv_path, config, content, out_dir):
         benchN = cc.fmtPabs(cc.avg([x for x in gd['bench_pesq_lcto'] if x is not None]), 2)
         widgets += [
             {'id': f'{cid}-kpi', 'type': 'kpi-strip', 'items': [
-                {'value': cc.fmtP(bpg['avgDiff_lcto'], 1), 'label': f'Melhor grupo · {short(cid, best)}'},
-                {'value': cc.fmtP(wpg['avgDiff_lcto'], 1), 'label': f'Pior grupo · {short(cid, worst)}'},
-                {'value': benchN, 'label': 'Conversão benchmark 60d', 'small': True}]},
+                {'value': cc.fmtP(bpg['avgDiff_lcto'], 1), 'label': f'Melhor grupo · {short(cid, best)}', 'sub': 'converte acima da média', 'subTone': 'pos'},
+                {'value': cc.fmtP(wpg['avgDiff_lcto'], 1), 'label': f'Pior grupo · {short(cid, worst)}', 'sub': 'converte abaixo da média', 'subTone': 'neg'},
+                {'value': benchN, 'label': 'Conversão média (benchmark)', 'small': True}]},
             {'id': f'{cid}-eb1', 'type': 'eyebrow', 'n': '1', 'title': 'RANKING DOS GRUPOS', 'caption': 'ordenado por variação vs. benchmark (60d)'},
             {'id': f'{cid}-rank', 'type': 'rank-card', 'title': 'Ranking de Grupos · ordenado por variação vs. benchmark', 'bind': {'dataset': f'crit_{cid}_rank'}},
             {'id': f'{cid}-hmtoggle', 'type': 'heatmap-toggle', 'tabs': [
