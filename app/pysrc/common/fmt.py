@@ -10,7 +10,10 @@ def money(v):
     v = v or 0
     if abs(v) >= 1e6: return f'R$ {v / 1e6:.1f}M'
     if abs(v) >= 1e3: return f'R$ {v / 1e3:.0f}k'
-    return f'R$ {v:.0f}'
+    # Valores pequenos (custos unitários: CPM/CPL/CPC/CPMQL/CAC) precisam de 2 casas —
+    # arredondar para inteiro (R$ 14) esconde a precisão que importa num custo por unidade.
+    # Vírgula decimal pt-BR: "R$ 14,27" (ponto leria como milhar — R$ 1.427).
+    return f'R$ {v:.2f}'.replace('.', ',')
 
 
 def pctf(v): return '—' if v is None else f'{v:.1f}%'

@@ -169,6 +169,11 @@ priorize a pergunta. A primeira coisa que o leitor deve extrair é a resposta DI
 const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
 - O PRIMEIRO widget é SEMPRE um highlight que responde a "pergunta_original" em UMA frase, com o número
   decisivo (ex.: "CPL explicou ~65% da dispersão do CPA; conversão, ~35%"). Nunca deixe a resposta só no fim.
+- LINGUAGEM DO CLIENTE, não do analista: quem lê é o cliente final (dono do negócio), não um analista de dados.
+  Escreva em português claro e direto; explique o porquê em termos de negócio (o que isso significa para a
+  campanha/o resultado). Evite jargão estatístico cru (dispersão, R², variância, correlação, p.p. sem contexto,
+  "qualificador/qualificante", nomes de coluna) — se um termo técnico for inevitável, dê o significado em
+  meia linha. Prefira "explicou a maior parte da variação do custo" a "respondeu por 65% da dispersão".
 - Pergunta ANALÍTICA (o que causou? qual fator pesa mais? qual a relação?) → entregue o DIAGNÓSTICO com
   números. NÃO a transforme em lista de "o que fazer": só inclua widgets de ação (ni/ni-vertical) quando a
   pergunta pedir recomendação explícita.

@@ -259,11 +259,11 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   if (def.type === 'line') {
     const n = Array.isArray(series) ? series.length : 0;
     if (def.dashLast && n > 1) {
-      opts.stroke = { curve: 'smooth', width: Array.from({ length: n }, () => 2),
+      opts.stroke = { curve: 'smooth', width: Array.from({ length: n }, (_, i) => (i === n - 1 ? 2 : 3.5)),
         dashArray: Array.from({ length: n }, (_, i) => (i === n - 1 ? 5 : 0)) };
       opts.markers = { size: Array.from({ length: n }, (_, i) => (i === n - 1 ? 0 : 3)) };
     } else {
-      opts.stroke = { curve: 'smooth', width: 2 };
+      opts.stroke = { curve: 'smooth', width: 3.5 };
       opts.markers = { size: 3 };
     }
     opts.yaxis = { ...b.yaxis, min: axisMin };
