@@ -87,6 +87,7 @@ const SCHEMA = `
     rating            INTEGER,                      -- 1–5, null = não avaliado
     feedback_text     TEXT,
     feedback_at       TEXT,
+    status            TEXT NOT NULL DEFAULT 'pendente',  -- pendente | aprovado | revisado
     created_at        TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_dh ON deepen_history(client, slug, created_at);
@@ -99,6 +100,10 @@ export function openDb(dbPath: string): DB {
   const handle = new Database(dbPath);
   handle.pragma('journal_mode = WAL');
   handle.exec(SCHEMA);
+  // Migrações aditivas (CREATE IF NOT EXISTS não altera tabelas existentes):
+  // status do fluxo de revisão — 'pendente' | 'aprovado' | 'revisado'.
+  try { handle.exec("ALTER TABLE deepen_history ADD COLUMN status TEXT NOT NULL DEFAULT 'pendente'"); }
+  catch { /* coluna já existe */ }
   return handle;
 }
 

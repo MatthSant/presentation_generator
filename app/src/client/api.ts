@@ -76,8 +76,19 @@ export class Api {
     });
   }
 
-  getDeepenRatings(ids: string[]): Promise<{ entries: Array<{ id: string; rating: number | null }> }> {
+  getDeepenRatings(ids: string[]): Promise<{ entries: Array<{ id: string; rating: number | null; status?: string }> }> {
     return this.json(`/api/deepen-history?ids=${encodeURIComponent(ids.join(','))}&limit=${ids.length}`);
+  }
+
+  approveDeepen(historyId: string): Promise<{ ok: boolean; status: string }> {
+    return this.json(`${this.base()}/deepen/${encodeURIComponent(historyId)}/aprovar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  }
+
+  revisarDet(sectionId: string, comentario: string): Promise<{ ok: boolean; sectionId: string; historyId: string; mocked: boolean }> {
+    return this.json(`${this.base()}/det/${encodeURIComponent(sectionId)}/revisar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comentario }),
+    });
   }
 
   historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {

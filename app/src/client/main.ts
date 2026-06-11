@@ -202,9 +202,20 @@ class App {
     }
     this.markDeepen(section);
 
-    // Seções det-*: rodapé discreto de avaliação (seções antigas sem historyId não mostram nada)
+    // Seções det-*: rodapé de revisão (aprovar / pedir revisão regenera a própria
+    // seção / ★1–5). Seções antigas sem historyId não mostram nada.
     if (section.historyId) {
-      const rt = this.buildRating(section.historyId);
+      const rt = this.buildRating(section.historyId, async (c) => {
+        this.setBusy(true, 'Revisando o detalhamento…');
+        try {
+          await this.api.revisarDet(section.id, c);
+          this.store.dropSection(section.id);
+          await this.go(this.store.currentPageId, section.id, true);
+          this.toast('Detalhamento revisado.');
+        } catch (e) {
+          this.toast(`Falha na revisão: ${(e as Error).message}`);
+        } finally { this.setBusy(false); }
+      });
       rt.classList.add('rate--section');
       host.appendChild(rt);
     }
@@ -488,8 +499,12 @@ class App {
     const ctx = this.resolveCtx();
     for (const w of modal.widgets || []) dialog.appendChild(renderWidget(w, ctx));
 
-    // Avaliação ★1–5 + comentário — alimenta o few-shot dos próximos detalhamentos.
-    if (modal.historyId) dialog.appendChild(this.buildRating(modal.historyId));
+    // Revisão: aprovar / pedir revisão (regenera via prev) / ★1–5 — tudo no histórico.
+    if (modal.historyId) {
+      dialog.appendChild(this.buildRating(modal.historyId, ownerBlockId
+        ? async (c) => { await this.runDeepen(this.store.currentSectionId, ownerBlockId, c, modal); }
+        : undefined));
+    }
 
     // Iterate: ask the model to adjust or deepen THIS detalhamento further.
     if (ownerBlockId) {
@@ -517,14 +532,49 @@ class App {
     this.modalChartDefs.set(modal.id, ctx.charts);
   }
 
-  /** Bloco de avaliação ★1–5 (+ comentário opcional, expandido após o voto).
-   *  Grava na hora; estado atual é buscado lazy (rating salvo no SQLite). */
-  private buildRating(historyId: string): HTMLElement {
+  /** Bloco de REVISÃO do detalhamento: ✓ Aprovar · ✎ Pedir revisão (comentário →
+   *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
+   *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
+   *  itera via prev; seção det-* regenera a própria seção). */
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'rate';
     const lbl = document.createElement('span');
     lbl.className = 'rate-lbl';
     lbl.textContent = 'Este detalhamento foi útil?';
+
+    const approve = document.createElement('button');
+    approve.type = 'button';
+    approve.className = 'btn btn--sm rate-approve';
+    approve.textContent = '✓ Aprovar';
+    const setApproved = (): void => {
+      approve.textContent = '✓ Aprovado';
+      approve.classList.add('on');
+      approve.disabled = true;
+    };
+    approve.addEventListener('click', async () => {
+      try { await this.api.approveDeepen(historyId); setApproved(); this.toast('Detalhamento aprovado.'); }
+      catch (e) { this.toast(`Falha ao aprovar: ${(e as Error).message}`); }
+    });
+
+    const askRev = document.createElement('button');
+    askRev.type = 'button';
+    askRev.className = 'btn btn--sm';
+    askRev.textContent = '✎ Pedir revisão';
+    const rev = document.createElement('form');
+    rev.className = 'rate-fb';
+    rev.hidden = true;
+    rev.innerHTML = '<input type="text" placeholder="o que revisar? (ex.: foque na faixa alta, troque o gráfico, explique a queda de set/25)" /><button type="submit" class="btn btn--sm btn--primary">Revisar</button>';
+    askRev.addEventListener('click', () => { rev.hidden = !rev.hidden; if (!rev.hidden) (rev.querySelector('input') as HTMLInputElement).focus(); });
+    rev.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inp = rev.querySelector('input') as HTMLInputElement;
+      const c = inp.value.trim();
+      if (!c || !revisar) return;
+      rev.hidden = true;
+      await revisar(c);   // server marca esta versão como revisada e gera a nova
+    });
+
     const stars = document.createElement('div');
     stars.className = 'rate-stars';
     const fb = document.createElement('form');
@@ -559,12 +609,17 @@ class App {
         fb.hidden = true;
       } catch (err) { this.toast(`Falha ao avaliar: ${(err as Error).message}`); }
     });
-    // estado salvo (reaberturas): busca lazy e pinta as estrelas
+
+    // estado salvo (reaberturas): pinta estrelas e estado de aprovação
     void this.api.getDeepenRatings([historyId]).then((r) => {
       const e = r.entries.find((x) => x.id === historyId);
       if (e?.rating) { current = e.rating; paint(e.rating); }
-    }).catch(() => { /* sem rating ainda */ });
-    wrap.append(lbl, stars, fb);
+      if (e?.status === 'aprovado') setApproved();
+    }).catch(() => { /* sem estado ainda */ });
+
+    wrap.append(lbl, approve);
+    if (revisar) wrap.append(askRev, rev);
+    wrap.append(stars, fb);
     return wrap;
   }
 

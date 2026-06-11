@@ -21,7 +21,7 @@ import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 import { typeOf } from '../typeRegistry.js';
 import { buildCardContext } from '../cardContext.js';
-import { recordDeepen, getFewShot, methodologySmell } from '../deepenHistory.js';
+import { recordDeepen, getFewShot, methodologySmell, markRevised, findByModalId } from '../deepenHistory.js';
 import type { ModalUsage } from '../claude.js';
 
 interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
@@ -157,6 +157,12 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
 
       const historyId = record(true, [], modal, usage, mocked);
       modal.historyId = historyId;   // âncora do rating no client
+      // Iteração = revisão da versão anterior: marca-a como revisada com o
+      // comentário do consultor (a nova entrada já encadeia por prev_modal_id).
+      if (prev) {
+        const prevId = (prev as Modal).id ? findByModalId(ctx.db, client, slug, (prev as Modal).id)?.id : undefined;
+        if (prevId) markRevised(ctx.db, prevId, prompt);
+      }
 
       if (datasetChanged) writeJson(path.join(dir, 'dataset.json'), dataset);
       section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id), modal];

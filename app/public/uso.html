@@ -144,12 +144,13 @@
           <div class="u-h2" style="margin-top:22px">Histórico de detalhamentos</div>
           <p class="u-note" style="margin:0 0 12px">Cada geração (sucesso ou falha) com prompt, avaliação e custo. Avaliações ★4+ alimentam os exemplos dos próximos detalhamentos. <label style="margin-left:8px"><input type="checkbox" id="f-rated" /> só avaliados</label></p>
           ${rows.length ? `<table class="u-table">
-            <thead><tr><th>Quando</th><th>Análise</th><th>Origem</th><th>Prompt</th><th>Avaliação</th><th class="num">Custo</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Quando</th><th>Análise</th><th>Origem</th><th>Prompt</th><th>Revisão</th><th>Avaliação</th><th class="num">Custo</th><th>Status</th><th></th></tr></thead>
             <tbody>${rows.map((e) => `<tr>
               <td>${esc(dt(e.created_at))}</td>
               <td><a href="/report/${encodeURIComponent(e.client)}/${encodeURIComponent(e.slug)}" style="color:var(--purple);text-decoration:none">${esc(e.client)}/${esc(e.slug)}</a></td>
               <td><span class="u-chip k-outro">${esc(ORIGEM[e.origem] || e.origem)}</span></td>
               <td title="${esc(e.prompt)}" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.prompt)}</td>
+              <td>${e.status === 'aprovado' ? '<span class="u-chip k-insights">aprovado</span>' : e.status === 'revisado' ? '<span class="u-chip k-raso">revisado</span>' : '<span class="u-chip k-outro">pendente</span>'}</td>
               <td>${stars(e.rating)}${e.feedback_text ? ` <span title="${esc(e.feedback_text)}">💬</span>` : ''}</td>
               <td class="num">${e.cost_usd != null ? usd(e.cost_usd) : (e.mocked ? 'mock' : '—')}</td>
               <td>${e.validated_ok ? 'ok' : '<span class="u-err" title="' + esc((JSON.parse(e.validation_errors || '[]') || []).join('; ')) + '">falhou</span>'}</td>

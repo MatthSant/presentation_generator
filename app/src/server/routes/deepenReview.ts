@@ -15,7 +15,7 @@ import type { Ctx } from '../context.js';
 import type { ReportData, PageRef, Section } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { generateDetalhamento } from '../detalhamento.js';
-import { rateDeepen, listHistory, getEntry, recordDeepen, getFewShot } from '../deepenHistory.js';
+import { rateDeepen, listHistory, getEntry, recordDeepen, getFewShot, approveDeepen, markRevised } from '../deepenHistory.js';
 
 export function registerDeepenReview(app: Express, ctx: Ctx): void {
   app.post('/api/:client/:slug/deepen/:historyId/rate', (req: Request, res: Response) => {
@@ -25,6 +25,62 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
     const ok = rateDeepen(ctx.db, historyId, rating, typeof body.feedback === 'string' ? body.feedback : undefined);
     if (!ok) { res.status(400).json({ error: 'rating inválido ou entrada não encontrada' }); return; }
     res.json({ ok: true, rating });
+  });
+
+  /** Aprovação explícita do detalhamento (fluxo de revisão). */
+  app.post('/api/:client/:slug/deepen/:historyId/aprovar', (req: Request, res: Response) => {
+    const ok = approveDeepen(ctx.db, req.params.historyId);
+    if (!ok) { res.status(404).json({ error: 'entrada não encontrada' }); return; }
+    res.json({ ok: true, status: 'aprovado' });
+  });
+
+  /** Pedir REVISÃO de uma seção det-*: regenera a MESMA seção partindo da versão
+   *  atual (prev) + o comentário do consultor; a entrada anterior fica marcada
+   *  como revisada e a nova encadeia por prev_modal_id. */
+  app.post('/api/:client/:slug/det/:sectionId/revisar', async (req: Request, res: Response) => {
+    const { client, slug, sectionId } = req.params;
+    const dir = analysisDir(ctx.out, client, slug);
+    if (!dir || !isSafeSeg(sectionId) || !sectionId.startsWith('det-')) { res.status(400).json({ error: 'bad path' }); return; }
+    const file = path.join(dir, `${sectionId}.json`);
+    const section = readJson<Section>(file);
+    if (!section) { res.status(404).json({ error: 'seção não encontrada' }); return; }
+    const comentario = String((req.body as Record<string, unknown> | undefined)?.comentario || '').trim();
+    if (!comentario) { res.status(400).json({ error: 'comentário da revisão é obrigatório' }); return; }
+
+    const prevHistory = section.historyId ? getEntry(ctx.db, section.historyId) : undefined;
+    const srcSecId = String(prevHistory?.section_id || '');
+    const blockId = String(prevHistory?.block_id || '');
+    const analysisType = String(prevHistory?.analysis_type || 'conversao-perfil');
+
+    try {
+      const r = await generateDetalhamento({
+        out: ctx.out, client, slug, srcSecId, blockId,
+        prompt: comentario,
+        prev: { title: section.header?.title, widgets: section.widgets },
+        resultId: sectionId,
+        fewShot: getFewShot(ctx.db, analysisType, 3),
+      });
+      if (r.datasetChanged) {
+        ctx.skipNextSSE.add('dataset.json');
+        writeJson(path.join(dir, 'dataset.json'), r.dataset);
+      }
+      const historyId = recordDeepen(ctx.db, {
+        client, slug, analysisType: r.analysisType, origem: 'iteracao',
+        sectionId: srcSecId, blockId, modalId: sectionId,
+        prompt: comentario, prevModalId: sectionId,
+        cardContext: r.cardContext,
+        modalJson: { title: section.header?.title, widgets: r.widgets },
+        validatedOk: true, usage: r.usage, mocked: r.mocked,
+      });
+      if (section.historyId) markRevised(ctx.db, section.historyId, comentario);
+      section.widgets = r.widgets;
+      section.historyId = historyId;
+      ctx.skipNextSSE.add(`${sectionId}.json`);
+      writeJson(file, section);
+      res.json({ ok: true, mocked: r.mocked, sectionId, historyId });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
   });
 
   app.get('/api/deepen-history', (req: Request, res: Response) => {

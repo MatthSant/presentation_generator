@@ -62,6 +62,33 @@ export function rateDeepen(db: DB, id: string, rating: number, feedback?: string
   return r.changes > 0;
 }
 
+/* ── fluxo de revisão: o consultor aprova ou pede revisão com comentário ───── */
+
+export function approveDeepen(db: DB, id: string): boolean {
+  const r = db.prepare("UPDATE deepen_history SET status = 'aprovado' WHERE id = ?").run(id);
+  return r.changes > 0;
+}
+
+/** Marca a versão anterior como revisada, guardando o comentário que motivou a
+ *  revisão (a nova geração vira uma entrada própria, encadeada por prev_modal_id). */
+export function markRevised(db: DB, id: string, comment: string): boolean {
+  const r = db.prepare(`
+    UPDATE deepen_history SET status = 'revisado',
+      feedback_text = COALESCE(feedback_text || ' · ', '') || ?, feedback_at = ?
+    WHERE id = ?
+  `).run(`revisão pedida: ${comment}`, new Date().toISOString(), id);
+  return r.changes > 0;
+}
+
+/** Entrada mais recente cujo artefato (modal/seção) é `modalId` — usada para
+ *  marcar a versão anterior quando uma iteração chega só com o id do artefato. */
+export function findByModalId(db: DB, client: string, slug: string, modalId: string): { id: string } | undefined {
+  return db.prepare(`
+    SELECT id FROM deepen_history WHERE client = ? AND slug = ? AND modal_id = ?
+    ORDER BY created_at DESC LIMIT 1
+  `).get(client, slug, modalId) as { id: string } | undefined;
+}
+
 export interface HistoryFilters { client?: string; slug?: string; origem?: string; rated?: boolean; minRating?: number; ids?: string[]; limit?: number }
 
 export function listHistory(db: DB, f: HistoryFilters = {}): Array<Record<string, unknown>> {
@@ -75,7 +102,7 @@ export function listHistory(db: DB, f: HistoryFilters = {}): Array<Record<string
   if (f.ids?.length) { where.push(`id IN (${f.ids.map(() => '?').join(',')})`); args.push(...f.ids); }
   const sql = `SELECT id, client, slug, analysis_type, origem, section_id, block_id, modal_id,
       prompt, validated_ok, validation_errors, model, tokens_in, tokens_out, cost_usd,
-      mocked, rating, feedback_text, created_at
+      mocked, rating, feedback_text, status, created_at
     FROM deepen_history ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY created_at DESC LIMIT ?`;
   args.push(Math.min(Math.max(f.limit ?? 50, 1), 500));
