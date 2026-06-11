@@ -366,6 +366,12 @@ html, body {
   font-family: 'Exo 2', sans-serif;
   letter-spacing: .2px;
   white-space: nowrap;
+  /* Tabs de detalhamento usam a pergunta inteira como rótulo — trunca para não
+     estourar a barra (título completo no hover via atributo title). */
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
   transition: color .15s, border-color .15s;
 }
 .sb-tab-btn:hover { color: var(--fg); }

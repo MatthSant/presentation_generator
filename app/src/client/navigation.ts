@@ -54,6 +54,7 @@ export class Navigation {
         sBtn.dataset.pageId = page.id;
         sBtn.dataset.label = sec.label;
         sBtn.textContent = sec.label;
+        sBtn.title = sec.label;   // título completo no hover quando o tab trunca (detalhamentos têm rótulos longos)
         sBtn.addEventListener('click', () => this.onSelect(page.id, sec.id));
         grp.appendChild(sBtn);
       }
