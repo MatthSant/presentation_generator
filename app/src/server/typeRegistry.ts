@@ -53,6 +53,19 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       };
     },
   },
+  'criativos': {
+    type: 'criativos',
+    label: 'Análise de Criativos',
+    pysrcDir: 'criativos',
+    supportsInsights: false,
+    renderScript: 'render_view.py',   // recompute do toggle de modo (resultado × captação)
+    gerarPage: 'gerar-criativos.html',
+    montadorPage: 'montador-criativos.html',
+    controlsKind: 'criativos',
+    validateConfig() { return []; },
+    // Deepen no modo raso (catálogo) — sem query_api próprio ainda.
+    buildDeepenMeta() { return null; },
+  },
   'historico-lancamentos': {
     type: 'historico-lancamentos',
     label: 'Histórico de Lançamentos',

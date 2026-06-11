@@ -1,0 +1,259 @@
+"""calc — motor descritivo da "análise de criativos" (Meta Ads), stdlib pura.
+
+Porta as fórmulas do gerador-fichas-criativos (JS) para o app. Uma linha do CSV =
+criativo (field_ad_name) × dia × (campanha/público/temperatura). O dicionário mapeia
+field_ad_name -> link do anúncio.
+
+Dois MODOS analíticos (toggle), que mudam quais indicadores aparecem:
+  • resultado  — performance de venda: ROAS líquido, conversão, retorno (★ ROAS).
+  • captacao   — eficiência de captação: CPL, CPMQL projetado, qualidade (★ CPMQL).
+
+Regras (skill): produto principal = vendas_sale se Σ>0 senão vendas; qualidade =
+MQLs/Respostas (não /Leads); CPMQL = CPL/qualRaw (qualRaw = MQLs/Respostas puro);
+Hook/Hold só com views_totais>0; criativos sem tráfego = no_data (cinza, fora dos KPIs).
+Percentuais em % real; taxa nunca é média — soma brutos e calcula sobre o total.
+"""
+import csv
+
+# Benchmarks embutidos (referência, %). Direção: True = maior é melhor.
+BENCH = {'hook_rate': 30.0, 'hold_rate': 25.0}
+
+# Catálogo de indicadores: rótulo, formato, modo ('resultado'|'captacao'|'ambos'),
+# e se "maior é melhor" (cost=False) — guia os seletores de gráfico e a ordenação.
+METRICS = {
+    'invest':       {'label': 'Investimento',      'fmt': 'money', 'mode': 'ambos',     'cost': None},
+    'leads':        {'label': 'Leads',             'fmt': 'int',   'mode': 'ambos',     'cost': False},
+    'vendas':       {'label': 'Vendas',            'fmt': 'int',   'mode': 'resultado', 'cost': False},
+    'faturamento':  {'label': 'Faturamento',       'fmt': 'money', 'mode': 'resultado', 'cost': False},
+    'retorno':      {'label': 'Retorno bruto',     'fmt': 'money', 'mode': 'resultado', 'cost': False},
+    'roas':         {'label': 'ROAS líquido',      'fmt': 'x',     'mode': 'resultado', 'cost': False},
+    'conv':         {'label': 'Tx. Conversão',     'fmt': 'pct',   'mode': 'resultado', 'cost': False},
+    'cac':          {'label': 'CAC',               'fmt': 'money', 'mode': 'resultado', 'cost': True},
+    'mqls':         {'label': 'MQLs',              'fmt': 'int',   'mode': 'ambos',     'cost': False},
+    'qualidade':    {'label': 'Qualidade',         'fmt': 'pct',   'mode': 'ambos',     'cost': False},
+    'tx_resposta':  {'label': 'Tx. Resposta',      'fmt': 'pct',   'mode': 'captacao',  'cost': False},
+    'cpl':          {'label': 'CPL',               'fmt': 'money', 'mode': 'ambos',     'cost': True},
+    'cpmql':        {'label': 'CPMQL projetado',   'fmt': 'money', 'mode': 'captacao',  'cost': True},
+    'cpm':          {'label': 'CPM',               'fmt': 'money', 'mode': 'captacao',  'cost': True},
+    'ctr':          {'label': 'CTR',               'fmt': 'pct',   'mode': 'captacao',  'cost': False},
+    'hook_rate':    {'label': 'Hook Rate',         'fmt': 'pct',   'mode': 'ambos',     'cost': False},
+    'hold_rate':    {'label': 'Hold Rate',         'fmt': 'pct',   'mode': 'ambos',     'cost': False},
+    'connect_rate': {'label': 'Connect Rate',      'fmt': 'pct',   'mode': 'ambos',     'cost': False},
+    'conv_pagina':  {'label': 'Conversão de Página', 'fmt': 'pct', 'mode': 'ambos',     'cost': False},
+    'videoviews':   {'label': 'Videoviews',        'fmt': 'int',   'mode': 'ambos',     'cost': False},
+}
+
+
+# ── leitura ──────────────────────────────────────────────────────────────────
+
+def load_rows(path):
+    with open(path, encoding='utf-8-sig', errors='replace') as f:
+        head = f.read(8192); f.seek(0)
+        sep = max(',;\t', key=lambda c: head.count(c))
+        return list(csv.DictReader(f, delimiter=sep))
+
+
+def load_dict(path):
+    """Dicionário field_ad_name -> link do anúncio (2ª coluna, qualquer nome)."""
+    out = {}
+    if not path:
+        return out
+    with open(path, encoding='utf-8-sig', errors='replace') as f:
+        r = csv.reader(f)
+        rows = list(r)
+    if not rows:
+        return out
+    for row in rows[1:]:
+        if len(row) >= 2 and row[0].strip():
+            out[row[0].strip()] = (row[1] or '').strip()
+    return out
+
+
+def fnum(v):
+    if v is None:
+        return 0.0
+    s = str(v).strip()
+    if not s:
+        return 0.0
+    try:
+        return float(s)
+    except ValueError:
+        try:
+            return float(s.replace('.', '').replace(',', '.'))
+        except ValueError:
+            return 0.0
+
+
+def soma(rows, col):
+    return sum(fnum(r.get(col)) for r in rows)
+
+
+def pct(a, b):
+    a, b = fnum(a), fnum(b)
+    return round(a / b * 100, 4) if b > 0 else None
+
+
+def div(a, b, nd=4):
+    a, b = fnum(a), fnum(b)
+    return round(a / b, nd) if b > 0 else None
+
+
+# ── chave de produto / plataforma ────────────────────────────────────────────
+
+def produto_principal(rows):
+    return 'vendas_sale' if soma(rows, 'vendas_sale') > 0 else 'vendas'
+
+
+def _fat_col(produto):
+    return 'faturamento_sale' if produto == 'vendas_sale' else 'faturamento'
+
+
+def _platform(link):
+    l = (link or '').lower()
+    if 'facebook.com' in l or 'fb.com' in l:
+        return 'Facebook'
+    return 'Instagram'
+
+
+# ── métricas de um recorte (criativo, temperatura, campanha, dia…) ───────────
+
+def metrics(rows, produto):
+    """Todos os indicadores de um conjunto de linhas (None onde não há base).
+
+    O número nasce só aqui; build_report serializa. Reusado em todos os recortes."""
+    fatcol = _fat_col(produto)
+    invest = soma(rows, 'invest_total')
+    leads = soma(rows, 'leads')
+    mqls = soma(rows, 'leads_mqls')
+    resp = soma(rows, 'respostas')
+    vendas = soma(rows, produto)
+    fat = soma(rows, fatcol)
+    imp = soma(rows, 'impressoes')
+    clk = soma(rows, 'link_clicks')
+    pv = soma(rows, 'pageviews')
+    v2s = soma(rows, 'views_2s')
+    v50 = soma(rows, 'views_50pc')
+    vtot = soma(rows, 'views_totais')
+    qual_raw = (mqls / resp) if resp > 0 else None
+    cpl = div(invest, leads)
+    return {
+        'invest': round(invest, 2), 'leads': round(leads), 'mqls': round(mqls),
+        'respostas': round(resp), 'vendas': round(vendas), 'faturamento': round(fat, 2),
+        'impressoes': round(imp), 'clicks': round(clk), 'pageviews': round(pv),
+        'views_2s': round(v2s), 'views_50pc': round(v50), 'views_totais': round(vtot),
+        # resultado
+        'roas': (round(fat / invest - 1, 4) if invest > 0 else None),
+        'retorno': round(fat - invest, 2),
+        'conv': pct(vendas, leads),
+        'cac': div(invest, vendas),
+        'qualidade': pct(mqls, resp),
+        # captação
+        'cpl': cpl,
+        'cpmql': (round(cpl / qual_raw, 4) if (cpl is not None and qual_raw) else None),
+        'cpm': div(invest * 1000, imp),
+        'ctr': pct(clk, imp),
+        'tx_resposta': pct(resp, leads),
+        # vídeo / página (só com base de vídeo)
+        'hook_rate': (pct(v2s, imp) if vtot > 0 else None),
+        'hold_rate': (pct(v50, v2s) if vtot > 0 else None),
+        'connect_rate': pct(pv, clk),
+        'conv_pagina': pct(leads, pv),
+        'videoviews': (round(v2s) if vtot > 0 else None),
+        'is_video': vtot > 0,
+        'has_traffic': (imp > 0 or invest > 0),
+    }
+
+
+def _distinct(rows, col):
+    seen = []
+    for r in rows:
+        v = (r.get(col) or '').strip()
+        if v and v not in seen:
+            seen.append(v)
+    return seen
+
+
+def _date(r):
+    return str(r.get('data', '')).strip()[:10]
+
+
+def _trim_daily(daily):
+    """Corta as pontas com investimento zerado: começa no 1º e termina no último
+    dia com investimento != 0 (mantém zeros no miolo)."""
+    idx = [i for i, d in enumerate(daily) if (d['m'].get('invest') or 0) > 0]
+    return daily[idx[0]: idx[-1] + 1] if idx else daily
+
+
+# ── agregação por criativo ───────────────────────────────────────────────────
+
+def build(rows, dic=None, opts=None):
+    """Agrega por criativo (field_ad_name). Devolve criativos + dimensões + médias.
+
+    opts = { temp?: <temperatura ativa | None>, min_invest?: <float> } só afeta os
+    AGREGADOS globais (totais/médias/série) — cada criativo carrega seus próprios
+    recortes para a ficha. Filtros reativos finos ficam no render_view."""
+    opts = opts or {}
+    dic = dic or {}
+    produto = produto_principal(rows)
+    temps = _distinct(rows, 'temperatura_lead')   # todas (para as opções do filtro)
+    # Filtro de TEMPERATURA (recompute): restringe as linhas à temperatura ativa antes
+    # de agregar — assim todas as métricas refletem o recorte.
+    sel_temp = opts.get('temp')
+    if sel_temp:
+        rows = [r for r in rows if (r.get('temperatura_lead') or '').strip() == sel_temp]
+
+    keys = []
+    for r in rows:
+        k = (r.get('field_ad_name') or '').strip()
+        if k and k not in keys:
+            keys.append(k)
+
+    creatives = []
+    for k in keys:
+        crows = [r for r in rows if (r.get('field_ad_name') or '').strip() == k]
+        m = metrics(crows, produto)
+        link = dic.get(k, '')
+        crt = {
+            'key': k, 'name': k, 'link': link, 'platform': _platform(link),
+            'is_video': m['is_video'], 'no_data': not m['has_traffic'],
+            'temps': _distinct(crows, 'temperatura_lead'),
+            'm': m,
+            'by_temp': {t: metrics([r for r in crows if (r.get('temperatura_lead') or '').strip() == t], produto) for t in _distinct(crows, 'temperatura_lead')},
+            'by_campanha': {c: metrics([r for r in crows if (r.get('field_campaign_name') or '').strip() == c], produto) for c in _distinct(crows, 'field_campaign_name')},
+            'by_publico': {a: metrics([r for r in crows if (r.get('field_adset_name') or '').strip() == a], produto) for a in _distinct(crows, 'field_adset_name')},
+            'daily': _trim_daily([{'data': d, 'm': metrics([r for r in crows if _date(r) == d], produto)}
+                                  for d in sorted({_date(r) for r in crows if _date(r)})]),
+        }
+        creatives.append(crt)
+
+    # criativos com tráfego (e acima do investimento mínimo) entram nos totais/médias
+    try:
+        min_invest = float(opts.get('min_invest') or 0)
+    except (TypeError, ValueError):
+        min_invest = 0.0
+    valid = [c for c in creatives if not c['no_data'] and c['m']['invest'] >= min_invest]
+    total = metrics([r for r in rows
+                     if (r.get('field_ad_name') or '').strip() in {c['key'] for c in valid}], produto)
+    # média do lançamento por indicador (referência na ficha) = média simples dos criativos válidos
+    avg = {}
+    for mk in METRICS:
+        vals = [c['m'][mk] for c in valid if c['m'].get(mk) is not None]
+        avg[mk] = round(sum(vals) / len(vals), 4) if vals else None
+
+    # série diária global (todos os criativos válidos)
+    days = sorted({_date(r) for r in rows if _date(r)})
+    valid_keys = {c['key'] for c in valid}
+    daily = _trim_daily([{'data': d, 'm': metrics([r for r in rows
+              if _date(r) == d and (r.get('field_ad_name') or '').strip() in valid_keys], produto)}
+             for d in days])
+
+    return {
+        'produto': produto,
+        'creatives': creatives,
+        'valid': valid,
+        'temps': temps,
+        'campanhas': _distinct(rows, 'field_campaign_name'),
+        'publicos': _distinct(rows, 'field_adset_name'),
+        'total': total, 'avg': avg, 'daily': daily,
+        'bench': BENCH,
+    }

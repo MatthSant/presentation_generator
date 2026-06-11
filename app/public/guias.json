@@ -163,6 +163,86 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "criativos",
+      "title": "Análise de Criativos",
+      "tag": "Análise",
+      "summary": "Desempenho anúncio a anúncio (Meta Ads) — investimento, ROAS, captação e qualidade de lead — com uma ficha por criativo e dois modos de leitura: Resultado Final e Captação em Andamento.",
+      "report": { "client": "inde", "slug": "criativos" },
+      "gerar": "/gerar-criativos.html",
+      "montador": "criativos",
+      "sections": [
+        {
+          "title": "Objetivo",
+          "blocks": [
+            { "type": "p", "text": "Avaliar o desempenho de cada <strong>criativo</strong> de mídia paga isoladamente — quanto investiu, quanto retornou e com que qualidade captou — para decidir o que <strong>escalar</strong>, o que <strong>pausar</strong> e o que <strong>iterar</strong> no próximo ciclo." },
+            { "type": "p", "text": "Dois modos de leitura, alternáveis no relatório inteiro:" },
+            { "type": "ul", "items": [
+              "<strong>Resultado Final</strong> — performance de venda: ROAS líquido, conversão, retorno e CAC (★ ROAS).",
+              "<strong>Captação em Andamento</strong> — eficiência de aquisição enquanto a venda não fechou: CPL, CPMQL projetado, qualidade e CPM (★ CPMQL)."
+            ] }
+          ]
+        },
+        {
+          "title": "Requisitos dos dados",
+          "blocks": [
+            { "type": "p", "text": "Um CSV ao nível de <strong>anúncio × dia × campanha × público × temperatura</strong> (insights de mídia juntados aos leads/vendas atribuídos)." },
+            { "type": "ul", "items": [
+              "Identificação: <code>field_ad_name</code> (criativo), <code>field_campaign_name</code>, <code>field_adset_name</code> (público), <code>temperatura_lead</code>, <code>data</code>.",
+              "Mídia: <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>.",
+              "Vídeo (só criativos em vídeo): <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code> — viram Hook/Hold Rate.",
+              "Funil e vendas: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>."
+            ] },
+            { "type": "callout", "label": "Dicionário (opcional)", "text": "Um 2º CSV <code>field_ad_name → URL do post</code> habilita o <strong>preview do Reels/anúncio</strong> embutido na ficha. Sem ele, a ficha funciona, só sem o preview." }
+          ]
+        },
+        {
+          "title": "Como criar",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Extraia o CSV ao nível de anúncio/dia com a query padrão (use o <strong>montador</strong> e ajuste tabelas/termos da conta).",
+              "Antes de gerar, confira a atribuição lead→anúncio e a classificação de temperatura.",
+              "Clique em <strong>Criar esta análise</strong>, informe cliente/título, envie o CSV e (opcional) o dicionário de links.",
+              "O relatório abre em <code>/report/[cliente]/[slug]</code> com Panorama + fichas na sidebar."
+            ] }
+          ]
+        },
+        {
+          "title": "O que o relatório entrega",
+          "blocks": [
+            { "type": "sub", "text": "Panorama" },
+            { "type": "p", "text": "KPIs macro do modo ativo + bloco de qualidade de captação (Hook/Hold/CTR/Connect/Conv. Página comparados ao benchmark), gráfico de evolução diária e dispersão (métricas por eixo selecionáveis), e a grade de criativos por desempenho — cada card abre a ficha." },
+            { "type": "sub", "text": "Fichas por criativo (sidebar)" },
+            { "type": "p", "text": "Uma seção por criativo: preview do anúncio, resultado macro, quebra por campanha/público/temperatura e evolução diária. A sidebar permite buscar e ordenar (A–Z, investimento, ROAS)." },
+            { "type": "sub", "text": "Perguntas e Detalhamentos" },
+            { "type": "p", "text": "Perguntas norteadoras ranqueadas por relevância; ao seguir uma, a IA gera um detalhamento como nova seção." }
+          ]
+        },
+        {
+          "title": "Indicadores",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Produto principal = <code>vendas_sale</code> se houver; senão <code>vendas</code>.",
+              "ROAS líquido = faturamento / investimento − 1 · Retorno = faturamento − investimento · CAC = investimento / vendas.",
+              "Qualidade = MQLs / respostas (não / leads) · CPMQL = CPL / qualidade · CPL = investimento / leads · CPM = investimento×1000 / impressões.",
+              "Hook Rate = views 2s / impressões · Hold Rate = views 50% / views 2s (só com vídeo) · Connect Rate = pageviews / clicks.",
+              "Taxas somam brutos e calculam sobre o total — nunca média de médias."
+            ] }
+          ]
+        },
+        {
+          "title": "Cuidados",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Confirmar nomes de tabela/coluna da conta — o montador é uma base, não a query final.",
+              "Garantir que <code>field_ad_name</code> bate nas duas fontes (mídia e conversões), senão a atribuição falha.",
+              "Criativos sem tráfego ficam fora dos KPIs (cinza); use o filtro de investimento mínimo para limpar ruído.",
+              "Métricas de vídeo só existem para criativos em vídeo — não compare Hook/Hold entre vídeo e estático."
+            ] }
+          ]
+        }
+      ]
     }
   ]
 }

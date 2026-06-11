@@ -86,6 +86,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
+  'embed', 'link-card', 'scatter-picker',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -424,13 +425,58 @@ export interface ChartTableWidget extends WidgetBase {
   table?: TableWidget;
 }
 
+/** Embed de uma publicação (preview do anúncio na ficha de criativo). Instagram via
+ *  iframe /embed/; demais plataformas caem num placeholder com link. Recurso de
+ *  plataforma — qualquer análise pode embutir um post. */
+export interface EmbedWidget extends WidgetBase {
+  type: 'embed';
+  /** URL do post (ex.: https://www.instagram.com/p/CODE/). */
+  url: string;
+  title?: string;
+  /** 'instagram' | 'facebook' | … (derivado da URL quando ausente). */
+  platform?: string;
+  caption?: string;
+}
+
+/** Card clicável que navega para uma seção (ficha). Grid de cards de criativo:
+ *  nome + sub + tags + métricas 2×2 + indicador principal com barra. Recurso de
+ *  plataforma — qualquer análise pode listar entidades que abrem outra seção. */
+export interface LinkCard {
+  title: string;
+  sub?: string;
+  tags?: Array<{ label: string; tone?: ColorToken }>;
+  metrics?: Array<{ label: string; value: string }>;
+  main?: { label: string; value: string; pct?: number; tone?: ColorToken };
+  gotoPage?: string;
+  gotoSection?: string;
+}
+export interface LinkCardWidget extends WidgetBase {
+  type: 'link-card';
+  title?: string;
+  cards: LinkCard[];
+}
+
+/** Dispersão com seletor de métrica por eixo: dois dropdowns (X e Y) reconstroem o
+ *  scatter client-side a partir das métricas embutidas. Recurso de plataforma. */
+export interface ScatterMetric { id: string; label: string; fmt?: string; }
+export interface ScatterPoint { name: string; vals: Record<string, number | null>; }
+export interface ScatterPickerWidget extends WidgetBase {
+  type: 'scatter-picker';
+  title?: string;
+  height?: number;
+  metrics: ScatterMetric[];
+  points: ScatterPoint[];
+  x?: string;
+  y?: string;
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
-  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget;
+  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

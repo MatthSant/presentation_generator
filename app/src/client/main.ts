@@ -14,6 +14,7 @@ import { renderWidget, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
 import { HistoricoFilters } from './historico-controls.js';
+import { CriativosControls } from './criativos-controls.js';
 import { resolveBind } from '../shared/bind.js';
 import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
 
@@ -40,6 +41,11 @@ class App {
   private histSel: string[] | null = null;
   private histLaunches: string[] | null = null;
   private histMetric = 'conv';
+  /** Modo ativo da análise de criativos (resultado × captação) + filtros do FAB. */
+  private histMode: string | undefined;
+  private histMinInvest: number | undefined;
+  private histTemp: string | null = null;
+  private criativos: CriativosControls | null = null;
   private busyEl: HTMLElement | null = null;
 
   constructor(private client: string, private slug: string) {
@@ -70,9 +76,14 @@ class App {
     if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
     this.renderCover();
     this.setupHistorico();
+    // Cards clicáveis (link-card) → navegam para uma seção (ficha).
+    document.addEventListener('goto-section', (e) => {
+      const d = (e as CustomEvent<{ page?: string; section: string }>).detail;
+      if (d?.section) void this.go(d.page || this.store.currentPageId, d.section);
+    });
 
     this.nav.build();
-    if (!this.hist) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
+    if (!this.hist && !this.criativos) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
     this.watch();
 
     const first = this.store.allSections()[0];
@@ -148,6 +159,7 @@ class App {
     this.nav.setActive(pageId, sectionId);
 
     this.hist?.setPage(pageId);
+    this.criativos?.setPage(pageId);
 
     if (this.store.page(pageId)?.kind === 'perguntas') {
       await this.renderPerguntas();
@@ -269,7 +281,24 @@ class App {
     const controls = this.store.data?.meta?.controls;
     // Dispatch por kind: cada tipo com controles interativos registra o seu setup
     // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
-    if (!controls || controls.kind !== 'historico-lancamentos') return;
+    if (!controls) return;
+    // Criativos: único controle é o toggle de MODO (resultado × captação) — um
+    // metric-toggle que dispara 'metric-change'; recompute server-side por modo.
+    if (controls.kind === 'criativos') {
+      const cc = controls as { mode?: string; modes?: Array<{ id: string }> };
+      this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
+      // Controles NÍVEL-RELATÓRIO no FAB: modo + investimento mínimo + temperatura.
+      this.criativos = new CriativosControls(controls, {
+        apply: (o) => {
+          this.histMode = o.mode;
+          this.histMinInvest = o.minInvest || undefined;
+          this.histTemp = o.temp;
+          void this.recompute();
+        },
+      });
+      return;
+    }
+    if (controls.kind !== 'historico-lancamentos') return;
     this.histMetric = controls.metrics[0]?.id || 'conv';
     const total = controls.launches.length;
     this.hist = new HistoricoFilters(controls, {
@@ -288,7 +317,11 @@ class App {
     this.histSel = this.histLaunches;
     const y = window.scrollY;
     try {
-      const r = await this.api.historicoRender(this.histLaunches, this.histMetric);
+      const kind = (this.store.data?.meta?.controls as { kind?: string } | undefined)?.kind;
+      const body = kind === 'criativos'
+        ? { mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }
+        : { launches: this.histLaunches, metric: this.histMetric };
+      const r = await this.api.renderView(body);
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);
       this.store.layout = { ...this.store.layout, sections: { ...this.store.layout.sections, ...r.layout } };

@@ -52,12 +52,18 @@ function defaultContent(): unknown {
 const tail = (s: string, n: number): string => (s.length > n ? s.slice(-n) : s);
 
 export function registerGenerate(app: Express, ctx: Ctx): void {
-  app.post('/api/:client/:slug/generate', upload.single('csv'), async (req, res) => {
+  // `csv` é o dump principal; `dict` é um arquivo auxiliar opcional (ex.: criativos →
+  // dicionário field_ad_name→link). Tipos que não usam `dict` simplesmente o ignoram.
+  const genUpload = upload.fields([{ name: 'csv', maxCount: 1 }, { name: 'dict', maxCount: 1 }]);
+  app.post('/api/:client/:slug/generate', genUpload, async (req, res) => {
     if (!gateOk(req)) { res.status(401).json({ error: 'unauthorized' }); return; }
     const { client, slug } = req.params;
     const outDir = analysisDir(ctx.out, client, slug);
     if (!outDir) { res.status(400).json({ error: 'bad path' }); return; }
-    if (!req.file) { res.status(400).json({ error: 'csv file required (campo "csv")' }); return; }
+    const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const csvFile = files?.csv?.[0];
+    const dictFile = files?.dict?.[0];
+    if (!csvFile) { res.status(400).json({ error: 'csv file required (campo "csv")' }); return; }
 
     let config: ConfigShape;
     try { config = JSON.parse(String(req.body?.config ?? '')) as ConfigShape; }
@@ -79,7 +85,13 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     const contentPath = path.join(job, 'content.json');
     fs.mkdirSync(job, { recursive: true });
     fs.mkdirSync(outDir, { recursive: true });
-    fs.writeFileSync(csvPath, req.file.buffer);
+    fs.writeFileSync(csvPath, csvFile.buffer);
+    // Dicionário auxiliar (opcional): grava no scratch e injeta o caminho no config.
+    if (dictFile) {
+      const dictPath = path.join(job, 'dict.csv');
+      fs.writeFileSync(dictPath, dictFile.buffer);
+      config.dict_csv = dictPath;
+    }
     writeJson(configPath, config);
     writeJson(contentPath, content);
 

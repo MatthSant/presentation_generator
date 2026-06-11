@@ -97,10 +97,18 @@ export class Api {
     });
   }
 
-  historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {
+  historicoRender(launches: string[] | null, metric: string, mode?: string): Promise<HistoricoView> {
     return this.json(`${this.base()}/render`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ launches, metric }),
+      body: JSON.stringify({ launches, metric, mode }),
+    });
+  }
+
+  /** Recompute genérico da vista — o corpo varia por tipo (criativos: mode/min_invest/temp). */
+  renderView(body: Record<string, unknown>): Promise<HistoricoView> {
+    return this.json(`${this.base()}/render`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
   }
 

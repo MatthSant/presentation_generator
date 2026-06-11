@@ -197,6 +197,16 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'label-sec':
       if (!isNonEmptyStr(w.text)) c.err(`${path}.text`, `${type} text is required`);
       break;
+    case 'embed':
+      if (!isNonEmptyStr(w.url)) c.err(`${path}.url`, 'embed url is required');
+      break;
+    case 'link-card':
+      if (!Array.isArray(w.cards)) c.err(`${path}.cards`, 'link-card requires a cards array');
+      break;
+    case 'scatter-picker':
+      if (!Array.isArray(w.metrics)) c.err(`${path}.metrics`, 'scatter-picker requires a metrics array');
+      if (!Array.isArray(w.points)) c.err(`${path}.points`, 'scatter-picker requires a points array');
+      break;
   }
 }
 

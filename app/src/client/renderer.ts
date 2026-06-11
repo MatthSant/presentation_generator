@@ -10,9 +10,10 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
-import { defFromResolved, type ChartDef } from './charts.js';
+import { defFromResolved, buildOptions, type ChartDef } from './charts.js';
 
 export interface RenderCtx {
   /** Resolve a bind against the loaded datasets + active filters, or null if unbound/error. */
@@ -698,6 +699,39 @@ function renderXs(w: XsWidget): HTMLElement {
   return p;
 }
 
+/* ── embed ── preview de uma publicação (Instagram via iframe /embed/; demais
+ *  plataformas caem num placeholder com link). */
+function renderEmbed(w: EmbedWidget): HTMLElement {
+  const card = el('div', 'embed-card');
+  if (w.title) card.appendChild(el('div', 'embed-title', w.title));
+  const url = (w.url || '').trim();
+  const m = url.match(/instagram\.com\/(p|reel|reels|tv)\/([^/?#]+)/i);
+  if (m) {
+    const kind = m[1] === 'reels' ? 'reel' : m[1];
+    const iframe = document.createElement('iframe');
+    iframe.className = 'embed-ig';
+    iframe.src = `https://www.instagram.com/${kind}/${m[2]}/embed/`;
+    iframe.loading = 'lazy';
+    iframe.setAttribute('scrolling', 'no');
+    iframe.setAttribute('allowtransparency', 'true');
+    iframe.setAttribute('title', w.title || 'Post do Instagram');
+    card.appendChild(iframe);
+    if (w.caption) card.appendChild(el('div', 'embed-cap', w.caption));
+    return card;
+  }
+  const ph = el('div', 'embed-ph');
+  ph.appendChild(el('div', 'embed-ph-t', w.platform === 'Facebook' ? 'Anúncio no Facebook' : 'Pré-visualização indisponível'));
+  if (url) {
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.className = 'embed-link'; a.textContent = 'Abrir anúncio ↗';
+    ph.appendChild(a);
+  }
+  card.appendChild(ph);
+  if (w.caption) card.appendChild(el('div', 'embed-cap', w.caption));
+  return card;
+}
+
 /* ── methodology widgets ── bullets may carry inline <strong>/<em>, so each li
  *  is set via innerHTML (same trust model as find-block/ni). */
 function bulletList(items: string[]): HTMLElement {
@@ -756,6 +790,105 @@ function renderGrpList(w: GrpListWidget): HTMLElement {
   return wrap;
 }
 
+/* ── link-card ── grid de cards clicáveis que abrem uma seção (ficha). Cada card:
+ *  nome + sub + tags + métricas 2×2 + indicador principal com barra. O clique
+ *  dispara 'goto-section' (o main navega). */
+function renderLinkCard(w: LinkCardWidget): HTMLElement {
+  const wrap = el('div', 'lc-wrap');
+  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  const grid = el('div', 'lc-grid');
+  for (const c of w.cards || []) {
+    const card = el('button', 'lc-card') as HTMLButtonElement;
+    card.type = 'button';
+    const head = el('div', 'lc-head');
+    head.append(el('div', 'lc-name', c.title), el('div', 'lc-sub', c.sub || ''));
+    card.appendChild(head);
+    if (c.tags?.length) {
+      const t = el('div', 'lc-tags');
+      for (const tg of c.tags) t.appendChild(el('span', `lc-tag lc-tag-${tg.tone || 'n'}`, tg.label));
+      card.appendChild(t);
+    }
+    if (c.metrics?.length) {
+      const m = el('div', 'lc-metrics');
+      for (const mt of c.metrics) {
+        const cell = el('div', 'lc-metric');
+        cell.append(el('div', 'lc-m-v', mt.value), el('div', 'lc-m-l', mt.label));
+        m.appendChild(cell);
+      }
+      card.appendChild(m);
+    }
+    if (c.main) {
+      const mn = el('div', `lc-main lc-main-${c.main.tone || 'p'}`);
+      mn.append(el('div', 'lc-main-l', c.main.label), el('div', 'lc-main-v', c.main.value));
+      if (typeof c.main.pct === 'number') {
+        const bar = el('div', 'lc-bar');
+        const fill = el('div', 'lc-bar-f');
+        fill.style.width = `${Math.max(0, Math.min(100, c.main.pct))}%`;
+        bar.appendChild(fill);
+        mn.appendChild(bar);
+      }
+      card.appendChild(mn);
+    }
+    if (c.gotoSection) {
+      card.addEventListener('click', () => document.dispatchEvent(
+        new CustomEvent('goto-section', { detail: { page: c.gotoPage, section: c.gotoSection } })));
+    }
+    grid.appendChild(card);
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ── scatter-picker ── dispersão com 2 dropdowns (X e Y). Reconstrói o scatter
+ *  client-side a partir das métricas embutidas; gerencia a própria instância
+ *  ApexCharts. Cada ponto = um criativo (nome no hover). */
+function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
+  const wrap = el('div', 'sp-wrap');
+  const hd = el('div', 'sp-hd');
+  if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
+  const mkSel = (cur: string): HTMLSelectElement => {
+    const s = document.createElement('select');
+    s.className = 'sp-sel';
+    for (const m of w.metrics) {
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.label; if (m.id === cur) o.selected = true;
+      s.appendChild(o);
+    }
+    return s;
+  };
+  const xSel = mkSel(w.x || w.metrics[0]?.id || '');
+  const ySel = mkSel(w.y || w.metrics[1]?.id || w.metrics[0]?.id || '');
+  const ctrls = el('div', 'sp-ctrls');
+  ctrls.append(el('span', 'sp-lbl', 'X'), xSel, el('span', 'sp-lbl', 'Y'), ySel);
+  hd.appendChild(ctrls);
+  wrap.appendChild(hd);
+  const host = el('div', 'sp-chart');
+  wrap.appendChild(host);
+
+  let chart: ApexInstance | null = null;
+  const build = (): void => {
+    const xk = xSel.value, yk = ySel.value;
+    const xm = w.metrics.find(m => m.id === xk), ym = w.metrics.find(m => m.id === yk);
+    const series = (w.points || [])
+      .filter(p => p.vals[xk] != null && p.vals[yk] != null)
+      .map(p => ({ name: p.name, data: [{ x: p.vals[xk], y: p.vals[yk] }] }));
+    const def = {
+      type: 'scatter', series, height: w.height ?? 320, colors: ['#7C3AED'],
+      options: { legend: { show: false }, tooltip: { shared: false },
+        xaxis: { type: 'numeric', title: { text: xm?.label } }, yaxis: { title: { text: ym?.label } } },
+    } as unknown as ChartDef;
+    const opts = buildOptions(def);
+    if (chart) { void chart.updateOptions(opts); return; }
+    if (typeof ApexCharts === 'undefined') return;
+    chart = new ApexCharts(host, opts);
+    void chart.render();
+  };
+  xSel.addEventListener('change', build);
+  ySel.addEventListener('change', build);
+  requestAnimationFrame(build);
+  return wrap;
+}
+
 /* ── dispatch ── */
 export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
   try {
@@ -783,6 +916,9 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'def-step':    return renderDefStep(widget);
       case 'mdef-block':  return renderMdefBlock(widget);
       case 'grp-list':    return renderGrpList(widget);
+      case 'embed':       return renderEmbed(widget);
+      case 'link-card':   return renderLinkCard(widget);
+      case 'scatter-picker': return renderScatterPicker(widget);
       default:            return errorCard((widget as { type: string }).type, 'tipo desconhecido');
     }
   } catch (e) {

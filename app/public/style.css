@@ -383,6 +383,78 @@ html, body {
 [data-report-section] { scroll-margin-top: 32px; position: relative; }
 [data-report-section].card { border-radius: 8px; margin-bottom: 12px; }
 
+/* ── SIDENAV — modo de navegação lateral (recurso de plataforma; data.json meta.nav==='sidebar') ── */
+body[data-nav="sidebar"] #sidenav {
+  display: flex; flex-direction: column; gap: 2px;
+  /* abaixo da topbar do app (48px), não por cima — a topbar é do app, a sidebar é da análise */
+  position: fixed; top: 48px; left: 0; bottom: 0; width: 240px; z-index: 95;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 12px 10px;
+}
+.sn-brand { font-size: 14px; font-weight: 600; color: var(--fg); text-decoration: none; padding: 8px 10px 14px; }
+.sn-group { display: flex; flex-direction: column; }
+.sn-page { text-align: left; background: none; border: none; cursor: pointer; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--gray2); padding: 12px 10px 6px; }
+.sn-page:hover, .sn-page-active { color: var(--purple); }
+.sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 13px; color: var(--fg); padding: 7px 10px 7px 16px; border-radius: 7px; }
+.sn-sec:hover { background: var(--surface); }
+.sn-sec-active { background: var(--purple-bg); color: var(--purple); font-weight: 500; }
+.sn-sec-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sn-pill { flex-shrink: 0; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 20px; }
+.sn-pill-g { background: var(--ok-bg); color: var(--ok-fg); }
+.sn-pill-r { background: var(--err-bg); color: var(--err-fg); }
+.sn-pill-p { background: var(--purple-bg); color: var(--purple); }
+.sn-pill-n { background: var(--surface); color: var(--gray2); }
+.sn-search { margin: 0 6px 8px; padding: 6px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--fg); outline: none; }
+.sn-search:focus { border-color: var(--purple); }
+.sn-sort { display: flex; gap: 4px; margin: 0 6px 8px; }
+.sn-sort-b { flex: 1; padding: 4px 6px; font-size: 10.5px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--gray2); cursor: pointer; white-space: nowrap; }
+.sn-sort-b:hover { border-color: var(--border-strong); }
+.sn-sort-b.on { background: var(--purple-bg); color: var(--purple); border-color: var(--purple); font-weight: 500; }
+/* botões/inputs não herdam font-family — força a fonte do app na sidebar */
+#sidenav button, #sidenav input, #sidenav a { font-family: 'Exo 2', system-ui, sans-serif; }
+body[data-nav="sidebar"] #tn-pages { display: none; }   /* nav de páginas vai pra sidebar */
+body[data-nav="sidebar"] #section-bar { display: none; }
+body[data-nav="sidebar"] #main { margin-top: 48px; margin-left: 240px; min-height: calc(100vh - 48px); }
+
+/* ── EMBED — preview de publicação (ficha de criativo) ── */
+.embed-card { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+.embed-title { font-size: 12px; font-weight: 600; color: var(--gray2); }
+/* proporção de Reels (vertical ~9:16, + chrome do post do Instagram) */
+.embed-ig { width: 100%; max-width: 360px; min-height: 720px; margin: 0 auto; display: block; border: none; border-radius: 8px; background: var(--surface); }
+.embed-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 200px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--gray2); font-size: 13px; }
+.embed-link { color: var(--purple); font-size: 13px; font-weight: 500; text-decoration: none; }
+.embed-link:hover { text-decoration: underline; }
+.embed-cap { font-size: 12px; color: var(--gray2); }
+
+/* ── LINK-CARD — grid de cards clicáveis (criativos → ficha) ── */
+.lc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.lc-card { text-align: left; cursor: pointer; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; transition: border-color .12s, box-shadow .12s; }
+.lc-card:hover { border-color: var(--purple); box-shadow: 0 2px 12px oklch(50% 0.05 280 / 0.08); }
+.lc-name { font-size: 13px; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-sub { font-size: 11px; color: var(--gray2); }
+.lc-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.lc-tag { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 20px; background: var(--surface); color: var(--gray2); }
+.lc-tag-g { background: var(--ok-bg); color: var(--ok-fg); } .lc-tag-r { background: var(--err-bg); color: var(--err-fg); }
+.lc-tag-a { background: #FAEEDA; color: #854F0B; } .lc-tag-b { background: #E6F1FB; color: #0C447C; } .lc-tag-p { background: var(--purple-bg); color: var(--purple); }
+.lc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.lc-m-v { font-size: 15px; font-weight: 600; color: var(--fg); }
+.lc-m-l { font-size: 10.5px; color: var(--gray2); }
+.lc-main { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--divider); }
+.lc-main-l { font-size: 10.5px; color: var(--gray2); }
+.lc-main-v { font-size: 18px; font-weight: 700; color: var(--purple); }
+.lc-main-g .lc-main-v { color: var(--ok-fg); } .lc-main-r .lc-main-v { color: var(--err-fg); }
+.lc-bar { height: 5px; border-radius: 3px; background: var(--surface); margin-top: 6px; overflow: hidden; }
+.lc-bar-f { height: 100%; background: var(--purple); }
+.lc-main-g .lc-bar-f { background: var(--ok-fg); } .lc-main-r .lc-bar-f { background: var(--err-fg); }
+
+/* ── SCATTER-PICKER — dispersão com 2 dropdowns (X/Y) ── */
+.sp-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.sp-ctrls { display: flex; align-items: center; gap: 6px; }
+.sp-lbl { font-size: 11px; font-weight: 600; color: var(--gray2); }
+.sp-sel { font-family: 'Exo 2', sans-serif; font-size: 12px; color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; cursor: pointer; outline: none; }
+.sp-sel:focus { border-color: var(--purple); }
+.sp-chart { width: 100%; }
+
 /* Monoline icon glyphs (replace emoji across the chrome). Stroke inherits the
    button's currentColor so hover/active states recolor the icon for free.
    Named .svg-ic to avoid colliding with the .ic interactive-card component. */
@@ -908,6 +980,7 @@ body.edit-mode .tile-filter-badge { display:none; }
 
 /* — Elevated data cards — */
 .dash-grid:not(.grid-active) .widget-chart,
+.dash-grid:not(.grid-active) .sp-wrap,
 .dash-grid:not(.grid-active) .hm-wrap {
   background:var(--bg);
   border:1px solid var(--border);
