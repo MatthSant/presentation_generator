@@ -234,11 +234,21 @@ def build(rows, dic=None, opts=None):
     valid = [c for c in creatives if not c['no_data'] and c['m']['invest'] >= min_invest]
     total = metrics([r for r in rows
                      if (r.get('field_ad_name') or '').strip() in {c['key'] for c in valid}], produto)
-    # média do lançamento por indicador (referência na ficha) = média simples dos criativos válidos
+    # média do lançamento por indicador (referência na ficha).
+    # Métricas de RAZÃO/CUSTO (CPL, CPM, CAC, ROAS, conversão, taxas) → a referência é a
+    # razão AGREGADA (ponderada por volume = o total). A média simples das razões por
+    # criativo distorce — um criativo de R$5 pesa igual a um de R$50k — e produzia as
+    # "médias aleatórias". Métricas ADITIVAS (investimento, leads, vendas…) → média por
+    # criativo (total ÷ nº de criativos válidos), que é o que se espera de uma "média".
+    n_valid = len(valid)
     avg = {}
-    for mk in METRICS:
-        vals = [c['m'][mk] for c in valid if c['m'].get(mk) is not None]
-        avg[mk] = round(sum(vals) / len(vals), 4) if vals else None
+    for mk, meta in METRICS.items():
+        is_ratio = meta['fmt'] in ('pct', 'x') or meta.get('cost') is True
+        if is_ratio:
+            avg[mk] = total.get(mk)
+        else:
+            v = total.get(mk)
+            avg[mk] = round(v / n_valid, 4) if (v is not None and n_valid) else None
 
     # série diária global (todos os criativos válidos)
     days = sorted({_date(r) for r in rows if _date(r)})
