@@ -42,6 +42,17 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
         try { r = resolveBind(w.bind, dataset); } catch { continue; }
         if (r.rows.length === 0) {
           issues.push(`"${title}": tabela vazia (0 linhas) — nunca mostre uma tabela só com cabeçalho; remova-a ou substitua por prosa/kpi.`);
+        } else {
+          // Colunas que NÃO existem na tabela (nem por caixa) renderizam células vazias —
+          // o gerador às vezes usa um RÓTULO onde a coluna é a chave. Faz a IA refazer com
+          // os nomes EXATOS do catálogo.
+          const cols = (w as { cols?: string[] }).cols ?? [];
+          const keys = Object.keys(r.rows[0] as Record<string, unknown>);
+          const lower = new Set(keys.map((k) => k.toLowerCase()));
+          const missing = cols.filter((c) => !keys.includes(c) && !lower.has(c.toLowerCase()));
+          if (missing.length) {
+            issues.push(`"${title}": as colunas ${JSON.stringify(missing)} não existem na tabela "${w.bind.dataset}" (colunas reais: ${keys.join(', ')}) — usariam células vazias. Use os nomes EXATOS das colunas do catálogo.`);
+          }
         }
       } else if (Array.isArray(w.rows) && w.rows.length === 0) {
         issues.push(`"${title}": tabela vazia (0 linhas) — remova-a ou substitua por prosa/kpi.`);
