@@ -460,7 +460,7 @@ class App {
   }
 
   /** Content widget types worth deepening (skips eyebrows, notes, kpi strips). */
-  private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card', 'heatmap-toggle', 'chart-toggle']);
+  private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card', 'heatmap-toggle', 'chart-toggle', 'chart-table']);
   private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
