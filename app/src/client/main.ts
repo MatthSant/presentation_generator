@@ -366,21 +366,60 @@ class App {
   /** Blocking loading overlay — shown while a detalhamento is generated server-side
    *  (the LLM call takes a few seconds), so the wait is explicit and clicks are
    *  locked until we navigate to the result. */
+  private ensureBusy(): void {
+    if (this.busyEl) return;
+    const el = document.createElement('div');
+    el.className = 'busy-overlay';
+    el.hidden = true;
+    el.innerHTML = `
+      <div class="busy-box">
+        <div class="busy-load"><div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div></div>
+        <div class="busy-err" hidden>
+          <div class="busy-err-title">Não foi possível gerar o detalhamento</div>
+          <p class="busy-err-sub"></p>
+          <ul class="busy-err-issues"></ul>
+          <div class="busy-err-actions">
+            <button type="button" class="busy-err-retry">↻ Rerodar</button>
+            <button type="button" class="busy-err-close">Fechar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    this.busyEl = el;
+  }
+
   private setBusy(on: boolean, msg = 'Carregando…'): void {
+    this.ensureBusy();
+    if (!this.busyEl) return;
     if (on) {
-      if (!this.busyEl) {
-        const el = document.createElement('div');
-        el.className = 'busy-overlay';
-        el.innerHTML = '<div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div>';
-        document.body.appendChild(el);
-        this.busyEl = el;
-      }
+      this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = false;
+      this.busyEl.querySelector<HTMLElement>('.busy-err')!.hidden = true;
       const m = this.busyEl.querySelector('.busy-msg');
       if (m) m.textContent = msg;
       this.busyEl.hidden = false;
-    } else if (this.busyEl) {
+    } else {
       this.busyEl.hidden = true;
     }
+  }
+
+  /** Tela de erro no overlay quando o detalhamento é REPROVADO após todas as tentativas:
+   *  explica em itens o que falhou e oferece "Rerodar" (re-executa a mesma geração). */
+  private busyError(detail: string, onRetry: () => void): void {
+    this.ensureBusy();
+    if (!this.busyEl) return;
+    this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = true;
+    const err = this.busyEl.querySelector<HTMLElement>('.busy-err')!;
+    // a mensagem vem como "<motivo> — issue1; issue2…" → motivo em cima, issues em lista.
+    const sep = detail.indexOf('—');
+    const head = (sep >= 0 ? detail.slice(0, sep) : detail).trim();
+    const issues = (sep >= 0 ? detail.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+    err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = head || 'Falha na geração.';
+    err.querySelector<HTMLElement>('.busy-err-issues')!.innerHTML =
+      issues.length ? issues.map(i => `<li>${esc(i)}</li>`).join('') : '';
+    err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
+    err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
+    err.hidden = false;
+    this.busyEl.hidden = false;
   }
 
   /** Follow a question: the server generates its detalhamento as a new section on
@@ -395,10 +434,10 @@ class App {
       this.nav.build();
       await this.go(r.pageId, r.sectionId);
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
-    } catch (e) {
-      this.toast(`Falha ao seguir a pergunta: ${(e as Error).message}`);
-    } finally {
       this.setBusy(false);
+    } catch (e) {
+      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
+      this.busyError((e as Error).message, () => void this.seguirPergunta(p));
     }
   }
 
@@ -527,10 +566,10 @@ class App {
       this.store.dropSection(secId);
       await this.go(this.store.currentPageId, secId);
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
-    } catch (e) {
-      this.toast(`Falha ao detalhar: ${(e as Error).message}`);
-    } finally {
       this.setBusy(false);
+    } catch (e) {
+      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
+      this.busyError((e as Error).message, () => void this.runDeepen(secId, blockId, prompt, prev));
     }
   }
 

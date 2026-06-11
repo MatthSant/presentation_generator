@@ -111,9 +111,12 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
     validateSchema: (m) => validate(((m as { widgets?: Widget[] }).widgets) ?? []),
   });
 
-  if (!gate.modal) throw new Error(`detalhamento inválido: ${gate.residualIssues.join('; ')}`);
-  if (gate.residualIssues.length) {
-    console.warn(`[detalhamento] ${inp.client}/${inp.slug}/${inp.resultId}: entregue com pendências de qualidade →`, gate.residualIssues);
+  // Sem modal renderável, OU renderável mas reprovado na verificação após todas as
+  // tentativas: NÃO entrega um detalhamento pela metade — falha com as pendências
+  // claras, para o client mostrar a tela de erro com a opção de rerodar.
+  if (!gate.modal || gate.residualIssues.length) {
+    console.warn(`[detalhamento] ${inp.client}/${inp.slug}/${inp.resultId}: reprovado após ${gate.attempts} tentativas →`, gate.residualIssues);
+    throw new Error(`Não passou na verificação de qualidade após ${gate.attempts} tentativas: ${gate.residualIssues.join('; ')}`);
   }
   const widgets = ((gate.modal as { widgets: Widget[] }).widgets).map((w, i) => {
     if (!w.id) (w as { id: string }).id = `${inp.resultId}-w${i}`;

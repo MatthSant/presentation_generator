@@ -86,7 +86,7 @@ function repairMessage(objetivo: string | undefined, issues: string[]): string {
 }
 
 export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
-  const max = inp.maxAttempts ?? 3;
+  const max = inp.maxAttempts ?? 5;
   const runCritic = inp.runCritic ?? true;
   let prev: unknown;
   let usage: ModalUsage | undefined;

@@ -1523,6 +1523,19 @@ body.edit-mode .tile-filter-badge { display:none; }
 .busy-spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--purple); animation: busy-spin .7s linear infinite; }
 @keyframes busy-spin { to { transform: rotate(360deg); } }
 .busy-msg { font-size: 13px; font-weight: 600; color: var(--fg); letter-spacing: .01em; }
+.busy-box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.busy-load { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+/* Tela de erro do detalhamento (reprovado após as tentativas): motivo + itens + ações */
+.busy-err { cursor: auto; max-width: 460px; background: var(--bg); border: 1px solid var(--border); border-top: 3px solid var(--red); border-radius: 12px; box-shadow: var(--shadow-md); padding: 22px 24px; }
+.busy-err-title { font-size: 15px; font-weight: 700; color: var(--fg); margin-bottom: 6px; }
+.busy-err-sub { font-size: 12.5px; color: var(--gray); margin: 0 0 10px; line-height: 1.5; }
+.busy-err-issues { margin: 0 0 16px; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.busy-err-issues li { font-size: 12.5px; color: var(--fg); line-height: 1.45; }
+.busy-err-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.busy-err-retry { font-size: 13px; font-weight: 700; color: #fff; background: var(--purple); border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-family: inherit; }
+.busy-err-retry:hover { opacity: .92; }
+.busy-err-close { font-size: 13px; font-weight: 600; color: var(--gray); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-family: inherit; }
+.busy-err-close:hover { color: var(--fg); border-color: var(--border-strong); }
 
 .tile-outlier { position: absolute; top: 6px; right: 10px; z-index: 3; font-size: 10px; font-weight: 700; letter-spacing: .02em; color: var(--gray2); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 3px 8px; cursor: pointer; opacity: 0; transition: opacity .15s, color .15s, border-color .15s; }
 .dash-tile:hover .tile-outlier { opacity: 1; }

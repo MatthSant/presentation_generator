@@ -148,7 +148,12 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         return;
       }
       if (gate.residualIssues.length) {
-        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal entregue com pendências →`, gate.residualIssues);
+        // Reprovado após todas as tentativas: não anexa um detalhamento pela metade —
+        // devolve as pendências para o client mostrar a tela de erro com "rerodar".
+        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: reprovado após ${gate.attempts} tentativas →`, gate.residualIssues);
+        record(false, gate.residualIssues, null, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
+        res.status(422).json({ error: `Não passou na verificação após ${gate.attempts} tentativas`, detail: gate.residualIssues });
+        return;
       }
 
       const historyId = record(true, [], modal, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
