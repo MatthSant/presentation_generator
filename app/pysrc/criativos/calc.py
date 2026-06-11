@@ -153,12 +153,14 @@ def metrics(rows, produto):
         'cpm': div(invest * 1000, imp),
         'ctr': pct(clk, imp),
         'tx_resposta': pct(resp, leads),
-        # vídeo / página (só com base de vídeo)
-        'hook_rate': (pct(v2s, imp) if vtot > 0 else None),
-        'hold_rate': (pct(v50, v2s) if vtot > 0 else None),
+        # vídeo / página (só com base de vídeo). Base = views_totais (proxy atual de
+        # videoviews, conforme a SKILL fonte; views_2s entra quando o campo for corrigido).
+        # Fórmulas iguais à fonte: Hook = viewsTotais/impressões; Hold = views50pc/viewsTotais.
+        'hook_rate': (pct(vtot, imp) if vtot > 0 else None),
+        'hold_rate': (pct(v50, vtot) if vtot > 0 else None),
         'connect_rate': pct(pv, clk),
         'conv_pagina': pct(leads, pv),
-        'videoviews': (round(v2s) if vtot > 0 else None),
+        'videoviews': (round(vtot) if vtot > 0 else None),
         'is_video': vtot > 0,
         'has_traffic': (imp > 0 or invest > 0),
     }

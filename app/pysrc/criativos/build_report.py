@@ -254,7 +254,16 @@ def assemble(rows, config, content, opts=None):
             fg.items.append({'id': f'{sid}-m-{k}', 'type': 'kpi-card',
                              'x': 4 if j % 2 == 0 else 8, 'y': 1 + (j // 2) * 2, 'w': 4, 'h': 2})
         fg.x = 0; fg.y = 9; fg.rowh = 0   # tabelas/gráfico fluem abaixo do bloco superior
-        for prefix, lbl, by, title in [('camp', 'Campanha', c['by_campanha'], 'Por campanha'),
+        # DADOS DO CRIATIVO — só para vídeo (hook/hold/views só existem com views_totais>0).
+        if m.get('is_video'):
+            vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
+            vitems = [{'label': calc.METRICS[k]['label'], 'value': fmtm(k, m.get(k))} for k in vid_keys]
+            fw.append({'id': f'{sid}-eb-vid', 'type': 'eyebrow', 'title': 'DADOS DO CRIATIVO', 'caption': 'retenção do vídeo'})
+            fg.add(f'{sid}-eb-vid', 'eyebrow', 12, 1)
+            fw.append({'id': f'{sid}-vid', 'type': 'kpi-strip', 'items': vitems})
+            fg.add(f'{sid}-vid', 'kpi-strip', 12, 2)
+        for prefix, lbl, by, title in [('temp', 'Temperatura', c['by_temp'], 'Por temperatura'),
+                                       ('camp', 'Campanha', c['by_campanha'], 'Por campanha'),
                                        ('pub', 'Público', c['by_publico'], 'Por público')]:
             cols, dsname = br_table(prefix, lbl, by, i)
             if cols:
