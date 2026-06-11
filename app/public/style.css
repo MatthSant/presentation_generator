@@ -824,22 +824,22 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
 .as { font-size:11.5px; color:var(--gray2); margin-top:2px; }
 
 /* ── NI ── */
-.ni { display:flex; align-items:flex-start; gap:11px; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:14px 16px; }
+.ni { display:flex; align-items:flex-start; gap:11px; background:var(--purple-bg); border:1px solid color-mix(in srgb, var(--purple) 22%, transparent); border-radius:6px; padding:15px 17px; }
 .nb { width:24px; height:24px; border-radius:6px; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .nb-p { background:var(--purple); color:#fff; }
 .nb-g { background:var(--green); color:#fff; }
 .nb-r { background:var(--red);   color:#fff; }
 .nb-a { background:var(--amber); color:#fff; }
-.nt { font-size:13px; color:var(--gray); line-height:1.55; }
+.nt { font-size:13.5px; color:color-mix(in oklch, var(--gray), var(--fg) 32%); line-height:1.6; }
 .nt strong { color:var(--fg); }
 .ni-v { flex-direction:column; gap:0; padding:10px 14px; }
 .ni-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
 .ni-num { width:24px; height:24px; border-radius:6px; background:var(--purple); color:#fff; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.ni-title { font-size:13px; font-weight:600; color:var(--fg); }
+.ni-title { font-size:14px; font-weight:700; color:var(--fg); }
 .ni-section { padding-left:8px; margin-bottom:5px; }
 .ni-section:last-child { margin-bottom:0; }
 .ni-sl { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; display:block; margin-bottom:2px; color:var(--gray2); }
-.ni-sb { font-size:11.5px; color:var(--gray); line-height:1.5; }
+.ni-sb { font-size:12.5px; color:color-mix(in oklch, var(--gray), var(--fg) 32%); line-height:1.6; }
 .ni-sl.c-a { border-left:1px solid var(--divider); padding-left:6px; }
 .ni-sl.c-g { border-left:1px solid var(--divider); padding-left:6px; }
 
