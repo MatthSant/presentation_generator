@@ -78,14 +78,26 @@ def assemble(rows, config, content, opts=None):
     dataset['cr_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
         {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest'],
          'vendas': d['m']['vendas']} for d in B['daily']]}
-    # Tabela NUMÉRICA por criativo (números crus) — fonte do banco de perguntas
-    # norteadoras (perguntas/banks/criativos.py). Não é exibida por nenhum widget.
-    _CR_NUM = ['hook_rate', 'hold_rate', 'ctr', 'cpm', 'connect_rate', 'conv_pagina',
-               'qualidade', 'tx_resposta', 'cpl', 'cpmql', 'cac', 'roas', 'retorno',
-               'leads', 'vendas', 'invest', 'conv', 'videoviews']
-    dataset['cr_creatives'] = {'dims': ['criativo'], 'filters': [], 'rows': [
-        {'criativo': c['name'], 'is_video': 1 if c['m']['is_video'] else 0,
-         **{k: c['m'].get(k) for k in _CR_NUM}} for c in valid]}
+    # Tabela NUMÉRICA por criativo — fonte do banco de perguntas (perguntas/banks/
+    # criativos.py) E tabela bindável no detalhamento. Cada métrica entra sob a CHAVE
+    # crua (ex.: 'conv') E o rótulo de exibição (ex.: 'Tx.Conv'): o deepen às vezes usa
+    # a chave (gráfico: y='conv') e às vezes o rótulo (table cols=['Tx.Conv']); com os
+    # dois aliases ambos casam e a tabela não renderiza vazia. Valores numéricos crus
+    # (gráficos e o banco precisam de número, não string formatada).
+    _CR_LABELS = {'invest': 'Invest.', 'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Tx.Conv',
+                  'cac': 'CAC', 'roas': 'ROAS', 'qualidade': 'Qualid.', 'cpl': 'CPL', 'cpm': 'CPM',
+                  'ctr': 'CTR', 'hook_rate': 'Hook', 'hold_rate': 'Hold', 'conv_pagina': 'Conv.Pág',
+                  'connect_rate': 'ConnRate', 'tx_resposta': 'Tx.Resp', 'cpmql': 'CPMQL',
+                  'retorno': 'Retorno', 'videoviews': 'Videoviews'}
+
+    def _cr_row(c):
+        row = {'criativo': c['name'], 'Criativo': c['name'], 'is_video': 1 if c['m']['is_video'] else 0}
+        for k, lab in _CR_LABELS.items():
+            v = c['m'].get(k)
+            row[k] = v
+            row[lab] = v
+        return row
+    dataset['cr_creatives'] = {'dims': ['criativo'], 'filters': [], 'rows': [_cr_row(c) for c in valid]}
 
     # ── "Criativos por desempenho" = cards clicáveis que abrem a ficha ──
     sid_of = {c['key']: f's{i + 1:02d}' for i, c in enumerate(valid, 1)}   # mesma ordem das fichas
