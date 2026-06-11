@@ -17,6 +17,7 @@ import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
 import { buildCatalog } from '../datasetCatalog.js';
 import { generateModal, generateModalDeep, type DeepDeps } from '../claude.js';
+import { gateAndRepair } from '../deepenLoop.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 import { typeOf } from '../typeRegistry.js';
@@ -91,71 +92,66 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     // moldura força o modelo a EXECUTAR a análise, não a descrever o método.
     const framedPrompt = `Execute esta análise sobre as tabelas e apresente os resultados (não descreva como fazê-la): ${prompt}`;
     const origem = prev ? 'iteracao' : 'card';
-    const record = (ok: boolean, errs: string[], m: Modal | null, usage: ModalUsage | undefined, mocked: boolean): string =>
+    const record = (ok: boolean, errs: string[], m: Modal | null, usage: ModalUsage | undefined, mocked: boolean,
+      gate?: { attempts: number; issues: string[]; residual: string[] }): string =>
       recordDeepen(ctx.db, {
         client, slug, analysisType, origem,
         sectionId: secId, blockId, modalId,
         prompt, prevModalId: (prev as Modal | undefined)?.id,
         cardContext: cardCtx, modalJson: m ?? undefined,
         validatedOk: ok, validationErrors: errs, usage, mocked,
+        gateAttempts: gate?.attempts, gateIssues: gate?.issues, gateResidual: gate?.residual,
       });
 
     try {
-      let mocked = false;
-      let modal: Modal | null = null;
       let datasetChanged = false;
-      let errors: string[] = [];
-      let usage: ModalUsage | undefined;
+      let qn = 0;
+      const deps: DeepDeps | null = deepenMeta ? {
+        meta: deepenMeta,
+        runQuery: async (fn, args) => (await runQuery(client, slug, fn, args)) ?? { status: 'erro', motivo: 'sem base' },
+        registerTable: (table, _summary) => {
+          const key = `q-${modalId}-${qn++}`;
+          dataset[key] = { dims: table.dims, filters: table.filters, rows: table.rows };
+          datasetChanged = true;
+          return key;
+        },
+        validate: (m) => {
+          const cand = assignIds({ ...(m as Modal), id: modalId });
+          const errs = validate(cand);
+          return errs.length ? errs : methodologySmell(cand);
+        },
+      } : null;
 
-      if (deepenMeta) {
-        // The model decides which cuts to request; the app computes them over the
-        // retained base and merges the aggregates into the dataset to bind to.
-        let qn = 0;
-        const deps: DeepDeps = {
-          meta: deepenMeta,
-          runQuery: async (fn, args) => (await runQuery(client, slug, fn, args)) ?? { status: 'erro', motivo: 'sem base' },
-          registerTable: (table, _summary) => {
-            const key = `q-${modalId}-${qn++}`;
-            dataset[key] = { dims: table.dims, filters: table.filters, rows: table.rows };
-            datasetChanged = true;
-            return key;
-          },
-          // qualidade entra no gate do loop: o modelo recebe o feedback e refaz
-          validate: (m) => {
-            const cand = assignIds({ ...(m as Modal), id: modalId });
-            const errs = validate(cand);
-            return errs.length ? errs : methodologySmell(cand);
-          },
-        };
-        const r = await generateModalDeep(framedPrompt, cardCtx, catalog, deps, prev, fewShot);
-        mocked = r.mocked;
-        usage = r.usage;
-        const cand = assignIds({ ...(r.modal as Modal), id: modalId });
-        errors = validate(cand);
-        if (errors.length === 0) modal = cand;
-      } else {
-        // Shallow: bind only to already-computed tables; 1 repair turn (estrutura
-        // OU cheiro de metodologia disparam o reparo).
-        for (let attempt = 0; attempt < 2; attempt++) {
-          const repair = attempt === 0 ? undefined : `A modal anterior foi rejeitada: ${errors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
-          const r = await generateModal(framedPrompt, cardCtx, catalog, repair, prev, fewShot);
-          mocked = r.mocked;
-          if (r.usage) usage = usage ? { ...r.usage, tokensIn: usage.tokensIn + r.usage.tokensIn, tokensOut: usage.tokensOut + r.usage.tokensOut, costUsd: Number((usage.costUsd + r.usage.costUsd).toFixed(6)) } : r.usage;
-          const cand = assignIds({ ...(r.modal as Modal), id: modalId });
-          errors = validate(cand);
-          if (errors.length === 0) errors = methodologySmell(cand);
-          if (errors.length === 0) { modal = cand; break; }
-          if (mocked) break;
-        }
-      }
+      // Guardrail: mesmo após ajustes, o detalhamento deve seguir respondendo ao
+      // ASSUNTO do bloco — pinamos o título do card como pergunta original.
+      const objetivo = cardCtx.title || prompt;
+      const gate = await gateAndRepair({
+        dataset, objetivo, instrucao: prompt,
+        generate: (repair, prevCand) => {
+          const p = prevCand ?? prev;
+          if (deps) {
+            const dp = repair ? `${framedPrompt}\n\n${repair}` : framedPrompt;
+            return generateModalDeep(dp, cardCtx, catalog, deps, p, fewShot, objetivo);
+          }
+          return generateModal(framedPrompt, cardCtx, catalog, repair, p, fewShot, objetivo);
+        },
+        normalize: (m) => assignIds({ ...(m as Modal), id: modalId }),
+        validateSchema: (m) => validate(m as Modal),
+      });
+      const mocked = gate.mocked;
+      const usage = gate.usage;
+      const modal = gate.modal;
       if (!modal) {
-        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, errors);
-        record(false, errors, null, usage, mocked);
-        res.status(422).json({ error: 'modal inválida', detail: errors });
+        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, gate.residualIssues);
+        record(false, gate.residualIssues, null, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
+        res.status(422).json({ error: 'modal inválida', detail: gate.residualIssues });
         return;
       }
+      if (gate.residualIssues.length) {
+        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal entregue com pendências →`, gate.residualIssues);
+      }
 
-      const historyId = record(true, [], modal, usage, mocked);
+      const historyId = record(true, [], modal, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
       modal.historyId = historyId;   // âncora do rating no client
       // Iteração = revisão da versão anterior: marca-a como revisada com o
       // comentário do consultor (a nova entrada já encadeia por prev_modal_id).

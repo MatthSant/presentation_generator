@@ -215,6 +215,16 @@ class App {
         } catch (e) {
           this.toast(`Falha na revisão: ${(e as Error).message}`);
         } finally { this.setBusy(false); }
+      }, async () => {
+        if (!window.confirm('Descartar este detalhamento? A seção será removida e não dá para desfazer.')) return;
+        this.setBusy(true, 'Descartando…');
+        try {
+          await this.api.descartarDet(section.id);
+          this.removeDetSection(section.id);
+          this.toast('Detalhamento descartado.');
+        } catch (e) {
+          this.toast(`Falha ao descartar: ${(e as Error).message}`);
+        } finally { this.setBusy(false); }
       });
       rt.classList.add('rate--section');
       host.appendChild(rt);
@@ -224,6 +234,32 @@ class App {
       this.openModal(this.pendingModal);
       this.pendingModal = null;
     }
+  }
+
+  /** Após descartar uma seção det-*: tira-a do nav (e remove a página Detalhamentos
+   *  se ela esvaziar) e navega para um destino seguro. */
+  private removeDetSection(id: string): void {
+    this.store.dropSection(id);
+    const pages = this.store.data.pages || [];
+    for (const p of pages) {
+      const i = (p.sections || []).findIndex(s => s.id === id);
+      if (i >= 0) { p.sections.splice(i, 1); break; }
+    }
+    const di = pages.findIndex(p => p.id === 'detalhamentos' && (p.sections || []).length === 0);
+    if (di >= 0) pages.splice(di, 1);
+    this.nav.build();
+
+    const det = pages.find(p => p.id === 'detalhamentos');
+    let target: { p: string; s: string } | null = det?.sections?.[0] ? { p: 'detalhamentos', s: det.sections[0].id } : null;
+    if (!target) {
+      const perg = pages.find(p => p.kind === 'perguntas');
+      if (perg?.sections?.[0]) target = { p: perg.id, s: perg.sections[0].id };
+    }
+    if (!target) {
+      const f = this.store.allSections()[0];
+      if (f) target = { p: f.pageId, s: f.id };
+    }
+    if (target) void this.go(target.p, target.s);
   }
 
   /* ───────────────────────────  Histórico — vista interativa  ─────────────────────────── */
@@ -536,7 +572,7 @@ class App {
    *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
    *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
    *  itera via prev; seção det-* regenera a própria seção). */
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'rate';
     const lbl = document.createElement('span');
@@ -620,6 +656,14 @@ class App {
     wrap.append(lbl, approve);
     if (revisar) wrap.append(askRev, rev);
     wrap.append(stars, fb);
+    if (onDiscard) {
+      const discard = document.createElement('button');
+      discard.type = 'button';
+      discard.className = 'btn btn--sm rate-discard';
+      discard.textContent = '🗑 Descartar';
+      discard.addEventListener('click', () => { void onDiscard(); });
+      wrap.append(discard);
+    }
     return wrap;
   }
 

@@ -9,10 +9,11 @@
  * bem avaliados (≥4) alimentam o few-shot (deepenHistory.getFewShot). */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import type { Express, Request, Response } from 'express';
 import type { Ctx } from '../context.js';
-import type { ReportData, PageRef, Section } from '../../shared/types.js';
+import type { ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { generateDetalhamento } from '../detalhamento.js';
 import { rateDeepen, listHistory, getEntry, recordDeepen, getFewShot, approveDeepen, markRevised } from '../deepenHistory.js';
@@ -57,7 +58,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
         out: ctx.out, client, slug, srcSecId, blockId,
         prompt: comentario,
         prev: { title: section.header?.title, widgets: section.widgets },
-        resultId: sectionId,
+        resultId: sectionId, objetivo: section.header?.title,
         fewShot: getFewShot(ctx.db, analysisType, 3),
       });
       if (r.datasetChanged) {
@@ -71,6 +72,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
         cardContext: r.cardContext,
         modalJson: { title: section.header?.title, widgets: r.widgets },
         validatedOk: true, usage: r.usage, mocked: r.mocked,
+        gateAttempts: r.gate.attempts, gateIssues: r.gate.issues, gateResidual: r.gate.residual,
       });
       if (section.historyId) markRevised(ctx.db, section.historyId, comentario);
       section.widgets = r.widgets;
@@ -81,6 +83,34 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
+  });
+
+  /** Descartar um detalhamento já feito: remove a seção det-* do relatório
+   *  (arquivo + ref na navegação + entrada de layout) e, se ela veio de uma
+   *  pergunta, zera o status dela (volta a ser seguível). Só seções det-*. */
+  app.post('/api/:client/:slug/det/:sectionId/descartar', (req: Request, res: Response) => {
+    const { client, slug, sectionId } = req.params;
+    const dir = analysisDir(ctx.out, client, slug);
+    if (!dir || !isSafeSeg(sectionId) || !sectionId.startsWith('det-')) { res.status(400).json({ error: 'bad path' }); return; }
+    const file = path.join(dir, `${sectionId}.json`);
+    if (!fs.existsSync(file)) { res.status(404).json({ error: 'seção não encontrada' }); return; }
+
+    const pageRemoved = detachFromDetalhamentos(dir, ctx, sectionId);
+
+    const layoutFile = path.join(dir, 'layout.json');
+    const layout = readJson<Layout>(layoutFile);
+    if (layout?.sections && sectionId in layout.sections) {
+      delete layout.sections[sectionId];
+      ctx.skipNextSSE.add('layout.json');
+      writeJson(layoutFile, layout);
+    }
+
+    ctx.skipNextSSE.add(`${sectionId}.json`);
+    fs.rmSync(file, { force: true });
+
+    clearPerguntaStatus(ctx, client, slug, sectionId);
+
+    res.json({ ok: true, sectionId, pageRemoved });
   });
 
   app.get('/api/deepen-history', (req: Request, res: Response) => {
@@ -116,6 +146,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
     try {
       const r = await generateDetalhamento({
         out: ctx.out, client, slug, srcSecId, blockId, prompt, resultId: sectionId,
+        objetivo: prompt,
         fewShot: getFewShot(ctx.db, analysisType, 3),
       });
       if (r.datasetChanged) {
@@ -131,6 +162,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
         prompt, prevModalId: String(entry.modal_id || ''),
         cardContext: r.cardContext, modalJson: { title, widgets: r.widgets },
         validatedOk: true, usage: r.usage, mocked: r.mocked,
+        gateAttempts: r.gate.attempts, gateIssues: r.gate.issues, gateResidual: r.gate.residual,
       });
       section.historyId = newId;
       ctx.skipNextSSE.add(`${sectionId}.json`);
@@ -158,4 +190,38 @@ function attachToDetalhamentos(dir: string, ctx: Ctx, ref: { id: string; label: 
   if (!page.sections.some((s) => s.id === ref.id)) page.sections.push(ref);
   ctx.skipNextSSE.add('data.json');
   writeJson(dataFile, data);
+}
+
+/** Remove a seção da página Detalhamentos; descarta a página se ela esvaziar.
+ *  Retorna true se a página foi removida. */
+function detachFromDetalhamentos(dir: string, ctx: Ctx, sectionId: string): boolean {
+  const dataFile = path.join(dir, 'data.json');
+  const data = readJson<ReportData>(dataFile);
+  if (!data?.pages) return false;
+  const page = data.pages.find((p) => p.id === 'detalhamentos');
+  if (!page) return false;
+  page.sections = (page.sections || []).filter((s) => s.id !== sectionId);
+  let pageRemoved = false;
+  if (page.sections.length === 0) {
+    data.pages = data.pages.filter((p) => p.id !== 'detalhamentos');
+    pageRemoved = true;
+  }
+  ctx.skipNextSSE.add('data.json');
+  writeJson(dataFile, data);
+  return pageRemoved;
+}
+
+/** Append-only: registra 'descartar' para a pergunta dona deste det (se houver),
+ *  fazendo o liveStatus voltar a tratá-la como não-seguida. No-op para detalhamentos
+ *  sem pergunta de origem (ex.: replay, detalhar por card). */
+function clearPerguntaStatus(ctx: Ctx, client: string, slug: string, sectionId: string): void {
+  const owner = ctx.db.prepare(
+    `SELECT pergunta_id, pergunta FROM perguntas_history
+       WHERE client = ? AND slug = ? AND modal_id = ? ORDER BY created_at DESC LIMIT 1`,
+  ).get(client, slug, sectionId) as { pergunta_id?: string; pergunta?: string } | undefined;
+  if (!owner?.pergunta_id) return;
+  ctx.db.prepare(
+    `INSERT INTO perguntas_history (id, client, slug, pergunta_id, pergunta, acao, modal_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 'descartar', ?, ?)`,
+  ).run(crypto.randomUUID(), client, slug, owner.pergunta_id, owner.pergunta || '', sectionId, new Date().toISOString());
 }

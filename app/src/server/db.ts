@@ -88,6 +88,9 @@ const SCHEMA = `
     feedback_text     TEXT,
     feedback_at       TEXT,
     status            TEXT NOT NULL DEFAULT 'pendente',  -- pendente | aprovado | revisado
+    gate_attempts     INTEGER NOT NULL DEFAULT 1,        -- nº de tentativas do loop de qualidade
+    gate_issues       TEXT NOT NULL DEFAULT '[]',        -- todas as issues encontradas/reparadas
+    gate_residual     TEXT NOT NULL DEFAULT '[]',        -- pendências que sobraram na versão entregue
     created_at        TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_dh ON deepen_history(client, slug, created_at);
@@ -104,6 +107,15 @@ export function openDb(dbPath: string): DB {
   // status do fluxo de revisão — 'pendente' | 'aprovado' | 'revisado'.
   try { handle.exec("ALTER TABLE deepen_history ADD COLUMN status TEXT NOT NULL DEFAULT 'pendente'"); }
   catch { /* coluna já existe */ }
+  // Telemetria do gate de qualidade — para calibrar o motor ao longo do tempo.
+  for (const col of [
+    'gate_attempts INTEGER NOT NULL DEFAULT 1',
+    "gate_issues TEXT NOT NULL DEFAULT '[]'",
+    "gate_residual TEXT NOT NULL DEFAULT '[]'",
+  ]) {
+    try { handle.exec(`ALTER TABLE deepen_history ADD COLUMN ${col}`); }
+    catch { /* coluna já existe */ }
+  }
   return handle;
 }
 

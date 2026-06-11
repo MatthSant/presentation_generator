@@ -91,6 +91,12 @@ export class Api {
     });
   }
 
+  descartarDet(sectionId: string): Promise<{ ok: boolean; sectionId: string; pageRemoved: boolean }> {
+    return this.json(`${this.base()}/det/${encodeURIComponent(sectionId)}/descartar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+  }
+
   historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {
     return this.json(`${this.base()}/render`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

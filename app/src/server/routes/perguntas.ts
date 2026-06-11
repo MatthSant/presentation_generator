@@ -69,6 +69,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const m = new Map<string, { status: 'seguida' | 'ignorada'; det?: string }>();
     for (const r of rows) {
       if (r.acao === 'ignorar') m.set(r.pergunta_id, { status: 'ignorada' });
+      else if (r.acao === 'descartar') m.delete(r.pergunta_id);
       else if (r.acao === 'seguir' || r.acao === 'detalhamento') {
         const prev = m.get(r.pergunta_id);
         const det = r.modal_id || (prev?.status === 'seguida' ? prev.det : undefined);
@@ -151,7 +152,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       r = await generateDetalhamento({
         out: ctx.out, client, slug,
         srcSecId: p.deepen.sectionId, blockId: p.deepen.blockId, prompt: p.deepen.prompt,
-        resultId: sectionId,
+        resultId: sectionId, objetivo: p.pergunta,
         fewShot: getFewShot(ctx.db, analysisTypeOf(client, slug, dir), 3),
       });
     } catch (e) {
@@ -175,6 +176,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       prompt: p.deepen.prompt, cardContext: r.cardContext,
       modalJson: { title: p.pergunta, widgets: r.widgets },
       validatedOk: true, usage: r.usage, mocked: r.mocked,
+      gateAttempts: r.gate.attempts, gateIssues: r.gate.issues, gateResidual: r.gate.residual,
     });
     section.historyId = historyId;   // âncora do rating no rodapé da seção
     ctx.skipNextSSE.add(`${sectionId}.json`);

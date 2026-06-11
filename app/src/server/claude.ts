@@ -145,8 +145,24 @@ export async function generateInsights(digest: Digest, opts?: { tone?: string })
 
 // --- B2: deepen a card into a modal -----------------------------------------
 
+const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha pelo dado, não por estética):
+- NUNCA um gráfico de valor único / 1 categoria (ex.: uma barra "Geral" sozinha): um número é um kpi, não um gráfico.
+- bar / bar-horizontal: comparar 2–12 categorias discretas. Não use com 1 categoria nem com >16.
+- line / area: evolução ao longo do tempo (≥3 pontos no eixo). Não use para categorias sem ordem temporal.
+- stacked: composição que soma um todo (partes de 100%/total). Não use se as séries não compõem um todo.
+- donut: participação de poucas fatias (≤6). Não use para evolução nem com muitas fatias.
+- SÉRIES (agrupado/empilhado): no máximo ~6. Com mais (ex.: uma por lançamento) o gráfico fica ilegível —
+  agregue, foque nas MAIORES variações, ou use heatmap. Tabela vazia (só cabeçalho) ou gráfico que não
+  comunica é DEFEITO: corte ou troque por kpi/prosa.`;
+
+const GUARDRAIL = `GUARDRAIL — NUNCA perca de vista a PERGUNTA ORIGINAL (campo "pergunta_original" do input): toda a
+saída existe para respondê-la. Pedidos de revisão/ajuste ("instrucao") refinam a FORMA (trocar gráfico,
+encurtar, focar um grupo) — JAMAIS trocam o alvo. Se um ajuste afastaria a saída da pergunta original,
+priorize a pergunta. A primeira coisa que o leitor deve extrair é a resposta DIRETA à pergunta original.`;
+
 const MODAL_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil, gerando uma MODAL
 com widgets do app. Regras inegociáveis:
+${GUARDRAIL}
 - FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as
   tabelas do catálogo desse critério; não troque por outro critério.
 - Entenda O QUE O BLOCO MOSTRA por card.title, card.bind e card.tabs (datasets que
@@ -158,7 +174,21 @@ com widgets do app. Regras inegociáveis:
   são TEXTO — use só em widgets de TABELA; num gráfico elas renderizam zerado. Para
   representatividade/diff/conversão num gráfico, use as tabelas numéricas (ex.: *_rank,
   *_grp).
-- A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
+- DECOMPONHA em blocos escaneáveis — não num paredão de prosa. Vocabulário disponível
+  (use o que couber ao recorte; nem todos precisam aparecer):
+  • highlight {text,label?,color?} — a ALEGAÇÃO central (1 linha) e a IMPLICAÇÃO ("e daí?").
+  • kpi {label,value,color?,format?} — um número-chave isolado (chip), ex.: label "CPA", value "+35%".
+  • table — a COMPARAÇÃO por segmento (uma linha por grupo, deltas por coluna): é o lugar
+    do comparativo — NÃO descreva 3+ grupos em prosa.
+  • chart — UM gráfico que conte a MESMA história do texto (achado sobre conversão → gráfico
+    de conversão; não troque o eixo).
+  • ni / ni-vertical {n,title,why,action} — cada AÇÃO recomendada como card (porquê + acionável),
+    não como item de lista dentro de um parágrafo.
+  • find-block {tag,tagColor,title,detail} — um achado nomeado e tagueado.
+  • find-note {text} — só CONECTOR interpretativo curto entre blocos; NUNCA o depósito da
+    análise inteira. Números são permitidos como narrativa em qualquer widget de texto e no
+    value de um kpi, sempre extraídos das tabelas (nunca inventados).
+  color/tagColor ∈ p(roxo) g(verde) a(âmbar) r(vermelho) n(eutro).
 - RECORTE POR VALOR (where): cada linha da tabela é uma combinação das "dims". Para
   ISOLAR um valor de uma dimensão (um mês, uma categoria), use bind.where — ex.:
   {"dataset":"vendas","x":"canal","y":"receita","where":{"mes":"Jan"}}. Use SOMENTE
@@ -168,8 +198,12 @@ com widgets do app. Regras inegociáveis:
 - Se o recorte NÃO é representável — não há coluna nem valor para ele em tabela alguma
   (ex.: categoria por mês quando nenhuma tabela cruza os dois) — diga isso num find-note;
   nunca finja um filtro que o bind não aplica nem rotule um recorte que não foi aplicado.
-- No máximo UM gráfico. Tabela só se for curta; para tabelas longas (muitas linhas /
-  vários períodos), prefira um gráfico agregado ou a prosa — nunca despeje a tabela inteira.
+- No máximo UM gráfico. Para a comparação por segmento, prefira a table (com deltas) à prosa;
+  só evite a table quando ela ficaria longa demais (muitas linhas / vários períodos) — aí
+  agregue num gráfico. Nunca despeje a tabela inteira.
+${CHART_GUIDE}
+- Estrutura sugerida (adapte ao recorte, não é obrigatória): alegação (highlight) → comparação
+  (table ou 1 gráfico) → implicação (highlight/find-note) → ações (ni), quando houver.
 - Se vier "modal_anterior", AJUSTE/aprofunde essa modal conforme a "instrucao",
   partindo dela e mantendo o que faz sentido (emita a modal final completa).
 - ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: os find-note trazem números
@@ -196,6 +230,7 @@ function bindSchema(tableNames: string[]): unknown {
 }
 
 function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
+  const color = { type: 'string', enum: ['p', 'g', 'a', 'r', 'n'] };
   return {
     type: 'object',
     required: ['id', 'title', 'widgets'],
@@ -203,10 +238,14 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
       id: { type: 'string', pattern: '^modal-' },
       title: { type: 'string' },
       widgets: {
-        type: 'array', minItems: 1, maxItems: 6,
+        type: 'array', minItems: 1, maxItems: 9,
         items: {
           oneOf: [
             { type: 'object', required: ['type', 'text'], properties: { type: { const: 'find-note' }, id: { type: 'string' }, text: { type: 'string' } } },
+            { type: 'object', required: ['type', 'text'], properties: { type: { const: 'highlight' }, id: { type: 'string' }, text: { type: 'string' }, label: { type: 'string' }, color } },
+            { type: 'object', required: ['type', 'label', 'value'], properties: { type: { const: 'kpi' }, id: { type: 'string' }, label: { type: 'string' }, value: { type: ['string', 'number'] }, color, format: { type: 'string' } } },
+            { type: 'object', required: ['type', 'title'], properties: { type: { const: 'find-block' }, id: { type: 'string' }, tag: { type: 'string' }, tagColor: color, title: { type: 'string' }, detail: { type: 'string' } } },
+            { type: 'object', required: ['type', 'title'], properties: { type: { type: 'string', enum: ['ni', 'ni-vertical'] }, id: { type: 'string' }, n: { type: ['string', 'number'] }, title: { type: 'string' }, why: { type: 'string' }, action: { type: 'string' } } },
             { type: 'object', required: ['type', 'chartType', 'bind'], properties: { type: { const: 'chart' }, id: { type: 'string' }, title: { type: 'string' }, chartType: { type: 'string', enum: ['bar', 'bar-horizontal', 'line', 'stacked', 'donut', 'area'] }, diverging: { type: 'boolean' }, bind: bindSchema(tableNames) } },
             { type: 'object', required: ['type', 'cols', 'bind'], properties: { type: { const: 'table' }, id: { type: 'string' }, title: { type: 'string' }, cols: { type: 'array', items: { type: 'string' } }, bind: bindSchema(tableNames) } },
           ],
@@ -229,13 +268,13 @@ function usageOf(msg: Anthropic.Message): ModalUsage {
   return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model: MODEL };
 }
 
-function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
+export function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
   if (!a) return b;
   return { tokensIn: a.tokensIn + b.tokensIn, tokensOut: a.tokensOut + b.tokensOut,
     costUsd: Number((a.costUsd + b.costUsd).toFixed(6)), model: b.model };
 }
 
-export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[]): Promise<ModalResult> {
+export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: mockModal(catalog, card), mocked: true };
 
@@ -245,7 +284,7 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   // (the display "_detail" rows are huge), and columns + numericCols + dimValues
   // already tell the model what it needs.
   const lean = catalog.tables.map(({ sample, ...t }) => t);
-  const payload = { instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev,
+  const payload = { pergunta_original: objetivo, instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined };
   const msg = await loggedCreate(client, {
     model: MODEL,
@@ -258,6 +297,59 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
   if (!tu) throw new Error('Claude não retornou tool_use');
   return { modal: tu.input, mocked: false, usage: usageOf(msg) };
+}
+
+// --- Critic: valida SEMANTICAMENTE o detalhamento contra a pergunta original --
+
+const CRITIQUE_SCHEMA = {
+  type: 'object',
+  required: ['answersQuestion', 'numbersGrounded', 'issues'],
+  properties: {
+    answersQuestion: { type: 'boolean', description: 'a saída responde DIRETAMENTE a pergunta_original?' },
+    numbersGrounded: { type: 'boolean', description: 'todo número da prosa bate com os "dados" (ou é derivável deles)?' },
+    issues: { type: 'array', items: { type: 'string' }, description: 'até 5 problemas acionáveis (vazio = ok)' },
+  },
+} as const;
+
+const CRITIC_SYSTEM = `Você é um revisor de qualidade de um detalhamento analítico do app. Recebe a
+PERGUNTA que ele deve responder, os WIDGETS gerados (tipos + títulos + textos) e os
+DADOS reais por trás dos gráficos/tabelas ("dados": números JÁ calculados, com os valores
+e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
+- answersQuestion: o conjunto RESPONDE diretamente à pergunta? (não tangencia, não troca de assunto)
+- numbersGrounded: confira a ARITMÉTICA. TODO número citado na prosa (find-note/highlight/find-block/ni)
+  e no value de um kpi deve estar nos "dados" OU ser corretamente DERIVÁVEL deles (delta, variação
+  p.p., %, razão, soma, média). Tolere arredondamento e formatação (R$, %, vírgula decimal, "p.p.",
+  milhar). Marque FALSE se: um número não confere com os dados; a prosa cita números mas os "dados"
+  estão vazios / não os sustentam; ou o recorte/consulta usado não faz sentido para a pergunta.
+- issues (≤5, cada uma 1 linha ACIONÁVEL), p.ex.:
+  • não responde à pergunta / responde outra coisa
+  • número "X" não confere com os dados (esperado ~Y) — ou números sem tabela/gráfico que os sustente
+  • o recorte/consulta não faz sentido para a pergunta
+  • paredão de prosa em vez de blocos; falta conclusão acionável; gráfico inadequado (1 categoria, séries demais)
+Não invente defeitos: se está bom, answersQuestion=true, numbersGrounded=true e issues=[].`;
+
+/** Juízo semântico + NUMÉRICO de uma modal/seção já válida no schema: responde à
+ *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
+ *  binds)? o recorte faz sentido? Devolve {ok, issues} para o gate de reparo.
+ *  No-op (ok) em modo mock/sem API key, para o fluxo offline seguir testável. */
+export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; usage?: ModalUsage }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [] };
+  const ws = ((modal as { widgets?: Array<Record<string, unknown>> })?.widgets) || [];
+  const slim = ws.map((w) => ({ type: w.type, title: w.title, label: w.label, value: w.value, text: w.text, tag: w.tag, why: w.why, action: w.action, chartType: w.chartType, cols: w.cols }));
+  const client = new Anthropic({ apiKey });
+  const msg = await loggedCreate(client, {
+    model: MODEL, max_tokens: 1024,
+    system: [{ type: 'text', text: CRITIC_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    tools: [{ name: 'emit_critique', description: 'Emite o veredito de qualidade.', input_schema: CRITIQUE_SCHEMA as unknown as Anthropic.Tool.InputSchema }],
+    tool_choice: { type: 'tool', name: 'emit_critique' },
+    messages: [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao, widgets: slim, dados: factsheet }) }],
+  }, 'critic');
+  const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+  const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; issues?: string[] };
+  const issues = Array.isArray(out.issues) ? out.issues.filter((s) => typeof s === 'string' && s.trim()) : [];
+  const ok = out.answersQuestion !== false && out.numbersGrounded !== false && issues.length === 0;
+  return { ok, issues, usage: usageOf(msg) };
 }
 
 // --- B2 deep: model-driven query loop over the retained base ----------------
@@ -278,20 +370,28 @@ dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calc
 devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
 gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
 
+${GUARDRAIL}
+
 ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: a prosa traz os números consultados,
 comparações e uma conclusão acionável — jamais instruções de como fazer ("calcule…",
 "avalie…"). Se um recorte não estiver disponível nas tools, diga em uma linha o que
 falta e apresente o corte mais próximo (com números). Se vierem "exemplos_aprovados",
 siga o estilo/estrutura deles (nunca os dados).
 
-A modal deve ser ENXUTA e legível — qualidade, não quantidade:
+A modal deve ser ENXUTA e ESCANEÁVEL — decomposta em blocos, não num paredão de prosa:
 - NO MÁXIMO UM gráfico, o mais informativo do recorte. Para um cruzamento, prefira
   barras agrupadas (chartType "bar", x="grupo", series="cruzar", y="valor").
 - NUNCA use gráfico de valor único (ex.: associação / Cramér's V) — comente
   associação na PROSA, não num gráfico.
 - Use tabela só se for curta; NUNCA despeje a tabela inteira de um cruzamento.
-- 1 a 2 find-note curtos que interpretam o número e dão a implicação prática.
-- Estrutura sugerida: nota de contexto → 1 gráfico → nota de conclusão.
+${CHART_GUIDE}
+- VOCABULÁRIO (use o que couber): highlight {text,label?,color?} p/ a ALEGAÇÃO e a
+  IMPLICAÇÃO; kpi {label,value,color?} p/ um número-chave isolado; table p/ a comparação
+  por grupo (deltas por coluna — não descreva grupos em prosa); ni/ni-vertical
+  {n,title,why,action} p/ cada AÇÃO; find-block {tag,tagColor,title,detail} p/ um achado
+  nomeado. O find-note é só conector curto, NUNCA o depósito da análise. color ∈ p/g/a/r/n.
+- Estrutura sugerida (adapte ao recorte): alegação (highlight) → comparação (table ou 1
+  gráfico) → implicação (highlight/find-note) → ações (ni), quando houver.
 
 FOCO (importante): o card pertence à página de um critério específico — campos
 "criterio" e "pagina" no input. FOQUE nesse critério: use card.criterio como
@@ -310,7 +410,8 @@ exatamente o que a "instrucao" pede (ex.: trocar o gráfico, encurtar, focar num
 grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
 
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
-catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
+catálogo inicial); números só na prosa dos widgets de texto (find-note/highlight/
+find-block/ni) e no value de um kpi — sempre extraídos das tabelas. Se uma consulta voltar
 "nao_disponivel", diga isso na prosa — nunca invente número.
 
 BIND: para isolar um valor de uma dimensão numa tabela já existente, use bind.where
@@ -342,13 +443,13 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[]): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
   let usage: ModalUsage | undefined;
 
