@@ -28,8 +28,11 @@ MODE_SUB = {'resultado': 'performance de venda — ROAS, conversão, retorno (�
             'captacao': 'eficiência de captação — custo, qualidade, projeção (★ CPMQL projetado)'}
 MODE_RANK = {'resultado': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'Vendas', 'ROAS', 'CPL', 'Hook', 'Hold'],
              'captacao': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'CPL', 'CPMQL', 'CPM', 'CTR', 'Hook', 'Hold']}
-MODE_BR = {'resultado': ['Invest.', 'Leads', 'Vendas', 'CPL', 'ROAS'],
-           'captacao': ['Invest.', 'Leads', 'CPL', 'CPMQL', 'CTR']}
+# Colunas das tabelas da ficha (por campanha/público) por modo — espelham as do HTML
+# fonte: além das básicas, qualificação, taxa de resposta, conversão de página, connect
+# rate e hook rate (todas já calculadas em calc.metrics()).
+MODE_BR = {'resultado': ['Invest.', 'Leads', 'Vendas', 'Tx.Conv', 'CAC', 'ROAS', 'Qualid.'],
+           'captacao': ['Invest.', 'Leads', 'CPL', 'CPM', 'CTR', 'Hook', 'Conv.Pág', 'ConnRate', 'Qualid.', 'Tx.Resp', 'CPMQL']}
 MODES_OPT = [{'id': 'resultado', 'label': 'Resultado Final'}, {'id': 'captacao', 'label': 'Captação'}]
 # Eixos do scatter e métricas da evolução diária (esq, dir) — mudam por modo.
 SCATTER_XY = {'resultado': ('invest', 'retorno'), 'captacao': ('invest', 'cpmql')}
@@ -211,7 +214,10 @@ def assemble(rows, config, content, opts=None):
                 continue
             rws.append({dimlabel: name, 'Invest.': mny(mm['invest']), 'Leads': intf(mm['leads']),
                         'Vendas': intf(mm['vendas']), 'CPL': mny(mm['cpl']), 'CPMQL': mny(mm['cpmql']),
-                        'CTR': pcv(mm['ctr']), 'ROAS': fmtm('roas', mm['roas'])})
+                        'CPM': mny(mm['cpm']), 'CTR': pcv(mm['ctr']), 'ROAS': fmtm('roas', mm['roas']),
+                        'Tx.Conv': pcv(mm['conv']), 'CAC': mny(mm['cac']), 'Qualid.': pcv(mm['qualidade']),
+                        'Hook': pcv(mm['hook_rate']), 'Conv.Pág': pcv(mm['conv_pagina']),
+                        'ConnRate': pcv(mm['connect_rate']), 'Tx.Resp': pcv(mm['tx_resposta'])})
         if not rws:
             return None, None
         name = f'cr_{i}_{prefix}'
@@ -255,7 +261,7 @@ def assemble(rows, config, content, opts=None):
                 fw.append({'id': f'{sid}-eb-{prefix}', 'type': 'eyebrow', 'title': title.upper(), 'caption': ''})
                 fg.add(f'{sid}-eb-{prefix}', 'eyebrow', 12, 1)
                 fw.append({'id': f'{sid}-{prefix}', 'type': 'table', 'title': title, 'cols': cols, 'bind': {'dataset': dsname}})
-                fg.add(f'{sid}-{prefix}', 'table', 6, 4)
+                fg.add(f'{sid}-{prefix}', 'table', 12, 4)
         if c['daily']:
             dataset[f'cr_{i}_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
                 {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest']} for d in c['daily']]}
