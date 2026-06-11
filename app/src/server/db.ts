@@ -95,6 +95,15 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_dh ON deepen_history(client, slug, created_at);
   CREATE INDEX IF NOT EXISTS idx_dh_fewshot ON deepen_history(analysis_type, rating, validated_ok, created_at);
+
+  -- Análises ocultadas da home (não deletadas): some da listagem, segue acessível
+  -- por URL direta. Reversível. Feature de plataforma, sem distinção por tipo.
+  CREATE TABLE IF NOT EXISTS archived_analyses (
+    client      TEXT NOT NULL,
+    slug        TEXT NOT NULL,
+    archived_at TEXT NOT NULL,
+    PRIMARY KEY (client, slug)
+  );
 `;
 
 /** Open (and initialize) a SQLite store at the given path. `:memory:` works for tests. */

@@ -9,6 +9,7 @@ import { OUT, PUBLIC } from './paths.js';
 import type { Ctx } from './context.js';
 import { registerContent } from './routes/content.js';
 import { registerAnalyses } from './routes/analyses.js';
+import { registerArchive } from './routes/archive.js';
 import { registerReport } from './routes/report.js';
 import { registerGuia } from './routes/guia.js';
 import { registerLayout } from './routes/layout.js';
@@ -58,6 +59,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
     setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
 
   registerAnalyses(app, ctx);
+  registerArchive(app, ctx);
   registerReport(app);
   registerGuia(app);
   registerContent(app, ctx);
