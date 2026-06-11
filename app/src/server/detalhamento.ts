@@ -16,7 +16,9 @@ import { generateModal, generateModalDeep, type DeepDeps } from './claude.js';
 import { runQuery } from './pygen.js';
 import { validateSection } from '../shared/validate.js';
 import { typeOf } from './typeRegistry.js';
-import { buildCardContext } from './cardContext.js';
+import { buildCardContext, type CardContext } from './cardContext.js';
+import { methodologySmell } from './deepenHistory.js';
+import type { ModalUsage, FewShotExample } from './claude.js';
 
 interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
 type DataMap = Record<string, DataTable>;
@@ -28,9 +30,14 @@ export interface DetalheInput {
   prompt: string; prev?: unknown;
   /** Id of the section to be created — used to namespace any on-demand query tables. */
   resultId: string;
+  /** Exemplos bem avaliados (few-shot) injetados no prompt. */
+  fewShot?: FewShotExample[];
 }
 
-export interface DetalheResult { widgets: Widget[]; mocked: boolean; datasetChanged: boolean; dataset: DataMap }
+export interface DetalheResult {
+  widgets: Widget[]; mocked: boolean; datasetChanged: boolean; dataset: DataMap;
+  usage?: ModalUsage; cardContext: CardContext; analysisType: string;
+}
 
 const widgetsOf = (modal: unknown): Widget[] =>
   Array.isArray((modal as Modal)?.widgets) ? (modal as Modal).widgets! : [];
@@ -60,10 +67,15 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
   const baseConfig = hasBase ? readJson<Record<string, unknown>>(path.join(baseDir, 'config.json')) : null;
   const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
 
+  const analysisType = typeOf(baseConfig ?? undefined).type;
+  // Moldura: os prompts dos bancos são instruções — o modelo deve EXECUTÁ-las.
+  const framedPrompt = `Execute esta análise sobre as tabelas e apresente os resultados (não descreva como fazê-la): ${inp.prompt}`;
+
   let mocked = false;
   let datasetChanged = false;
   let widgets: Widget[] | null = null;
   let errors: string[] = [];
+  let usage: ModalUsage | undefined;
 
   if (deepenMeta) {
     let qn = 0;
@@ -76,20 +88,26 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
         datasetChanged = true;
         return key;
       },
-      validate: (modal) => validate(widgetsOf(modal)),
+      validate: (modal) => {
+        const errs = validate(widgetsOf(modal));
+        return errs.length ? errs : methodologySmell(modal);
+      },
     };
-    const r = await generateModalDeep(inp.prompt, cardCtx, catalog, deps, inp.prev);
+    const r = await generateModalDeep(framedPrompt, cardCtx, catalog, deps, inp.prev, inp.fewShot);
     mocked = r.mocked;
+    usage = r.usage;
     const ws = widgetsOf(r.modal);
     errors = validate(ws);
     if (errors.length === 0) widgets = ws;
   } else {
     for (let attempt = 0; attempt < 2; attempt++) {
       const repair = attempt === 0 ? undefined : `A saída anterior foi rejeitada: ${errors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
-      const r = await generateModal(inp.prompt, cardCtx, catalog, repair, inp.prev);
+      const r = await generateModal(framedPrompt, cardCtx, catalog, repair, inp.prev, inp.fewShot);
       mocked = r.mocked;
+      if (r.usage) usage = usage ? { ...r.usage, tokensIn: usage.tokensIn + r.usage.tokensIn, tokensOut: usage.tokensOut + r.usage.tokensOut, costUsd: Number((usage.costUsd + r.usage.costUsd).toFixed(6)) } : r.usage;
       const ws = widgetsOf(r.modal);
       errors = validate(ws);
+      if (errors.length === 0) errors = methodologySmell(r.modal);
       if (errors.length === 0) { widgets = ws; break; }
       if (mocked) break;
     }
@@ -97,5 +115,5 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
 
   if (!widgets) throw new Error(`detalhamento inválido: ${errors.join('; ')}`);
   widgets.forEach((w, i) => { if (!w.id) (w as { id: string }).id = `${inp.resultId}-w${i}`; });
-  return { widgets, mocked, datasetChanged, dataset };
+  return { widgets, mocked, datasetChanged, dataset, usage, cardContext: cardCtx, analysisType };
 }

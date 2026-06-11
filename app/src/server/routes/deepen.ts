@@ -21,6 +21,8 @@ import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 import { typeOf } from '../typeRegistry.js';
 import { buildCardContext } from '../cardContext.js';
+import { recordDeepen, getFewShot, methodologySmell } from '../deepenHistory.js';
+import type { ModalUsage } from '../claude.js';
 
 interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
 type DataMap = Record<string, DataTable>;
@@ -82,11 +84,28 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const baseConfig = hasBase ? readJson<Record<string, unknown>>(path.join(baseDir, 'config.json')) : null;
     const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
 
+    const navMeta = readJson<{ meta?: { controls?: { kind?: string } } }>(path.join(dir, 'data.json'));
+    const analysisType = (hasBase ? typeOf(baseConfig) : typeOf(navMeta?.meta?.controls?.kind)).type;
+    const fewShot = getFewShot(ctx.db, analysisType, 3);
+    // Os prompts dos bancos (e do consultor) são instruções por design — a
+    // moldura força o modelo a EXECUTAR a análise, não a descrever o método.
+    const framedPrompt = `Execute esta análise sobre as tabelas e apresente os resultados (não descreva como fazê-la): ${prompt}`;
+    const origem = prev ? 'iteracao' : 'card';
+    const record = (ok: boolean, errs: string[], m: Modal | null, usage: ModalUsage | undefined, mocked: boolean): string =>
+      recordDeepen(ctx.db, {
+        client, slug, analysisType, origem,
+        sectionId: secId, blockId, modalId,
+        prompt, prevModalId: (prev as Modal | undefined)?.id,
+        cardContext: cardCtx, modalJson: m ?? undefined,
+        validatedOk: ok, validationErrors: errs, usage, mocked,
+      });
+
     try {
       let mocked = false;
       let modal: Modal | null = null;
       let datasetChanged = false;
       let errors: string[] = [];
+      let usage: ModalUsage | undefined;
 
       if (deepenMeta) {
         // The model decides which cuts to request; the app computes them over the
@@ -101,30 +120,43 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
             datasetChanged = true;
             return key;
           },
-          validate: (modal) => validate(assignIds({ ...(modal as Modal), id: modalId })),
+          // qualidade entra no gate do loop: o modelo recebe o feedback e refaz
+          validate: (m) => {
+            const cand = assignIds({ ...(m as Modal), id: modalId });
+            const errs = validate(cand);
+            return errs.length ? errs : methodologySmell(cand);
+          },
         };
-        const r = await generateModalDeep(prompt, cardCtx, catalog, deps, prev);
+        const r = await generateModalDeep(framedPrompt, cardCtx, catalog, deps, prev, fewShot);
         mocked = r.mocked;
+        usage = r.usage;
         const cand = assignIds({ ...(r.modal as Modal), id: modalId });
         errors = validate(cand);
         if (errors.length === 0) modal = cand;
       } else {
-        // Shallow: bind only to already-computed tables; 1 repair turn.
+        // Shallow: bind only to already-computed tables; 1 repair turn (estrutura
+        // OU cheiro de metodologia disparam o reparo).
         for (let attempt = 0; attempt < 2; attempt++) {
           const repair = attempt === 0 ? undefined : `A modal anterior foi rejeitada: ${errors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
-          const r = await generateModal(prompt, cardCtx, catalog, repair, prev);
+          const r = await generateModal(framedPrompt, cardCtx, catalog, repair, prev, fewShot);
           mocked = r.mocked;
+          if (r.usage) usage = usage ? { ...r.usage, tokensIn: usage.tokensIn + r.usage.tokensIn, tokensOut: usage.tokensOut + r.usage.tokensOut, costUsd: Number((usage.costUsd + r.usage.costUsd).toFixed(6)) } : r.usage;
           const cand = assignIds({ ...(r.modal as Modal), id: modalId });
           errors = validate(cand);
+          if (errors.length === 0) errors = methodologySmell(cand);
           if (errors.length === 0) { modal = cand; break; }
           if (mocked) break;
         }
       }
       if (!modal) {
         console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, errors);
+        record(false, errors, null, usage, mocked);
         res.status(422).json({ error: 'modal inválida', detail: errors });
         return;
       }
+
+      const historyId = record(true, [], modal, usage, mocked);
+      modal.historyId = historyId;   // âncora do rating no client
 
       if (datasetChanged) writeJson(path.join(dir, 'dataset.json'), dataset);
       section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id), modal];
@@ -142,9 +174,10 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         created_at: new Date().toISOString(),
       });
 
-      res.json({ ok: true, modal, mocked, blockId, datasetChanged });
+      res.json({ ok: true, modal, mocked, blockId, datasetChanged, historyId });
     } catch (e) {
       console.error(`[deepen] ${client}/${slug}/${secId} ${blockId}:`, (e as Error).message);
+      record(false, [(e as Error).message], null, undefined, false);
       res.status(500).json({ error: (e as Error).message });
     }
   });

@@ -11,7 +11,17 @@ export class Api {
 
   private async json<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, init);
-    if (!res.ok) throw new Error(`${init?.method || 'GET'} ${url} → ${res.status}`);
+    if (!res.ok) {
+      // O corpo do erro carrega o motivo real (ex.: erros de validação do deepen
+      // num 422) — sem lê-lo, o toast só mostraria o status.
+      let detail = '';
+      try {
+        const body = await res.json() as { error?: string; detail?: unknown };
+        const d = Array.isArray(body.detail) ? body.detail.join('; ') : (body.detail ? String(body.detail) : '');
+        detail = [body.error, d].filter(Boolean).join(' — ');
+      } catch { /* corpo não-JSON: fica só o status */ }
+      throw new Error(detail || `${init?.method || 'GET'} ${url} → ${res.status}`);
+    }
     return res.json() as Promise<T>;
   }
 
@@ -34,7 +44,7 @@ export class Api {
     });
   }
 
-  deepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean; datasetChanged?: boolean }> {
+  deepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean; datasetChanged?: boolean; historyId?: string }> {
     return this.json(`${this.base()}/section/${encodeURIComponent(secId)}/deepen`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blockId, prompt, prev }),
@@ -43,7 +53,7 @@ export class Api {
 
   getPerguntas(): Promise<{ perguntas: Pergunta[] }> { return this.json(`${this.base()}/perguntas`); }
 
-  seguirPergunta(pid: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean }> {
+  seguirPergunta(pid: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
     return this.json(`${this.base()}/perguntas/${encodeURIComponent(pid)}/seguir`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     });
@@ -53,10 +63,21 @@ export class Api {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     });
   }
-  addCustomPergunta(pergunta: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean }> {
+  addCustomPergunta(pergunta: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
     return this.json(`${this.base()}/perguntas/custom`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pergunta }),
     });
+  }
+
+  rateDeepen(historyId: string, rating: number, feedback?: string): Promise<{ ok: boolean; rating: number }> {
+    return this.json(`${this.base()}/deepen/${encodeURIComponent(historyId)}/rate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating, feedback }),
+    });
+  }
+
+  getDeepenRatings(ids: string[]): Promise<{ entries: Array<{ id: string; rating: number | null }> }> {
+    return this.json(`/api/deepen-history?ids=${encodeURIComponent(ids.join(','))}&limit=${ids.length}`);
   }
 
   historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {

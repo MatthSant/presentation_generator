@@ -440,6 +440,8 @@ export interface Modal {
   title?: string;
   /** A modal renders a nested flat widget list. */
   widgets?: Widget[];
+  /** Entrada correspondente em deepen_history (âncora do rating ★1–5). */
+  historyId?: string;
 }
 
 export interface SectionHeader {
@@ -454,6 +456,8 @@ export interface Section {
   header: SectionHeader;
   widgets: Widget[];
   modals?: Modal[];
+  /** Em seções det-*: entrada em deepen_history (âncora do rating ★1–5). */
+  historyId?: string;
 }
 
 /* ─────────────────────────────  Layer 3 — Layout  ───────────────────────────── */

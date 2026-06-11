@@ -63,6 +63,34 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_ph ON perguntas_history(client, slug, created_at);
   CREATE INDEX IF NOT EXISTS idx_ph_q ON perguntas_history(client, slug, pergunta_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS deepen_history (
+    id                TEXT PRIMARY KEY,
+    client            TEXT NOT NULL,
+    slug              TEXT NOT NULL,
+    analysis_type     TEXT NOT NULL DEFAULT 'conversao-perfil',
+    origem            TEXT NOT NULL,                -- 'card' | 'pergunta' | 'custom' | 'iteracao'
+    section_id        TEXT NOT NULL DEFAULT '',
+    block_id          TEXT NOT NULL DEFAULT '',
+    modal_id          TEXT NOT NULL DEFAULT '',     -- modal id OU id da seção det-*
+    prompt            TEXT NOT NULL,
+    prev_modal_id     TEXT NOT NULL DEFAULT '',
+    card_context      TEXT NOT NULL DEFAULT '{}',
+    modal_json        TEXT NOT NULL DEFAULT '{}',
+    validated_ok      INTEGER NOT NULL DEFAULT 1,
+    validation_errors TEXT NOT NULL DEFAULT '[]',
+    model             TEXT NOT NULL DEFAULT '',
+    tokens_in         INTEGER,
+    tokens_out        INTEGER,
+    cost_usd          REAL,
+    mocked            INTEGER NOT NULL DEFAULT 0,
+    rating            INTEGER,                      -- 1–5, null = não avaliado
+    feedback_text     TEXT,
+    feedback_at       TEXT,
+    created_at        TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_dh ON deepen_history(client, slug, created_at);
+  CREATE INDEX IF NOT EXISTS idx_dh_fewshot ON deepen_history(analysis_type, rating, validated_ok, created_at);
 `;
 
 /** Open (and initialize) a SQLite store at the given path. `:memory:` works for tests. */

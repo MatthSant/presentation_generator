@@ -202,6 +202,13 @@ class App {
     }
     this.markDeepen(section);
 
+    // Seções det-*: rodapé discreto de avaliação (seções antigas sem historyId não mostram nada)
+    if (section.historyId) {
+      const rt = this.buildRating(section.historyId);
+      rt.classList.add('rate--section');
+      host.appendChild(rt);
+    }
+
     if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
       this.openModal(this.pendingModal);
       this.pendingModal = null;
@@ -481,6 +488,9 @@ class App {
     const ctx = this.resolveCtx();
     for (const w of modal.widgets || []) dialog.appendChild(renderWidget(w, ctx));
 
+    // Avaliação ★1–5 + comentário — alimenta o few-shot dos próximos detalhamentos.
+    if (modal.historyId) dialog.appendChild(this.buildRating(modal.historyId));
+
     // Iterate: ask the model to adjust or deepen THIS detalhamento further.
     if (ownerBlockId) {
       const foot = document.createElement('form');
@@ -505,6 +515,57 @@ class App {
     // Defer chart creation until the modal first opens — mounting in a hidden
     // dialog draws a blank/0-size chart.
     this.modalChartDefs.set(modal.id, ctx.charts);
+  }
+
+  /** Bloco de avaliação ★1–5 (+ comentário opcional, expandido após o voto).
+   *  Grava na hora; estado atual é buscado lazy (rating salvo no SQLite). */
+  private buildRating(historyId: string): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'rate';
+    const lbl = document.createElement('span');
+    lbl.className = 'rate-lbl';
+    lbl.textContent = 'Este detalhamento foi útil?';
+    const stars = document.createElement('div');
+    stars.className = 'rate-stars';
+    const fb = document.createElement('form');
+    fb.className = 'rate-fb';
+    fb.hidden = true;
+    fb.innerHTML = '<input type="text" placeholder="comentário (opcional) — o que melhorar?" /><button type="submit" class="btn btn--sm">Salvar</button>';
+    let current = 0;
+    const paint = (n: number): void => {
+      [...stars.children].forEach((s, i) => s.classList.toggle('on', i < n));
+    };
+    for (let i = 1; i <= 5; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rate-star';
+      b.textContent = '★';
+      b.title = `${i} de 5`;
+      b.addEventListener('click', async () => {
+        current = i;
+        paint(i);
+        fb.hidden = false;
+        try { await this.api.rateDeepen(historyId, i); }
+        catch (e) { this.toast(`Falha ao avaliar: ${(e as Error).message}`); }
+      });
+      stars.appendChild(b);
+    }
+    fb.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inp = fb.querySelector('input') as HTMLInputElement;
+      try {
+        await this.api.rateDeepen(historyId, current || 5, inp.value.trim() || undefined);
+        this.toast('Avaliação registrada — obrigado!');
+        fb.hidden = true;
+      } catch (err) { this.toast(`Falha ao avaliar: ${(err as Error).message}`); }
+    });
+    // estado salvo (reaberturas): busca lazy e pinta as estrelas
+    void this.api.getDeepenRatings([historyId]).then((r) => {
+      const e = r.entries.find((x) => x.id === historyId);
+      if (e?.rating) { current = e.rating; paint(e.rating); }
+    }).catch(() => { /* sem rating ainda */ });
+    wrap.append(lbl, stars, fb);
+    return wrap;
   }
 
   /** Open a modal; mount its charts on first open (and reflow once visible). */

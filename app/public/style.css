@@ -1417,6 +1417,18 @@ body.edit-mode .tile-filter-badge { display:none; }
 
 /* Per-chart outlier toggle (histórico) */
 .dash-tile { position: relative; }
+/* — rating ★1–5 do detalhamento (modal e rodapé das seções det-*) — */
+.rate { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--divider); }
+.rate--section { justify-content: flex-end; margin: 26px 0 6px; }
+.rate-lbl { font-size: 12px; font-weight: 600; color: var(--gray2); }
+.rate-stars { display: inline-flex; gap: 2px; }
+.rate-star { background: none; border: none; font-size: 20px; line-height: 1; color: var(--border-strong); cursor: pointer; padding: 0 2px; transition: color .12s, transform .12s; }
+.rate-star:hover { transform: scale(1.15); color: var(--amber); }
+.rate-star.on { color: var(--amber); }
+.rate-fb { display: flex; gap: 8px; flex: 1 1 260px; }
+.rate-fb input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 7px 11px; font-family: 'Exo 2', sans-serif; font-size: 12.5px; color: var(--fg); outline: none; }
+.rate-fb input:focus { border-color: var(--purple); }
+
 /* Loading lock — blocks the screen while a detalhamento is generated server-side */
 .busy-overlay { position: fixed; inset: 0; z-index: 9600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: color-mix(in srgb, var(--bg) 72%, transparent); cursor: wait; }
 .busy-overlay[hidden] { display: none; }

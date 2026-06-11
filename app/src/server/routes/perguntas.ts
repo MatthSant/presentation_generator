@@ -18,8 +18,11 @@ import type { Express, Request, Response } from 'express';
 import type { Ctx } from '../context.js';
 import type { PerguntasDoc, Pergunta, ReportData, PageRef, Section } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
+import { BASE } from '../paths.js';
+import { typeOf } from '../typeRegistry.js';
 import { runPerguntasCalc } from '../pygen.js';
 import { generateDetalhamento } from '../detalhamento.js';
+import { recordDeepen, getFewShot } from '../deepenHistory.js';
 
 interface HistRow { pergunta_id: string; acao: string; modal_id: string; created_at: string }
 
@@ -138,25 +141,55 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
 
   /** Generate the detalhamento for a question and land it as a new section on the
    *  Detalhamentos page. Shared by "seguir" and "Adicionar pergunta". */
-  async function buildSection(dir: string, client: string, slug: string, p: Pergunta, badge: string, label: string): Promise<{ sectionId: string; mocked: boolean }> {
+  async function buildSection(dir: string, client: string, slug: string, p: Pergunta, badge: string, label: string,
+    origem: 'pergunta' | 'custom'): Promise<{ sectionId: string; mocked: boolean; historyId: string }> {
     const idbase = p.id.toLowerCase().replace(/[^a-z0-9]/g, '');
     const sectionId = `det-${idbase}-${crypto.randomBytes(3).toString('hex')}`;
     if (!isSafeSeg(sectionId)) throw new Error('id inválido');
-    const r = await generateDetalhamento({
-      out: ctx.out, client, slug,
-      srcSecId: p.deepen.sectionId, blockId: p.deepen.blockId, prompt: p.deepen.prompt,
-      resultId: sectionId,
-    });
+    let r;
+    try {
+      r = await generateDetalhamento({
+        out: ctx.out, client, slug,
+        srcSecId: p.deepen.sectionId, blockId: p.deepen.blockId, prompt: p.deepen.prompt,
+        resultId: sectionId,
+        fewShot: getFewShot(ctx.db, analysisTypeOf(client, slug, dir), 3),
+      });
+    } catch (e) {
+      // falha também vira histórico (instrumentação do harness)
+      recordDeepen(ctx.db, {
+        client, slug, analysisType: analysisTypeOf(client, slug, dir), origem,
+        sectionId: p.deepen.sectionId, blockId: p.deepen.blockId, modalId: sectionId,
+        prompt: p.deepen.prompt, validatedOk: false,
+        validationErrors: [(e as Error).message], mocked: false,
+      });
+      throw e;
+    }
     if (r.datasetChanged) {
       ctx.skipNextSSE.add('dataset.json');
       writeJson(path.join(dir, 'dataset.json'), r.dataset);
     }
     const section: Section = { id: sectionId, header: { badge, title: p.pergunta, sub: p.justificativa }, widgets: r.widgets };
+    const historyId = recordDeepen(ctx.db, {
+      client, slug, analysisType: r.analysisType, origem,
+      sectionId: p.deepen.sectionId, blockId: p.deepen.blockId, modalId: sectionId,
+      prompt: p.deepen.prompt, cardContext: r.cardContext,
+      modalJson: { title: p.pergunta, widgets: r.widgets },
+      validatedOk: true, usage: r.usage, mocked: r.mocked,
+    });
+    section.historyId = historyId;   // âncora do rating no rodapé da seção
     ctx.skipNextSSE.add(`${sectionId}.json`);
     writeJson(path.join(dir, `${sectionId}.json`), section);
     attachToDetalhamentos(dir, { id: sectionId, label });
     record(client, slug, p, 'detalhamento', sectionId);
-    return { sectionId, mocked: r.mocked };
+    return { sectionId, mocked: r.mocked, historyId };
+  }
+
+  /** Tipo da análise (p/ few-shot e histórico): config da base ou controls.kind. */
+  function analysisTypeOf(client: string, slug: string, dir: string): string {
+    const baseCfg = readJson<Record<string, unknown>>(path.join(BASE, client, slug, 'config.json'));
+    if (baseCfg) return typeOf(baseCfg).type;
+    const nav = readJson<ReportData>(path.join(dir, 'data.json'));
+    return typeOf(nav?.meta?.controls?.kind).type;
   }
 
   const shortLabel = (s: string): string => (s.length > 42 ? `${s.slice(0, 40)}…` : s);
@@ -170,8 +203,8 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
 
     record(client, slug, p, 'seguir'); // intent (kept even if generation fails)
     try {
-      const { sectionId, mocked } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta));
-      res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId });
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta), 'pergunta');
+      res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, historyId });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
@@ -204,8 +237,8 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
 
     record(client, slug, p, 'seguir');
     try {
-      const { sectionId, mocked } = await buildSection(dir, client, slug, p, 'Detalhamento · Sua pergunta', `✎ ${shortLabel(text)}`);
-      res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p });
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom');
+      res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p, historyId });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
