@@ -231,12 +231,16 @@ def assemble(rows, config, content, opts=None):
         # Bloco superior (3 colunas da fonte): preview à ESQUERDA (alto) + RESULTADO
         # MACRO à DIREITA num grid 2×4. Coordenadas explícitas — o packer de linha não
         # flui cartões ao lado de um item alto (senão os KPIs caem abaixo do preview).
+        # Com link → embed (iframe). Sem link → ainda um widget `embed` (sem url): o
+        # renderEmbed mostra um placeholder limpo "Pré-visualização indisponível" em vez
+        # de um find-note solto ocupando o slot alto do preview (parecia quebrado).
         if c['link']:
             fw.append({'id': f'{sid}-embed', 'type': 'embed', 'url': c['link'], 'platform': c['platform'],
                        'title': f'{c["name"]} · {c["platform"]}'})
         else:
-            fw.append({'id': f'{sid}-embed', 'type': 'find-note',
-                       'text': f'<strong>{c["name"]}</strong> — sem link de anúncio no dicionário (preview indisponível).'})
+            fw.append({'id': f'{sid}-embed', 'type': 'embed', 'platform': c['platform'],
+                       'title': f'{c["name"]} · {c["platform"]}',
+                       'caption': 'Sem link no dicionário — adicione a URL do anúncio para ver o preview.'})
         fg.items.append({'id': f'{sid}-embed', 'type': fw[-1]['type'], 'x': 0, 'y': 0, 'w': 4, 'h': 9})
         fw.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'title': 'RESULTADO MACRO', 'caption': 'consolidado do criativo'})
         fg.items.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'x': 4, 'y': 0, 'w': 8, 'h': 1})
