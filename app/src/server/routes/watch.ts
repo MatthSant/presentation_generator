@@ -34,9 +34,19 @@ export function registerWatch(app: Express, ctx: Ctx): () => void {
     req.on('close', () => set?.delete(res));
 
     if (!watchers.has(key) && fs.existsSync(dir)) {
+      // No Windows o fs.watch dispara 2+ eventos por write; o skipNextSSE engole
+      // só o primeiro. O cooldown ignora os ecos do MESMO write suprimido — sem
+      // ele, o eco re-renderiza a seção e fecha a modal recém-aberta no client.
+      const recentlySkipped = new Map<string, number>();
       const w = fs.watch(dir, (_evt, filename) => {
         if (!filename || !filename.endsWith('.json') || IGNORED.has(filename)) return;
-        if (ctx.skipNextSSE.has(filename)) { ctx.skipNextSSE.delete(filename); return; }
+        if (ctx.skipNextSSE.has(filename)) {
+          ctx.skipNextSSE.delete(filename);
+          recentlySkipped.set(filename, Date.now());
+          return;
+        }
+        const t = recentlySkipped.get(filename);
+        if (t && Date.now() - t < 1500) return;   // eco do write suprimido
         const id = filename.replace(/\.json$/, '');
         clients.get(key)?.forEach(c => { try { c.write(`data: ${id}\n\n`); } catch { /* client gone */ } });
       });

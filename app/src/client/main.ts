@@ -926,7 +926,15 @@ ${body}
   private watch(): void {
     this.api.watch(id => {
       this.store.dropSection(id);
-      if (id === this.store.currentSectionId) void this.go(this.store.currentPageId, id);
+      if (id === this.store.currentSectionId) {
+        // Re-render por SSE não pode roubar a tela: preserva o scroll e reabre a
+        // modal que estava aberta (no Windows o fs.watch dispara em dobro e o
+        // segundo evento escapa do skipNextSSE, fechando a modal recém-criada).
+        const openModal = document.querySelector('.ic-overlay.open')?.id || null;
+        void this.go(this.store.currentPageId, id, true).then(() => {
+          if (openModal) this.openModal(openModal);
+        });
+      }
     });
   }
 }

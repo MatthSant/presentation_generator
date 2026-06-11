@@ -165,7 +165,10 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
       }
 
       if (datasetChanged) writeJson(path.join(dir, 'dataset.json'), dataset);
-      section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id), modal];
+      // Iteração SUBSTITUI a modal anterior (é uma revisão, não um acúmulo) — o
+      // histórico em deepen_history preserva todas as versões.
+      const prevId = (prev as Modal | undefined)?.id;
+      section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id && m.id !== prevId), modal];
       (card as { modal?: string }).modal = modal.id;
 
       ctx.skipNextSSE.add(`${secId}.json`);
