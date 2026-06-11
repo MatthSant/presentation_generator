@@ -197,12 +197,34 @@ const REVISION_RULE = `AJUSTE CIRÚRGICO: ao partir de "modal_anterior", mude SO
 NÃO remova widgets que o consultor não pediu para remover (pediu para corrigir o gráfico → mantenha a tabela).
 Reentregue a modal final completa, preservando todo o resto.`;
 
-const MODAL_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil, gerando uma MODAL
+/** Enquadramento de DOMÍNIO por tipo de análise — injetado no prompt de deepen para
+ *  que a orientação reflita o tipo certo. Sem isso, todo detalhamento herdava o texto
+ *  de "conversão por perfil" (critério/grupos/benchmark da pesquisa), errado p/ criativos
+ *  e histórico. `what` = o que a análise mede; `focus` = onde concentrar o aprofundamento. */
+const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
+  'conversao-perfil': {
+    what: 'conversão por perfil de lead ao longo de vários lançamentos: cada CRITÉRIO (renda, idade, patrimônio…) tem GRUPOS, comparados à conversão média (benchmark = respondentes da pesquisa)',
+    focus: 'FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as tabelas do catálogo desse critério; não troque por outro critério.',
+  },
+  'historico-lancamentos': {
+    what: 'histórico de lançamentos: a evolução de métricas (investimento, faturamento líquido, ROAS, CPL, CPA, conversão paga, qualificação, reembolso, leads recapturados) entre eventos/lançamentos ao longo do tempo',
+    focus: 'FOQUE na métrica e no período que o card mostra — compare lançamentos no tempo. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
+  'criativos': {
+    what: 'desempenho de criativos (anúncios) de Meta Ads — por anúncio, campanha e público — com investimento, ROAS, retorno, CPL, CPM, CAC, captação e qualidade de lead, em dois modos de leitura (Resultado × Captação)',
+    focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
+};
+const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
+const domainOf = (t?: string) => (t && DEEPEN_DOMAIN[t]) || DEFAULT_DOMAIN;
+
+const modalSystem = (analysisType?: string): string => {
+  const d = domainOf(analysisType);
+  return `Você aprofunda um card de ${d.what}, gerando uma MODAL
 com widgets do app. Regras inegociáveis:
 ${GUARDRAIL}
 ${ANSWER_RULES}
-- FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as
-  tabelas do catálogo desse critério; não troque por outro critério.
+- ${d.focus}
 - Entenda O QUE O BLOCO MOSTRA por card.title, card.bind e card.tabs (datasets que
   ele usa) e aprofunde sobre ESSE assunto.
 - Widgets de gráfico/tabela NÃO carregam números — eles fazem "bind" a uma tabela do
@@ -255,6 +277,7 @@ ${CHART_GUIDE}
   siga o ESTILO e a ESTRUTURA deles (nunca os dados — os números saem das tabelas
   desta análise).
 - Responda exclusivamente chamando a ferramenta emit_modal.`;
+};
 
 function bindSchema(tableNames: string[]): unknown {
   return {
@@ -313,7 +336,7 @@ export function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
     costUsd: Number((a.costUsd + b.costUsd).toFixed(6)), model: b.model };
 }
 
-export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string): Promise<ModalResult> {
+export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: mockModal(catalog, card), mocked: true };
 
@@ -328,7 +351,7 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   const msg = await loggedCreate(client, {
     model: MODEL,
     max_tokens: 4096,
-    system: [{ type: 'text', text: MODAL_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: modalSystem(analysisType), cache_control: { type: 'ephemeral' } }],
     tools: [{ name: 'emit_modal', description: 'Emite a modal de aprofundamento.', input_schema: modalSchema(names) }],
     tool_choice: { type: 'tool', name: 'emit_modal' },
     messages: [{ role: 'user', content: JSON.stringify(payload) }],

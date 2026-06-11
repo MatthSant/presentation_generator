@@ -133,7 +133,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
             const dp = repair ? `${framedPrompt}\n\n${repair}` : framedPrompt;
             return generateModalDeep(dp, cardCtx, catalog, deps, p, fewShot, objetivo);
           }
-          return generateModal(framedPrompt, cardCtx, catalog, repair, p, fewShot, objetivo);
+          return generateModal(framedPrompt, cardCtx, catalog, repair, p, fewShot, objetivo, analysisType);
         },
         normalize: (m) => assignIds({ ...(m as Modal), id: modalId }),
         validateSchema: (m) => validate(m as Modal),
