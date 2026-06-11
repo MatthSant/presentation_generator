@@ -9,6 +9,18 @@
 import type { Store } from './store.js';
 import type { FilterDef } from '../shared/types.js';
 
+/** Chrome comum do FAB + modal de filtros (abrir/fechar/backdrop/ESC) — usado
+ *  pelo Filters (client-side) e pelo HistoricoFilters (server-recompute). */
+export function wireFilterShell(fab: HTMLElement, modal: HTMLElement, closeBtn: HTMLElement): { open(): void; close(): void } {
+  const open = () => modal.classList.add('open');
+  const close = () => modal.classList.remove('open');
+  fab.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  return { open, close };
+}
+
 export class Filters {
   private fab: HTMLElement;
   private modal: HTMLElement;
@@ -21,11 +33,8 @@ export class Filters {
     this.body = must('filter-body');
     this.count = must('filter-count');
 
-    this.fab.addEventListener('click', () => this.open());
-    must('filter-close').addEventListener('click', () => this.close());
+    wireFilterShell(this.fab, this.modal, must('filter-close'));
     must('filter-clear').addEventListener('click', () => this.clear());
-    this.modal.addEventListener('click', e => { if (e.target === this.modal) this.close(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
   }
 
   /** Seed active from defaults then override from the URL, before first render. */
@@ -119,8 +128,6 @@ export class Filters {
     this.fab.classList.toggle('flt-has', n > 0);
   }
 
-  private open(): void { this.modal.classList.add('open'); }
-  private close(): void { this.modal.classList.remove('open'); }
 }
 
 function must(id: string): HTMLElement {

@@ -172,6 +172,15 @@ com widgets do app. Regras inegociáveis:
   vários períodos), prefira um gráfico agregado ou a prosa — nunca despeje a tabela inteira.
 - Se vier "modal_anterior", AJUSTE/aprofunde essa modal conforme a "instrucao",
   partindo dela e mantendo o que faz sentido (emita a modal final completa).
+- ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: os find-note trazem números
+  concretos extraídos das tabelas, comparações e uma conclusão acionável. É proibido
+  descrever como a análise seria feita ("calcule…", "avalie…", "compare…",
+  "seria necessário…") — execute-a. Se o corte pedido não existir nas tabelas
+  disponíveis, diga em UMA linha o que falta e apresente o corte mais próximo
+  disponível (com números).
+- Se vier "exemplos_aprovados", são detalhamentos bem avaliados pelo consultor:
+  siga o ESTILO e a ESTRUTURA deles (nunca os dados — os números saem das tabelas
+  desta análise).
 - Responda exclusivamente chamando a ferramenta emit_modal.`;
 
 function bindSchema(tableNames: string[]): unknown {
@@ -207,10 +216,26 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
   } as unknown as Anthropic.Tool.InputSchema;
 }
 
-export interface ModalResult { modal: unknown; mocked: boolean }
+export interface ModalUsage { tokensIn: number; tokensOut: number; costUsd: number; model: string }
+export interface ModalResult { modal: unknown; mocked: boolean; usage?: ModalUsage }
 interface CardCtx { title?: string; detail?: string; type?: string; bind?: unknown; tabs?: unknown; pagina?: string; criterio?: string }
 
-export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown): Promise<ModalResult> {
+/** Exemplo aprovado (few-shot): instrução original + resumo da modal emitida. */
+export interface FewShotExample { instrucao: string; modal: unknown }
+
+function usageOf(msg: Anthropic.Message): ModalUsage {
+  const u = (msg.usage || {}) as Usage;
+  const c = costOf(u) as { usd?: number } | undefined;
+  return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model: MODEL };
+}
+
+function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
+  if (!a) return b;
+  return { tokensIn: a.tokensIn + b.tokensIn, tokensOut: a.tokensOut + b.tokensOut,
+    costUsd: Number((a.costUsd + b.costUsd).toFixed(6)), model: b.model };
+}
+
+export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[]): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: mockModal(catalog, card), mocked: true };
 
@@ -220,7 +245,8 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   // (the display "_detail" rows are huge), and columns + numericCols + dimValues
   // already tell the model what it needs.
   const lean = catalog.tables.map(({ sample, ...t }) => t);
-  const payload = { instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev };
+  const payload = { instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev,
+    exemplos_aprovados: fewShot?.length ? fewShot : undefined };
   const msg = await loggedCreate(client, {
     model: MODEL,
     max_tokens: 4096,
@@ -231,7 +257,7 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   }, 'modal-raso');
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
   if (!tu) throw new Error('Claude não retornou tool_use');
-  return { modal: tu.input, mocked: false };
+  return { modal: tu.input, mocked: false, usage: usageOf(msg) };
 }
 
 // --- B2 deep: model-driven query loop over the retained base ----------------
@@ -251,6 +277,12 @@ const DEEP_SYSTEM = `Você aprofunda um card de uma análise de conversão por p
 dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
 devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
 gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
+
+ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: a prosa traz os números consultados,
+comparações e uma conclusão acionável — jamais instruções de como fazer ("calcule…",
+"avalie…"). Se um recorte não estiver disponível nas tools, diga em uma linha o que
+falta e apresente o corte mais próximo (com números). Se vierem "exemplos_aprovados",
+siga o estilo/estrutura deles (nunca os dados).
 
 A modal deve ser ENXUTA e legível — qualidade, não quantidade:
 - NO MÁXIMO UM gráfico, o mais informativo do recorte. Para um cruzamento, prefira
@@ -310,13 +342,15 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[]): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta, modal_anterior: prev }) }];
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
+    exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
+  let usage: ModalUsage | undefined;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const names = [...catalog.tables.map((t) => t.name), ...registered];
@@ -327,6 +361,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
       tool_choice: { type: 'any' },
       messages,
     }, 'modal-fundo');
+    usage = sumUsage(usage, usageOf(msg));
     messages.push({ role: 'assistant', content: msg.content });
     const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');
@@ -335,7 +370,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     // sibling tool_uses left unanswered are fine.
     const emitted = toolUses.find((t) => t.name === 'emit_modal');
     if (emitted && (!deps.validate || deps.validate(emitted.input).length === 0)) {
-      return { modal: emitted.input, mocked: false };
+      return { modal: emitted.input, mocked: false, usage };
     }
 
     // Otherwise answer EVERY tool_use with a tool_result before the next turn —

@@ -1,0 +1,18 @@
+# Sobe o Dossiê do Consultor num comando: docker compose up -d --build
+# Estado (SQLite, análises geradas, scratch) persiste no volume nomeado `witly_data`
+# montado em /data — sobrevive a rebuilds e reboots. Segredos vêm de app/.env.
+services:
+  witly:
+    build: .
+    image: witly:latest
+    container_name: witly
+    ports:
+      - "3131:3131"
+    env_file:
+      - ./app/.env          # ANTHROPIC_API_KEY, SEED_EMAIL, SEED_PASSWORD
+    volumes:
+      - witly_data:/data
+    restart: unless-stopped
+
+volumes:
+  witly_data:

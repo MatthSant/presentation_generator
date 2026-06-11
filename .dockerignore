@@ -1,5 +1,8 @@
 **/node_modules
 app/dist
+app/.env
+app/.base
+app/data
 app/.scratch
 output
 input

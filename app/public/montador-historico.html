@@ -8,20 +8,12 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
-    .bar-back svg { width: 15px; height: 15px; }
 
     .m-wrap { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
     .m-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
     .m-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
     .m-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 22px; max-width: 70ch; }
-    .m-card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow-sm); margin-bottom: 18px; }
+    .m-card { padding: 20px 22px; margin-bottom: 18px; }
     .m-h { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); margin: 0 0 14px; }
     .m-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 13px; }
     .m-field { display:flex; flex-direction:column; gap:5px; }
@@ -30,28 +22,22 @@
     .m-field input:focus { border-color: var(--purple); }
     .m-field small { font-size: 11px; color: var(--gray2); }
     .m-actions { display:flex; gap:10px; margin-top: 4px; }
-    .m-btn { display:inline-flex; align-items:center; gap:7px; font-size: 13.5px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 9px 16px; cursor: pointer; }
-    .m-btn--ghost { background: var(--bg); color: var(--purple); border: 1px solid color-mix(in srgb, var(--purple) 40%, var(--border)); }
     .m-sql { width: 100%; min-height: 380px; background: #0E0E14; color: #E6E6F0; border: 1px solid var(--border); border-radius: 11px; padding: 16px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.55; white-space: pre; overflow: auto; resize: vertical; }
     .m-note { font-size: 12.5px; color: var(--gray); line-height: 1.6; }
     .m-note code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
-    .m-ok { font-size: 12.5px; font-weight: 700; color: #27500A; margin-left: 8px; }
+    .m-ok { font-size: 12.5px; font-weight: 700; color: var(--ok-fg); margin-left: 8px; }
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Gerar SQL</small></span>
-    <a class="bar-back" href="/guia/historico-lancamentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar ao guia</a>
-  </header>
+  <header class="home-bar" data-sub="Gerar SQL" data-back="/guia/historico-lancamentos" data-back-label="Voltar ao guia"></header>
+  <script src="/js/page-chrome.js" defer></script>
 
   <div class="m-wrap">
     <span class="m-tag">Histórico de Lançamentos</span>
     <h1 class="m-title">Gerar a query consolidada</h1>
     <p class="m-sub">Query padrão sobre <code>MAT_V2_inscricoes_geral_consolidado</code> — uma linha por evento × tráfego × plataforma × temperatura. Ajuste os termos de classificação do cliente (variam por conta) e copie o SQL.</p>
 
-    <div class="m-card">
+    <div class="card m-card">
       <p class="m-h">Termos de classificação (ajuste por cliente)</p>
       <div class="m-grid">
         <div class="m-field"><label>Keyword Hot</label><input id="t-hot" value="-quente-" /><small>em field_campaign_name</small></div>
@@ -62,8 +48,8 @@
         <div class="m-field"><label>Fonte Google (utm_source)</label><input id="t-google" value="google-ads,search" /></div>
       </div>
       <div class="m-actions" style="margin-top:16px">
-        <button class="m-btn" id="gen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar SQL</button>
-        <button class="m-btn m-btn--ghost" id="copy">Copiar</button>
+        <button class="btn btn--primary" id="gen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar SQL</button>
+        <button class="btn btn--ghost" id="copy">Copiar</button>
         <span class="m-ok" id="ok" hidden>copiado ✓</span>
       </div>
     </div>

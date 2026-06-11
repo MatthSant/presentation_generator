@@ -191,7 +191,9 @@ class App {
       getFilterDefs: () => this.store.filterDefs,
       layout: this.store.layoutFor(section.id),
       onSaveLayout: (id, items) => this.persistLayout(id, items),
-      outlierToggle: !!this.store.data?.meta?.controls,
+      // botão "Remover outliers" por gráfico — disponível p/ QUALQUER tipo
+      // (feature flag; desativável com meta.features.outliers = false)
+      outlierToggle: this.store.data?.meta?.features?.outliers !== false,
       filterBadge: this.histSel ? `${this.histSel.length} de ${this.store.data?.meta?.controls?.launches.length ?? 0} lançamentos` : null,
     });
 
@@ -199,6 +201,24 @@ class App {
       this.renderModal(modal, section.widgets.find((w) => (w as { modal?: string }).modal === modal.id)?.id);
     }
     this.markDeepen(section);
+
+    // Seções det-*: rodapé de revisão (aprovar / pedir revisão regenera a própria
+    // seção / ★1–5). Seções antigas sem historyId não mostram nada.
+    if (section.historyId) {
+      const rt = this.buildRating(section.historyId, async (c) => {
+        this.setBusy(true, 'Revisando o detalhamento…');
+        try {
+          await this.api.revisarDet(section.id, c);
+          this.store.dropSection(section.id);
+          await this.go(this.store.currentPageId, section.id, true);
+          this.toast('Detalhamento revisado.');
+        } catch (e) {
+          this.toast(`Falha na revisão: ${(e as Error).message}`);
+        } finally { this.setBusy(false); }
+      });
+      rt.classList.add('rate--section');
+      host.appendChild(rt);
+    }
 
     if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
       this.openModal(this.pendingModal);
@@ -211,7 +231,9 @@ class App {
   /** Mount the launch/metric control bar above the report when meta.controls says so. */
   private setupHistorico(): void {
     const controls = this.store.data?.meta?.controls;
-    if (!controls) return;
+    // Dispatch por kind: cada tipo com controles interativos registra o seu setup
+    // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
+    if (!controls || controls.kind !== 'historico-lancamentos') return;
     this.histMetric = controls.metrics[0]?.id || 'conv';
     const total = controls.launches.length;
     this.hist = new HistoricoFilters(controls, {
@@ -219,7 +241,7 @@ class App {
     });
     // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
     // changing it recomputes only the metric-driven breakdown below.
-    document.addEventListener('historico-metric', (e) => {
+    document.addEventListener('metric-change', (e) => {
       this.histMetric = (e as CustomEvent<string>).detail;
       void this.recompute();
     });
@@ -477,6 +499,13 @@ class App {
     const ctx = this.resolveCtx();
     for (const w of modal.widgets || []) dialog.appendChild(renderWidget(w, ctx));
 
+    // Revisão: aprovar / pedir revisão (regenera via prev) / ★1–5 — tudo no histórico.
+    if (modal.historyId) {
+      dialog.appendChild(this.buildRating(modal.historyId, ownerBlockId
+        ? async (c) => { await this.runDeepen(this.store.currentSectionId, ownerBlockId, c, modal); }
+        : undefined));
+    }
+
     // Iterate: ask the model to adjust or deepen THIS detalhamento further.
     if (ownerBlockId) {
       const foot = document.createElement('form');
@@ -501,6 +530,97 @@ class App {
     // Defer chart creation until the modal first opens — mounting in a hidden
     // dialog draws a blank/0-size chart.
     this.modalChartDefs.set(modal.id, ctx.charts);
+  }
+
+  /** Bloco de REVISÃO do detalhamento: ✓ Aprovar · ✎ Pedir revisão (comentário →
+   *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
+   *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
+   *  itera via prev; seção det-* regenera a própria seção). */
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'rate';
+    const lbl = document.createElement('span');
+    lbl.className = 'rate-lbl';
+    lbl.textContent = 'Este detalhamento foi útil?';
+
+    const approve = document.createElement('button');
+    approve.type = 'button';
+    approve.className = 'btn btn--sm rate-approve';
+    approve.textContent = '✓ Aprovar';
+    const setApproved = (): void => {
+      approve.textContent = '✓ Aprovado';
+      approve.classList.add('on');
+      approve.disabled = true;
+    };
+    approve.addEventListener('click', async () => {
+      try { await this.api.approveDeepen(historyId); setApproved(); this.toast('Detalhamento aprovado.'); }
+      catch (e) { this.toast(`Falha ao aprovar: ${(e as Error).message}`); }
+    });
+
+    const askRev = document.createElement('button');
+    askRev.type = 'button';
+    askRev.className = 'btn btn--sm';
+    askRev.textContent = '✎ Pedir revisão';
+    const rev = document.createElement('form');
+    rev.className = 'rate-fb';
+    rev.hidden = true;
+    rev.innerHTML = '<input type="text" placeholder="o que revisar? (ex.: foque na faixa alta, troque o gráfico, explique a queda de set/25)" /><button type="submit" class="btn btn--sm btn--primary">Revisar</button>';
+    askRev.addEventListener('click', () => { rev.hidden = !rev.hidden; if (!rev.hidden) (rev.querySelector('input') as HTMLInputElement).focus(); });
+    rev.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inp = rev.querySelector('input') as HTMLInputElement;
+      const c = inp.value.trim();
+      if (!c || !revisar) return;
+      rev.hidden = true;
+      await revisar(c);   // server marca esta versão como revisada e gera a nova
+    });
+
+    const stars = document.createElement('div');
+    stars.className = 'rate-stars';
+    const fb = document.createElement('form');
+    fb.className = 'rate-fb';
+    fb.hidden = true;
+    fb.innerHTML = '<input type="text" placeholder="comentário (opcional) — o que melhorar?" /><button type="submit" class="btn btn--sm">Salvar</button>';
+    let current = 0;
+    const paint = (n: number): void => {
+      [...stars.children].forEach((s, i) => s.classList.toggle('on', i < n));
+    };
+    for (let i = 1; i <= 5; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rate-star';
+      b.textContent = '★';
+      b.title = `${i} de 5`;
+      b.addEventListener('click', async () => {
+        current = i;
+        paint(i);
+        fb.hidden = false;
+        try { await this.api.rateDeepen(historyId, i); }
+        catch (e) { this.toast(`Falha ao avaliar: ${(e as Error).message}`); }
+      });
+      stars.appendChild(b);
+    }
+    fb.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inp = fb.querySelector('input') as HTMLInputElement;
+      try {
+        await this.api.rateDeepen(historyId, current || 5, inp.value.trim() || undefined);
+        this.toast('Avaliação registrada — obrigado!');
+        fb.hidden = true;
+      } catch (err) { this.toast(`Falha ao avaliar: ${(err as Error).message}`); }
+    });
+
+    // estado salvo (reaberturas): pinta estrelas e estado de aprovação
+    void this.api.getDeepenRatings([historyId]).then((r) => {
+      const e = r.entries.find((x) => x.id === historyId);
+      if (e?.rating) { current = e.rating; paint(e.rating); }
+      if (e?.status === 'aprovado') setApproved();
+    }).catch(() => { /* sem estado ainda */ });
+
+    wrap.append(lbl, approve);
+    if (revisar) wrap.append(askRev, rev);
+    wrap.append(stars, fb);
+    return wrap;
   }
 
   /** Open a modal; mount its charts on first open (and reflow once visible). */
@@ -806,7 +926,15 @@ ${body}
   private watch(): void {
     this.api.watch(id => {
       this.store.dropSection(id);
-      if (id === this.store.currentSectionId) void this.go(this.store.currentPageId, id);
+      if (id === this.store.currentSectionId) {
+        // Re-render por SSE não pode roubar a tela: preserva o scroll e reabre a
+        // modal que estava aberta (no Windows o fs.watch dispara em dobro e o
+        // segundo evento escapa do skipNextSSE, fechando a modal recém-criada).
+        const openModal = document.querySelector('.ic-overlay.open')?.id || null;
+        void this.go(this.store.currentPageId, id, true).then(() => {
+          if (openModal) this.openModal(openModal);
+        });
+      }
     });
   }
 }

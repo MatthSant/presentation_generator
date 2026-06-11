@@ -17,6 +17,9 @@ O módulo só calcula e devolve estruturas Python; quem serializa o output do ap
 """
 from __future__ import annotations
 import csv, re, math, unicodedata, collections
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # pysrc/ → common
+from common.fmt import fmtP, fmtPabs, fmt_pp  # noqa: F401 (re-export p/ chamadores)
 
 # ── colunas fixas do dump ────────────────────────────────────────────────
 COL_LCTO   = 'field_conversion'
@@ -459,13 +462,5 @@ def codependencia(rows, criterios, dims, canal='Geral', lctos=None):
                       'assoc_max': round(max((assoc.get((a, b), 0) for b in ids if b != a), default=0), 3)}
     return {'ids': ids, 'labels': labels, 'assoc': assoc, 'matrix': matrix, 'fatores': fatores}
 
-# ── formatação ─────────────────────────────────────────────────────────────
-
-def fmtP(v, d=1):
-    return '—' if v is None else (('+' if v >= 0 else '') + f'{v:.{d}f}%')
-
-def fmtPabs(v, d=2):
-    return '—' if v is None else f'{v:.{d}f}%'
-
-def fmt_pp(v, d=2):
-    return '—' if v is None else (('+' if v >= 0 else '') + f'{v:.{d}f}pp')
+# ── formatação ───────────────────────────────────────────────────────────
+# fmtP / fmtPabs / fmt_pp agora vivem em common.fmt (re-exportados no topo).

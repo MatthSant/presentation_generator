@@ -440,6 +440,8 @@ export interface Modal {
   title?: string;
   /** A modal renders a nested flat widget list. */
   widgets?: Widget[];
+  /** Entrada correspondente em deepen_history (âncora do rating ★1–5). */
+  historyId?: string;
 }
 
 export interface SectionHeader {
@@ -454,6 +456,8 @@ export interface Section {
   header: SectionHeader;
   widgets: Widget[];
   modals?: Modal[];
+  /** Em seções det-*: entrada em deepen_history (âncora do rating ★1–5). */
+  historyId?: string;
 }
 
 /* ─────────────────────────────  Layer 3 — Layout  ───────────────────────────── */
@@ -492,9 +496,12 @@ export interface ReportMeta {
   filters?: FilterDef[];
   /** Optional cover block shown once at the top of the report content. */
   cover?: { eyebrow?: string; meta?: string[] };
-  /** Interactive controls (histórico de lançamentos): launch pills + metric toggle.
-   *  When present, the SPA shows a control bar on `pages` and recomputes via the
-   *  /historico/render route. */
+  /** Feature flags do relatório. `outliers` controla o botão "Remover outliers"
+   *  por gráfico — default LIGADO para qualquer tipo (desative com false). */
+  features?: { outliers?: boolean };
+  /** Interactive controls (kind = tipo que os interpreta; dispatch no client).
+   *  When present, the SPA shows the filter FAB on `pages` and recomputes via
+   *  the /render route. */
   controls?: {
     kind: string;
     pages: string[];

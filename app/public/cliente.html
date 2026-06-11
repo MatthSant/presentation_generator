@@ -8,15 +8,6 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display:block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display:inline-flex; align-items:center; gap:6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
-    .bar-back svg { width: 15px; height: 15px; }
-
     .c-wrap { max-width: 1180px; margin: 0 auto; padding: 36px 28px 80px; }
     .c-head { display:flex; align-items:center; gap: 15px; margin-bottom: 6px; }
     .c-mono { width: 48px; height: 48px; border-radius: 12px; display:grid; place-items:center; font-size: 20px; font-weight: 800; color: var(--purple); background: var(--purple-bg); flex-shrink: 0; }
@@ -24,24 +15,12 @@
     .c-slug { font-size: 12.5px; color: var(--gray2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
     .c-ctx { font-size: 14px; color: var(--gray); line-height: 1.6; margin: 12px 0 4px; max-width: 70ch; }
     .c-count { font-size: 13px; color: var(--gray2); margin: 18px 0 12px; font-weight: 600; }
-    .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .an-card { position: relative; display:flex; flex-direction:column; gap: 9px; text-decoration:none; color: inherit; background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--ac, var(--purple)); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow-sm); transition: transform .14s, box-shadow .14s, border-color .14s; }
-    .an-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-    .an-type { align-self:flex-start; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ac, var(--purple)); background: var(--acb, var(--purple-bg)); border-radius: 5px; padding: 3px 8px; }
-    .an-title { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
-    .an-meta { display:flex; align-items:center; justify-content:space-between; font-size: 12px; color: var(--gray2); margin-top: auto; }
-    .an-go { position:absolute; top: 14px; right: 14px; color: var(--gray2); }
-    .an-go svg { width: 17px; height: 17px; }
     .c-empty { color: var(--gray2); font-size: 14px; padding: 50px 0; text-align:center; }
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Cliente</small></span>
-    <a class="bar-back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar</a>
-  </header>
+  <header class="home-bar" data-sub="Cliente" data-back="/"></header>
+  <script src="/js/page-chrome.js" defer></script>
 
   <div class="c-wrap" id="wrap"><p class="c-empty">Carregando…</p></div>
 
@@ -66,7 +45,7 @@
 
       const card = (r) => {
         const t = TYPE[r.type] || { label: r.type || '', ac: 'var(--gray)', acb: 'var(--surface)' };
-        return `<a class="an-card" style="--ac:${t.ac};--acb:${t.acb}" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
+        return `<a class="card an-card" style="--ac:${t.ac};--acb:${t.acb}" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
           <span class="an-go">${ARROW}</span>
           ${t.label ? `<span class="an-type">${esc(t.label)}</span>` : ''}
           <div class="an-title">${esc(r.title || r.slug)}</div>

@@ -19,10 +19,13 @@ import { buildCatalog } from '../datasetCatalog.js';
 import { generateModal, generateModalDeep, type DeepDeps } from '../claude.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
+import { typeOf } from '../typeRegistry.js';
+import { buildCardContext } from '../cardContext.js';
+import { recordDeepen, getFewShot, methodologySmell, markRevised, findByModalId } from '../deepenHistory.js';
+import type { ModalUsage } from '../claude.js';
 
 interface DataTable { dims?: string[]; filters?: string[]; rows: Array<Record<string, unknown>> }
 type DataMap = Record<string, DataTable>;
-interface BaseConfig { criterios: Array<{ id: string; label?: string }>; channels?: string[] }
 
 function assignIds(modal: Modal): Modal {
   // The model can emit a malformed `widgets` (the tool schema isn't strictly
@@ -64,29 +67,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const dataset = readJson<DataMap>(path.join(dir, 'dataset.json'));
     if (!dataset) { res.status(400).json({ error: 'dataset ausente' }); return; }
     const catalog = buildCatalog(dataset);
-    // Criterion-page widgets are id-prefixed ("renda-reptoggle" → "renda").
-    // Validate the prefix against the real dataset criteria so we anchor the model
-    // on the card's own criterion instead of letting it wander to another one.
-    const critIds = new Set<string>();
-    for (const t of catalog.tables) { const mm = t.name.match(/^crit_([a-z0-9]+)_/i); if (mm) critIds.add(mm[1]); }
-    const prefix = blockId.includes('-') ? blockId.slice(0, blockId.indexOf('-')) : '';
-    // What the block itself shows — for toggles the binds live in `tabs` (not at
-    // the top level), so surface the datasets/labels each tab uses.
-    const rawTabs = (card as { tabs?: Array<Record<string, unknown>> }).tabs;
-    const tabs = Array.isArray(rawTabs)
-      ? rawTabs
-          .map((t) => ({ label: t.label, dataset: (t.bind as { dataset?: string })?.dataset ?? (t.chart as { bind?: { dataset?: string } })?.bind?.dataset }))
-          .filter((t) => t.dataset)
-      : undefined;
-    const cardCtx = {
-      title: (card as { title?: string }).title,
-      detail: (card as { detail?: string }).detail,
-      type: (card as Widget).type,
-      bind: (card as { bind?: unknown }).bind,
-      tabs,
-      pagina: section.header?.title,
-      criterio: critIds.has(prefix) ? prefix : undefined,
-    };
+    const cardCtx = buildCardContext(section, blockId, catalog);
     const modalId = `modal-${blockId}-${crypto.randomBytes(3).toString('hex')}`;
     const validate = (modal: Modal): string[] => {
       if (!Array.isArray(modal.widgets) || modal.widgets.length === 0) {
@@ -96,27 +77,42 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         .map((e) => `${e.path}: ${e.message}`);
     };
 
-    // Deep mode is available when this analysis kept its base data (Fase 3b).
+    // Deep mode: precisa da base retida E de um tipo com query de aprofundamento
+    // (registry.buildDeepenMeta != null). Sem isso (ex.: histórico), modo raso.
     const baseDir = path.join(BASE, client, slug);
     const hasBase = fs.existsSync(path.join(baseDir, 'dump.csv')) && fs.existsSync(path.join(baseDir, 'config.json'));
+    const baseConfig = hasBase ? readJson<Record<string, unknown>>(path.join(baseDir, 'config.json')) : null;
+    const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
+
+    const navMeta = readJson<{ meta?: { controls?: { kind?: string } } }>(path.join(dir, 'data.json'));
+    const analysisType = (hasBase ? typeOf(baseConfig) : typeOf(navMeta?.meta?.controls?.kind)).type;
+    const fewShot = getFewShot(ctx.db, analysisType, 3);
+    // Os prompts dos bancos (e do consultor) são instruções por design — a
+    // moldura força o modelo a EXECUTAR a análise, não a descrever o método.
+    const framedPrompt = `Execute esta análise sobre as tabelas e apresente os resultados (não descreva como fazê-la): ${prompt}`;
+    const origem = prev ? 'iteracao' : 'card';
+    const record = (ok: boolean, errs: string[], m: Modal | null, usage: ModalUsage | undefined, mocked: boolean): string =>
+      recordDeepen(ctx.db, {
+        client, slug, analysisType, origem,
+        sectionId: secId, blockId, modalId,
+        prompt, prevModalId: (prev as Modal | undefined)?.id,
+        cardContext: cardCtx, modalJson: m ?? undefined,
+        validatedOk: ok, validationErrors: errs, usage, mocked,
+      });
 
     try {
       let mocked = false;
       let modal: Modal | null = null;
       let datasetChanged = false;
       let errors: string[] = [];
+      let usage: ModalUsage | undefined;
 
-      if (hasBase) {
+      if (deepenMeta) {
         // The model decides which cuts to request; the app computes them over the
         // retained base and merges the aggregates into the dataset to bind to.
-        const config = readJson<BaseConfig>(path.join(baseDir, 'config.json'));
         let qn = 0;
         const deps: DeepDeps = {
-          meta: {
-            criterios: (config?.criterios || []).map((c) => ({ id: c.id, label: c.label || c.id })),
-            canais: config?.channels || ['Geral'],
-            metricas: ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'],
-          },
+          meta: deepenMeta,
           runQuery: async (fn, args) => (await runQuery(client, slug, fn, args)) ?? { status: 'erro', motivo: 'sem base' },
           registerTable: (table, _summary) => {
             const key = `q-${modalId}-${qn++}`;
@@ -124,33 +120,55 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
             datasetChanged = true;
             return key;
           },
-          validate: (modal) => validate(assignIds({ ...(modal as Modal), id: modalId })),
+          // qualidade entra no gate do loop: o modelo recebe o feedback e refaz
+          validate: (m) => {
+            const cand = assignIds({ ...(m as Modal), id: modalId });
+            const errs = validate(cand);
+            return errs.length ? errs : methodologySmell(cand);
+          },
         };
-        const r = await generateModalDeep(prompt, cardCtx, catalog, deps, prev);
+        const r = await generateModalDeep(framedPrompt, cardCtx, catalog, deps, prev, fewShot);
         mocked = r.mocked;
+        usage = r.usage;
         const cand = assignIds({ ...(r.modal as Modal), id: modalId });
         errors = validate(cand);
         if (errors.length === 0) modal = cand;
       } else {
-        // Shallow: bind only to already-computed tables; 1 repair turn.
+        // Shallow: bind only to already-computed tables; 1 repair turn (estrutura
+        // OU cheiro de metodologia disparam o reparo).
         for (let attempt = 0; attempt < 2; attempt++) {
           const repair = attempt === 0 ? undefined : `A modal anterior foi rejeitada: ${errors.join('; ')}. Corrija usando só tabelas/colunas do catálogo.`;
-          const r = await generateModal(prompt, cardCtx, catalog, repair, prev);
+          const r = await generateModal(framedPrompt, cardCtx, catalog, repair, prev, fewShot);
           mocked = r.mocked;
+          if (r.usage) usage = usage ? { ...r.usage, tokensIn: usage.tokensIn + r.usage.tokensIn, tokensOut: usage.tokensOut + r.usage.tokensOut, costUsd: Number((usage.costUsd + r.usage.costUsd).toFixed(6)) } : r.usage;
           const cand = assignIds({ ...(r.modal as Modal), id: modalId });
           errors = validate(cand);
+          if (errors.length === 0) errors = methodologySmell(cand);
           if (errors.length === 0) { modal = cand; break; }
           if (mocked) break;
         }
       }
       if (!modal) {
         console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, errors);
+        record(false, errors, null, usage, mocked);
         res.status(422).json({ error: 'modal inválida', detail: errors });
         return;
       }
 
+      const historyId = record(true, [], modal, usage, mocked);
+      modal.historyId = historyId;   // âncora do rating no client
+      // Iteração = revisão da versão anterior: marca-a como revisada com o
+      // comentário do consultor (a nova entrada já encadeia por prev_modal_id).
+      if (prev) {
+        const prevId = (prev as Modal).id ? findByModalId(ctx.db, client, slug, (prev as Modal).id)?.id : undefined;
+        if (prevId) markRevised(ctx.db, prevId, prompt);
+      }
+
       if (datasetChanged) writeJson(path.join(dir, 'dataset.json'), dataset);
-      section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id), modal];
+      // Iteração SUBSTITUI a modal anterior (é uma revisão, não um acúmulo) — o
+      // histórico em deepen_history preserva todas as versões.
+      const prevId = (prev as Modal | undefined)?.id;
+      section.modals = [...(section.modals || []).filter((m) => m.id !== modal!.id && m.id !== prevId), modal];
       (card as { modal?: string }).modal = modal.id;
 
       ctx.skipNextSSE.add(`${secId}.json`);
@@ -165,9 +183,10 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         created_at: new Date().toISOString(),
       });
 
-      res.json({ ok: true, modal, mocked, blockId, datasetChanged });
+      res.json({ ok: true, modal, mocked, blockId, datasetChanged, historyId });
     } catch (e) {
       console.error(`[deepen] ${client}/${slug}/${secId} ${blockId}:`, (e as Error).message);
+      record(false, [(e as Error).message], null, undefined, false);
       res.status(500).json({ error: (e as Error).message });
     }
   });

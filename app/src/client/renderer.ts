@@ -179,6 +179,9 @@ function sparkSvg(data: (number | null)[]): SVGElement | null {
   return svg;
 }
 
+/* tone → base .pill color modifier (kpi deltas, rich table cells) */
+const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', neutral: 'pill--neutral' };
+
 /* ── kpi-card ── one elevated metric card (feature = icon+pill+spark; volume = bar) */
 const ICONS: Record<string, string> = {
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
@@ -223,11 +226,11 @@ function barEl(segs: { pct: number; color: string }[]): HTMLElement {
 
 function renderKpiCard(w: KpiCardWidget): HTMLElement {
   const feature = w.tier !== 'volume';
-  const card = el('div', `kc kc--${feature ? 'feature' : 'volume'}`);
+  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}`);
   const head = el('div', 'kc-head');
   if (feature) {
     head.appendChild(iconBox(w.icon, w.iconColor));
-    if (w.delta) head.appendChild(el('span', `kc-pill kc-pill--${w.deltaTone || 'neutral'}`, w.delta));
+    if (w.delta) head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
   } else {
     head.appendChild(el('span', 'kc-lbl', w.label));
     head.appendChild(iconBox(w.icon, w.iconColor));
@@ -252,15 +255,15 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
 
 /* ── metric-toggle ── inline indicator selector; recomputes the breakdown below */
 function renderMetricToggle(w: MetricToggleWidget): HTMLElement {
-  const bar = el('div', 'mtoggle');
+  const bar = el('div', 'seg');
   for (const m of w.metrics || []) {
-    const b = el('button', 'mtoggle-opt' + (m.id === w.current ? ' on' : ''));
+    const b = el('button', 'seg-opt' + (m.id === w.current ? ' active' : ''));
     (b as HTMLButtonElement).type = 'button';
     b.textContent = m.label;
     b.addEventListener('click', () => {
       if (m.id === w.current) return;
-      for (const x of bar.children) x.classList.toggle('on', x === b);
-      document.dispatchEvent(new CustomEvent('historico-metric', { detail: m.id }));
+      for (const x of bar.children) x.classList.toggle('active', x === b);
+      document.dispatchEvent(new CustomEvent('metric-change', { detail: m.id }));
     });
     bar.appendChild(b);
   }
@@ -269,7 +272,7 @@ function renderMetricToggle(w: MetricToggleWidget): HTMLElement {
 
 /* ── chart-table ── one card: chart on top + comparison table below (full-width) */
 function renderChartTable(w: ChartTableWidget, ctx: RenderCtx): HTMLElement {
-  const card = el('div', 'ctbl');
+  const card = el('div', 'card ctbl');
   if (w.title) card.appendChild(el('div', 'ctbl-title', w.title));
   const chart = renderChart({ ...w.chart, title: undefined, outliers: (w as { outliers?: boolean }).outliers }, ctx);
   chart.classList.add('ctbl-chart');
@@ -323,13 +326,13 @@ function infoBadge(def: string): HTMLElement {
  *  (a hidden chart re-measures via the ChartManager observer when shown). */
 function renderChartToggle(w: ChartToggleWidget, ctx: RenderCtx): HTMLElement {
   const tabs = w.tabs || [];
-  const card = el('div', 'hm-card chart-toggle-card');
+  const card = el('div', 'card hm-card chart-toggle-card');
   const hd = el('div', 'hm-card-hd');
   const tt = el('div', 'tbl-title');
   const name = el('span', 'tt-name', w.title || '');
   const sub = el('span', 'tt-sub');
   tt.append(name, sub);
-  const toggle = el('div', 'hm-toggle');
+  const toggle = el('div', 'seg seg--soft');
   hd.append(tt, toggle);
   const host = el('div', 'ct-host');
   card.append(hd, host);
@@ -342,11 +345,11 @@ function renderChartToggle(w: ChartToggleWidget, ctx: RenderCtx): HTMLElement {
     host.appendChild(pane);
     panes.push(pane);
 
-    const b = el('button', `hm-seg${i === 0 ? ' hm-seg-on' : ''}`, tab.label) as HTMLButtonElement;
+    const b = el('button', `seg-opt${i === 0 ? ' active' : ''}`, tab.label) as HTMLButtonElement;
     b.type = 'button';
     b.addEventListener('click', () => {
       panes.forEach((p, j) => { p.style.display = j === i ? 'block' : 'none'; });
-      [...toggle.children].forEach((btn, j) => btn.classList.toggle('hm-seg-on', j === i));
+      [...toggle.children].forEach((btn, j) => btn.classList.toggle('active', j === i));
       sub.textContent = tab.sub || w.sub || '';
       window.dispatchEvent(new Event('resize')); // re-measure the now-visible chart
     });
@@ -398,7 +401,7 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
       if (obj && obj.delta) {
         td.classList.add('td-metric');
         td.appendChild(el('span', 'tm-val', formatValue(value)));
-        td.appendChild(el('span', `tm-pill tm-${obj.tone || 'neutral'}`, obj.delta));
+        td.appendChild(el('span', `pill ${PILL_TONE[obj.tone || 'neutral']} tm-pill`, obj.delta));
         if (obj.rel) td.appendChild(el('span', 'tm-rel', obj.rel));
       } else {
         td.textContent = formatValue(value);
@@ -488,13 +491,13 @@ function renderHeatmap(w: HeatmapWidget, ctx: RenderCtx): HTMLElement {
  *  count is data-driven; clicking a tab re-pivots with the current filters. */
 function renderHeatmapToggle(w: HeatmapToggleWidget, ctx: RenderCtx): HTMLElement {
   const tabs = w.tabs || [];
-  const card = el('div', 'hm-card');
+  const card = el('div', 'card hm-card');
   const hd = el('div', 'hm-card-hd');
   const tt = el('div', 'tbl-title');
   const name = el('span', 'tt-name');
   const sub = el('span', 'tt-sub');
   tt.append(name, sub);
-  const toggle = el('div', 'hm-toggle');
+  const toggle = el('div', 'seg seg--soft');
   hd.append(tt, toggle);
   const host = el('div', 'hm-host');
   card.append(hd, host);
@@ -506,10 +509,10 @@ function renderHeatmapToggle(w: HeatmapToggleWidget, ctx: RenderCtx): HTMLElemen
     sub.textContent = tab.sub || '';
     const piv = pivotHeatmap(tab, ctx);
     host.replaceChildren(piv ? buildHeatGrid(piv.cols, piv.rows) : empty());
-    [...toggle.children].forEach((b, i) => b.classList.toggle('hm-seg-on', i === idx));
+    [...toggle.children].forEach((b, i) => b.classList.toggle('active', i === idx));
   };
   tabs.forEach((tab, i) => {
-    const b = el('button', 'hm-seg', tab.label) as HTMLButtonElement;
+    const b = el('button', 'seg-opt', tab.label) as HTMLButtonElement;
     b.type = 'button';
     b.addEventListener('click', () => show(i));
     toggle.appendChild(b);

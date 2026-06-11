@@ -8,14 +8,6 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     body { background: var(--bg-page); }
-    .home-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 22px; background: var(--bg); border-bottom: 1px solid var(--border); }
-    .bar-logo { height: 20px; width: auto; display: block; flex-shrink: 0; }
-    .bar-logo-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
-    .home-brand { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
-    .home-brand small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); }
-    .bar-back { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .bar-back:hover { color: var(--fg); border-color: var(--border-strong); }
-
     .u-wrap { max-width: 1100px; margin: 0 auto; padding: 34px 36px 90px; }
     .u-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
     .u-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
@@ -54,18 +46,19 @@
   </style>
 </head>
 <body>
-  <header class="home-bar">
-    <img class="bar-logo" src="/assets/witly-logo.png" alt="Witly" />
-    <span class="bar-logo-sep"></span>
-    <span class="home-brand">Dossiê do Consultor<small>Uso</small></span>
-    <a class="bar-back" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>Voltar</a>
-  </header>
+  <header class="home-bar" data-sub="Uso" data-back="/"></header>
+  <script src="/js/page-chrome.js" defer></script>
 
   <div class="u-wrap" id="wrap">
     <span class="u-tag">Consumo de IA</span>
     <h1 class="u-title">Uso da API do Claude</h1>
     <p class="u-sub">Custo e tokens das gerações de insights e aprofundamentos. Os valores usam o preço configurado do modelo; ajuste em <code>app/.env</code> se necessário.</p>
+    <div class="seg" style="margin-top:18px">
+      <button type="button" class="seg-opt active" data-tab="uso">Uso da API</button>
+      <button type="button" class="seg-opt" data-tab="deepen">Detalhamentos</button>
+    </div>
     <div id="body"><p class="u-empty">Carregando…</p></div>
+    <div id="deepen-body" hidden><p class="u-empty">Carregando…</p></div>
   </div>
 
   <script type="module">
@@ -122,6 +115,63 @@
       }
     } catch (err) {
       document.getElementById('body').innerHTML = '<p class="u-empty">Erro ao carregar o uso: ' + esc(err.message) + '</p>';
+    }
+
+    // ── aba Detalhamentos (deepen_history: prompt, rating, custo, replay) ──
+    const dBody = document.getElementById('deepen-body');
+    let deepenLoaded = false;
+
+    document.querySelectorAll('.seg-opt[data-tab]').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.seg-opt[data-tab]').forEach((x) => x.classList.toggle('active', x === b));
+        const tab = b.dataset.tab;
+        document.getElementById('body').hidden = tab !== 'uso';
+        dBody.hidden = tab !== 'deepen';
+        if (tab === 'deepen' && !deepenLoaded) { deepenLoaded = true; loadDeepen(); }
+      });
+    });
+
+    const ORIGEM = { card: 'Card', pergunta: 'Pergunta', custom: 'Custom', iteracao: 'Iteração' };
+    const stars = (r) => r == null ? '<span style="color:var(--gray2)">—</span>'
+      : '<span style="color:var(--amber);letter-spacing:1px">' + '★'.repeat(r) + '</span><span style="color:var(--border-strong);letter-spacing:1px">' + '★'.repeat(5 - r) + '</span>';
+
+    async function loadDeepen(filters = '') {
+      dBody.innerHTML = '<p class="u-empty">Carregando…</p>';
+      try {
+        const d = await (await fetch('/api/deepen-history?limit=100' + filters)).json();
+        const rows = d.entries || [];
+        dBody.innerHTML = `
+          <div class="u-h2" style="margin-top:22px">Histórico de detalhamentos</div>
+          <p class="u-note" style="margin:0 0 12px">Cada geração (sucesso ou falha) com prompt, avaliação e custo. Avaliações ★4+ alimentam os exemplos dos próximos detalhamentos. <label style="margin-left:8px"><input type="checkbox" id="f-rated" /> só avaliados</label></p>
+          ${rows.length ? `<table class="u-table">
+            <thead><tr><th>Quando</th><th>Análise</th><th>Origem</th><th>Prompt</th><th>Revisão</th><th>Avaliação</th><th class="num">Custo</th><th>Status</th><th></th></tr></thead>
+            <tbody>${rows.map((e) => `<tr>
+              <td>${esc(dt(e.created_at))}</td>
+              <td><a href="/report/${encodeURIComponent(e.client)}/${encodeURIComponent(e.slug)}" style="color:var(--purple);text-decoration:none">${esc(e.client)}/${esc(e.slug)}</a></td>
+              <td><span class="u-chip k-outro">${esc(ORIGEM[e.origem] || e.origem)}</span></td>
+              <td title="${esc(e.prompt)}" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.prompt)}</td>
+              <td>${e.status === 'aprovado' ? '<span class="u-chip k-insights">aprovado</span>' : e.status === 'revisado' ? '<span class="u-chip k-raso">revisado</span>' : '<span class="u-chip k-outro">pendente</span>'}</td>
+              <td>${stars(e.rating)}${e.feedback_text ? ` <span title="${esc(e.feedback_text)}">💬</span>` : ''}</td>
+              <td class="num">${e.cost_usd != null ? usd(e.cost_usd) : (e.mocked ? 'mock' : '—')}</td>
+              <td>${e.validated_ok ? 'ok' : '<span class="u-err" title="' + esc((JSON.parse(e.validation_errors || '[]') || []).join('; ')) + '">falhou</span>'}</td>
+              <td>${e.validated_ok ? `<button type="button" class="btn btn--sm" data-replay="${esc(e.id)}" data-c="${esc(e.client)}" data-s="${esc(e.slug)}">regenerar</button>` : ''}</td>
+            </tr>`).join('')}</tbody>
+          </table>` : '<p class="u-empty">Nenhum detalhamento registrado ainda.</p>'}`;
+        const cb = document.getElementById('f-rated');
+        if (cb) { cb.checked = filters.includes('rated=true'); cb.addEventListener('change', () => loadDeepen(cb.checked ? '&rated=true' : '')); }
+        dBody.querySelectorAll('[data-replay]').forEach((btn) => btn.addEventListener('click', async () => {
+          btn.disabled = true; btn.textContent = 'gerando…';
+          try {
+            const r = await fetch(`/api/${encodeURIComponent(btn.dataset.c)}/${encodeURIComponent(btn.dataset.s)}/deepen/${encodeURIComponent(btn.dataset.replay)}/replay`, { method: 'POST' });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || 'falha');
+            btn.textContent = 'pronto ✓';
+            setTimeout(() => loadDeepen(filters), 800);
+          } catch (e) { btn.textContent = 'erro'; btn.title = e.message; btn.disabled = false; }
+        }));
+      } catch (err) {
+        dBody.innerHTML = '<p class="u-empty">Erro ao carregar: ' + esc(err.message) + '</p>';
+      }
     }
   </script>
 </body>
