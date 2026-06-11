@@ -73,6 +73,17 @@ export function resolveBind(
 
   const allCols = new Set<string>();
   for (const r of table.rows) for (const k of Object.keys(r)) allCols.add(k);
+  // Tolerância a nome-de-coluna: o gerador (deepen) às vezes escreve um RÓTULO onde a
+  // coluna é a chave (ex.: y "ROAS" → coluna "roas"). Casa exato → case-insensitive antes
+  // de validar, então um descasamento só de caixa não estoura BindError nem some o widget.
+  const byLower = new Map([...allCols].map((k) => [k.toLowerCase(), k]));
+  const resolveCol = (c?: string): string | undefined =>
+    (c == null || allCols.has(c)) ? c : (byLower.get(c.toLowerCase()) ?? c);
+  bind = {
+    ...bind, x: resolveCol(bind.x), y: resolveCol(bind.y), series: resolveCol(bind.series),
+    metrics: bind.metrics?.map((m) => resolveCol(m) as string),
+    where: bind.where ? Object.fromEntries(Object.entries(bind.where).map(([k, v]) => [resolveCol(k) ?? k, v])) : bind.where,
+  };
   const requireCol = (col: string | undefined, field: string) => {
     if (col && !allCols.has(col)) {
       throw new BindError(`bind.${field} "${col}" is not a column of dataset "${bind.dataset}"`);

@@ -383,7 +383,31 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   const table = el('table');
   const thead = el('thead');
   const hrow = el('tr');
-  for (const h of w.cols || []) {
+
+  // Resolução DEFENSIVA das colunas de uma tabela bindada: o `cols` é aplicado via
+  // r[col], então um RÓTULO ("Tx.Conv") onde a coluna é a chave ("conv") deixaria a
+  // célula vazia. Casa exato → case-insensitive; se NENHUMA coluna casar, cai para as
+  // colunas reais do dataset — nunca uma tabela inteira vazia por mismatch de nome.
+  let rows: TableCell[][];
+  let cols: string[] = w.cols || [];
+  if (w.bind) {
+    const resolved = ctx.resolve(w.bind);
+    if (!resolved || resolved.rows.length === 0) { tw.append(table); wrap.append(tw, empty()); return wrap; }
+    const keys = Object.keys(resolved.rows[0] || {});
+    const byLower = new Map(keys.map(k => [k.toLowerCase(), k]));
+    const keyFor = (c: string): string | null => keys.includes(c) ? c : (byLower.get(c.toLowerCase()) ?? null);
+    let mapped = (w.cols || []).map(c => ({ label: c, key: keyFor(c) }));
+    if (!mapped.length || mapped.every(m => m.key === null)) {
+      if (w.cols?.length) console.warn(`table "${w.title || w.id}": colunas ${JSON.stringify(w.cols)} não casam com o dataset (${keys.join(', ')}); usando as colunas reais.`);
+      mapped = keys.map(k => ({ label: k, key: k }));
+    }
+    cols = mapped.map(m => m.label);
+    rows = resolved.rows.map(r => mapped.map(m => (m.key ? (r[m.key] ?? '') : '') as TableCell));
+  } else {
+    rows = w.rows || [];
+  }
+
+  for (const h of cols) {
     const th = el('th', '', h);
     const def = w.defs?.[h];
     if (def) { th.appendChild(document.createTextNode(' ')); th.appendChild(infoBadge(def)); }
@@ -393,16 +417,6 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   table.appendChild(thead);
 
   const tbody = el('tbody');
-  let rows: TableCell[][];
-  if (w.bind) {
-    const resolved = ctx.resolve(w.bind);
-    if (!resolved || resolved.rows.length === 0) { tw.append(table); wrap.append(tw, empty()); return wrap; }
-    rows = resolved.rows.map(r => (w.cols || []).map(c => (r[c] ?? '') as TableCell));
-  } else {
-    rows = w.rows || [];
-  }
-
-  const cols = w.cols || [];
   for (const r of rows) {
     const tr = el('tr');
     r.forEach((cell, i) => {
