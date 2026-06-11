@@ -29,20 +29,30 @@ export class Navigation {
     return (this.store.data?.meta as { nav?: string } | undefined)?.nav === 'sidebar' ? 'sidebar' : 'topnav';
   }
 
+  /** Página de PLATAFORMA (perguntas, detalhamentos): no modo sidebar vai para o
+   *  topnav, não para a árvore lateral (que é a navegação de ENTIDADES do tipo). */
+  private isMeta(page: { id: string; kind?: string }): boolean {
+    return page.kind === 'perguntas' || page.id === 'detalhamentos';
+  }
+
   build(): void {
     this.pagesHost.replaceChildren();
     this.tabsHost.replaceChildren();
+    const sidebar = this.navMode() === 'sidebar';
 
     for (const page of this.store.pages) {
-      const pBtn = document.createElement('button');
-      pBtn.className = 'tnp-btn';
-      pBtn.dataset.pageId = page.id;
-      pBtn.textContent = page.label;
-      pBtn.addEventListener('click', () => {
-        const first = page.sections[0];
-        if (first) this.onSelect(page.id, first.id);
-      });
-      this.pagesHost.appendChild(pBtn);
+      // No topnav: todas as páginas em modo topnav; só as de plataforma em modo sidebar.
+      if (!sidebar || this.isMeta(page as { id: string; kind?: string })) {
+        const pBtn = document.createElement('button');
+        pBtn.className = 'tnp-btn';
+        pBtn.dataset.pageId = page.id;
+        pBtn.textContent = page.label;
+        pBtn.addEventListener('click', () => {
+          const first = page.sections[0];
+          if (first) this.onSelect(page.id, first.id);
+        });
+        this.pagesHost.appendChild(pBtn);
+      }
 
       const grp = document.createElement('div');
       grp.className = 'sb-page-group';
@@ -132,6 +142,7 @@ export class Navigation {
     }
 
     for (const page of this.store.pages) {
+      if (this.isMeta(page as { id: string; kind?: string })) continue;   // plataforma → topnav
       const grp = document.createElement('div');
       grp.className = 'sn-group';
       grp.dataset.group = page.id;
@@ -172,6 +183,10 @@ export class Navigation {
   setActive(pageId: string, sectionId: string): void {
     const page = this.store.page(pageId);
     this.pageLabel.textContent = page?.label || '';
+    // Modo sidebar: a section-bar só aparece quando a página de PLATAFORMA ativa tem
+    // VÁRIAS seções (ex.: tabs de detalhamento). Perguntas (1 seção) não precisa dela.
+    document.body.dataset.secbar = (this.navMode() === 'sidebar' && page
+      && this.isMeta(page as { id: string; kind?: string }) && page.sections.length > 1) ? '1' : '';
 
     for (const b of this.pagesHost.querySelectorAll<HTMLElement>('.tnp-btn')) {
       b.classList.toggle('tnp-active', b.dataset.pageId === pageId);

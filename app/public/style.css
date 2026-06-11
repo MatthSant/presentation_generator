@@ -418,9 +418,14 @@ body[data-nav="sidebar"] #sidenav {
 .sn-sort-b.on { background: var(--purple-bg); color: var(--purple); border-color: var(--purple); font-weight: 500; }
 /* botões/inputs não herdam font-family — força a fonte do app na sidebar */
 #sidenav button, #sidenav input, #sidenav a { font-family: 'Exo 2', system-ui, sans-serif; }
-body[data-nav="sidebar"] #tn-pages { display: none; }   /* nav de páginas vai pra sidebar */
+/* Modo sidebar: a sidebar lista as ENTIDADES (Panorama/Fichas); as páginas de
+   PLATAFORMA (Perguntas/Detalhamentos) ficam no topnav (#tn-pages segue visível). */
 body[data-nav="sidebar"] #section-bar { display: none; }
 body[data-nav="sidebar"] #main { margin-top: 48px; margin-left: 240px; min-height: calc(100vh - 48px); }
+/* Quando uma página de plataforma está ativa, suas seções (ex.: tabs de detalhamento)
+   aparecem numa section-bar à direita da sidebar. */
+body[data-nav="sidebar"][data-secbar="1"] #section-bar { display: flex; left: 240px; }
+body[data-nav="sidebar"][data-secbar="1"] #main { margin-top: 88px; }
 
 /* ── EMBED — preview de publicação (ficha de criativo) ── */
 .embed-card { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
