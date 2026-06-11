@@ -10,8 +10,9 @@ A ordem importa: o primeiro `detect` verdadeiro vence.
 """
 from . import conversao_perfil
 from . import historico_lancamentos
+from . import criativos
 
-BANKS = [conversao_perfil, historico_lancamentos]
+BANKS = [conversao_perfil, historico_lancamentos, criativos]
 
 
 def pick_bank(dataset):

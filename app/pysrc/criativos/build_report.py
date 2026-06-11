@@ -78,6 +78,14 @@ def assemble(rows, config, content, opts=None):
     dataset['cr_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
         {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest'],
          'vendas': d['m']['vendas']} for d in B['daily']]}
+    # Tabela NUMÉRICA por criativo (números crus) — fonte do banco de perguntas
+    # norteadoras (perguntas/banks/criativos.py). Não é exibida por nenhum widget.
+    _CR_NUM = ['hook_rate', 'hold_rate', 'ctr', 'cpm', 'connect_rate', 'conv_pagina',
+               'qualidade', 'tx_resposta', 'cpl', 'cpmql', 'cac', 'roas', 'retorno',
+               'leads', 'vendas', 'invest', 'conv', 'videoviews']
+    dataset['cr_creatives'] = {'dims': ['criativo'], 'filters': [], 'rows': [
+        {'criativo': c['name'], 'is_video': 1 if c['m']['is_video'] else 0,
+         **{k: c['m'].get(k) for k in _CR_NUM}} for c in valid]}
 
     # ── "Criativos por desempenho" = cards clicáveis que abrem a ficha ──
     sid_of = {c['key']: f's{i + 1:02d}' for i, c in enumerate(valid, 1)}   # mesma ordem das fichas
