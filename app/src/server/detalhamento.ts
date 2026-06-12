@@ -8,11 +8,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Section, Widget, Modal } from '../shared/types.js';
+import type { Section, Widget, Modal, LayoutItem } from '../shared/types.js';
 import { readJson } from './fsutil.js';
 import { BASE } from './paths.js';
 import { buildCatalog } from './datasetCatalog.js';
-import { generateModal, generateModalDeep, type DeepDeps } from './claude.js';
+import { generateModal, generateModalDeep, layoutSection, sumUsage, type DeepDeps } from './claude.js';
 import { gateAndRepair } from './deepenLoop.js';
 import { runQuery } from './pygen.js';
 import { validateSection } from '../shared/validate.js';
@@ -43,6 +43,9 @@ export interface DetalheInput {
 export interface DetalheResult {
   widgets: Widget[]; mocked: boolean; datasetChanged: boolean; dataset: DataMap;
   usage?: ModalUsage; cardContext: CardContext; analysisType: string;
+  /** Disposição na grade (12 col) decidida pelo agente de layout — vira o
+   *  layout.json da seção. Vazio = cliente usa o flow padrão. */
+  layout: LayoutItem[];
   /** Telemetria do gate de qualidade para o histórico. */
   gate: { attempts: number; issues: string[]; residual: string[] };
 }
@@ -124,6 +127,17 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
     if (!w.id) (w as { id: string }).id = `${inp.resultId}-w${i}`;
     return w;
   });
-  return { widgets, mocked: gate.mocked, datasetChanged, dataset, usage: gate.usage, cardContext: cardCtx, analysisType,
+  // 2ª passada: agente de disposição arruma os widgets na grade (check fechado de
+  // larguras ≤ 12 por linha; nunca bloqueia — cai no packer determinístico).
+  inp.onProgress?.('Organizando a disposição…');
+  const lay = await layoutSection(
+    widgets.map((w) => ({ id: w.id, type: w.type,
+      title: (w as { title?: string }).title, label: (w as { label?: string }).label,
+      text: (w as { text?: string }).text })),
+    objetivo,
+  );
+  return { widgets, layout: lay.layout, mocked: gate.mocked, datasetChanged, dataset,
+    usage: sumUsage(gate.usage, lay.usage ?? { tokensIn: 0, tokensOut: 0, costUsd: 0, model: '' }),
+    cardContext: cardCtx, analysisType,
     gate: { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues } };
 }

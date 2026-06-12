@@ -16,7 +16,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { Express, Request, Response } from 'express';
 import type { Ctx } from '../context.js';
-import type { PerguntasDoc, Pergunta, ReportData, PageRef, Section } from '../../shared/types.js';
+import type { PerguntasDoc, Pergunta, ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
 import { typeOf } from '../typeRegistry.js';
@@ -190,6 +190,14 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     section.historyId = historyId;   // âncora do rating no rodapé da seção
     ctx.skipNextSSE.add(`${sectionId}.json`);
     writeJson(path.join(dir, `${sectionId}.json`), section);
+    // disposição decidida pelo agente de layout → grade de coordenadas da seção
+    if (r.layout?.length) {
+      const layoutFile = path.join(dir, 'layout.json');
+      const layout = readJson<Layout>(layoutFile) || { sections: {} };
+      (layout.sections ||= {})[sectionId] = r.layout;
+      ctx.skipNextSSE.add('layout.json');
+      writeJson(layoutFile, layout);
+    }
     attachToDetalhamentos(dir, { id: sectionId, label });
     record(client, slug, p, 'detalhamento', sectionId);
     return { sectionId, mocked: r.mocked, historyId };
