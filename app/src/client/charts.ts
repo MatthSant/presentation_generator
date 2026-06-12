@@ -369,7 +369,12 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   // After the base re-merge (which forces data labels off) re-enable them so the
   // flag wins; def.options still has the final say below.
   if (def.showLabels) {
-    opts.dataLabels = { enabled: true, style: { fontSize: '11px', fontWeight: 600 }, dropShadow: { enabled: false } };
+    // Barras horizontais: rótulo FORA da ponta, em tinta escura — branco-dentro fica
+    // ilegível em barras curtas (e em dados muito assimétricos). Vertical mantém o padrão.
+    const horiz = def.type === 'bar-horizontal';
+    opts.dataLabels = horiz
+      ? { enabled: true, textAnchor: 'start', offsetX: 7, style: { fontSize: '11px', fontWeight: 700, colors: [dark ? '#C9C9D2' : '#3A3A45'] }, dropShadow: { enabled: false } }
+      : { enabled: true, style: { fontSize: '11px', fontWeight: 600 }, dropShadow: { enabled: false } };
   }
   // Diverging metric (diff vs. benchmark): bars colored by sign from a benchmark
   // baseline, value just past each bar's end in muted ink, a light value axis with
