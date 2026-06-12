@@ -195,6 +195,10 @@ const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
   não está disponível, nunca o invente.
 - MÉTRICA DERIVADA: CPA = CPL ÷ Taxa de Conversão. Para EXPLICAR o CPA, atribua sua variação a CPL vs.
   conversão — nunca liste o próprio CPA como um terceiro fator independente ao lado deles.
+- ROAS já vem PRONTO na coluna ROAS — NÃO recalcule nem some 1. ROAS = retorno por R$1 investido:
+  ROAS < 1 é PREJUÍZO (ROAS 0,64 = retornou só R$0,64, perdeu R$0,36 por real), ROAS = 1 empata, ROAS > 1
+  dá lucro. Nunca trate um ROAS < 1 como lucro nem o cite como se fosse > 1 (ex.: ler 0,64 como "1,64");
+  ESCALAR exige ROAS > 1 (idealmente bem acima), ROAS < 1 → PAUSAR/revisar.
 - Use a métrica que o texto NOMEIA: se a frase diz "CPL", use o valor de CPL (não o de CPA); confira a ordem
   de grandeza (um CPL de leads costuma ser ~R$10–50, não milhares — um valor de milhares ali é quase sempre
   a métrica errada).
@@ -229,7 +233,7 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
   },
   'debriefing-lancamento': {
     what: 'debriefing pós-campanha de UM lançamento: resultado vs META por canal/temperatura/escopo (pago × orgânico), captação, mídia (CPL/CPMQL/ROAS/CPM) e evolução semanal/diária',
-    focus: 'FOQUE no recorte do card. As METAS e o atingimento estão na tabela de KPIs (deb_kpis: um indicador por linha com colunas value/meta/hist) — para "a meta foi atingida?" compare o value × meta DELA, não diga "meta não configurada". As metas existem SÓ no nível GLOBAL (deb_kpis: vendas/leads/fat/qualif/CPL); NÃO há meta por canal nem por temperatura (a menos que a consultar de fato retorne uma coluna de meta). NUNCA invente metas por dimensão (ex.: "Facebook meta 300", "quente meta 180") — isso reprova na qualidade. Para "ONDE o gap se concentrou", decomponha o resultado por CONTRIBUIÇÃO DE VOLUME ABSOLUTO (quais canais/temperaturas trouxeram mais vendas e quais trouxeram pouca/nenhuma escala), e reconheça num find-note que não há metas desagregadas. O split pago × orgânico está em deb_chan (coluna tipo) e na dimensão "escopo" da consultar. ATENÇÃO: as métricas por TEMPERATURA contam só lead PAGO (não somam com o total geral por canal) — não misture os dois totais. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+    focus: 'FOQUE no recorte do card. As METAS e o atingimento estão na tabela de KPIs (deb_kpis: um indicador por linha com colunas value/meta/hist) — para "a meta foi atingida?" compare o value × meta DELA, não diga "meta não configurada". As metas existem SÓ no nível GLOBAL (deb_kpis: vendas/leads/fat/qualif/CPL); NÃO há meta por canal nem por temperatura (a menos que a consultar de fato retorne uma coluna de meta). NUNCA invente metas por dimensão (ex.: "Facebook meta 300", "quente meta 180") — isso reprova na qualidade. Para "ONDE o gap se concentrou", decomponha o resultado por CONTRIBUIÇÃO DE VOLUME ABSOLUTO (quais canais/temperaturas trouxeram mais vendas e quais trouxeram pouca/nenhuma escala), e reconheça num find-note que não há metas desagregadas. O split pago × orgânico está em deb_chan (coluna tipo) e na dimensão "escopo" da consultar. ATENÇÃO: as métricas por TEMPERATURA contam só lead PAGO (não somam com o total geral por canal) — não misture os dois totais. A soma de vendas por canal/escopo pode NÃO fechar com o total geral (há vendas sem canal/escopo atribuído) — se não bater, reconheça a diferença num find-note ("X vendas sem canal atribuído"), não force os números a casar nem invente. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
   },
 };
 const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
