@@ -57,7 +57,14 @@
         <div class="g-field"><label>Data do report</label><input id="f-report" type="date" /></div>
       </div>
 
-      <p class="g-h">Metas (opcional — habilitam o semáforo de desvio)</p>
+      <p class="g-h">Benchmarks de tráfego (taxas esperadas — usadas no funil, nos KPIs e nas perguntas)</p>
+      <div class="g-row">
+        <div class="g-field"><label>CTR (%)</label><input id="b-ctr" type="number" step="0.1" value="1" /></div>
+        <div class="g-field"><label>Connect Rate (%)</label><input id="b-connect" type="number" step="1" value="80" /></div>
+        <div class="g-field"><label>Conv. de Página (%)</label><input id="b-conv" type="number" step="1" value="40" /></div>
+      </div>
+
+      <p class="g-h">Metas da campanha (opcional — habilitam o semáforo de desvio)</p>
       <div class="g-row">
         <div class="g-field"><label>Meta leads total</label><input id="m-leads" type="number" placeholder="ex.: 3000" /></div>
         <div class="g-field"><label>Meta leads to date</label><input id="m-leads-td" type="number" placeholder="ex.: 2400" /></div>
@@ -65,12 +72,10 @@
       <div class="g-row">
         <div class="g-field"><label>CPL (R$)</label><input id="m-cpl" type="number" step="0.01" /></div>
         <div class="g-field"><label>CPMQL (R$)</label><input id="m-cpmql" type="number" step="0.01" /></div>
-        <div class="g-field"><label>CTR (%)</label><input id="m-ctr" type="number" step="0.1" /></div>
       </div>
       <div class="g-row">
         <div class="g-field"><label>Taxa de Resposta (%)</label><input id="m-resp" type="number" step="0.1" /></div>
         <div class="g-field"><label>Taxa de Qualidade (%)</label><input id="m-qual" type="number" step="0.1" /></div>
-        <div class="g-field"><label>Conv. de Página (%)</label><input id="m-conv" type="number" step="0.1" /></div>
       </div>
 
       <p class="g-h">Arquivos</p>
@@ -109,16 +114,20 @@
 
       const metas = {};
       const add = (k, id) => { const v = numv(id); if (v !== null) metas[k] = v; };
-      add('cpl', 'm-cpl'); add('cpmql', 'm-cpmql'); add('ctr', 'm-ctr');
-      add('taxa_resp', 'm-resp'); add('taxa_qual', 'm-qual'); add('conv_pag', 'm-conv');
+      add('cpl', 'm-cpl'); add('cpmql', 'm-cpmql');
+      add('taxa_resp', 'm-resp'); add('taxa_qual', 'm-qual');
       add('_leads_total', 'm-leads'); add('_leads_td', 'm-leads-td');
+      // Benchmarks de tráfego: fonte única do funil E do semáforo dos KPIs (ctr/connect/conv_pag).
+      const funnel_bench = {};
+      const addb = (k, id) => { const v = numv(id); if (v !== null) funnel_bench[k] = v; };
+      addb('ctr', 'b-ctr'); addb('connect', 'b-connect'); addb('conv_pag', 'b-conv');
 
       const cfg = { client, slug, title, type: 'acompanhamento-lancamento',
         nome_campanha: $('f-nome').value.trim() || undefined,
         field_conversion: $('f-fc').value.trim() || undefined,
         data_corte: $('f-corte').value || undefined,
         data_report: ddmm($('f-report').value) || undefined,
-        metas };
+        metas, funnel_bench };
       $('go').disabled = true;
       show('work', 'Gerando o acompanhamento no servidor (pode levar alguns segundos)…');
       try {
