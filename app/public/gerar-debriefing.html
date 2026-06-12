@@ -44,14 +44,13 @@
     <p class="g-sub">Envie o CSV consolidado do lançamento (view <code>VW_V2_inscricoes_res</code>) e gere o dashboard de 7 abas: Panorama, Canal, Tráfego Pago, Orgânico, Temporal, Análise 360° e One Pager.</p>
 
     <div class="card g-card">
-      <p class="g-h">Identificação</p>
-      <div class="g-row">
-        <div class="g-field"><label>Cliente (slug)</label><input id="f-client" placeholder="ex.: inde" /></div>
-        <div class="g-field"><label>Slug</label><input id="f-slug" value="debriefing" /></div>
+      <p class="g-h">Cliente</p>
+      <div class="g-field full">
+        <label>Cliente</label>
+        <select id="f-client"></select>
+        <small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
       </div>
-      <div class="g-field full"><label>Título do relatório</label><input id="f-title" placeholder="ex.: INDÊ · Debriefing Independência" /></div>
       <div class="g-row">
-        <div class="g-field"><label>Nome do cliente</label><input id="f-nome" placeholder="ex.: INDÊ" /></div>
         <div class="g-field"><label>Label da campanha</label><input id="f-camp" placeholder="ex.: Independência Mai/26" /></div>
         <div class="g-field"><label>field_conversion</label><input id="f-fc" placeholder="auto se único" /></div>
       </div>
@@ -86,27 +85,26 @@
     </div>
   </div>
 
+  <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     let CSV = null, GOALS = null, HIST = null;
-    const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
     const list = (id) => $(id).value.split(',').map(s => s.trim()).filter(Boolean);
+
+    window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
 
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-goals').addEventListener('change', (e) => { GOALS = e.target.files[0] || null; $('f-goals-name').textContent = GOALS ? GOALS.name : 'nenhum arquivo'; });
     $('f-hist').addEventListener('change', (e) => { HIST = e.target.files[0] || null; $('f-hist-name').textContent = HIST ? HIST.name : 'nenhum arquivo'; });
 
     $('go').addEventListener('click', async () => {
-      const client = slugify($('f-client').value);
-      const slug = slugify($('f-slug').value) || 'debriefing';
-      const title = $('f-title').value.trim() || ($('f-nome').value.trim() + ' · Debriefing');
-      if (!client) { show('err', 'Informe o nome do cliente.'); return; }
+      const client = $('f-client').value;
+      if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV) { show('err', 'Escolha o CSV do lançamento.'); return; }
       if (!GOALS) { show('err', 'O CSV de metas (goals) é obrigatório no debriefing.'); return; }
 
-      const cfg = { client, slug, title, type: 'debriefing-lancamento',
-        client_name: $('f-nome').value.trim() || undefined,
+      const cfg = { type: 'debriefing-lancamento',
         campaign_label: $('f-camp').value.trim() || undefined,
         field_conversion: $('f-fc').value.trim() || undefined,
         captacao_inicio: $('f-cpt-ini').value || undefined,
@@ -120,7 +118,7 @@
         if (GOALS) fd.append('goals', GOALS);
         if (HIST) fd.append('hist', HIST);
         fd.append('config', JSON.stringify(cfg));
-        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/generate`, { method: 'POST', body: fd });
+        const r = await fetch(`/api/${encodeURIComponent(client)}/_new/generate`, { method: 'POST', body: fd });
         const d = await r.json();
         if (!r.ok) throw new Error((d.error || 'falha') + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
         show('ok', 'Pronto! Abrindo o relatório…');

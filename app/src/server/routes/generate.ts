@@ -22,8 +22,27 @@ import { TYPES } from '../typeRegistry.js';
 import { buildDigest } from '../datasetCatalog.js';
 import { generateInsights } from '../claude.js';
 import { assignClient } from '../auth.js';
+import { clientName } from './clients.js';
 import type { AuthedRequest } from './authRoutes.js';
 import { validateAnalysis } from '../../shared/validate.js';
+
+/** Slug-base legível por tipo (o id real é gerado pelo servidor, não digitado). */
+const SLUG_BASE: Record<string, string> = {
+  'conversao-perfil': 'conversao-perfil',
+  'debriefing-lancamento': 'debriefing',
+  'historico-lancamentos': 'historico',
+  'acompanhamento-lancamento': 'acompanhamento',
+  'criativos': 'criativos',
+};
+
+/** Gera um slug de análise ÚNICO dentro de output/<client>/ (base, base-2, base-3…),
+ *  para o app cuidar do id sozinho e nunca colidir/sobrescrever. */
+function uniqueSlug(out: string, client: string, base: string): string {
+  const safe = (base || 'analise').replace(/[^a-z0-9-]/g, '') || 'analise';
+  let slug = safe;
+  for (let n = 2; fs.existsSync(path.join(out, client, slug)); n++) slug = `${safe}-${n}`;
+  return slug;
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
@@ -58,9 +77,8 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     { name: 'goals', maxCount: 1 }, { name: 'hist', maxCount: 1 }]);
   app.post('/api/:client/:slug/generate', genUpload, async (req, res) => {
     if (!gateOk(req)) { res.status(401).json({ error: 'unauthorized' }); return; }
-    const { client, slug } = req.params;
-    const outDir = analysisDir(ctx.out, client, slug);
-    if (!outDir) { res.status(400).json({ error: 'bad path' }); return; }
+    const { client, slug: urlSlug } = req.params;
+    if (!analysisDir(ctx.out, client, urlSlug)) { res.status(400).json({ error: 'bad path' }); return; }
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
     const csvFile = files?.csv?.[0];
     const dictFile = files?.dict?.[0];
@@ -82,6 +100,16 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     let content: unknown;
     try { content = req.body?.content ? JSON.parse(String(req.body.content)) : defaultContent(); }
     catch { res.status(400).json({ error: 'content inválido (JSON)' }); return; }
+
+    // O app cuida do ID da análise: '_new'/'_auto' → slug único gerado no servidor
+    // (base por tipo + sufixo numérico), evitando colisão/sobrescrita por digitação.
+    const slug = (urlSlug === '_new' || urlSlug === '_auto')
+      ? uniqueSlug(ctx.out, client, SLUG_BASE[type] || type) : urlSlug;
+    const outDir = analysisDir(ctx.out, client, slug)!;
+    // Nome/título do cliente vêm do REGISTRO — o consultor escolhe o cliente, não digita.
+    config.client = client;
+    config.client_name = String(config.client_name || '').trim() || clientName(client) || client;
+    if (!String(config.title || '').trim()) config.title = `${config.client_name} · ${def.label}`;
 
     const job = path.join(SCRATCH, `gen-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`);
     const csvPath = path.join(job, 'upload.csv');
@@ -148,6 +176,14 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
           insights = { applied: false, error: (e as Error).message };
         }
       }
+
+      // O nome de exibição (home/cabeçalho) vem do REGISTRO de clientes, não do slug:
+      // fixa meta.client com o client_name resolvido (a rota/pasta segue o slug).
+      try {
+        const dataFile = path.join(outDir, 'data.json');
+        const dj = readJson<{ meta?: Record<string, unknown> }>(dataFile);
+        if (dj?.meta && config.client_name) { dj.meta.client = config.client_name; writeJson(dataFile, dj); }
+      } catch { /* não-fatal */ }
 
       const dataset = readJson<unknown>(path.join(outDir, 'dataset.json'));
       const layout = readJson<unknown>(path.join(outDir, 'layout.json'));

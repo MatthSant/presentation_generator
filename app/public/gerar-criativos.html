@@ -42,11 +42,11 @@
     <p class="g-sub">Envie o CSV de criativos (uma linha por anúncio × dia × campanha/público) e, opcionalmente, o dicionário de links (anúncio → URL do post) para os previews. O relatório abre com Panorama + uma ficha por criativo na sidebar.</p>
 
     <div class="card g-card">
-      <div class="g-row">
-        <div class="g-field"><label>Cliente</label><input id="f-client" placeholder="ex.: inde" /></div>
-        <div class="g-field"><label>Slug da análise</label><input id="f-slug" value="criativos" /></div>
+      <div class="g-field full">
+        <label>Cliente</label>
+        <select id="f-client"></select>
+        <small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
       </div>
-      <div class="g-field"><label>Título do relatório</label><input id="f-title" placeholder="ex.: INDÊ · Análise de Criativos" /></div>
 
       <div class="g-fileline">
         <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV de criativos<input id="f-csv" type="file" accept=".csv" hidden /></label>
@@ -63,22 +63,22 @@
     </div>
   </div>
 
+  <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     let CSV = null, DICT = null;
-    const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
+
+    window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
 
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
 
     $('go').addEventListener('click', async () => {
-      const client = slugify($('f-client').value);
-      const slug = slugify($('f-slug').value) || 'criativos';
-      const title = $('f-title').value.trim() || ($('f-client').value.trim() + ' · Análise de Criativos');
-      if (!client) { show('err', 'Informe o nome do cliente.'); return; }
+      const client = $('f-client').value;
+      if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV) { show('err', 'Escolha o CSV de criativos.'); return; }
-      const cfg = { client, slug, title, type: 'criativos' };
+      const cfg = { type: 'criativos' };
       $('go').disabled = true;
       show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
       try {
@@ -86,7 +86,7 @@
         fd.append('csv', CSV);
         if (DICT) fd.append('dict', DICT);
         fd.append('config', JSON.stringify(cfg));
-        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/generate`, { method: 'POST', body: fd });
+        const r = await fetch(`/api/${encodeURIComponent(client)}/_new/generate`, { method: 'POST', body: fd });
         const d = await r.json();
         if (!r.ok) throw new Error((d.error || 'falha') + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
         show('ok', 'Pronto! Abrindo o relatório…');
