@@ -56,6 +56,11 @@
         <div class="g-field"><label>field_conversion</label><input id="f-fc" placeholder="auto se único" /></div>
       </div>
 
+      <div class="g-row">
+        <div class="g-field"><label>Início da captação</label><input id="f-cpt-ini" type="date" /><small>opcional — auto pelo 1º dia com leads de captação</small></div>
+        <div class="g-field"><label>Fim da captação</label><input id="f-cpt-fim" type="date" /><small>opcional — limita os gráficos de leads/conversão por dia</small></div>
+      </div>
+
       <p class="g-h">Classificação (confira contra os dados do cliente)</p>
       <div class="g-field full"><label>Fontes pagas (utm_source contém)</label><input id="c-paid" value="facebook, meta, google, fb" /><small>separe por vírgula</small></div>
       <div class="g-field full"><label>Padrão de captação (campanha contém)</label><input id="c-cpt" value="cadastro-, google-search-, -cpt]" /></div>
@@ -104,6 +109,8 @@
         client_name: $('f-nome').value.trim() || undefined,
         campaign_label: $('f-camp').value.trim() || undefined,
         field_conversion: $('f-fc').value.trim() || undefined,
+        captacao_inicio: $('f-cpt-ini').value || undefined,
+        captacao_fim: $('f-cpt-fim').value || undefined,
         paid_sources: list('c-paid'), cpt_pattern: list('c-cpt'), vnd_pattern: list('c-vnd') };
       $('go').disabled = true;
       show('work', 'Gerando o debriefing no servidor (pode levar alguns segundos)…');

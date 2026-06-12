@@ -231,9 +231,30 @@ def metrics(rows, config=None, goals=None, hist=None):
     M['temp'] = _temp(rows, G)
     M['camp_roas'] = _camp_roas(rows)
     M['weekly'] = _weekly(rows)
-    M['daily'] = _daily(rows)
+    win = _cpt_window(rows, config)
+    M['cpt_window'] = win
+    M['daily'] = _daily(rows, win)
     M['best_week'] = _best_week(M['weekly'])
     return M
+
+
+def _cpt_window(rows, config):
+    """Janela de captação (ini, fim) em ISO. Usa config.captacao_inicio/fim quando
+    informado; senão deriva do menor/maior dia com captação efetiva (linhas de
+    captação com leads > 0). Retorna (None, None) se não houver datas."""
+    cfg = config or {}
+    ini = (cfg.get('captacao_inicio') or '').strip()[:10] or None
+    fim = (cfg.get('captacao_fim') or '').strip()[:10] or None
+    if ini and fim:
+        return ini, fim
+    dates = sorted({d for r in rows
+                    if r.get('_camp') == 'captacao' and fnum(r.get('leads')) > 0
+                    and (d := _date(r))})
+    if not dates:
+        dates = sorted({d for r in rows if (d := _date(r))})
+    if not dates:
+        return ini, fim
+    return ini or dates[0], fim or dates[-1]
 
 
 def _chan(rows, config):
@@ -273,6 +294,8 @@ def _temp(rows, goals):
         c['inv'] = round(c['inv'], 2); c['fat'] = round(c['fat'], 2)
         c['roas'] = div(c['fat'] - c['inv'], c['inv']); c['conv'] = pct(c['vendas'], c['leads'])
         c['qual'] = pct(c['mqls'], c['resps']); c['meta_vendas'] = mvt.get(c['temp'], 0)
+        c['cpl'] = div(c['inv'], c['leads'])
+        c['cpmql'] = div(c['cpl'] * 100, c['qual']) if c['qual'] else 0.0
         out.append(c)
     return sorted(out, key=lambda c: -c['inv'])
 
@@ -284,9 +307,10 @@ def _camp_roas(rows):
             continue
         c = by.setdefault(r.get('field_campaign_name') or '(vazio)',
                           {'campanha': r.get('field_campaign_name') or '(vazio)', 'inv': 0.0, 'fat': 0.0,
-                           'leads': 0, 'vendas': 0})
+                           'leads': 0, 'vendas': 0, 'mqls': 0, 'resps': 0})
         c['inv'] += fnum(r.get('invest_total')); c['fat'] += fnum(r.get('faturamento'))
         c['leads'] += int(fnum(r.get('leads'))); c['vendas'] += int(fnum(r.get('vendas')))
+        c['mqls'] += int(fnum(r.get('leads_mqls'))); c['resps'] += int(fnum(r.get('respostas')))
     out = []
     for c in by.values():
         if c['inv'] <= 0:
@@ -294,6 +318,8 @@ def _camp_roas(rows):
         c['inv'] = round(c['inv'], 2); c['fat'] = round(c['fat'], 2)
         c['roas'] = div(c['fat'] - c['inv'], c['inv']); c['conv'] = pct(c['vendas'], c['leads'])
         c['cpl'] = div(c['inv'], c['leads'])
+        c['qual'] = pct(c['mqls'], c['resps'])
+        c['cpmql'] = div(c['cpl'] * 100, c['qual']) if c['qual'] else 0.0
         out.append(c)
     return sorted(out, key=lambda c: -c['roas'])
 
@@ -307,8 +333,8 @@ def _weekly(rows):
     for d, r in dated:
         sn = max(1, (d - start).days // 7 + 1)
         w = by.setdefault(sn, {'snum': sn, 'leads': 0, 'vendas': 0, 'fat': 0.0, 'mqls': 0, 'resps': 0,
-                               'inv_cpt': 0.0, 'leads_traf': 0.0, 'leads_pago': 0, 'leads_org': 0,
-                               'dates': []})
+                               'mqls_p': 0, 'resps_p': 0, 'inv_cpt': 0.0, 'leads_traf': 0.0,
+                               'leads_pago': 0, 'leads_org': 0, 'dates': []})
         w['dates'].append(d)
         w['leads'] += int(fnum(r.get('leads'))); w['vendas'] += int(fnum(r.get('vendas')))
         w['fat'] += fnum(r.get('faturamento')); w['mqls'] += int(fnum(r.get('leads_mqls')))
@@ -317,6 +343,7 @@ def _weekly(rows):
             w['inv_cpt'] += fnum(r.get('invest_total'))
         if r.get('_tipo') == 'pago':
             w['leads_pago'] += int(fnum(r.get('leads')))
+            w['mqls_p'] += int(fnum(r.get('leads_mqls'))); w['resps_p'] += int(fnum(r.get('respostas')))
         elif r.get('_tipo') == 'organico':
             w['leads_org'] += int(fnum(r.get('leads')))
     out = []
@@ -326,16 +353,21 @@ def _weekly(rows):
         w['ini'] = ds[0].strftime('%d/%m'); w['fim'] = ds[-1].strftime('%d/%m')
         w['conv'] = pct(w['vendas'], w['leads']); w['qual'] = pct(w['mqls'], w['resps'])
         w['fpl'] = div(w['fat'], w['leads']); w['cpl'] = div(w['inv_cpt'], w['leads_traf'])
+        qpag = pct(w['mqls_p'], w['resps_p'])
+        w['cpmql'] = div(w['cpl'] * 100, qpag) if qpag else 0.0
         w['fat'] = round(w['fat'], 2); w['inv_cpt'] = round(w['inv_cpt'], 2)
         out.append(w)
     return out
 
 
-def _daily(rows):
+def _daily(rows, window=None):
+    ini, fim = window or (None, None)
     by = {}
     for r in rows:
         d = _date(r)
         if not d:
+            continue
+        if (ini and d < ini) or (fim and d > fim):
             continue
         c = by.setdefault(d, {'data': d, 'l_all': 0, 'l_pago': 0, 'l_org': 0, 'v_all': 0,
                               'mqls': 0, 'resps': 0, 'mqls_p': 0, 'resps_p': 0, 'mqls_o': 0, 'resps_o': 0})

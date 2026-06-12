@@ -1375,6 +1375,7 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--volume .kc-val { font-size: 21px; margin-top: 2px; }
 .kc-sub { font-size: 10.5px; color: var(--gray2); line-height: 1.45; margin-top: 5px; flex: 1; }
 .kc-sub::first-letter { text-transform: uppercase; }
+.kc-vol-delta { align-self: flex-start; margin-top: 6px; font-size: 9.5px; padding: 1px 6px; border-radius: 5px; }
 .kc-btm { display: flex; justify-content: flex-end; margin-top: 12px; }
 .kc-btm .kpi-spark { width: 130px; height: 30px; margin: 0; opacity: .8; }
 .kc-valrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }

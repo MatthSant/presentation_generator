@@ -310,6 +310,7 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   } else {
     card.appendChild(val);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']} kc-vol-delta`, w.delta));
     card.appendChild(barEl(w.bar || []));
   }
   return card;

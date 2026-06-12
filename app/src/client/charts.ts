@@ -319,6 +319,17 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     opts.legend = { show: false };
   }
 
+  // Muitas categorias (ex.: série diária ~30 dias) sobrepõem os rótulos do eixo x.
+  // Em gráficos verticais de categoria, rotaciona e rareia os ticks (tickAmount) para
+  // manter legível sem cortar dados.
+  const VERT_CAT = ['bar', 'line', 'area', 'mixed', 'stacked'];
+  if (def.categories && VERT_CAT.includes(def.type) && def.categories.length > 12) {
+    const baseX = isObj(opts.xaxis) ? opts.xaxis : (b.xaxis as Record<string, unknown>);
+    const baseLabels = isObj(baseX.labels) ? baseX.labels : {};
+    opts.xaxis = { ...baseX, tickAmount: Math.min(12, def.categories.length - 1),
+      labels: { ...baseLabels, rotate: -45, rotateAlways: true, hideOverlappingLabels: true, trim: false } };
+  }
+
   mergeDeep(opts, { chart: b.chart, grid: b.grid, tooltip: b.tooltip, dataLabels: b.dataLabels });
   // re-apply resolved type (mergeDeep above restored base chart without it)
   (opts.chart as Record<string, unknown>).type = chart.type ?? resolvedType;
