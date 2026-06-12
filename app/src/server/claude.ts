@@ -225,7 +225,7 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
   },
   'criativos': {
     what: 'desempenho de criativos (anúncios) de Meta Ads — por anúncio, campanha e público — com investimento, ROAS, retorno, CPL, CPM, CAC, captação e qualidade de lead, em dois modos de leitura (Resultado × Captação)',
-    focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+    focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo. ATENÇÃO ao que NÃO existe: a série DIÁRIA é GERAL (saturacao_diaria devolve ROAS/retorno por dia do conjunto, ou de UM criativo só com o nome), NÃO há série diária por-indicador (hook/hold/CTR) de cada criativo — então para saturação identifique pela queda do ROAS/retorno diário e pelo nível CONSOLIDADO do criativo, e NUNCA afirme "o indicador X caiu do dia A ao B" por criativo (esse dado não existe; reconheça num find-note). Toda comparação "vs média dos melhores" exige consultar essa média (ranking/tabela) — não cite um número de referência sem trazê-lo.',
   },
   'acompanhamento-lancamento': {
     what: 'acompanhamento tático DIÁRIO de UM lançamento em curso: KPIs por dia (CPL, CPMQL, CTR, Hook, Hold, Connect, Conv. de Página, Taxa de Resposta/Qualidade) comparados a METAS e BENCHMARKS, com tendência dos últimos 3 dias e funil de tráfego (taxas vs benchmark)',
