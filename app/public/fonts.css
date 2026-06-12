@@ -1,6 +1,4 @@
-﻿@font-face { font-family: 'Exo 2'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/exo2-400.woff2') format('woff2'); }
-@font-face { font-family: 'Exo 2'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/exo2-500.woff2') format('woff2'); }
-@font-face { font-family: 'Exo 2'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/exo2-600.woff2') format('woff2'); }
-@font-face { font-family: 'Exo 2'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/exo2-700.woff2') format('woff2'); }
-@font-face { font-family: 'Exo 2'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/exo2-800.woff2') format('woff2'); }
-@font-face { font-family: 'Exo 2'; font-style: normal; font-weight: 900; font-display: swap; src: url('/fonts/exo2-900.woff2') format('woff2'); }
+/* Witly — tipografia da marca (design system).
+   Poppins (sans geométrica moderna) + IBM Plex Mono para números/figuras.
+   Substituição via Google Fonts; trocar por self-host se a marca licenciar a face. */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');

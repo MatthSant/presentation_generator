@@ -71,7 +71,7 @@ class App {
     this.store.layout = layout;
 
     document.title = data.meta?.title || data.meta?.client || 'Relatório';
-    document.documentElement.dataset.theme = data.meta?.theme || 'light';
+    document.documentElement.dataset.theme = 'light';   // dark mode removido no redesign
     const brand = document.getElementById('tn-client');
     if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
     this.renderCover();
