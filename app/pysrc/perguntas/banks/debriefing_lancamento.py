@@ -269,6 +269,54 @@ def q_qual_disparidade(ctx):
                      {'label': 'Amplitude', 'value': f'{spread:.0f}pp'}]}
 
 
+def q_onde_perdemos(ctx):
+    dv, val, meta = _dev(ctx, 'vendas')
+    piores = []
+    for t in ctx['temp']:
+        m, v = _f(t.get('meta_vendas')), _f(t.get('vendas')) or 0
+        if m:
+            piores.append((t['temperatura'], (v - m) / m * 100, v, m))
+    abaixo = sorted([p for p in piores if p[1] < 0], key=lambda x: x[1])
+    if dv is None and not abaixo:
+        return {'relevancia': 0.0, 'justificativa': 'Sem metas para localizar a perda.', 'kpis': []}
+    rel = _nz(abs(dv), 25) if (dv is not None and dv < 0) else (_nz(abs(abaixo[0][1]), 30) if abaixo else 10.0)
+    pior_txt = f"{abaixo[0][0]} ({abaixo[0][1]:+.0f}%)" if abaixo else '—'
+    return {'relevancia': round(rel, 1),
+            'justificativa': (f"Gap total de vendas {dv:+.0f}% vs meta" if dv is not None else "Vendas")
+                             + f"; maior perda por temperatura: {pior_txt}.",
+            'kpis': [{'label': 'Vendas vs meta', 'value': (f'{dv:+.0f}%' if dv is not None else '—')},
+                     {'label': 'Pior temperatura', 'value': pior_txt},
+                     {'label': 'Faltaram', 'value': (str(int(meta - val)) if (dv is not None and val < meta) else '—')}]}
+
+
+def q_receita_vs_invest(ctx):
+    df, fat, _ = _hdev(ctx, 'fat')
+    di, inv, _ = _hdev(ctx, 'invest_cpt')
+    if df is None or di is None:
+        return {'relevancia': 0.0, 'justificativa': 'Sem histórico para comparar receita × investimento.', 'kpis': []}
+    # ganho real = receita cresceu mais (ou caiu menos) que o investimento
+    eficiencia = df - di
+    rel = _nz(abs(eficiencia), 30)
+    leitura = 'ganho real de eficiência' if eficiencia > 3 else ('proporcional' if abs(eficiencia) <= 3 else 'piora de eficiência')
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Receita {df:+.0f}% e investimento de captação {di:+.0f}% vs histórico — {leitura}.",
+            'kpis': [{'label': 'Receita vs hist', 'value': f'{df:+.0f}%'},
+                     {'label': 'Invest vs hist', 'value': f'{di:+.0f}%'},
+                     {'label': 'Leitura', 'value': leitura}]}
+
+
+def q_roas_hist(ctx):
+    d, val, hist = _hdev(ctx, 'roas')
+    if d is None:
+        return {'relevancia': 0.0, 'justificativa': 'Sem ROAS histórico para comparar.', 'kpis': []}
+    rel = _nz(abs(d), 25)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"ROAS de captação {val:.2f}× vs {hist:.2f}× no histórico ({d:+.0f}%).",
+            'kpis': [{'label': 'ROAS atual', 'value': f'{val:.2f}×'},
+                     {'label': 'ROAS hist.', 'value': f'{hist:.2f}×'},
+                     {'label': 'vs hist', 'value': f'{d:+.0f}%'}]}
+
+
 QUESTIONS = [
     {'id': 'db-resultado-geral', 'fn': q_resultado_geral,
      'pergunta': 'O resultado geral foi sucesso, estável ou deterioração?',
@@ -283,6 +331,18 @@ QUESTIONS = [
      'pergunta': 'Quais as principais diferenças vs o lançamento anterior?',
      'prompt': ('Compare vendas, faturamento, leads, CPL, ROAS e qualificação com o lançamento anterior (histórico). '
                 'Destaque as maiores variações — positivas e negativas — e a leitura de cada uma.')},
+    {'id': 'db-onde-perdemos', 'fn': q_onde_perdemos,
+     'pergunta': 'Onde mais perdemos volume de vendas e receita?',
+     'prompt': ('Localize onde o resultado de vendas/receita mais ficou abaixo da meta — por temperatura, por '
+                'escopo (pago × orgânico) e, se possível, por canal. Quantifique o quanto cada um deixou de entregar.')},
+    {'id': 'db-receita-invest', 'fn': q_receita_vs_invest,
+     'pergunta': 'O crescimento da receita foi proporcional ao do investimento? Gerou ganho real?',
+     'prompt': ('Compare a variação de receita com a variação do investimento de captação vs o histórico. '
+                'Avalie se o aumento (ou corte) de verba gerou ganho REAL de resultado ou só acompanhou o gasto.')},
+    {'id': 'db-roas-hist', 'fn': q_roas_hist,
+     'pergunta': 'O ROAS de captação foi melhor ou pior que o histórico?',
+     'prompt': ('Compare o ROAS de captação (faturamento pago − investimento, sobre o investimento) com o do '
+                'lançamento anterior. Aponte o que mudou na eficiência da mídia paga.')},
     {'id': 'db-split-leads', 'fn': q_split_leads,
      'pergunta': 'Qual a composição de leads orgânicos x pagos?',
      'prompt': ('Mostre a divisão da captação entre orgânico e pago (leads). Avalie a dependência de cada fonte e '

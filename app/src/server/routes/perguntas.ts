@@ -105,9 +105,17 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const { client, slug } = req.params;
     const dir = analysisDir(ctx.out, client, slug);
     const file = docPath(client, slug);
-    // First access: derive the ranked questions from the analysis data on demand.
-    if (dir && file && !fs.existsSync(file) && fs.existsSync(path.join(dir, 'dataset.json'))) {
-      await generateDoc(dir).catch(() => { /* fall through to empty */ });
+    // Deriva (ou re-deriva) as perguntas ranqueadas a partir do dataset quando o doc
+    // está AUSENTE, VAZIO ou DEFASADO (dataset regenerado depois dele). Sem o caso
+    // "vazio/defasado", um perguntas.json salvo sem perguntas — ou anterior a uma
+    // regeração da análise — travava a página para sempre.
+    const dsFile = dir ? path.join(dir, 'dataset.json') : '';
+    if (dir && file && dsFile && fs.existsSync(dsFile)) {
+      const existing = fs.existsSync(file) ? readJson<PerguntasDoc>(file) : null;
+      const stale = !existing
+        || !(existing.perguntas || []).length
+        || fs.statSync(dsFile).mtimeMs > fs.statSync(file).mtimeMs;
+      if (stale) await generateDoc(dir).catch(() => { /* fall through to empty */ });
     }
     const doc = file ? readJson<PerguntasDoc>(file) : null;
     // Idempotent: keep the nav page present even after the analysis is regenerated

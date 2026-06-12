@@ -268,7 +268,8 @@ def assemble(rows, config, content, opts=None):
         if cr['eff']:
             eff_cols = ['Criativo', 'Leads', 'Invest.', 'CPL', 'Tx. Qual', 'Resp.', 'CPMQL proj.']
             can.append({'id': 'can-cri-eff', 'type': 'table', 'title': '🏆 Menor CPMQL projetado',
-                        'cols': eff_cols, 'rows': cri_rows(cr['eff'], with_resp=True)})
+                        'cols': eff_cols, 'rows': cri_rows(cr['eff'], with_resp=True),
+                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para o CPMQL projetado ser confiável.'})
             cg.add('can-cri-eff', 'table', 6, 3)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}
