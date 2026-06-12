@@ -20,6 +20,8 @@ from common.fmt import money, pctf, intf
 from common.preserve import preserve
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
+# Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
+FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).
 ICON = {'investimento': ('coin', '#534AB7'), 'cpl': ('users', '#185FA5'), 'cpmql': ('star', '#854F0B'),
         'taxa_resp': ('arrows-left-right', '#3B6D11'), 'taxa_qual': ('circle-check', '#534AB7'),
@@ -246,13 +248,16 @@ def assemble(rows, config, content, opts=None):
     tg.add('tra-eb-fun', 'eyebrow', 12, 1)
 
     def funnel_table(wid, title, stages, w=6):
+        # Tabela por TAXA de cada transição (não volume absoluto): a taxa realizada
+        # vs o benchmark esperado, com o furo relativo. Uma linha por transição.
         rows = []
-        for s in stages:
-            tr = s.get('trans') or {}
+        for i in range(len(stages) - 1):
+            tr = stages[i].get('trans') or {}
+            nome = f"{FUNNEL_RATE[i]} · {stages[i]['label']} → {stages[i + 1]['label']}"
             if tr.get('invalid'):
-                mig, esp, furo = '⚠️ inválido', '—', '—'
+                taxa, esp, furo = '⚠️ inválido', '—', '—'
             elif 'migracao' in tr:
-                mig = f"{tr['migracao']:.0f}%"
+                taxa = f"{tr['migracao']:.0f}%"
                 esp = f"{tr['bench']:.0f}%" if tr.get('bench') else '—'
                 gap = tr.get('gap')
                 if gap is None:
@@ -263,10 +268,10 @@ def assemble(rows, config, content, opts=None):
                     mark = ' · ⚠️ MAIOR FURO' if tr.get('maior_furo') else ''
                     furo = {'value': f"−{gap:.0f}%{mark}", 'cls': 'c-r' if tr.get('maior_furo') else 'c-a'}
             else:
-                mig, esp, furo = '—', '—', '—'
-            rows.append([s['label'], intf(s['value']), mig, esp, furo])
+                taxa, esp, furo = '—', '—', '—'
+            rows.append([nome, taxa, esp, furo])
         tra.append({'id': wid, 'type': 'table', 'title': title,
-                    'cols': ['Etapa', 'Volume', '% Migração', 'Esperado', 'Furo vs esperado'], 'rows': rows})
+                    'cols': ['Transição', 'Taxa realizada', 'Esperado', 'Furo vs esperado'], 'rows': rows})
         tg.add(wid, 'table', w, 4)
     funnel_table('tra-fun-tot', f"Funil Total · {B['n_dias']} dias", B['funnel_total'])
     funnel_table('tra-fun-3d', 'Funil · Últimos 3 dias', B['funnel_3d'])

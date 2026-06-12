@@ -257,6 +257,13 @@ def build(rows, config=None):
         metas.setdefault('_leads_total', g.get('leads_total'))
         metas.setdefault('_leads_td', g.get('leads_td'))
         metas.setdefault('_invest_total', g.get('invest_total'))
+    # benchmarks de tráfego (CTR/Connect/Conv. página) também viram a meta-padrão dos
+    # KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
+    fb = dict(FUNNEL_BENCH)
+    fb.update(config.get('funnel_bench') or {})
+    metas.setdefault('ctr', fb['ctr'])
+    metas.setdefault('connect', fb['connect'])
+    metas.setdefault('conv_pag', fb['conv_pag'])
     mstatus = {m: meta_status(tot.get(m), metas.get(m), m in COST) for m in set(KPI_MACRO + KPI_TRAF)}
 
     # split pago/orgânico
@@ -298,10 +305,8 @@ def build(rows, config=None):
     crdia = next((d for d in reversed(dates) if any(is_paid(r) and fnum(r.get('leads_trafego')) > 0 for r in by_date[d])), '')
     creatives = _creatives(by_date.get(crdia, []), config.get('dict_links') or {})
 
-    # benchmark de migração por transição (default + override via config) — os dois
-    # últimos saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver).
-    fb = dict(FUNNEL_BENCH)
-    fb.update(config.get('funnel_bench') or {})
+    # benchmark de migração por transição (fb já montado acima) — os dois últimos
+    # saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver).
     bench = [fb['ctr'], fb['connect'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
     funnel_total = _funnel(rows_corte, bench)
     funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench)
