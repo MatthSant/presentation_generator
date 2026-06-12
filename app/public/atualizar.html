@@ -21,8 +21,8 @@
     .fld { display: flex; flex-direction: column; gap: 5px; }
     .fld.wide { grid-column: 1 / -1; }
     .fld label { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray2); }
-    .fld input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
-    .fld input:focus { border-color: var(--purple); }
+    .fld input, .fld select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .fld input:focus, .fld select:focus { border-color: var(--purple); }
     .grp { grid-column: 1 / -1; border: 1px solid var(--divider); border-radius: 11px; padding: 14px 16px 4px; margin-top: 2px; }
     .grp-t { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--purple); margin: 0 0 12px; }
     .grp .u-grid { gap: 12px 16px; }
@@ -107,6 +107,7 @@
     const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
     let RETAINED = null;  // config completo retido (base p/ o merge no submit)
+    let CLIENTS = [];     // clientes cadastrados (p/ o seletor)
 
     if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
     else init();
@@ -115,6 +116,7 @@
       $('title').textContent = `Atualizar · ${slug}`;
       $('eyebrow').textContent = `${client} · atualizar`;
       try {
+        try { CLIENTS = (await (await fetch('/api/clients')).json()).clients || []; } catch { CLIENTS = []; }
         const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/base-config`);
         const d = await r.json();
         $('loading').hidden = true;
@@ -125,6 +127,24 @@
       } catch (e) {
         $('loading').textContent = 'Falha ao carregar a configuração: ' + e.message;
       }
+    }
+
+    function clientSelectEl(val) {
+      const f = document.createElement('div'); f.className = 'fld';
+      const lb = document.createElement('label'); lb.textContent = 'Cliente'; f.appendChild(lb);
+      const sel = document.createElement('select'); sel.dataset.path = 'client_name';
+      // valor atual = client_name retido; casa também pelo slug da URL.
+      const curName = val || RETAINED?.client_name || '';
+      const list = CLIENTS.length ? CLIENTS : [{ slug: client, name: curName || client }];
+      let matched = false;
+      for (const c of list) {
+        const o = document.createElement('option'); o.value = c.name; o.textContent = c.name;
+        if (c.name === curName || c.slug === client) { o.selected = true; matched = true; }
+        sel.appendChild(o);
+      }
+      if (!matched && curName) { const o = document.createElement('option'); o.value = curName; o.textContent = curName; o.selected = true; sel.appendChild(o); }
+      f.appendChild(sel);
+      return f;
     }
 
     function fieldEl(path, key, val) {
@@ -149,7 +169,7 @@
       const adv = entries.filter(([, v]) => Array.isArray(v) || (isPlainObj(v) && Object.values(v).some((x) => isPlainObj(x) || Array.isArray(x))));
       const advKeys = new Set(adv.map(([k]) => k));
 
-      for (const [k, v] of scal) root.appendChild(fieldEl([k], k, v));
+      for (const [k, v] of scal) root.appendChild(k === 'client_name' ? clientSelectEl(v) : fieldEl([k], k, v));
       for (const [k, v] of objs) {
         if (advKeys.has(k)) continue;
         const g = document.createElement('div'); g.className = 'grp';
@@ -171,7 +191,7 @@
 
     function collectConfig() {
       const cfg = JSON.parse(JSON.stringify(RETAINED));  // parte do retido (preserva o que não está no form)
-      for (const inp of $('fields').querySelectorAll('input[data-path]')) {
+      for (const inp of $('fields').querySelectorAll('input[data-path], select[data-path]')) {
         const parts = inp.dataset.path.split('.');
         let raw = inp.value;
         let v;
