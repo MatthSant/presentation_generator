@@ -9,22 +9,33 @@
   <style>
     body { background: var(--bg-page); }
     .u-wrap { max-width: 760px; margin: 0 auto; padding: 30px 28px 80px; }
-    .u-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 24px; margin-top: 22px; }
-    .u-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 0 0 12px; }
-    .u-card + .u-card { margin-top: 16px; }
+    .u-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 24px; margin-top: 18px; }
+    .u-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 0 0 6px; }
+    .u-hsub { font-size: 12px; color: var(--gray2); margin: 0 0 16px; }
     .u-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .u-file-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
     .u-file-name { font-size: 12.5px; color: var(--gray); }
     .u-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 10px; }
-    textarea#cfg { width: 100%; min-height: 280px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; outline: none; resize: vertical; }
-    textarea#cfg:focus { border-color: var(--purple); }
-    .u-go { margin-top: 20px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #fff; background: var(--purple); border: none; border-radius: var(--r-pill); padding: 12px 22px; cursor: pointer; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
+
+    .u-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+    .fld { display: flex; flex-direction: column; gap: 5px; }
+    .fld.wide { grid-column: 1 / -1; }
+    .fld label { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray2); }
+    .fld input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .fld input:focus { border-color: var(--purple); }
+    .grp { grid-column: 1 / -1; border: 1px solid var(--divider); border-radius: 11px; padding: 14px 16px 4px; margin-top: 2px; }
+    .grp-t { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--purple); margin: 0 0 12px; }
+    .grp .u-grid { gap: 12px 16px; }
+    details.adv { grid-column: 1 / -1; margin-top: 4px; }
+    details.adv summary { font-size: 12px; font-weight: 700; color: var(--gray2); cursor: pointer; }
+    details.adv textarea { width: 100%; min-height: 110px; margin-top: 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; outline: none; resize: vertical; }
+
+    .u-go { margin-top: 22px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #fff; background: var(--purple); border: none; border-radius: var(--r-pill); padding: 12px 22px; cursor: pointer; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
     .u-go:disabled { opacity: .55; cursor: default; }
     .u-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 10px; padding: 11px 14px; display: none; }
     .u-msg.work { display: block; background: var(--purple-bg); color: var(--purple); }
     .u-msg.ok { display: block; background: var(--ok-bg); color: var(--ok-fg); }
     .u-msg.err { display: block; background: var(--err-bg); color: var(--err-fg); white-space: pre-wrap; }
-    .u-cfgerr { color: var(--red-text); font-size: 12px; margin-top: 6px; min-height: 1em; }
   </style>
 </head>
 <body>
@@ -32,7 +43,7 @@
   <main class="u-wrap">
     <div class="page-eyebrow" id="eyebrow">Atualizar análise</div>
     <h1 class="page-title" id="title">Atualizar análise</h1>
-    <p class="page-sub" id="sub">Reenvie o CSV com dados novos e/ou ajuste a configuração inicial. Detalhamentos, perguntas e comentários do consultor são preservados.</p>
+    <p class="page-sub" id="sub">Reenvie o CSV com dados novos e/ou ajuste a configuração (data de corte, metas, benchmarks…). Detalhamentos, perguntas e comentários do consultor são preservados.</p>
 
     <div id="loading" class="u-hint" style="margin-top:24px">Carregando configuração…</div>
 
@@ -47,14 +58,13 @@
           </label>
           <span class="u-file-name" id="csvName">Mantém o dump atual da base</span>
         </div>
-        <p class="u-hint">Use o mesmo formato do CSV original. Deixe em branco para apenas reaplicar a configuração ao dado atual.</p>
+        <p class="u-hint">Mesmo formato do CSV original. Deixe em branco para apenas reaplicar a configuração ao dado atual.</p>
       </div>
 
       <div class="u-card">
         <p class="u-h">2 · Configuração</p>
-        <textarea id="cfg" spellcheck="false"></textarea>
-        <div class="u-cfgerr" id="cfgErr"></div>
-        <p class="u-hint">JSON do config inicial (metas, benchmarks, critérios…). Ajuste e atualize — a regeração é determinística (sem IA).</p>
+        <p class="u-hsub">Ajuste e atualize — a regeração é determinística (sem IA).</p>
+        <div class="u-grid" id="fields"></div>
       </div>
 
       <button class="u-go" id="go">
@@ -77,6 +87,27 @@
     const slug = qs.get('s') || qs.get('slug');
     const $ = (id) => document.getElementById(id);
 
+    // Rótulos amigáveis + ordem preferida dos grupos conhecidos.
+    const LABELS = {
+      nome_campanha: 'Nome da campanha', field_conversion: 'Conversão (field_conversion)',
+      data_corte: 'Data de corte', data_report: 'Data do report',
+      title: 'Título do relatório', client_name: 'Cliente (exibição)',
+      window: 'Janela de conversão', long_window: 'Janela longa',
+      metas: 'Metas da campanha', funnel_bench: 'Benchmarks de tráfego',
+      _leads_total: 'Meta de leads (total)', _leads_td: 'Meta de leads (to date)',
+      cpl: 'Meta CPL (R$)', cpmql: 'Meta CPMQL (R$)',
+      taxa_resp: 'Meta taxa de resposta (%)', taxa_qual: 'Meta taxa de qualidade (%)',
+      ctr: 'CTR (%)', connect: 'Connect rate (%)', conv_pag: 'Conv. de página (%)',
+    };
+    // Chaves internas que o servidor controla — não editáveis aqui.
+    const HIDE = new Set(['type', 'client']);
+    const label = (k) => LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const isNum = (v) => typeof v === 'number';
+    const isDateKey = (k) => /data|date/i.test(k);
+    const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+    let RETAINED = null;  // config completo retido (base p/ o merge no submit)
+
     if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
     else init();
 
@@ -88,11 +119,73 @@
         const d = await r.json();
         $('loading').hidden = true;
         if (!d.hasBase) { $('nobase').hidden = false; return; }
+        RETAINED = d.config;
         $('form').hidden = false;
-        $('cfg').value = JSON.stringify(d.config, null, 2);
+        buildForm(d.config);
       } catch (e) {
         $('loading').textContent = 'Falha ao carregar a configuração: ' + e.message;
       }
+    }
+
+    function fieldEl(path, key, val) {
+      const f = document.createElement('div');
+      f.className = 'fld' + (typeof val === 'string' && val.length > 22 ? ' wide' : '');
+      const lb = document.createElement('label'); lb.textContent = label(key); f.appendChild(lb);
+      const inp = document.createElement('input');
+      inp.dataset.path = path.join('.');
+      if (isNum(val)) { inp.type = 'number'; inp.step = 'any'; inp.value = val; inp.dataset.num = '1'; }
+      else if (isDateKey(key) && /^\d{4}-\d{2}-\d{2}/.test(val || '')) { inp.type = 'date'; inp.value = String(val).slice(0, 10); }
+      else { inp.type = 'text'; inp.value = val == null ? '' : String(val); }
+      f.appendChild(inp);
+      return f;
+    }
+
+    function buildForm(cfg) {
+      const root = $('fields');
+      const entries = Object.entries(cfg).filter(([k]) => !HIDE.has(k));
+      // escalares primeiro, depois grupos (objetos), depois avançado (arrays/aninhado complexo)
+      const scal = entries.filter(([, v]) => isNum(v) || typeof v === 'string');
+      const objs = entries.filter(([, v]) => isPlainObj(v));
+      const adv = entries.filter(([, v]) => Array.isArray(v) || (isPlainObj(v) && Object.values(v).some((x) => isPlainObj(x) || Array.isArray(x))));
+      const advKeys = new Set(adv.map(([k]) => k));
+
+      for (const [k, v] of scal) root.appendChild(fieldEl([k], k, v));
+      for (const [k, v] of objs) {
+        if (advKeys.has(k)) continue;
+        const g = document.createElement('div'); g.className = 'grp';
+        const t = document.createElement('div'); t.className = 'grp-t'; t.textContent = label(k); g.appendChild(t);
+        const grid = document.createElement('div'); grid.className = 'u-grid';
+        for (const [sk, sv] of Object.entries(v)) {
+          if (isNum(sv) || typeof sv === 'string') grid.appendChild(fieldEl([k, sk], sk, sv));
+        }
+        g.appendChild(grid); root.appendChild(g);
+      }
+      // arrays / objetos complexos (ex.: criterios, channels) → JSON avançado
+      for (const [k, v] of adv) {
+        const det = document.createElement('details'); det.className = 'adv';
+        const sm = document.createElement('summary'); sm.textContent = `${label(k)} (avançado · JSON)`; det.appendChild(sm);
+        const ta = document.createElement('textarea'); ta.dataset.json = k; ta.value = JSON.stringify(v, null, 2); ta.spellcheck = false;
+        det.appendChild(ta); root.appendChild(det);
+      }
+    }
+
+    function collectConfig() {
+      const cfg = JSON.parse(JSON.stringify(RETAINED));  // parte do retido (preserva o que não está no form)
+      for (const inp of $('fields').querySelectorAll('input[data-path]')) {
+        const parts = inp.dataset.path.split('.');
+        let raw = inp.value;
+        let v;
+        if (inp.dataset.num === '1') { v = raw === '' ? undefined : Number(raw); if (Number.isNaN(v)) v = undefined; }
+        else { v = raw.trim() === '' ? undefined : raw; }
+        let obj = cfg;
+        for (let i = 0; i < parts.length - 1; i++) { obj[parts[i]] = obj[parts[i]] || {}; obj = obj[parts[i]]; }
+        const leaf = parts[parts.length - 1];
+        if (v === undefined) delete obj[leaf]; else obj[leaf] = v;
+      }
+      for (const ta of $('fields').querySelectorAll('textarea[data-json]')) {
+        cfg[ta.dataset.json] = JSON.parse(ta.value);  // pode lançar → tratado no submit
+      }
+      return cfg;
     }
 
     $('csv')?.addEventListener('change', (e) => {
@@ -100,14 +193,10 @@
       $('csvName').textContent = f ? f.name : 'Mantém o dump atual da base';
     });
 
-    $('cfg')?.addEventListener('input', () => {
-      try { JSON.parse($('cfg').value); $('cfgErr').textContent = ''; $('go').disabled = false; }
-      catch (e) { $('cfgErr').textContent = 'JSON inválido: ' + e.message; $('go').disabled = true; }
-    });
-
     $('go')?.addEventListener('click', async () => {
       let cfg;
-      try { cfg = JSON.parse($('cfg').value); } catch (e) { $('cfgErr').textContent = 'JSON inválido: ' + e.message; return; }
+      try { cfg = collectConfig(); }
+      catch (e) { const m = $('msg'); m.className = 'u-msg err'; m.textContent = 'Campo avançado com JSON inválido: ' + e.message; return; }
       const msg = $('msg'); msg.className = 'u-msg work'; msg.textContent = 'Atualizando análise…';
       $('go').disabled = true;
       const fd = new FormData();
@@ -120,6 +209,7 @@
         if (!r.ok) { msg.className = 'u-msg err'; msg.textContent = d.error + (d.stderr ? '\n\n' + d.stderr : ''); $('go').disabled = false; return; }
         msg.className = 'u-msg ok';
         msg.innerHTML = `Análise atualizada${d.csvUpdated ? ' (com CSV novo)' : ''}. <a href="${d.report}" style="font-weight:700;color:inherit;text-decoration:underline">Abrir relatório ↗</a>`;
+        $('go').disabled = false;
       } catch (e) {
         msg.className = 'u-msg err'; msg.textContent = 'Erro: ' + e.message; $('go').disabled = false;
       }
