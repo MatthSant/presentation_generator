@@ -30,6 +30,31 @@ export interface AnalysisTypeDef {
 
 interface PerfilConfig { criterios?: Array<{ id: string; label?: string }>; channels?: string[] }
 
+type Funcao = { id: string; desc: string };
+type Params = Record<string, { enum?: string[]; desc?: string }>;
+
+/** Catálogo das consultas GENÉRICAS (common.query_core). Descritas UMA vez aqui;
+ *  cada tipo escolhe quais expor passando o nome do seu eixo. Função genérica nova
+ *  = adicionar aqui + em query_core.py — nunca por tipo. */
+function genericFuncoes(eixo: string): Record<'series' | 'correlacao' | 'trend' | 'ranking', Funcao> {
+  return {
+    series: { id: 'series', desc: `VÁRIAS métricas por ${eixo} numa tabela só (metrica_x, metrica_y, opcional metrica_z) — compare indicadores/evoluções lado a lado` },
+    correlacao: { id: 'correlacao', desc: `correlação de Pearson entre duas métricas ao longo dos ${eixo}s (metrica_x, metrica_y)` },
+    trend: { id: 'trend', desc: `uma métrica (metrica) ao longo dos ${eixo}s` },
+    ranking: { id: 'ranking', desc: `${eixo}s ordenados por uma métrica (metrica), com as colunas principais` },
+  };
+}
+
+/** Params das consultas genéricas (mesmo enum de métricas para todas). */
+function genericParams(M: string[]): Params {
+  return {
+    metrica: { enum: M, desc: 'métrica (trend/ranking e recortes)' },
+    metrica_x: { enum: M, desc: 'métrica X (correlacao/series)' },
+    metrica_y: { enum: M, desc: 'métrica Y (correlacao/series)' },
+    metrica_z: { enum: M, desc: 'métrica Z opcional (series — 3ª coluna)' },
+  };
+}
+
 export const TYPES: Record<string, AnalysisTypeDef> = {
   'conversao-perfil': {
     type: 'conversao-perfil',
@@ -49,6 +74,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const ids = (c?.criterios || []).map((x) => x.id);
       const canais = c?.channels || ['Geral'];
       const metricas = ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'];
+      const G = genericFuncoes('grupo');
       return {
         criterios: (c?.criterios || []).map((x) => ({ id: x.id, label: x.label || x.id })),
         canais, metricas,
@@ -58,12 +84,13 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             { id: 'trend', desc: 'a métrica de cada grupo ao longo dos lançamentos (criterio, metrica)' },
             { id: 'crosstab', desc: 'cruzamento de um critério com outro (criterio, cruzar_com)' },
             { id: 'association', desc: 'força de associação entre dois critérios (criterio, cruzar_com)' },
+            G.series, G.ranking,   // genéricas sobre os grupos do critério escolhido
           ],
           params: {
-            criterio: { enum: ids, desc: 'critério principal' },
+            criterio: { enum: ids, desc: 'critério principal (define os grupos do eixo)' },
             cruzar_com: { enum: ids, desc: 'segundo critério (só crosstab/association)' },
             canal: { enum: canais },
-            metrica: { enum: metricas },
+            ...genericParams(metricas),
           },
         },
       };
@@ -83,21 +110,17 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     buildDeepenMeta() {
       const M = ['roas', 'retorno', 'cpl', 'cpmql', 'cpm', 'ctr', 'hook_rate', 'hold_rate',
                  'connect_rate', 'conv_pagina', 'qualidade', 'tx_resposta', 'conv', 'cac', 'leads', 'invest'];
+      const G = genericFuncoes('criativo');
       return {
         consultar: {
           funcoes: [
-            { id: 'correlacao', desc: 'correlação (Pearson) entre duas métricas ao longo dos criativos válidos (metrica_x, metrica_y)' },
-            { id: 'series', desc: 'VÁRIAS métricas por criativo numa tabela só (metrica_x, metrica_y, opcional metrica_z) — use para comparar indicadores lado a lado' },
+            G.correlacao, G.series, G.ranking,
             { id: 'por_temperatura', desc: 'uma métrica (metrica) agregada por temperatura do lead' },
             { id: 'saturacao_diaria', desc: 'ROAS e retorno por DIA (geral, ou de um criativo) para detectar saturação' },
-            { id: 'ranking', desc: 'criativos ordenados por uma métrica (metrica), com as colunas principais' },
             { id: 'benchmark_gap', desc: 'distância média de cada indicador de anúncio (hook/hold/ctr/connect/conv_pagina) frente ao benchmark' },
           ],
           params: {
-            metrica: { enum: M, desc: 'métrica do recorte (ranking/por_temperatura)' },
-            metrica_x: { enum: M, desc: 'métrica X (correlacao/series)' },
-            metrica_y: { enum: M, desc: 'métrica Y (correlacao/series)' },
-            metrica_z: { enum: M, desc: 'métrica Z opcional (series — terceira coluna)' },
+            ...genericParams(M),
             temperatura: { desc: 'nome da temperatura (opcional; validado contra os dados)' },
             criativo: { desc: 'nome exato do criativo (opcional; saturacao_diaria)' },
           },
@@ -119,20 +142,16 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     buildDeepenMeta() {
       const M = ['conv_ger', 'qualificacao', 'taxa_qualidade', 'conv_mql', 'reembolso', 'roas', 'roi',
                  'ret', 'leads', 'invest', 'fat_liq', 'vendas', 'recap', 'cpm', 'ctr', 'cpc', 'cpl', 'conv_paga', 'cpa'];
+      const G = genericFuncoes('lançamento');
       return {
         consultar: {
           funcoes: [
-            { id: 'trend', desc: 'uma métrica (metrica) ao longo dos lançamentos' },
-            { id: 'series', desc: 'VÁRIAS métricas por lançamento numa tabela só (metrica_x, metrica_y, opcional metrica_z) — use para comparar evoluções, ex.: CPL, CPM e CTR juntos' },
-            { id: 'correlacao', desc: 'correlação (Pearson) entre duas métricas ao longo dos lançamentos (metrica_x, metrica_y)' },
+            G.trend, G.series, G.correlacao,
             { id: 'decomposicao', desc: 'decompõe o CPA (= CPL ÷ conversão paga): diz se a variação do CPA foi mais de CPL ou de conversão' },
             { id: 'por_dimensao', desc: 'uma métrica (metrica) por dimensão (canal/plataforma/temperatura) ao longo dos lançamentos' },
           ],
           params: {
-            metrica: { enum: M, desc: 'métrica do recorte (trend/por_dimensao)' },
-            metrica_x: { enum: M, desc: 'métrica X (correlacao/series)' },
-            metrica_y: { enum: M, desc: 'métrica Y (correlacao/series)' },
-            metrica_z: { enum: M, desc: 'métrica Z opcional (series — terceira coluna)' },
+            ...genericParams(M),
             dimensao: { enum: ['canal', 'plataforma', 'temperatura'], desc: 'dimensão (por_dimensao)' },
           },
         },

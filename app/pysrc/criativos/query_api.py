@@ -4,6 +4,10 @@ O modelo decide O QUE olhar; este script CALCULA e devolve SÓ AGREGADOS (nunca 
 bruta). Recortes que o dado não suporta → {"status":"nao_disponivel", ...}, jamais
 número inventado.
 
+As consultas genéricas (series, correlacao, trend, ranking) vêm de common.query_core
+e operam sobre o FRAME montado em build_frame(). Aqui ficam só as específicas de
+criativos (por_temperatura, saturacao_diaria, benchmark_gap).
+
 CLI:  py -3 query_api.py <config.json> <dump.csv> <fn> <args.json>
 saída (1 linha JSON): {"status":"ok","table":{dims,filters,rows},"summary":...}
                       | {"status":"nao_disponivel","motivo":...} | {"status":"erro","motivo":...}
@@ -12,8 +16,11 @@ import sys
 import os
 import json
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _here)
+sys.path.insert(0, os.path.dirname(_here))  # pysrc/ -> pacote common
 import calc  # noqa: E402
+import common.query_core as qc  # noqa: E402
 
 # Rótulo legível por métrica (vira cabeçalho de coluna nas tabelas).
 _LABEL = {
@@ -28,46 +35,15 @@ def _r(v, d=4):
     return round(v, d) if isinstance(v, (int, float)) else None
 
 
-def _pearson(xs, ys):
-    pts = [(a, b) for a, b in zip(xs, ys) if isinstance(a, (int, float)) and isinstance(b, (int, float))]
-    n = len(pts)
-    if n < 3:
-        return None, n
-    mx = sum(p[0] for p in pts) / n
-    my = sum(p[1] for p in pts) / n
-    cov = sum((p[0] - mx) * (p[1] - my) for p in pts)
-    vx = sum((p[0] - mx) ** 2 for p in pts)
-    vy = sum((p[1] - my) ** 2 for p in pts)
-    if vx <= 0 or vy <= 0:
-        return None, n
-    return cov / (vx ** 0.5 * vy ** 0.5), n
-
-
-def correlacao(B, a):
-    mx, my = a.get('metrica_x'), a.get('metrica_y')
-    if mx not in _LABEL or my not in _LABEL:
-        return {'status': 'nao_disponivel', 'motivo': 'metrica_x/metrica_y inválida ou ausente'}
-    valid = B['valid']
-    r, n = _pearson([c['m'].get(mx) for c in valid], [c['m'].get(my) for c in valid])
-    if r is None:
-        return {'status': 'nao_disponivel', 'motivo': 'poucos criativos com ambas as métricas'}
-    rows = [{'criativo': c['name'], _LABEL[mx]: _r(c['m'].get(mx), 2), _LABEL[my]: _r(c['m'].get(my), 2)}
-            for c in valid if c['m'].get(mx) is not None and c['m'].get(my) is not None]
-    return {'status': 'ok', 'table': {'dims': ['criativo'], 'filters': [], 'rows': rows},
-            'summary': f'Correlação {_LABEL[mx]} × {_LABEL[my]} = {r:+.2f} entre {n} criativos.'}
-
-
-def series(B, a):
-    """Várias métricas por criativo numa tabela só (ex.: ROAS, CTR e Hook juntos)."""
-    ms = [m for m in (a.get('metrica_x'), a.get('metrica_y'), a.get('metrica_z')) if m in _LABEL]
-    ms = list(dict.fromkeys(ms))
-    if len(ms) < 2:
-        return {'status': 'nao_disponivel', 'motivo': 'informe ao menos metrica_x e metrica_y (e opcional metrica_z)'}
-    rows = [{'criativo': c['name'], **{_LABEL[m]: _r(c['m'].get(m), 2) for m in ms}} for c in B['valid']]
-    if not rows:
-        return {'status': 'nao_disponivel', 'motivo': 'sem criativos válidos'}
-    return {'status': 'ok', 'table': {'dims': ['criativo'], 'filters': [], 'rows': rows},
-            'summary': f'{", ".join(_LABEL[m] for m in ms)} por criativo ({len(rows)} criativos).'}
+def build_frame(B, _a):
+    """Eixo = criativo válido; métricas = catálogo _LABEL já calculado por criativo."""
+    return {
+        'axis': 'criativo',
+        'rows': [{'key': c['name'], 'm': c['m']} for c in B['valid']],
+        'labels': _LABEL,
+        'cost': {k: (calc.METRICS.get(k, {}).get('cost') is True) for k in _LABEL},
+        'rank_extra': ['roas', 'cpl', 'qualidade', 'leads'],
+    }
 
 
 def por_temperatura(B, a):
@@ -108,22 +84,7 @@ def saturacao_diaria(B, a):
             'summary': f'ROAS e retorno por dia ({len(rows)} dias; {neg} com ROAS < 1×)' + (f' — {crit}.' if crit else '.')}
 
 
-def ranking(B, a):
-    metrica = a.get('metrica', 'roas')
-    if metrica not in _LABEL:
-        return {'status': 'nao_disponivel', 'motivo': f"métrica '{metrica}' inválida"}
-    cost = calc.METRICS.get(metrica, {}).get('cost') is True
-    valid = sorted((c for c in B['valid'] if c['m'].get(metrica) is not None),
-                   key=lambda c: c['m'][metrica], reverse=not cost)
-    cols = list(dict.fromkeys([metrica, 'roas', 'cpl', 'qualidade', 'leads']))
-    rows = [{'criativo': c['name'], **{_LABEL.get(k, k): _r(c['m'].get(k), 2) for k in cols}} for c in valid]
-    if not rows:
-        return {'status': 'nao_disponivel', 'motivo': 'sem criativos com essa métrica'}
-    return {'status': 'ok', 'table': {'dims': ['criativo'], 'filters': [], 'rows': rows},
-            'summary': f'{len(rows)} criativos ordenados por {_LABEL[metrica]} ({"menor" if cost else "maior"} melhor).'}
-
-
-def benchmark_gap(B, a):
+def benchmark_gap(B, _a):
     bench, avg = B['bench'], B['avg']
     out = []
     for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
@@ -140,8 +101,7 @@ def benchmark_gap(B, a):
             'summary': f'Média de {len(out)} indicadores de anúncio vs. benchmark/referência.'}
 
 
-FUNCS = {'correlacao': correlacao, 'series': series, 'por_temperatura': por_temperatura,
-         'saturacao_diaria': saturacao_diaria, 'ranking': ranking, 'benchmark_gap': benchmark_gap}
+EXTRA = {'por_temperatura': por_temperatura, 'saturacao_diaria': saturacao_diaria, 'benchmark_gap': benchmark_gap}
 
 
 def main():
@@ -153,15 +113,11 @@ def main():
         args = json.loads(args_json) if args_json else {}
     except Exception:
         args = {}
-    f = FUNCS.get(fn)
-    if not f:
-        print(json.dumps({'status': 'nao_disponivel', 'motivo': f"função '{fn}' não existe"}))
-        return
     try:
         rows = calc.load_rows(dump)
         B = calc.build(rows, {}, {})
         B['_rows'] = rows
-        out = f(B, args)
+        out = qc.run(build_frame, EXTRA, B, fn, args)
     except Exception as e:
         out = {'status': 'erro', 'motivo': str(e)}
     print(json.dumps(out, ensure_ascii=False))

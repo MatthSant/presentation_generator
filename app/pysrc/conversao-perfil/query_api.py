@@ -9,11 +9,19 @@ saída: uma linha JSON {"status":"ok","table":{dims,filters,rows},"summary":...}
        ou {"status":"nao_disponivel","motivo":...} ou {"status":"erro","motivo":...}
 """
 import sys, os, json
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _here)
+sys.path.insert(0, os.path.dirname(_here))  # pysrc/ -> pacote common
 import conv_calc as cc
+import common.query_core as qc
 
 METRICAS = {'conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'}
 LIST_KEY = {'conv_lcto': 'conv_lcto', 'conv_12m': 'conv_12m', 'diff': 'diff_lcto', 'uplift': 'uplift_12m', 'rep': 'rep'}
+MET_LABEL = {'conv_lcto': 'Conv. lcto', 'conv_12m': 'Conv. 12m', 'diff': 'Diferença', 'uplift': 'Uplift', 'rep': 'Repres.'}
+# Consultas genéricas (common.query_core) que o perfil expõe sobre os GRUPOS de um
+# critério. `trend`/`correlacao` ficam de fora: o perfil já tem trend temporal e
+# association (Cramér's V) próprios.
+GENERIC_USE = {'series', 'ranking'}
 
 
 def _mean(xs):
@@ -39,6 +47,18 @@ def meta(ctx, _a):
             'criterios': [{'id': c['id'], 'label': c.get('label', c['id'])} for c in config['criterios']],
             'canais': config.get('channels', ['Geral']), 'metricas': sorted(METRICAS),
             'lancamentos': ctx['lctos']}
+
+
+def build_frame(ctx, a):
+    """Eixo = grupos de um critério (param `criterio`, opcional `canal`); métricas =
+    as 5 do perfil já agregadas por grupo. Dá series/ranking de graça via query_core."""
+    crit = ctx['crit'].get(a.get('criterio'))
+    if not crit:
+        return {'status': 'nao_disponivel', 'motivo': f"critério '{a.get('criterio')}' não existe"}
+    canal = a.get('canal', ctx['canais'][0])
+    agg = cc.agg_criterio(ctx['rows'], crit['col'], ctx['dims'], ctx['lctos_id'], canal, _canon(crit))
+    rows = [{'key': g, 'm': {met: _group_scalar(agg['por_grupo'][g], met) for met in METRICAS}} for g in agg['grupos']]
+    return {'axis': 'grupo', 'rows': rows, 'labels': MET_LABEL, 'cost': {m: False for m in METRICAS}}
 
 
 def cut_by_criterion(ctx, a):
@@ -144,6 +164,8 @@ def run(config, rows, fn, args):
         'canais': config.get('channels', ['Geral']),
         'crit': {c['id']: c for c in config['criterios']},
     }
+    if fn in GENERIC_USE:
+        return qc.run(build_frame, {}, ctx, fn, args or {})
     handler = FNS.get(fn)
     if not handler:
         return {'status': 'nao_disponivel', 'motivo': f"função '{fn}' não existe no catálogo"}
