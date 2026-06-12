@@ -272,8 +272,8 @@ def assemble(rows, config, content, opts=None):
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:
-        can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS · ÚLTIMO DIA',
-                    'caption': f"maior volume e mais eficientes por CPMQL projetado · {B['cr_dia_label']}"})
+        can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS',
+                    'caption': f"maior volume e mais eficientes por CPMQL projetado · campanha até {B['corte_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
         def cri_list_rows(lst, eff=False):

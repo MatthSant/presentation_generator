@@ -309,9 +309,10 @@ def build(rows, config=None):
     canais_org = sorted(({'source': k, 'leads': round(v), 'pct': pct(v, lo)} for k, v in org_by.items() if v > 0),
                         key=lambda x: -x['leads'])
 
-    # criativos do último dia com dados ≤ corte
+    # criativos da CAMPANHA (agregados por anúncio, ≤ corte) — a data é só a marcação
+    # do report, não um filtro de um único dia. Link vem da coluna link_criativo.
     crdia = next((d for d in reversed(dates) if any(is_paid(r) and fnum(r.get('leads_trafego')) > 0 for r in by_date[d])), '')
-    creatives = _creatives(by_date.get(crdia, []), config.get('dict_links') or {})
+    creatives = _creatives(paid_rows, config.get('dict_links') or {})
 
     # benchmark de migração por transição (fb já montado acima) — os dois últimos
     # saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver).
@@ -343,18 +344,22 @@ def _creatives(day_rows, links):
         ad = (r.get('field_ad_name') or '').strip()
         if not ad:
             continue
-        a = by_ad.setdefault(ad, {'name': ad, 'invest': 0.0, 'leads_traf': 0.0, 'mqls': 0.0, 'respostas': 0.0})
+        a = by_ad.setdefault(ad, {'name': ad, 'invest': 0.0, 'leads_traf': 0.0, 'mqls': 0.0, 'respostas': 0.0, 'link': None})
         a['invest'] += fnum(r.get('invest_total'))
         a['leads_traf'] += fnum(r.get('leads_trafego'))
         a['mqls'] += fnum(r.get('leads_mqls'))
         a['respostas'] += fnum(r.get('respostas'))
+        if not a['link']:
+            lk = (r.get('link_criativo') or '').strip()
+            if lk:
+                a['link'] = lk
     out = []
     for a in by_ad.values():
         if a['leads_traf'] <= 0:
             continue
         cpl = div(a['invest'], a['leads_traf'])
         tq = pct(a['mqls'], a['respostas'])
-        out.append({'name': a['name'], 'link': links.get(a['name']),
+        out.append({'name': a['name'], 'link': a['link'] or links.get(a['name']),
                     'invest': round(a['invest'], 2), 'leads': round(a['leads_traf']),
                     'respostas': round(a['respostas']), 'cpl': cpl, 'taxa_qual': tq,
                     'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None)})
