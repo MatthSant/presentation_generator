@@ -70,6 +70,18 @@ function defaultContent(): unknown {
 
 const tail = (s: string, n: number): string => (s.length > n ? s.slice(-n) : s);
 
+/** Reconstrói um `content` mínimo a partir do output (s10 = Insights), p/ atualizar
+ *  análises antigas que não têm content.json retido. Tipos sem s10 caem no default.
+ *  As zonas autorais não são recuperáveis daqui — preserve() mantém det/perguntas. */
+function reconstructContent(outDir: string): unknown | null {
+  try {
+    const s10 = readJson<{ header?: unknown; widgets?: Array<{ type: string; text?: string }> }>(path.join(outDir, 's10.json'));
+    if (!s10) return null;
+    const note = s10.widgets?.find((w) => w.type === 'find-note')?.text || '';
+    return { insights: { header: s10.header || { title: 'Insights Estratégicos' }, zones: [], method: note }, detalhamentos: {} };
+  } catch { return null; }
+}
+
 export function registerGenerate(app: Express, ctx: Ctx): void {
   // `csv` é o dump principal; `dict` é um arquivo auxiliar opcional (ex.: criativos →
   // dicionário field_ad_name→link). Tipos que não usam `dict` simplesmente o ignoram.
@@ -168,6 +180,9 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
             }
           }
           writeJson(path.join(baseDir, 'config.json'), baseConfig);
+          // Retém também o content (insights/detalhamentos) — sem ele, regerar tipos que
+          // exigem content.insights (conversao-perfil) quebra. Atualizado se insights rodar.
+          try { fs.copyFileSync(contentPath, path.join(baseDir, 'content.json')); } catch { /* opcional */ }
           baseRetained = true;
         } catch { baseRetained = false; }
       }
@@ -210,6 +225,95 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       res.status(msg === 'busy' ? 409 : 500).json({ error: msg });
     } finally {
       fs.rmSync(job, { recursive: true, force: true }); // discard raw CSV + transient config/content
+    }
+  });
+
+  // ── Atualizar análise: reupar CSV e/ou editar o config inicial, reusando a base
+  // retida (dump/config/content). preserve() mantém detalhamentos/perguntas/comentários.
+  // GET devolve o config retido (sem caminhos internos) p/ popular o formulário.
+  app.get('/api/:client/:slug/base-config', (req, res) => {
+    const { client, slug } = req.params;
+    if (!analysisDir(ctx.out, client, slug)) { res.status(400).json({ error: 'bad path' }); return; }
+    const baseDir = path.join(BASE, client, slug);
+    const cfg = readJson<Record<string, unknown>>(path.join(baseDir, 'config.json'));
+    const hasBase = !!cfg && fs.existsSync(path.join(baseDir, 'dump.csv'));
+    if (!hasBase) { res.json({ hasBase: false }); return; }
+    // Esconde os caminhos internos dos auxiliares (são re-resolvidos no servidor).
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(cfg!)) { if (!/_csv$/.test(k)) clean[k] = v; }
+    res.json({ hasBase: true, config: clean, type: cfg!.type });
+  });
+
+  app.post('/api/:client/:slug/update', upload.fields([{ name: 'csv', maxCount: 1 }]), async (req, res) => {
+    if (!gateOk(req)) { res.status(401).json({ error: 'unauthorized' }); return; }
+    const { client, slug } = req.params;
+    const outDir = analysisDir(ctx.out, client, slug);
+    if (!outDir || !fs.existsSync(outDir)) { res.status(404).json({ error: 'análise não encontrada' }); return; }
+    const baseDir = path.join(BASE, client, slug);
+    const baseCsv = path.join(baseDir, 'dump.csv');
+    const retainedCfg = readJson<Record<string, unknown>>(path.join(baseDir, 'config.json'));
+    if (!retainedCfg || !fs.existsSync(baseCsv)) {
+      res.status(400).json({ error: 'base retida ausente — gere a análise novamente para habilitar a atualização' }); return;
+    }
+    const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const newCsv = files?.csv?.[0];
+
+    let config: Record<string, unknown>;
+    if (req.body?.config) {
+      try { config = JSON.parse(String(req.body.config)) as Record<string, unknown>; }
+      catch { res.status(400).json({ error: 'config inválido (JSON)' }); return; }
+    } else { config = { ...retainedCfg }; }
+    const type = typeof config.type === 'string' ? config.type : (retainedCfg.type as string);
+    if (!type || !TYPES[type]) { res.status(400).json({ error: `tipo desconhecido: ${type}` }); return; }
+    const def = TYPES[type];
+    config.type = type; config.client = client;
+    config.client_name = String(config.client_name || retainedCfg.client_name || '').trim() || clientName(client) || client;
+    if (!String(config.title || '').trim()) config.title = String(retainedCfg.title || `${config.client_name} · ${def.label}`);
+    const cfgErrors = def.validateConfig(config);
+    if (cfgErrors.length) { res.status(400).json({ error: cfgErrors.join('; ') }); return; }
+    // Auxiliares: reaproveita os CSVs retidos na base (não são re-enviados aqui).
+    for (const aux of ['goals', 'hist', 'dict'] as const) {
+      const dest = path.join(baseDir, `${aux}.csv`);
+      if (fs.existsSync(dest)) config[`${aux}_csv`] = dest;
+    }
+    // content: retido > reconstruído do s10 (insights) > default. preserve() cuida do resto.
+    const content = readJson<unknown>(path.join(baseDir, 'content.json'))
+      ?? reconstructContent(outDir) ?? defaultContent();
+
+    const job = path.join(SCRATCH, `upd-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`);
+    fs.mkdirSync(job, { recursive: true });
+    const csvPath = newCsv ? path.join(job, 'upload.csv') : baseCsv;
+    if (newCsv) fs.writeFileSync(csvPath, newCsv.buffer);
+    const configPath = path.join(job, 'config.json');
+    const contentPath = path.join(job, 'content.json');
+    writeJson(configPath, config);
+    writeJson(contentPath, content);
+
+    try {
+      const result = await runGeneration(`${client}/${slug}`, { csvPath, configPath, contentPath, outDir, type });
+      if (!result.ok) { res.status(500).json({ error: 'falha na atualização', stderr: tail(result.stderr || result.stdout, 2000) }); return; }
+      // Re-retém a base atualizada (novo dump se houver; config + content novos).
+      try {
+        if (newCsv) fs.copyFileSync(csvPath, baseCsv);
+        writeJson(path.join(baseDir, 'config.json'), config);
+        writeJson(path.join(baseDir, 'content.json'), content);
+      } catch { /* não-fatal */ }
+      // Re-fixa o nome de exibição do cliente na meta (segue o registro).
+      try {
+        const dataFile = path.join(outDir, 'data.json');
+        const dj = readJson<{ meta?: Record<string, unknown> }>(dataFile);
+        if (dj?.meta && config.client_name) { dj.meta.client = config.client_name; writeJson(dataFile, dj); }
+      } catch { /* não-fatal */ }
+      const dataset = readJson<unknown>(path.join(outDir, 'dataset.json'));
+      const layout = readJson<unknown>(path.join(outDir, 'layout.json'));
+      const sections = fs.readdirSync(outDir).filter((f) => /^s\d+\.json$/.test(f)).map((f) => readJson<unknown>(path.join(outDir, f)));
+      const v = validateAnalysis({ dataset: dataset ?? undefined, sections, layout: layout ?? undefined });
+      res.json({ ok: v.ok, report: `/report/${client}/${slug}`, csvUpdated: !!newCsv, validation: v });
+    } catch (e) {
+      const msg = (e as Error).message;
+      res.status(msg === 'busy' ? 409 : 500).json({ error: msg });
+    } finally {
+      fs.rmSync(job, { recursive: true, force: true });
     }
   });
 

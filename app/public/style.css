@@ -396,7 +396,7 @@ html, body {
 .tn-filter-btn.tn-filter-active { background: var(--purple-bg); color: var(--purple); }
 
 /* Export-HTML button */
-#export-html-btn {
+#export-html-btn, #update-btn {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -413,8 +413,9 @@ html, body {
   text-transform: uppercase;
   transition: border-color .15s, color .15s;
   white-space: nowrap;
+  text-decoration: none;
 }
-#export-html-btn:hover { border-color: var(--purple); color: var(--purple); }
+#export-html-btn:hover, #update-btn:hover { border-color: var(--purple); color: var(--purple); }
 #export-html-btn:disabled { opacity: .55; cursor: default; }
 
 /* Layout-edit inline actions (replace the Layout button while editing) */

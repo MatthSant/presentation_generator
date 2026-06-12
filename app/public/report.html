@@ -36,12 +36,24 @@
         <button id="tn-edit-cancel" class="tn-edit-btn tn-edit-cancel">Cancelar</button>
         <button id="tn-edit-save" class="tn-edit-btn tn-edit-save">Salvar</button>
       </span>
+      <a id="update-btn" title="Atualizar a análise — reupar CSV ou ajustar a configuração">
+        <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a8 8 0 1 0-2.2 6.2"/><path d="M20 5v6.5h-6.5"/></svg>
+        <span>Atualizar</span>
+      </a>
       <button id="export-html-btn" title="Exportar relatório como HTML standalone (offline)">
         <svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="M13.5 6 10.5 18"/></svg>
         <span>HTML</span>
       </button>
     </div>
   </nav>
+  <script>
+    // Ponto de entrada da atualização: monta o link a partir de /report/<cliente>/<slug>.
+    (function () {
+      var m = location.pathname.match(/\/report\/([^/]+)\/([^/]+)/);
+      var a = document.getElementById('update-btn');
+      if (m && a) a.href = '/atualizar.html?c=' + encodeURIComponent(m[1]) + '&s=' + encodeURIComponent(m[2]);
+    })();
+  </script>
 
   <!-- ── SECTION BAR ── -->
   <div id="section-bar">

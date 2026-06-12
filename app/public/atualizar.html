@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atualizar análise</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .u-wrap { max-width: 760px; margin: 0 auto; padding: 30px 28px 80px; }
+    .u-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 24px; margin-top: 22px; }
+    .u-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 0 0 12px; }
+    .u-card + .u-card { margin-top: 16px; }
+    .u-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .u-file-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
+    .u-file-name { font-size: 12.5px; color: var(--gray); }
+    .u-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 10px; }
+    textarea#cfg { width: 100%; min-height: 280px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; outline: none; resize: vertical; }
+    textarea#cfg:focus { border-color: var(--purple); }
+    .u-go { margin-top: 20px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #fff; background: var(--purple); border: none; border-radius: var(--r-pill); padding: 12px 22px; cursor: pointer; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
+    .u-go:disabled { opacity: .55; cursor: default; }
+    .u-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 10px; padding: 11px 14px; display: none; }
+    .u-msg.work { display: block; background: var(--purple-bg); color: var(--purple); }
+    .u-msg.ok { display: block; background: var(--ok-bg); color: var(--ok-fg); }
+    .u-msg.err { display: block; background: var(--err-bg); color: var(--err-fg); white-space: pre-wrap; }
+    .u-cfgerr { color: var(--red-text); font-size: 12px; margin-top: 6px; min-height: 1em; }
+  </style>
+</head>
+<body>
+  <header class="home-bar" data-sub="Atualizar análise" data-back="/" data-back-label="Voltar"></header>
+  <main class="u-wrap">
+    <div class="page-eyebrow" id="eyebrow">Atualizar análise</div>
+    <h1 class="page-title" id="title">Atualizar análise</h1>
+    <p class="page-sub" id="sub">Reenvie o CSV com dados novos e/ou ajuste a configuração inicial. Detalhamentos, perguntas e comentários do consultor são preservados.</p>
+
+    <div id="loading" class="u-hint" style="margin-top:24px">Carregando configuração…</div>
+
+    <div id="form" hidden>
+      <div class="u-card">
+        <p class="u-h">1 · Novo CSV (opcional)</p>
+        <div class="u-row">
+          <label class="u-file-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Escolher CSV
+            <input type="file" id="csv" accept=".csv,text/csv" hidden>
+          </label>
+          <span class="u-file-name" id="csvName">Mantém o dump atual da base</span>
+        </div>
+        <p class="u-hint">Use o mesmo formato do CSV original. Deixe em branco para apenas reaplicar a configuração ao dado atual.</p>
+      </div>
+
+      <div class="u-card">
+        <p class="u-h">2 · Configuração</p>
+        <textarea id="cfg" spellcheck="false"></textarea>
+        <div class="u-cfgerr" id="cfgErr"></div>
+        <p class="u-hint">JSON do config inicial (metas, benchmarks, critérios…). Ajuste e atualize — a regeração é determinística (sem IA).</p>
+      </div>
+
+      <button class="u-go" id="go">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 1 0-2.2 6.2"/><path d="M20 5v6.5h-6.5"/></svg>
+        Atualizar análise
+      </button>
+      <div class="u-msg" id="msg"></div>
+    </div>
+
+    <div id="nobase" class="u-card" hidden>
+      <p class="u-h">Atualização indisponível</p>
+      <p class="u-hint" style="margin-top:0">Esta análise não tem a base retida (dump + config). Gere a análise novamente pelo fluxo de criação para habilitar a atualização.</p>
+    </div>
+  </main>
+
+  <script src="/js/page-chrome.js" defer></script>
+  <script>
+    const qs = new URLSearchParams(location.search);
+    const client = qs.get('c') || qs.get('client');
+    const slug = qs.get('s') || qs.get('slug');
+    const $ = (id) => document.getElementById(id);
+
+    if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
+    else init();
+
+    async function init() {
+      $('title').textContent = `Atualizar · ${slug}`;
+      $('eyebrow').textContent = `${client} · atualizar`;
+      try {
+        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/base-config`);
+        const d = await r.json();
+        $('loading').hidden = true;
+        if (!d.hasBase) { $('nobase').hidden = false; return; }
+        $('form').hidden = false;
+        $('cfg').value = JSON.stringify(d.config, null, 2);
+      } catch (e) {
+        $('loading').textContent = 'Falha ao carregar a configuração: ' + e.message;
+      }
+    }
+
+    $('csv')?.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      $('csvName').textContent = f ? f.name : 'Mantém o dump atual da base';
+    });
+
+    $('cfg')?.addEventListener('input', () => {
+      try { JSON.parse($('cfg').value); $('cfgErr').textContent = ''; $('go').disabled = false; }
+      catch (e) { $('cfgErr').textContent = 'JSON inválido: ' + e.message; $('go').disabled = true; }
+    });
+
+    $('go')?.addEventListener('click', async () => {
+      let cfg;
+      try { cfg = JSON.parse($('cfg').value); } catch (e) { $('cfgErr').textContent = 'JSON inválido: ' + e.message; return; }
+      const msg = $('msg'); msg.className = 'u-msg work'; msg.textContent = 'Atualizando análise…';
+      $('go').disabled = true;
+      const fd = new FormData();
+      fd.append('config', JSON.stringify(cfg));
+      const file = $('csv').files[0];
+      if (file) fd.append('csv', file);
+      try {
+        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/update`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) { msg.className = 'u-msg err'; msg.textContent = d.error + (d.stderr ? '\n\n' + d.stderr : ''); $('go').disabled = false; return; }
+        msg.className = 'u-msg ok';
+        msg.innerHTML = `Análise atualizada${d.csvUpdated ? ' (com CSV novo)' : ''}. <a href="${d.report}" style="font-weight:700;color:inherit;text-decoration:underline">Abrir relatório ↗</a>`;
+      } catch (e) {
+        msg.className = 'u-msg err'; msg.textContent = 'Erro: ' + e.message; $('go').disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
