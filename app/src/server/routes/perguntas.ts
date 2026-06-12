@@ -156,6 +156,11 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const idbase = p.id.toLowerCase().replace(/[^a-z0-9]/g, '');
     const sectionId = `det-${idbase}-${crypto.randomBytes(3).toString('hex')}`;
     if (!isSafeSeg(sectionId)) throw new Error('id inválido');
+    // Seam de TESTE: simula uma geração demorada para o teste de integração conseguir
+    // ABORTAR o request HTTP no meio (reproduz o consultor cancelando). Sem efeito em
+    // produção — só liga quando DEEPEN_TEST_DELAY_MS está setado.
+    const testDelay = Number(process.env.DEEPEN_TEST_DELAY_MS) || 0;
+    if (testDelay > 0) await new Promise((r) => setTimeout(r, testDelay));
     let r;
     try {
       r = await generateDetalhamento({

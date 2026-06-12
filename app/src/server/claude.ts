@@ -53,15 +53,29 @@ function logClaude(kind: string, request: unknown, result: Record<string, unknow
   } catch { /* ignore logging failures */ }
 }
 
-/** messages.create wrapped so every call (and its result or error) is logged. */
+/** messages.create wrapped so every call (and its result or error) is logged.
+ *  Retenta erros TRANSIENTES de rede/servidor (fetch failed, timeout, 429, 5xx) com
+ *  backoff — um soluço de conexão num deep query de ~5min não pode derrubar o
+ *  detalhamento inteiro. Erros TERMINAIS (400 saldo/invalid, 401/403 auth) NÃO são
+ *  retentados: repetir não muda o resultado. */
 async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreateParamsNonStreaming, kind: string): Promise<Anthropic.Message> {
-  try {
-    const msg = await client.messages.create(params);
-    logClaude(kind, params, { response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
-    return msg;
-  } catch (e) {
-    logClaude(kind, params, { error: (e as Error).message });
-    throw e;
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const msg = await client.messages.create(params);
+      logClaude(kind, params, { response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
+      return msg;
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      // sem status = erro de conexão (fetch failed / timeout); 429 = rate limit; ≥500 = servidor
+      const transient = status === undefined || status === 429 || status >= 500;
+      if (!transient || attempt >= MAX_RETRIES) {
+        logClaude(kind, params, { error: (e as Error).message });
+        throw e;
+      }
+      logClaude(kind, params, { error: `${(e as Error).message} — retry ${attempt + 1}/${MAX_RETRIES}` });
+      await new Promise((r) => setTimeout(r, 1500 * 2 ** attempt));   // 1.5s, 3s, 6s
+    }
   }
 }
 
