@@ -159,12 +159,17 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s02 — Canal e Conversão ═══════════════════════════════════════════
     can, cg = [], Grid()
-    eb(can, cg, 'can-eb', 'RESUMO POR ESCOPO', 'geral · pago · orgânico')
-    for esc, lbl, lp, lv, cv, color in [
-        ('ger', 'Geral', M['leads_total'], M['vendas_total'], M['conv_geral'], '#534AB7'),
-        ('pago', 'Pago', M['leads_pago'], M['vendas_pago'], M['conv_pago'], '#185FA5'),
-        ('org', 'Orgânico', M['leads_org'], M['vendas_org'], M['conv_org'], '#3B6D11')]:
-        km(can, cg, f'can-r-{esc}', lbl, intf(lp), f"{intf(lv)} vendas · conv {pctf(cv)}", 'users', color)
+    eb(can, cg, 'can-eb', 'RESUMO POR ESCOPO', 'leads, vendas e tipo de lead por escopo')
+    for esc, lbl, lp, lv, cv, nv, an, cl, qc in [
+        ('ger', 'Geral', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], 'p'),
+        ('pago', 'Pago', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], 'p'),
+        ('org', 'Orgânico', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], 'g')]:
+        can.append({'id': f'can-r-{esc}', 'type': 'qa-card', 'qColor': qc, 'title': f'{lbl} · {intf(lp)} leads',
+                    'stats': [_st('Vendas', intf(lv), f'conv {pctf(cv)}'),
+                              _st('Novos', pct_of(nv, lp), tone='purple'),
+                              _st('Antigos', pct_of(an, lp)),
+                              _st('Clientes', pct_of(cl, lp), tone='pos')]})
+        cg.add(f'can-r-{esc}', 'qa-card', 4, 4)
     # canais vs meta de vendas
     vs = _canais_vs_meta(M['chan'], G.get('by_canal') or {}, M['goals'].get('meta_vendas_canal') or {})
     eb(can, cg, 'can-eb-vs', 'CANAIS vs META DE VENDAS', 'acima / próximo / abaixo')
@@ -273,14 +278,22 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s07 — One Pager ═══════════════════════════════════════════════════
     op, opg = [], Grid()
-    eb(op, opg, 'op-eb', 'KPIS PRINCIPAIS')
-    for wid, lbl, val, color in [('op-fat', 'Faturamento', money(M['fat']), '#3B6D11'),
-                                 ('op-roas', 'ROAS', xf(M['roas']), '#EF9F27'),
-                                 ('op-leads', 'Leads', intf(M['leads_total']), '#185FA5'),
-                                 ('op-vendas', 'Vendas', intf(M['vendas_total']), '#534AB7'),
-                                 ('op-cpl', 'CPL', money(M['cpl']), '#185FA5'),
-                                 ('op-conv', 'Conversão', pctf(M['conv_geral']), '#3B6D11')]:
-        ks(op, opg, wid, lbl, val, '', 'target', color, w=4, h=2)
+    eb(op, opg, 'op-eb', 'KPIS PRINCIPAIS', '12 indicadores')
+    pp = lambda a, b: f"pago {intf(a)} · org {intf(b)}"
+    for wid, lbl, val, sub, color in [
+            ('op-fat', 'Faturamento', money(M['fat']), f"principal {money(M['fat_sale'])}", '#3B6D11'),
+            ('op-roas', 'ROAS', xf(M['roas']), 'fat. pago / invest. cpt', '#EF9F27'),
+            ('op-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', '#534AB7'),
+            ('op-leads', 'Leads', intf(M['leads_total']), pp(M['leads_pago'], M['leads_org']), '#185FA5'),
+            ('op-vendas', 'Vendas', intf(M['vendas_total']), pp(M['vendas_pago'], M['vendas_org']), '#534AB7'),
+            ('op-conv', 'Conversão', pctf(M['conv_geral']), f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", '#3B6D11'),
+            ('op-inv', 'Invest. Total', money(M['invest_total']), f"captação {money(M['invest_cpt'])}", '#534AB7'),
+            ('op-ret', 'Retorno Bruto', money(M['retorno']), 'fat − invest. total', '#185FA5'),
+            ('op-cpl', 'CPL', money(M['cpl']), 'invest. cpt / leads tráfego', '#185FA5'),
+            ('op-cpmql', 'CPMQL', money(M['cpmql']), 'CPL / qualif. paga', '#854F0B'),
+            ('op-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", '#854F0B'),
+            ('op-cac', 'CAC', money(M['cac']), 'invest. cpt / vendas pago', '#A32D2D')]:
+        ks(op, opg, wid, lbl, val, sub, 'target', color, w=4, h=2)
     op.append({'id': 'op-daily', 'type': 'chart', 'chartType': 'line', 'title': 'Leads por dia', 'height': 260,
                'colors': ['#534AB7'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'leads'}}); opg.add('op-daily', 'chart', 6, 4)
     op.append({'id': 'op-conv-c', 'type': 'chart', 'chartType': 'line', 'title': 'Conversão por dia (%)', 'height': 260,

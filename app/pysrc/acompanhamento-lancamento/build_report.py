@@ -138,7 +138,7 @@ def assemble(rows, config, content, opts=None):
     pg.add('pan-cum', 'chart', 8, 4)
 
     pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
-                'height': 300, 'colors': ['#534AB7', '#97C459'],
+                'height': 300, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads',
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
     pg.add('pan-donut', 'chart', 4, 4)
 
@@ -186,9 +186,9 @@ def assemble(rows, config, content, opts=None):
         eg.add(wid, 'chart', w, 4)
     chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6)
     chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6)
-    chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'line', False, 'money', '#EF4444', w=4)
-    chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'line', True, 'pct', '#EF9F27', w=4)
-    chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'line', False, 'money', '#EF4444', w=4)
+    chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4)
+    chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4)
+    chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4)
     sections['s02'] = {'id': 's02', 'header': {'badge': 'Evolução', 'title': 'Evolução Diária',
                        'sub': 'Leads, investimento, CPL, qualidade e CPMQL ao longo dos dias.'}, 'widgets': evo}
     layouts['s02'] = eg.items
