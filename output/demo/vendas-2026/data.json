@@ -6,12 +6,53 @@
     "theme": "light",
     "created_at": "2026-05-30",
     "filters": [
-      { "id": "canal", "label": "Canal", "options": ["Loja", "Online"], "allValue": "Geral", "default": "Geral" }
-    ]
+      {
+        "id": "canal",
+        "label": "Canal",
+        "options": [
+          "Loja",
+          "Online"
+        ],
+        "allValue": "Geral",
+        "default": "Geral"
+      }
+    ],
+    "cover": {
+      "eyebrow": "Demo Varejo · Relatório",
+      "title": "Vendas 2026 — Visão Geral"
+    }
   },
   "pages": [
-    { "id": "p1", "label": "Resumo",  "sections": [{ "id": "s01", "label": "Visão Geral" }] },
-    { "id": "p2", "label": "Detalhe", "sections": [{ "id": "s02", "label": "Por Categoria" }] },
-    { "id": "p3", "label": "Perguntas norteadoras", "kind": "perguntas", "sections": [{ "id": "perguntas", "label": "Perguntas norteadoras" }] }
+    {
+      "id": "p1",
+      "label": "Resumo",
+      "sections": [
+        {
+          "id": "s01",
+          "label": "Visão Geral"
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "label": "Detalhe",
+      "sections": [
+        {
+          "id": "s02",
+          "label": "Por Categoria"
+        }
+      ]
+    },
+    {
+      "id": "p3",
+      "label": "Perguntas norteadoras",
+      "kind": "perguntas",
+      "sections": [
+        {
+          "id": "perguntas",
+          "label": "Perguntas norteadoras"
+        }
+      ]
+    }
   ]
 }

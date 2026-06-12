@@ -407,6 +407,8 @@ def assemble(rows, config, content, opts=None):
     created = (config or {}).get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
+                          'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
+                                    'meta': [f"{len(S['all_labels'])} lançamentos"]},
                           'controls': {'kind': 'historico-lancamentos', 'pages': ['panorama', 'investimentos'],
                                        'launches': S['all_labels'],
                                        'metrics': [{'id': k, 'label': BRK_INFO[k]['label']} for k in calc.METRICS]}},

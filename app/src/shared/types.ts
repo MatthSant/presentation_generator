@@ -626,7 +626,7 @@ export interface ReportMeta {
   created_at?: string;
   filters?: FilterDef[];
   /** Optional cover block shown once at the top of the report content. */
-  cover?: { eyebrow?: string; meta?: string[] };
+  cover?: { eyebrow?: string; title?: string; meta?: string[] };
   /** Feature flags do relatório. `outliers` controla o botão "Remover outliers"
    *  por gráfico — default LIGADO para qualquer tipo (desative com false). */
   features?: { outliers?: boolean };

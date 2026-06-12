@@ -92,6 +92,7 @@ def build(csv_path, config, content, out_dir):
         cid = c['id']; sid = f's{ci + 2:02d}'
         g = Grid(); widgets = []
         rank_rows, grp_rows, diff_rows, conv_rows, evol_rows, uplift_rows = [], [], [], [], [], []
+        conv12_rows = []
         bench_rows, detail_rows, rep_rows, repclass_rows = [], [], [], []
         repclass_present = []
         for canal in CANAIS:
@@ -122,6 +123,16 @@ def build(csv_path, config, content, out_dir):
                 for i, l in enumerate(LBL):
                     v = cc.safe(pg['conv_lcto'], i); dv = cc.safe(pg['diff_lcto'], i)
                     conv_rows.append({'canal': canal, 'grupo': sl, 'lancamento': l, 'valor': '—' if v is None else f'{v:.2f}%', 'cls': cc.diff_class(dv)})
+            # conversão acumulada 12m por lançamento (mesma estrutura do 60d) — heatmap "Conv. 12m"
+            for label, arr in [('Bench pesquisa', cd['bench_pesq_12m']), ('Bench total leads', cd['bench_total_12m'])]:
+                for i, l in enumerate(LBL):
+                    v = cc.safe(arr, i)
+                    conv12_rows.append({'canal': canal, 'grupo': label, 'lancamento': l, 'valor': '—' if v is None else f'{v:.2f}%', 'cls': 'cn0'})
+            for gname in sg:
+                pg = cd['por_grupo'][gname]; sl = short(cid, gname)
+                for i, l in enumerate(LBL):
+                    v = cc.safe(pg['conv_12m'], i); dv = cc.safe(pg['diff_12m'], i)
+                    conv12_rows.append({'canal': canal, 'grupo': sl, 'lancamento': l, 'valor': '—' if v is None else f'{v:.2f}%', 'cls': cc.diff_class(dv)})
             for gname in sg:
                 pg = cd['por_grupo'][gname]; sl = short(cid, gname)
                 for i, l in enumerate(LBL):
@@ -164,6 +175,7 @@ def build(csv_path, config, content, out_dir):
 
         add_table(f'crit_{cid}_rank', ['grupo'], rank_rows); add_table(f'crit_{cid}_grp', ['grupo'], grp_rows)
         add_table(f'crit_{cid}_diff', ['grupo', 'lancamento'], diff_rows); add_table(f'crit_{cid}_conv', ['grupo', 'lancamento'], conv_rows)
+        add_table(f'crit_{cid}_conv12', ['grupo', 'lancamento'], conv12_rows)
         add_table(f'crit_{cid}_evol', ['grupo', 'lancamento'], evol_rows); add_table(f'crit_{cid}_uplift', ['grupo', 'lancamento'], uplift_rows)
         add_table(f'crit_{cid}_bench', [], bench_rows); add_table(f'crit_{cid}_detail', ['Grupo'], detail_rows)
         add_table(f'crit_{cid}_rep', ['grupo', 'lancamento'], rep_rows); add_table(f'crit_{cid}_repclass', ['classe', 'lancamento'], repclass_rows)
@@ -182,6 +194,7 @@ def build(csv_path, config, content, out_dir):
             {'id': f'{cid}-hmtoggle', 'type': 'heatmap-toggle', 'tabs': [
                 {'label': 'Variação vs. bench', 'sub': 'diff % por lançamento — verde acima, vermelho abaixo', 'bind': {'dataset': f'crit_{cid}_diff'}},
                 {'label': 'Conv. 60d', 'sub': 'conversão real 60d por lançamento', 'bind': {'dataset': f'crit_{cid}_conv'}},
+                {'label': 'Conv. 12m', 'sub': 'conversão acumulada 12m por lançamento', 'bind': {'dataset': f'crit_{cid}_conv12'}},
                 {'label': 'Uplift 12m', 'sub': 'ganho do acumulado 12m sobre a janela 60d', 'bind': {'dataset': f'crit_{cid}_uplift'}}]},
             {'id': f'{cid}-conv60', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Conversão média · Lançamento 60d', 'height': 300, 'showLabels': True, 'colors': ['#7C3AED'], 'pct': True, 'meanLine': True, 'bind': {'dataset': f'crit_{cid}_grp', 'x': 'grupo', 'y': 'conv_lcto', 'agg': 'avg'}},
             {'id': f'{cid}-conv12', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Conversão média · Long-term 12m', 'height': 300, 'showLabels': True, 'colors': ['#7C3AED'], 'pct': True, 'meanLine': True, 'bind': {'dataset': f'crit_{cid}_grp', 'x': 'grupo', 'y': 'conv_12m', 'agg': 'avg'}},
@@ -226,8 +239,8 @@ def build(csv_path, config, content, out_dir):
     pg.add('pan-eb1', 'eyebrow', 12, 1)
     for cid in CIDS:
         pan.append({'id': f'pan-{cid}', 'type': 'chart', 'chartType': 'bar-horizontal', 'diverging': True, 'title': LABEL[cid],
-                    'height': 232, 'showLabels': True, 'axisMin': -120, 'axisMax': 120, 'bind': {'dataset': f'crit_{cid}_grp', 'x': 'grupo', 'y': 'diff_lcto', 'agg': 'avg'}})
-        pg.add(f'pan-{cid}', 'chart', 3, 4)   # w:3 → 4 gráficos por linha
+                    'height': 260, 'showLabels': True, 'axisMin': -120, 'axisMax': 120, 'bind': {'dataset': f'crit_{cid}_grp', 'x': 'grupo', 'y': 'diff_lcto', 'agg': 'avg'}})
+        pg.add(f'pan-{cid}', 'chart', 4, 4)   # w:4 → 3 gráficos por linha (largura legível p/ barras + rótulos)
     pg.newrow()
     pan.append({'id': 'pan-eb2', 'type': 'eyebrow', 'title': 'COMPARATIVO POR CRITÉRIO', 'caption': 'melhor e pior grupo de cada perfil frente ao benchmark'})
     pg.add('pan-eb2', 'eyebrow', 12, 1)
@@ -371,8 +384,13 @@ def build(csv_path, config, content, out_dir):
     # 'Geral' é um canal REAL (o combinado), não um "sem filtro" — por isso NÃO se
     # declara allValue: senão o app trataria o default como "não filtrar" e mostraria
     # as 3 fatias (Geral/Pago/Orgânico) somadas/duplicadas em toda tabela e gráfico.
+    _wl = {'lcto': '60d', '6m': '6m', '12m': '12m'}
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard', 'theme': 'light',
-                          'created_at': created, 'filters': [{'id': 'canal', 'label': 'Canal', 'options': CANAIS, 'default': CANAIS[0]}]},
+                          'created_at': created, 'filters': [{'id': 'canal', 'label': 'Canal', 'options': CANAIS, 'default': CANAIS[0]}],
+                          'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório",
+                                    'title': config['title'],
+                                    'meta': [f"{N} lançamentos", f"{len(CIDS)} critérios de perfil",
+                                             f"janelas {_wl.get(WINDOW, WINDOW)} · {_wl.get(LONG, LONG)}"]}},
                  'pages': all_pages}
 
     preserve(out_dir, data_json, sections)   # detalhamentos, perguntas e modais sobrevivem à regeneração

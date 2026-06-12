@@ -85,7 +85,7 @@ def assemble(rows, config, content, opts=None):
         if st and meta is not None:
             card['goal'] = {'label': f"meta {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
-        pg.add(f'k-{metric}', 'kpi-card', 4, 4)
+        pg.add(f'k-{metric}', 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
@@ -362,6 +362,8 @@ def assemble(rows, config, content, opts=None):
     created = config.get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
+                          'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
+                                    'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},
                           'controls': {'kind': 'acompanhamento-lancamento',
                                        'pages': ['acompanhamento']}},
                  'pages': pages}

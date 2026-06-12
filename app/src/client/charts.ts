@@ -82,8 +82,8 @@ function readPalette(fallback: string[]): string[] {
 
 function getBase(theme: Theme): Base {
   const dark = theme === 'dark';
-  const labelColor = dark ? '#9CA3AF' : '#71717a';
-  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#e7e7ea';
+  const labelColor = dark ? '#9CA3AF' : '#75727e';
+  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#e7e5ec';
   // Sequência data-viz do design system: violeta, esmeralda, âmbar, laranja, violeta-claro.
   const defColors = readPalette(['#7C3AED', '#059669', '#D97706', '#EA580C', '#C3A4F7']);
   const base = {

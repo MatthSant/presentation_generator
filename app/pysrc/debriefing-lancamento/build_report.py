@@ -40,7 +40,7 @@ def assemble(rows, config, content, opts=None):
     def add_table(name, dims, rows_):
         dataset[name] = {'dims': list(dims), 'filters': [], 'rows': rows_}
 
-    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=3):
+    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
                 'sub': sub, 'icon': icon, 'iconColor': color}
         if real is not None and meta:
@@ -374,6 +374,7 @@ def assemble(rows, config, content, opts=None):
     created = config.get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
+                          'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title']},
                           'controls': {'kind': 'debriefing-lancamento', 'compare': 'meta',
                                        'pages': [p['id'] for p in pages]}}, 'pages': pages}
     return {'dataset': dataset, 'data': data_json,

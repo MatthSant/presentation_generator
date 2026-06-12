@@ -158,6 +158,11 @@ class App {
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
 
+    // Capa = título do relatório, só na 1ª página (Panorama); nas demais, o título da
+    // própria seção é o título do topo — evita repetir o título do relatório em toda página.
+    const coverEl = document.getElementById('report-header');
+    if (coverEl) coverEl.style.display = pageId === this.store.data?.pages?.[0]?.id ? '' : 'none';
+
     this.hist?.setPage(pageId);
     this.criativos?.setPage(pageId);
 

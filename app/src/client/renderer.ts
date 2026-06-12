@@ -24,6 +24,10 @@ export interface RenderCtx {
    *  present it overrides the widget's authored height so the read path renders
    *  charts at the size the editor saved instead of a fixed default. */
   chartHeight?(widgetId: string): number | undefined;
+  /** True when this widget directly follows an `eyebrow` in the section — its
+   *  own title would just repeat the eyebrow label, so header-style widgets
+   *  (table, rank-card) suppress it to match the source design. */
+  afterEyebrow?: boolean;
 }
 
 function el(tag: string, cls = '', text?: string): HTMLElement {
@@ -467,7 +471,7 @@ function renderChartToggle(w: ChartToggleWidget, ctx: RenderCtx): HTMLElement {
 /* ── table ── */
 function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div');
-  if (w.title) {
+  if (w.title && !ctx.afterEyebrow) {
     const tt = el('div', 'tbl-title');
     tt.appendChild(el('span', 'tt-name', w.title));
     if (w.sub) tt.appendChild(el('span', 'tt-sub', w.sub));
@@ -690,7 +694,7 @@ function buildRankCard(card: RankCard, pos: number): HTMLElement {
 
 function renderRankCard(w: RankCardWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'rank-wrap');
-  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  if (w.title && !ctx.afterEyebrow) wrap.appendChild(el('div', 'chart-title', w.title));
   let cards: RankCard[];
   if (w.bind) {
     const r = ctx.resolve(w.bind);
