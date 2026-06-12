@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf, safe, fmtval
-from common.preserve import preserve
+from common.preserve import preserve, preserve_dataset
 
 LINE_COLORS = ['#4C1D95', '#7C3AED', '#3B82F6', '#0EA5E9', '#0D9488', '#10B981']
 METRIC_LABELS = {'cpm': 'CPM', 'ctr': 'CTR', 'cpc': 'CPC', 'cpl': 'CPL', 'conv_paga': 'Conversão paga', 'cpa': 'CPA'}
@@ -421,6 +421,7 @@ def build(csv_path, config, content, out_dir):
     rows = calc.load_rows(csv_path)
     r = assemble(rows, config, content, {})
     preserve(out_dir, r['data'], r['sections'])
+    preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     def dump(name, obj):
         json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])

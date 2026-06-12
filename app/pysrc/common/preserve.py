@@ -22,6 +22,21 @@ def _load(path):
         return None
 
 
+def preserve_dataset(out_dir, dataset):
+    """Reanexa as tabelas de deep-query (`q-*`) do dataset anterior ao novo.
+
+    Os detalhamentos (det-*.json / modais) fazem bind a tabelas `q-<modal>-<n>`
+    que o deepen grava SÓ no dataset.json do output (não vêm do CSV). Uma
+    regeneração reescreve o dataset a partir do CSV e, sem isso, apagaria essas
+    tabelas — deixando todo detalhamento já feito com gráfico/tabela vazios.
+    Mantém as chaves `q-*` antigas que o novo build não recriou. Idempotente."""
+    prev = _load(os.path.join(out_dir, 'dataset.json')) or {}
+    for k, v in prev.items():
+        if k.startswith('q-') and k not in dataset:
+            dataset[k] = v
+    return dataset
+
+
 def preserve(out_dir, data, sections):
     pages = data.setdefault('pages', [])
 

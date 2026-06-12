@@ -152,7 +152,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
   /** Generate the detalhamento for a question and land it as a new section on the
    *  Detalhamentos page. Shared by "seguir" and "Adicionar pergunta". */
   async function buildSection(dir: string, client: string, slug: string, p: Pergunta, badge: string, label: string,
-    origem: 'pergunta' | 'custom'): Promise<{ sectionId: string; mocked: boolean; historyId: string }> {
+    origem: 'pergunta' | 'custom', isAborted: () => boolean = () => false): Promise<{ sectionId: string; mocked: boolean; historyId: string }> {
     const idbase = p.id.toLowerCase().replace(/[^a-z0-9]/g, '');
     const sectionId = `det-${idbase}-${crypto.randomBytes(3).toString('hex')}`;
     if (!isSafeSeg(sectionId)) throw new Error('id inválido');
@@ -174,6 +174,18 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
         validationErrors: [(e as Error).message], mocked: false,
       });
       throw e;
+    }
+    // O consultor cancelou (fechou a modal / saiu) enquanto gerava: o request foi
+    // abortado, mas a geração no servidor continuou até aqui. NÃO persiste a seção
+    // nem grava o 'detalhamento' — senão a pergunta apareceria FEITA mesmo cancelada.
+    if (isAborted()) {
+      recordDeepen(ctx.db, {
+        client, slug, analysisType: r.analysisType, origem,
+        sectionId: p.deepen?.sectionId || '', blockId: p.deepen?.blockId || '', modalId: sectionId,
+        prompt: p.deepen?.prompt || '', validatedOk: false,
+        validationErrors: ['cancelado pelo consultor'], mocked: r.mocked,
+      });
+      throw new Error('cancelado pelo consultor');
     }
     if (r.datasetChanged) {
       ctx.skipNextSSE.add('dataset.json');
@@ -222,11 +234,13 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     if (!p) { res.status(404).json({ error: 'pergunta não encontrada' }); return; }
 
     record(client, slug, p, 'seguir'); // intent (kept even if generation fails)
+    let clientGone = false;
+    req.on('close', () => { if (!res.writableEnded) clientGone = true; });
     try {
-      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta), 'pergunta');
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta), 'pergunta', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, historyId });
     } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
+      if (!res.writableEnded) res.status(500).json({ error: (e as Error).message });
     }
   });
 
@@ -256,11 +270,13 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     writeJson(customPath(dir), store);
 
     record(client, slug, p, 'seguir');
+    let clientGone = false;
+    req.on('close', () => { if (!res.writableEnded) clientGone = true; });
     try {
-      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom');
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p, historyId });
     } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
+      if (!res.writableEnded) res.status(500).json({ error: (e as Error).message });
     }
   });
 

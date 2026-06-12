@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, intf
-from common.preserve import preserve
+from common.preserve import preserve, preserve_dataset
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
@@ -371,6 +371,7 @@ def build(csv_path, config, content, out_dir):
     rows = calc.load_rows(csv_path)
     r = assemble(rows, config, content, {})
     preserve(out_dir, r['data'], r['sections'])
+    preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     def dump(name, obj):
         json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])
