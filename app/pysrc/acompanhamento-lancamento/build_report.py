@@ -235,19 +235,26 @@ def assemble(rows, config, content, opts=None):
 
     def funnel_table(wid, title, stages, w=6):
         rows = []
-        for i, s in enumerate(stages):
+        for s in stages:
             tr = s.get('trans') or {}
             if tr.get('invalid'):
-                perda, mig = '⚠️ inválido', '—'
-            elif 'perda' in tr:
-                furo = ' ⚠️ MAIOR FURO' if tr.get('maior_furo') else ''
-                perda = {'value': f"{tr['perda']:.0f}%{furo}", 'cls': 'c-r' if tr.get('maior_furo') else None}
+                mig, esp, furo = '⚠️ inválido', '—', '—'
+            elif 'migracao' in tr:
                 mig = f"{tr['migracao']:.0f}%"
+                esp = f"{tr['bench']:.0f}%" if tr.get('bench') else '—'
+                gap = tr.get('gap')
+                if gap is None:
+                    furo = '—'
+                elif gap <= 0:
+                    furo = {'value': '✓ ok', 'cls': 'c-g'}
+                else:
+                    mark = ' · ⚠️ MAIOR FURO' if tr.get('maior_furo') else ''
+                    furo = {'value': f"−{gap:.0f}%{mark}", 'cls': 'c-r' if tr.get('maior_furo') else 'c-a'}
             else:
-                perda, mig = '—', '—'
-            rows.append([s['label'], intf(s['value']), perda, mig])
+                mig, esp, furo = '—', '—', '—'
+            rows.append([s['label'], intf(s['value']), mig, esp, furo])
         tra.append({'id': wid, 'type': 'table', 'title': title,
-                    'cols': ['Etapa', 'Volume', '% Perda', '% Migração'], 'rows': rows})
+                    'cols': ['Etapa', 'Volume', '% Migração', 'Esperado', 'Furo vs esperado'], 'rows': rows})
         tg.add(wid, 'table', w, 4)
     funnel_table('tra-fun-tot', f"Funil Total · {B['n_dias']} dias", B['funnel_total'])
     funnel_table('tra-fun-3d', 'Funil · Últimos 3 dias', B['funnel_3d'])

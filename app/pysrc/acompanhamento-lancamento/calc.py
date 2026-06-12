@@ -23,6 +23,12 @@ LABELS = {
 }
 FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pageviews', 'Pageviews'),
                  ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls', 'MQLs')]
+# Benchmark de migração esperada por transição do funil (i → i+1). O "maior furo"
+# é a transição com maior queda RELATIVA ao seu benchmark — não a maior perda
+# absoluta (senão Impressões→Cliques, com CTR ~1-2%, venceria sempre).
+#   0 imp→clicks  = CTR · 1 clicks→pageviews = Connect · 2 pageviews→leads = Conv. página
+#   3 leads→respostas = Taxa de Resposta (meta/histórico) · 4 respostas→mqls = Qualidade (meta/histórico)
+FUNNEL_BENCH = {'ctr': 1.0, 'connect': 80.0, 'conv_pag': 40.0}
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 
@@ -292,8 +298,13 @@ def build(rows, config=None):
     crdia = next((d for d in reversed(dates) if any(is_paid(r) and fnum(r.get('leads_trafego')) > 0 for r in by_date[d])), '')
     creatives = _creatives(by_date.get(crdia, []), config.get('dict_links') or {})
 
-    funnel_total = _funnel(rows_corte)
-    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]])
+    # benchmark de migração por transição (default + override via config) — os dois
+    # últimos saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver).
+    fb = dict(FUNNEL_BENCH)
+    fb.update(config.get('funnel_bench') or {})
+    bench = [fb['ctr'], fb['connect'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
+    funnel_total = _funnel(rows_corte, bench)
+    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench)
 
     risks_macro = _risks(KPI_MACRO, tot, mstatus)
     risks_traf = _risks(KPI_TRAF, tot, mstatus)
@@ -340,30 +351,37 @@ def _creatives(day_rows, links):
     return {'best': best, 'worst': worst}
 
 
-def _funnel(rows):
+def _funnel(rows, bench=None):
+    """Funil de tráfego pago. `bench` = lista de migração esperada por transição
+    (i→i+1). O maior furo é a transição com maior queda RELATIVA ao seu benchmark
+    (`gap = (bench − migração)/bench`), não a maior perda absoluta."""
+    bench = bench or [None] * (len(FUNNEL_STAGES) - 1)
     s = _sum(rows)
     leads_total = s['leads'] or 0
     resp_pond = s['respostas'] * (s['leads_pago'] / leads_total) if leads_total else 0
     vals = {'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
             'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls']}
-    stages = []
-    for key, label in FUNNEL_STAGES:
-        stages.append({'key': key, 'label': label, 'value': round(vals[key])})
-    # transições válidas (atual>0 e prox<=atual) → perda/migração; senão inválida
-    perdas = []
+    stages = [{'key': k, 'label': lbl, 'value': round(vals[k])} for k, lbl in FUNNEL_STAGES]
+    gaps = []
     for i in range(len(stages) - 1):
         cur, nxt = stages[i]['value'], stages[i + 1]['value']
         if cur <= 0:
             stages[i]['trans'] = None
-        elif nxt > cur:
+            continue
+        if nxt > cur:
             stages[i]['trans'] = {'invalid': True}
-        else:
-            perda = round((1 - nxt / cur) * 100, 1)
-            stages[i]['trans'] = {'perda': perda, 'migracao': round(nxt / cur * 100, 1)}
-            perdas.append((i, perda))
-    if perdas:
-        worst_i = max(perdas, key=lambda x: x[1])[0]
-        stages[worst_i]['trans']['maior_furo'] = True
+            continue
+        mig = round(nxt / cur * 100, 1)
+        t = {'perda': round((1 - nxt / cur) * 100, 1), 'migracao': mig}
+        b = bench[i] if i < len(bench) else None
+        if b:
+            t['bench'] = round(b, 1)
+            t['gap'] = round((b - mig) / b * 100, 1)   # % abaixo do esperado (furo relativo)
+            if t['gap'] > 0:
+                gaps.append((i, t['gap']))
+        stages[i]['trans'] = t
+    if gaps:                                            # maior furo = maior queda vs benchmark
+        stages[max(gaps, key=lambda x: x[1])[0]]['trans']['maior_furo'] = True
     return stages
 
 
