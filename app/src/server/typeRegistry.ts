@@ -163,11 +163,22 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     label: 'Acompanhamento de Campanha',
     pysrcDir: 'acompanhamento-lancamento',
     supportsInsights: false,
+    queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/tendência por dia
     gerarPage: 'gerar-acompanhamento.html',
     montadorPage: 'montador-acompanhamento.html',
     controlsKind: 'acompanhamento-lancamento',
     validateConfig() { return []; },
-    buildDeepenMeta() { return null; },   // modo raso por ora (deep mode vem depois)
+    buildDeepenMeta() {
+      const M = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
+                 'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect'];
+      const G = genericFuncoes('dia');
+      return {
+        consultar: {
+          funcoes: [G.trend, G.series, G.correlacao, G.ranking],
+          params: { ...genericParams(M) },
+        },
+      };
+    },
   },
 };
 

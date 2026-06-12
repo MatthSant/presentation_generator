@@ -85,6 +85,18 @@ def assemble(rows, config, content, opts=None):
     sp = B['split']
     add_table('acom_origem', ['origem'], [{'origem': 'Pago', 'leads': sp['leads_pago']},
                                           {'origem': 'Orgânico', 'leads': sp['leads_org']}])
+    # agregados (não têm widget próprio; alimentam perguntas norteadoras + deep mode)
+    add_table('acom_kpis', ['metric'], [
+        {'metric': m, 'label': calc.LABELS[m], 'grupo': 'macro' if m in calc.KPI_MACRO else 'trafego',
+         'value': B['tot'].get(m), 'd3': B['d3'].get(m), 'meta': B['meta'].get(m),
+         'dev': (B['meta_status'].get(m) or {}).get('dev'), 'cls': (B['meta_status'].get(m) or {}).get('cls'),
+         'trend_dir': B['trend'].get(m, {}).get('dir'), 'trend_pct': B['trend'].get(m, {}).get('pct')}
+        for m in dict.fromkeys(calc.KPI_MACRO + calc.KPI_TRAF)])
+    add_table('acom_funnel', ['etapa'], [
+        {'etapa': s['label'], 'value': s['value'],
+         'migracao': (s.get('trans') or {}).get('migracao'), 'bench': (s.get('trans') or {}).get('bench'),
+         'gap': (s.get('trans') or {}).get('gap'), 'maior_furo': bool((s.get('trans') or {}).get('maior_furo'))}
+        for s in B['funnel_total']])
 
     # ════ s01 — Visão Geral ════════════════════════════════════════════════
     pan, pg = [], Grid()
@@ -292,8 +304,25 @@ RISK_IMPACT = {
 }
 
 
+def _load_dict_links(path):
+    """CSV auxiliar (field_ad_name,link) → dict de links dos criativos."""
+    import csv as _csv
+    links = {}
+    try:
+        with open(path, encoding='utf-8-sig', errors='replace') as f:
+            for r in _csv.DictReader(f):
+                ad = (r.get('field_ad_name') or '').strip()
+                if ad:
+                    links[ad] = (r.get('link') or '').strip() or None
+    except Exception:
+        pass
+    return links
+
+
 def build(csv_path, config, content, out_dir):
     os.makedirs(out_dir, exist_ok=True)
+    if config.get('dict_csv') and not config.get('dict_links'):
+        config['dict_links'] = _load_dict_links(config['dict_csv'])
     rows = calc.load_rows(csv_path)
     r = assemble(rows, config, content, {})
     preserve(out_dir, r['data'], r['sections'])
