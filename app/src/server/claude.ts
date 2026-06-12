@@ -556,10 +556,13 @@ const deepSystem = (analysisType?: string, spec?: ConsultarSpec): string => {
     ? 'CONSULTAS DISPONÍVEIS (campo "funcao" da tool "consultar"):\n'
       + spec.funcoes.map((f) => `  • ${f.id} — ${f.desc}`).join('\n') + '\n\n'
     : '';
-  return `Você aprofunda um card de ${d.what}. Você NÃO recebe o
-dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
-devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
-gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
+  return `Você aprofunda um card de ${d.what}. Você recebe um CATÁLOGO de tabelas JÁ
+CALCULADAS (campo "catalogo") — essa é sua fonte PRIMÁRIA: na maioria das perguntas a
+resposta já está numa tabela do catálogo (split por tipo/canal/temperatura, KPIs vs
+meta/benchmark, série por dia/semana…). Faça o bind dos gráficos/tabelas NAS tabelas do
+catálogo. Só chame a tool "consultar" para um recorte que NÃO existe no catálogo — o app
+calcula e devolve agregados com um "dataset_key" para o bind. Quando tiver o suficiente,
+chame "emit_modal".
 
 ${funcs}${GUARDRAIL}
 
@@ -596,10 +599,16 @@ exatamente o que a "instrucao" pede (ex.: trocar o gráfico, encurtar, focar num
 grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
 ${REVISION_RULE}
 
-Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
-catálogo inicial); números só na prosa dos widgets de texto (find-note/highlight/
-find-block/ni) e no value de um kpi — sempre extraídos das tabelas. Se uma consulta voltar
-"nao_disponivel", diga isso na prosa — nunca invente número.
+Regras duras: gráficos/tabelas só via bind a uma tabela do CATÁLOGO ou a um dataset_key
+retornado por "consultar"; números só na prosa dos widgets de texto (find-note/highlight/
+find-block/ni) e no value de um kpi — sempre extraídos das tabelas. NUNCA cite uma coluna
+que não existe na tabela do bind (renderiza célula vazia) — use os nomes EXATOS do catálogo.
+CATÁLOGO PRIMEIRO + NUNCA DESISTIR: se uma "consultar" voltar VAZIA (0 linhas/entidades) ou
+"nao_disponivel", NÃO conclua "não há dados" nem entregue AÇÕES de como coletar — a resposta
+quase sempre JÁ ESTÁ numa tabela do catálogo (ex.: comparar pago × orgânico → a tabela de
+canais tem a coluna de tipo; KPI vs meta → a tabela de KPIs tem meta/desvio). Faça bind nela.
+Só diga "indisponível" se NEM o catálogo NEM as consultas tiverem o recorte — e ainda assim
+apresente o corte mais próximo COM números.
 
 BIND: para isolar um valor de uma dimensão numa tabela já existente, use bind.where
 (ex.: {"mes":"Jan"}) com valores que existam na tabela — o filtro é real e aí PODE

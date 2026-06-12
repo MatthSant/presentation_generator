@@ -10,7 +10,8 @@ import type { Bind, DataMap, Widget } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
 
 const MAX_SERIES = 6;
-const MAX_CHART_CATS = 16;
+const MAX_CHART_CATS = 16;     // teto p/ gráficos categóricos (bar/stacked)
+const MAX_TIME_POINTS = 90;    // teto p/ série temporal (line/area) — só barra exagero real
 
 interface ChartLike { type?: string; title?: string; bind?: Bind; rows?: unknown[]; cols?: unknown[] }
 
@@ -33,7 +34,16 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
       } else if (r.series.length > MAX_SERIES) {
         issues.push(`"${title}": ${r.series.length} séries (>${MAX_SERIES}) — fica ilegível. Se a intenção era comparar DUAS métricas ao longo do tempo (ex.: investimento × faturamento), isso NÃO é uma série por período: ponha as duas métricas como colunas de uma table. Caso contrário, agregue, foque nas maiores variações, ou troque por um heatmap.`);
       } else if (r.categories.length > MAX_CHART_CATS) {
-        issues.push(`"${title}": ${r.categories.length} categorias no eixo x — demais para ler. Agregue ou recorte as principais.`);
+        // Série temporal (line/area) é FEITA para muitos pontos no tempo — uma linha
+        // sobre 30–60 dias é legível. O teto de categorias vale só para gráficos
+        // categóricos (bar/stacked); para temporais só barra um exagero real.
+        const ct = (w as { chartType?: string }).chartType || '';
+        const timeSeries = ct === 'line' || ct === 'area';
+        if (!timeSeries) {
+          issues.push(`"${title}": ${r.categories.length} categorias no eixo x — demais para ler. Agregue ou recorte as principais.`);
+        } else if (r.categories.length > MAX_TIME_POINTS) {
+          issues.push(`"${title}": ${r.categories.length} pontos no eixo x — demais até para uma série temporal. Agregue por semana ou mês.`);
+        }
       }
     } else if (w.type === 'table') {
       const title = w.title || 'tabela';

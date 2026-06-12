@@ -178,7 +178,7 @@ def q_vs_historico(ctx):
         if d is not None:
             deltas.append((lbl, d))
     if not deltas:
-        return {'relevancia': 0.0, 'justificativa': 'Sem histórico (lançamento anterior) para comparar.', 'kpis': []}
+        return {'na': True, 'relevancia': 0.0, 'justificativa': 'Sem histórico (lançamento anterior) para comparar.', 'kpis': []}
     deltas.sort(key=lambda x: -abs(x[1]))
     rel = _nz(abs(deltas[0][1]), 30)
     txt = '; '.join(f"{lbl} {d:+.0f}%" for lbl, d in deltas[:3])
@@ -293,7 +293,7 @@ def q_receita_vs_invest(ctx):
     df, fat, _ = _hdev(ctx, 'fat')
     di, inv, _ = _hdev(ctx, 'invest_cpt')
     if df is None or di is None:
-        return {'relevancia': 0.0, 'justificativa': 'Sem histórico para comparar receita × investimento.', 'kpis': []}
+        return {'na': True, 'relevancia': 0.0, 'justificativa': 'Sem histórico para comparar receita × investimento.', 'kpis': []}
     # ganho real = receita cresceu mais (ou caiu menos) que o investimento
     eficiencia = df - di
     rel = _nz(abs(eficiencia), 30)
@@ -308,7 +308,7 @@ def q_receita_vs_invest(ctx):
 def q_roas_hist(ctx):
     d, val, hist = _hdev(ctx, 'roas')
     if d is None:
-        return {'relevancia': 0.0, 'justificativa': 'Sem ROAS histórico para comparar.', 'kpis': []}
+        return {'na': True, 'relevancia': 0.0, 'justificativa': 'Sem ROAS histórico para comparar.', 'kpis': []}
     rel = _nz(abs(d), 25)
     return {'relevancia': round(rel, 1),
             'justificativa': f"ROAS de captação {val:.2f}× vs {hist:.2f}× no histórico ({d:+.0f}%).",
@@ -396,6 +396,8 @@ def evaluate_all(dataset):
     out = []
     for q in QUESTIONS:
         r = q['fn'](ctx)
+        if r.get('na'):   # dado necessário ausente nesta base → descarta a pergunta
+            continue
         out.append({
             'id': q['id'], 'pergunta': q['pergunta'],
             'justificativa': r['justificativa'], 'kpis': r['kpis'],

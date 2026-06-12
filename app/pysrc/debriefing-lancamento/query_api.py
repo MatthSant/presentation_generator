@@ -25,9 +25,15 @@ COST = {'cpl'}
 
 
 def build_frame(M, a):
-    """Eixo = dimensão escolhida (canal | temperatura | semana)."""
+    """Eixo = dimensão escolhida (escopo | canal | temperatura | semana)."""
     dim = a.get('dimensao', 'canal')
-    if dim == 'temperatura':
+    if dim == 'escopo':
+        rows = [{'key': 'Pago', 'm': {'leads': M['leads_pago'], 'vendas': M['vendas_pago'],
+                                      'conv': M['conv_pago'], 'qual': M['qual_pago'], 'fat': M['fat_pago']}},
+                {'key': 'Orgânico', 'm': {'leads': M['leads_org'], 'vendas': M['vendas_org'],
+                                          'conv': M['conv_org'], 'qual': M['qual_org'], 'fat': M['fat_org']}}]
+        labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'fat']}
+    elif dim == 'temperatura':
         rows = [{'key': t['temp'], 'm': {'leads': t['leads'], 'invest': t['inv'], 'fat': t['fat'],
                                          'roas': t['roas'], 'vendas': t['vendas'], 'conv': t['conv'], 'qual': t['qual']}}
                 for t in M['temp']]

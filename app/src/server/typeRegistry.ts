@@ -201,7 +201,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
         consultar: {
           funcoes: [G.ranking, G.series, G.series_long, G.correlacao, G.trend],
           params: {
-            dimensao: { enum: ['canal', 'temperatura', 'semana'], desc: 'eixo do recorte' },
+            dimensao: { enum: ['escopo', 'canal', 'temperatura', 'semana'], desc: 'eixo do recorte (escopo = pago × orgânico; canal; temperatura; semana)' },
             ...genericParams(M),
           },
         },

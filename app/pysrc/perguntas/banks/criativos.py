@@ -323,6 +323,8 @@ def evaluate_all(dataset):
             r = q['fn'](ctx)
         except Exception:
             r = {'relevancia': 40.0, 'justificativa': '', 'kpis': []}
+        if r.get('na'):   # dado necessário ausente nesta base → descarta a pergunta
+            continue
         out.append({
             'id': q['id'], 'pergunta': q['pergunta'],
             'justificativa': r.get('justificativa', ''), 'kpis': r.get('kpis', []),
