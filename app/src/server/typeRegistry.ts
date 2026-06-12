@@ -119,7 +119,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
         consultar: {
           funcoes: [
             G.tabela, G.correlacao, G.series, G.series_long, G.ranking,
-            { id: 'por_temperatura', desc: 'uma métrica (metrica) agregada por temperatura do lead' },
+            { id: 'por_temperatura', desc: 'TODAS as métricas por temperatura do lead (uma coluna por métrica) — escolha as colunas no bind' },
             { id: 'saturacao_diaria', desc: 'ROAS e retorno por DIA (geral, ou de um criativo) para detectar saturação' },
             { id: 'benchmark_gap', desc: 'distância média de cada indicador de anúncio (hook/hold/ctr/connect/conv_pagina) frente ao benchmark' },
           ],
@@ -152,7 +152,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
           funcoes: [
             G.tabela, G.trend, G.series, G.series_long, G.correlacao,
             { id: 'decomposicao', desc: 'decompõe o CPA (= CPL ÷ conversão paga): diz se a variação do CPA foi mais de CPL ou de conversão' },
-            { id: 'por_dimensao', desc: 'uma métrica (metrica) por dimensão (canal/plataforma/temperatura) ao longo dos lançamentos' },
+            { id: 'por_dimensao', desc: 'TODAS as métricas por dimensão (canal/plataforma/temperatura) × lançamento (uma coluna por métrica) — escolha as colunas no bind' },
           ],
           params: {
             ...genericParams(M),

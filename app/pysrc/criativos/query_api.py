@@ -47,9 +47,9 @@ def build_frame(B, _a):
 
 
 def por_temperatura(B, a):
-    metrica = a.get('metrica', 'roas')
-    if metrica not in _LABEL:
-        return {'status': 'nao_disponivel', 'motivo': f"métrica '{metrica}' inválida"}
+    # Devolve TODAS as métricas por temperatura (uma coluna cada) — assim o modelo
+    # monta tabela/gráfico com qualquer recorte sem cair em coluna inexistente. O
+    # arg 'metrica' (opcional) só ordena a leitura/summary, não restringe colunas.
     rows_all, produto = B['_rows'], B['produto']
     temps = calc._distinct(rows_all, 'temperatura_lead')
     if not temps:
@@ -57,13 +57,18 @@ def por_temperatura(B, a):
     out = []
     for t in temps:
         sub = [r for r in rows_all if (r.get('temperatura_lead') or '').strip() == t]
-        v = calc.metrics(sub, produto).get(metrica)
-        if v is not None:
-            out.append({'temperatura': t, _LABEL[metrica]: _r(v, 2)})
+        M = calc.metrics(sub, produto)
+        row = {'temperatura': t}
+        for k, lab in _LABEL.items():
+            v = M.get(k)
+            if v is not None:
+                row[lab] = _r(v, 2)
+        if len(row) > 1:
+            out.append(row)
     if not out:
         return {'status': 'nao_disponivel', 'motivo': 'sem valores por temperatura'}
     return {'status': 'ok', 'table': {'dims': ['temperatura'], 'filters': [], 'rows': out},
-            'summary': f'{_LABEL[metrica]} por temperatura ({len(out)} faixas).'}
+            'summary': f'Métricas por temperatura do lead ({len(out)} faixas).'}
 
 
 def saturacao_diaria(B, a):
