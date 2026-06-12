@@ -112,7 +112,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   // labels, mixed secondary axis) — passed straight through to the builder.
   const variant = {
     trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
-    showLabels: w.showLabels, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
+    showLabels: w.showLabels, legendValues: w.legendValues, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
     dashLast: w.dashLast, valueFormat: w.valueFormat, goalLines: w.goalLines, highlightLast: w.highlightLast,
   };
   let def: ChartDef | null = null;
@@ -143,7 +143,32 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   cw.id = `chart-${w.id}`;
   wrap.appendChild(cw);
   ctx.charts.push({ elId: cw.id, def });
+  // Legenda das linhas de meta abaixo do gráfico — assim os rótulos saem de cima das
+  // barras (cobriam as últimas) e ganham swatch tracejado, como no padrão da fonte.
+  if (w.goalLines?.length) wrap.appendChild(goalLegend(w, def));
   return wrap;
+}
+
+/** Legenda inferior para gráficos com linhas de meta: série(s) sólida(s) + cada meta
+ *  como swatch tracejado colorido. Mantém os rótulos fora da área de plotagem. */
+function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
+  const lg = el('div', 'chart-goal-legend');
+  const srcSeries = Array.isArray(w.series) ? w.series : (Array.isArray(def?.series) ? def!.series : []);
+  const primColor = (w.colors && w.colors[w.colors.length - 1]) || '#7C3AED';
+  for (const s of srcSeries as { name?: string }[]) {
+    if (!s?.name) continue;
+    const item = el('span', 'cgl-item');
+    const sw = el('span', 'cgl-sw'); sw.style.background = primColor;
+    item.append(sw, el('span', 'cgl-lbl', s.name));
+    lg.appendChild(item);
+  }
+  for (const g of w.goalLines || []) {
+    const item = el('span', 'cgl-item');
+    const sw = el('span', 'cgl-sw cgl-sw--dash'); sw.style.color = g.color || '#EF9F27';
+    item.append(sw, el('span', 'cgl-lbl', g.label || ''));
+    lg.appendChild(item);
+  }
+  return lg;
 }
 
 /* ── eyebrow ── numbered zone separator (badge + title + caption + rule) */
@@ -265,16 +290,16 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   // O tom (pos/neg/neutral) tinge o card inteiro (fundo + borda + rótulo + pill).
   if (feature && w.band) {
     const tone = w.deltaTone || 'neutral';
-    const bandCard = el('div', `card kc kc--feature kc--band kc--band-${tone}`);
+    const card = el('div', `card kc kc--feature kc--band kc--band-${tone}`);
     const main = el('div', 'kc-band-main');
     main.appendChild(el('div', 'kc-lbl', w.label));
-    const bv = el('div', 'kc-val');
-    bv.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
-    main.appendChild(bv);
+    const val = el('div', 'kc-val');
+    val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
+    main.appendChild(val);
     if (w.sub) main.appendChild(el('div', 'kc-sub', w.sub));
-    bandCard.appendChild(main);
-    if (w.delta) bandCard.appendChild(el('span', `pill ${PILL_TONE[tone]} kc-band-pill`, w.delta));
-    return bandCard;
+    card.appendChild(main);
+    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[tone]} kc-band-pill`, w.delta));
+    return card;
   }
   const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}`);
   const head = el('div', 'kc-head');
