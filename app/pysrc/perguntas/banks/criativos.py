@@ -291,9 +291,12 @@ QUESTIONS = [
                  'gerado na campanha.')),
     dict(id='cr-saturacao', fn=q_saturacao,
          pergunta='Existiu algum criativo que saturou durante a captação? Se sim, por quê?',
-         prompt=('Para cada criativo, olhe retorno bruto e ROAS por dia. Se viram negativos e se mantêm, é '
-                 'saturação. Nos saturados, veja qual indicador (hook, hold, CTR, connect, conversão de página) '
-                 'mais caiu entre o início e o fim da veiculação e sinalize com um exemplo concreto.')),
+         prompt=('Pelo ROAS/retorno DIÁRIO (série geral e, informando o nome, por criativo) identifique os '
+                 'criativos que saturaram — ROAS virou negativo e se manteve. Nos saturados, compare os '
+                 'indicadores CONSOLIDADOS (hook, hold, CTR, conversão de página) com a média/benchmark para '
+                 'apontar a provável causa. Não há série diária por-indicador de cada criativo: a queda temporal '
+                 'de um indicador específico ao longo da veiculação NÃO é rastreável — reconheça isso num '
+                 'find-note em vez de afirmar/inventar.')),
     dict(id='cr-oportunidade-bench', fn=q_oportunidade_benchmark,
          pergunta='Tenho oportunidades claras de melhorar o resultado com base nos indicadores vs. benchmark?',
          prompt=('Avalie o composto dos indicadores de anúncio (hold, CTR, connect rate, conversão de página) '
