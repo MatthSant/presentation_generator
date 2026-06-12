@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -24,6 +24,10 @@ export interface RenderCtx {
    *  present it overrides the widget's authored height so the read path renders
    *  charts at the size the editor saved instead of a fixed default. */
   chartHeight?(widgetId: string): number | undefined;
+  /** True when this widget directly follows an `eyebrow` in the section — its
+   *  own title would just repeat the eyebrow label, so header-style widgets
+   *  (table, rank-card) suppress it to match the source design. */
+  afterEyebrow?: boolean;
 }
 
 function el(tag: string, cls = '', text?: string): HTMLElement {
@@ -255,6 +259,10 @@ const ICONS: Record<string, string> = {
   star: '<path d="M12 3 L14.6 9 L21 9.5 L16.1 13.8 L17.7 20 L12 16.5 L6.3 20 L7.9 13.8 L3 9.5 L9.4 9 Z" fill="currentColor" stroke="none"/>',
   'circle-check': '<circle cx="12" cy="12" r="8.8"/><path d="M8 12 l3 3 l5 -6"/>',
   'arrows-left-right': '<path d="M8 6.5 L4 11 H20"/><path d="M16 17.5 L20 13 H4"/>',
+  flame: '<path d="M12 3 c2.5 3 4.5 5 4.5 8.5 a4.5 4.5 0 0 1 -9 0 c0 -1.4 .6 -2.6 1.4 -3.6 c.3 1 .9 1.6 1.6 1.9 c-.3 -2.4 .5 -4.8 1.5 -6.8 Z" fill="currentColor" stroke="none"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
+  'credit-card': '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 9.5h18"/>',
+  sprout: '<path d="M12 21V11"/><path d="M12 11c0-3 2-5 5-5 0 3-2 5-5 5Z" fill="currentColor" stroke="none"/><path d="M12 13c0-2.5-2-4-4.5-4 0 2.5 2 4 4.5 4Z" fill="currentColor" stroke="none"/>',
 };
 
 function iconBox(icon?: string, color?: string): HTMLElement {
@@ -303,9 +311,14 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
   const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}`);
-  const head = el('div', 'kc-head');
+  const val = el('div', 'kc-val');
+  val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
   if (feature) {
-    head.appendChild(iconBox(w.icon, w.iconColor));
+    // Card de KPI no padrão da referência: SEM ícone — label uppercase + (opcional)
+    // pill de comparação à direita; valor; "3d: X"; pill de tendência verde/vermelha;
+    // linha de meta com ✓/✗.
+    const head = el('div', 'kc-head');
+    head.appendChild(el('div', 'kc-lbl', w.label));
     if (w.cmp) {
       const cur = w.cmp[cmpMode] || w.cmp.meta;
       const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
@@ -315,15 +328,7 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     } else if (w.delta) {
       head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
     }
-  } else {
-    head.appendChild(el('span', 'kc-lbl', w.label));
-    head.appendChild(iconBox(w.icon, w.iconColor));
-  }
-  card.appendChild(head);
-  const val = el('div', 'kc-val');
-  val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
-  if (feature) {
-    card.appendChild(el('div', 'kc-lbl', w.label));
+    card.appendChild(head);
     const row = el('div', 'kc-valrow');
     row.appendChild(val);
     if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
@@ -332,13 +337,12 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     if (w.d3) {
       const c = w.d3.tone === 'pos' ? 'c-g' : w.d3.tone === 'neg' ? 'c-r' : 'c-a';
       const dd = el('div', `kc-d3 ${c}`);
-      dd.appendChild(document.createTextNode(`3d ${w.d3.value} `));
-      if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? '↑3d' : '↓3d'));
+      dd.appendChild(document.createTextNode(`3d: ${w.d3.value}`));
+      if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? ' ↑' : ' ↓'));
       card.appendChild(dd);
     }
     if (w.flag) {
-      const c = w.flag.tone === 'pos' ? 'c-g' : w.flag.tone === 'neg' ? 'c-r' : 'c-a';
-      card.appendChild(el('div', `kc-flag ${c}`, w.flag.text));
+      card.appendChild(el('span', `pill ${PILL_TONE[w.flag.tone || 'neutral']} kc-flag`, w.flag.text));
     }
     if (w.goal) {
       const g = el('div', 'kc-goal');
@@ -350,6 +354,10 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       card.appendChild(g);
     }
   } else {
+    const head = el('div', 'kc-head');
+    head.appendChild(el('span', 'kc-lbl', w.label));
+    head.appendChild(iconBox(w.icon, w.iconColor));
+    card.appendChild(head);
     card.appendChild(val);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
     if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']} kc-vol-delta`, w.delta));
@@ -467,7 +475,7 @@ function renderChartToggle(w: ChartToggleWidget, ctx: RenderCtx): HTMLElement {
 /* ── table ── */
 function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div');
-  if (w.title) {
+  if (w.title && !ctx.afterEyebrow) {
     const tt = el('div', 'tbl-title');
     tt.appendChild(el('span', 'tt-name', w.title));
     if (w.sub) tt.appendChild(el('span', 'tt-sub', w.sub));
@@ -690,7 +698,7 @@ function buildRankCard(card: RankCard, pos: number): HTMLElement {
 
 function renderRankCard(w: RankCardWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'rank-wrap');
-  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  if (w.title && !ctx.afterEyebrow) wrap.appendChild(el('div', 'chart-title', w.title));
   let cards: RankCard[];
   if (w.bind) {
     const r = ctx.resolve(w.bind);
@@ -802,7 +810,7 @@ function renderQaCard(w: QaCardWidget, ctx: RenderCtx): HTMLElement {
 }
 
 /* ── funnel ── funil visual: barras degradê por etapa + pills perda/migram. */
-const FUNNEL_GRAD = ['#534AB7', '#6257C4', '#7265D1', '#8374DC', '#9787E5', '#AFA9EC'];
+const FUNNEL_GRAD = ['#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#3B1675', '#2E084B'];
 function renderFunnel(w: FunnelWidget): HTMLElement {
   const wrap = el('div', 'funnel-card');
   if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
@@ -824,20 +832,121 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       if (t.invalid) {
         pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
       } else {
-        // abaixo do benchmark (gap>0) → a migração é um ALERTA (âmbar/vermelho), não um ✓.
+        // 2 tags: ▼ perda (MAIOR FURO na pior) + taxa de passagem. A passagem é ✓ verde
+        // quando está no/acima do benchmark e ⚠ âmbar quando ABAIXO do recomendado —
+        // aí a meta entra inline (ex.: connect rate 60% abaixo do recomendado 80%).
         const below = t.gap != null && t.gap > 0;
         if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
-          `${t.worst ? '⚠️ ' : '▼ '}${t.loss.toFixed(1)}% perda${t.worst ? ' · MAIOR FURO' : ''}`));
+          `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
         if (t.migrate != null) {
-          const cls = t.worst ? 'funnel-pill--worst' : (below ? 'funnel-pill--alert' : 'funnel-pill--migrate');
-          pills.appendChild(el('span', `funnel-pill ${cls}`, `${(t.worst || below) ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}% migram`));
+          const meta = below && t.bench != null ? ` · meta ${t.bench.toFixed(0)}%` : '';
+          pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
+            `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${meta}`));
         }
-        if (t.bench != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--bench', `esperado ${t.bench.toFixed(0)}%`));
       }
       body.appendChild(pills);
     }
   });
   wrap.appendChild(body);
+  return wrap;
+}
+
+/* ── bar-list ── lista de barras horizontais (rótulo + barra + valor + %), com
+ *  hierarquia (indent) e cards de stat opcionais. Origem do Tráfego / Temperatura. */
+function svgInline(icon?: string): string {
+  return icon && ICONS[icon]
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`
+    : '';
+}
+function renderBarList(w: BarListWidget): HTMLElement {
+  const wrap = el('div', 'bar-list');
+  if (w.title) {
+    const head = el('div', 'chart-head');
+    head.appendChild(el('div', 'chart-title', w.title));
+    wrap.appendChild(head);
+  }
+  const max = w.max ?? Math.max(1, ...w.rows.map(r => r.bar || 0));
+  const rowsEl = el('div', 'bl-rows');
+  for (const r of w.rows) {
+    const row = el('div', `bl-row${r.indent ? ' bl-row--child' : ''}`);
+    const lab = el('div', 'bl-label');
+    if (r.icon && ICONS[r.icon]) {
+      const ic = el('span', 'bl-ic'); if (r.color) ic.style.color = r.color; ic.innerHTML = svgInline(r.icon); lab.appendChild(ic);
+    } else if (!r.indent) {
+      const dot = el('span', 'bl-dot'); if (r.color) dot.style.background = r.color; lab.appendChild(dot);
+    }
+    lab.appendChild(el('span', 'bl-name', r.label));
+    row.appendChild(lab);
+    const track = el('div', 'bl-track');
+    const fill = el('div', 'bl-fill');
+    fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
+    if (r.color) fill.style.background = r.color;
+    track.appendChild(fill); row.appendChild(track);
+    row.appendChild(el('span', 'bl-val', r.value));
+    row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+    rowsEl.appendChild(row);
+  }
+  wrap.appendChild(rowsEl);
+  if (w.cards?.length) {
+    const cards = el('div', 'bl-cards');
+    for (const c of w.cards) {
+      const card = el('div', `bl-card bl-card--${c.tone || 'purple'}`);
+      const hd = el('div', 'bl-card-hd');
+      if (c.icon && ICONS[c.icon]) { const ic = el('span', 'bl-card-ic'); ic.innerHTML = svgInline(c.icon); hd.appendChild(ic); }
+      hd.appendChild(el('span', 'bl-card-t', c.label));
+      card.appendChild(hd);
+      for (const s of c.stats || []) {
+        const sr = el('div', 'bl-card-row');
+        sr.appendChild(el('span', 'bl-card-l', s.label));
+        sr.appendChild(el('span', 'bl-card-v', s.value));
+        card.appendChild(sr);
+      }
+      if (c.headline) {
+        const h = el('div', 'bl-card-hl');
+        h.appendChild(el('div', 'bl-card-hl-v', c.headline.value));
+        h.appendChild(el('div', 'bl-card-hl-l', c.headline.label));
+        card.appendChild(h);
+      }
+      cards.appendChild(card);
+    }
+    wrap.appendChild(cards);
+  }
+  return wrap;
+}
+
+/* ── cri-list ── lista de criativos ranqueados: thumb + nome (link) + meta +
+ *  stats à direita (leads + CPMQL proj.). Substitui a tabela de criativos. */
+function renderCriList(w: CriListWidget): HTMLElement {
+  const wrap = el('div', 'cri-list');
+  if (w.title) {
+    const head = el('div', 'chart-head');
+    head.appendChild(el('div', 'chart-title', w.title));
+    wrap.appendChild(head);
+  }
+  if (w.caption) wrap.appendChild(el('div', 'cri-cap', w.caption));
+  for (const r of w.rows) {
+    const row = el('div', 'cri-row');
+    const thumb = el('div', 'cri-thumb');
+    thumb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></svg>';
+    row.appendChild(thumb);
+    const info = el('div', 'cri-info');
+    info.appendChild(el('div', 'cri-name', r.name));
+    if (r.meta) info.appendChild(el('div', 'cri-meta', r.meta));
+    if (r.link) {
+      const a = el('a', 'cri-link', 'Ver criativo ↗') as HTMLAnchorElement;
+      a.href = r.link; a.target = '_blank'; a.rel = 'noopener';
+      info.appendChild(a);
+    }
+    row.appendChild(info);
+    const stat = el('div', 'cri-stat');
+    for (const s of r.stats || []) {
+      const c = s.tone === 'pos' ? 'c-g' : s.tone === 'neg' ? 'c-r' : '';
+      stat.appendChild(el('div', `cri-stat-v ${c}`, s.value));
+      stat.appendChild(el('div', 'cri-stat-l', s.label));
+    }
+    row.appendChild(stat);
+    wrap.appendChild(row);
+  }
   return wrap;
 }
 
@@ -1199,6 +1308,8 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'find-block':  return renderFindBlock(widget);
       case 'qa-card':     return renderQaCard(widget, ctx);
       case 'funnel':      return renderFunnel(widget);
+      case 'bar-list':    return renderBarList(widget);
+      case 'cri-list':    return renderCriList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);

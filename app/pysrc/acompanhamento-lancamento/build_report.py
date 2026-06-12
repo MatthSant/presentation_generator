@@ -61,11 +61,12 @@ def assemble(rows, config, content, opts=None):
             parts.append(f"meta {vfmt(metric, meta)} · {st['dev']:+.0f}% {sym}")
         return ' · '.join(parts)
 
-    def kcard(arr, pg, metric):
+    def kcard(arr, pg, metric, prefix='k'):
+        wid = f'{prefix}-{metric}'
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
         tr = B['trend'].get(metric, {})
         flag_txt, flag_tone = trend_delta(metric)
-        card = {'id': f'k-{metric}', 'type': 'kpi-card', 'tier': 'feature',
+        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
         # valor dos últimos 3 dias (colorido pela direção-de-bom)
@@ -85,7 +86,7 @@ def assemble(rows, config, content, opts=None):
         if st and meta is not None:
             card['goal'] = {'label': f"meta {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
-        pg.add(f'k-{metric}', 'kpi-card', 4, 4)
+        pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
@@ -122,8 +123,8 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s01 — Visão Geral ════════════════════════════════════════════════
     pan, pg = [], Grid()
-    pan.append({'id': 'pan-eb-vg', 'type': 'eyebrow', 'title': 'VISÃO GERAL',
-                'caption': f"Dia {B['dia_campanha']} de campanha · dados até {B['corte_label']}"})
+    pan.append({'id': 'pan-eb-vg', 'type': 'eyebrow', 'title': 'CAPTAÇÃO',
+                'caption': f"leads captados, origem e atingimento de meta · dia {B['dia_campanha']} · dados até {B['corte_label']}"})
     pg.add('pan-eb-vg', 'eyebrow', 12, 1)
 
     # acumulado de leads (barras, últimas 3 destacadas) + linhas de meta + número-destaque
@@ -178,7 +179,7 @@ def assemble(rows, config, content, opts=None):
     pg.items = hero_lay
     pg.x, pg.y, pg.rowh = 0, bottom, 0
 
-    pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'PRINCIPAIS KPIS', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
+    pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'KPIS MACRO', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
     pg.add('pan-eb-kpi', 'eyebrow', 12, 1)
     for m in calc.KPI_MACRO:
         kcard(pan, pg, m)
@@ -194,9 +195,8 @@ def assemble(rows, config, content, opts=None):
     layouts['s01'] = pg.items
 
     # ════ s02 — Evolução Diária ════════════════════════════════════════════
+    # (o eyebrow do grupo é o divisor injetado no merge — não duplicar aqui)
     evo, eg = [], Grid()
-    evo.append({'id': 'evo-eb', 'type': 'eyebrow', 'title': 'EVOLUÇÃO DIÁRIA', 'caption': 'séries por dia da campanha'})
-    eg.add('evo-eb', 'eyebrow', 12, 1)
 
     def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None):
         c = {'id': wid, 'type': 'chart', 'chartType': ctype, 'title': title, 'height': 280,
@@ -222,26 +222,36 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s03 — Canais & Audiência ═════════════════════════════════════════
     can, cg = [], Grid()
-    # origem (pago × orgânico) + breakdown de canais orgânicos + temperatura — 3 colunas
+    # Origem do Tráfego (bar-list hierárquico: Pago/Orgânico + canais) + Temperatura
+    # (bar-list + cards de CPL médio) — 2 colunas. Widget único 'bar-list'.
     can.append({'id': 'can-eb-orig', 'type': 'eyebrow', 'title': 'ORIGEM E TEMPERATURA', 'caption': 'distribuição dos leads'})
     cg.add('can-eb-orig', 'eyebrow', 12, 1)
-    can.append({'id': 'can-orig', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Leads por origem',
-                'height': 200, 'colors': ['#534AB7', '#AFA9EC'], 'distributed': True, 'showLabels': True, 'valueFormat': 'int',
-                'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    cg.add('can-orig', 'chart', 3, 3)
-    if B['canais_org']:
-        can.append({'id': 'can-canais', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Canais orgânicos',
-                    'height': 200, 'colors': ['#97C459'], 'showLabels': True, 'valueFormat': 'int',
-                    'caption': 'leads por utm_source (top 8)',
-                    'bind': {'dataset': 'acom_canais', 'x': 'canal', 'y': 'leads'}})
-        cg.add('can-canais', 'chart', 4, 3)
-    # temperatura (tabela) — coluna mais larga p/ caber as 4 colunas sem cortar
+    sp = B['split']; tot_leads = sp['leads_pago'] + sp['leads_org']
+    orig_rows = [
+        {'label': 'Pago', 'value': intf(sp['leads_pago']), 'pct': calc.pct(sp['leads_pago'], tot_leads) or 0,
+         'bar': sp['leads_pago'], 'icon': 'credit-card', 'color': '#7C3AED'},
+        {'label': 'Orgânico', 'value': intf(sp['leads_org']), 'pct': calc.pct(sp['leads_org'], tot_leads) or 0,
+         'bar': sp['leads_org'], 'icon': 'sprout', 'color': '#A78BFA'},
+    ]
+    for c in B['canais_org'][:6]:
+        orig_rows.append({'label': c['source'], 'value': intf(c['leads']), 'pct': c.get('pct') or 0,
+                          'bar': c['leads'], 'indent': True, 'color': '#C3A4F7'})
+    can.append({'id': 'can-orig', 'type': 'bar-list', 'title': 'Origem do Tráfego', 'rows': orig_rows})
+    cg.add('can-orig', 'bar-list', 6, 4)
+    # temperatura — bar-list (Quente/Morno) + cards de stat com CPL médio em destaque
     if B['temp']:
-        can.append({'id': 'can-temp', 'type': 'table', 'title': 'Temperatura · tráfego pago',
-                    'cols': ['Temperatura', 'Leads', 'Invest.', 'CPL'],
-                    'rows': [[t, intf(v['leads']), money(v['invest']), vfmt('cpl', v['cpl'])]
-                             for t, v in B['temp'].items()]})
-        cg.add('can-temp', 'table', 5, 3)
+        TC = {'Quente': '#DC2626', 'Morno': '#EA580C', 'Frio': '#2563EB', 'Indefinido': '#9b98a3'}
+        TI = {'Quente': 'flame', 'Morno': 'sun'}
+        TT = {'Quente': 'red', 'Morno': 'green', 'Frio': 'purple', 'Indefinido': 'purple'}
+        temp_items = [(t, v) for t, v in B['temp'].items() if v.get('leads')]
+        temp_tot = sum(v['leads'] for _, v in temp_items) or 1
+        temp_rows = [{'label': t, 'value': intf(v['leads']), 'pct': calc.pct(v['leads'], temp_tot) or 0,
+                      'bar': v['leads'], 'icon': TI.get(t), 'color': TC.get(t, '#7C3AED')} for t, v in temp_items]
+        temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
+                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])}, {'label': 'Invest', 'value': money(v['invest'])}],
+                       'headline': {'label': 'CPL médio', 'value': vfmt('cpl', v['cpl'])}} for t, v in temp_items]
+        can.append({'id': 'can-temp', 'type': 'bar-list', 'title': 'Temperatura · tráfego pago', 'rows': temp_rows, 'cards': temp_cards})
+        cg.add('can-temp', 'bar-list', 6, 4)
     # tipo de lead (6 células como kpi-cards)
     tl = B['tipo_lead']
     can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
@@ -262,32 +272,29 @@ def assemble(rows, config, content, opts=None):
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:
-        can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS · ÚLTIMO DIA',
-                    'caption': f"maior volume e mais eficientes por CPMQL projetado · {B['cr_dia_label']}"})
+        can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS',
+                    'caption': f"maior volume e mais eficientes por CPMQL projetado · campanha até {B['corte_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
-        def cri_rows(lst, with_resp=False):
-            def name_cell(c):
-                return {'value': c['name'], 'link': c['link']} if c.get('link') else c['name']
+        def cri_list_rows(lst, eff=False):
             rows = []
             for c in lst:
-                row = [name_cell(c), intf(c['leads']), money(c['invest']), vfmt('cpl', c['cpl']),
-                       pctf(c['taxa_qual']), vfmt('cpmql', c['cpmql_proj'])]
-                if with_resp:
-                    row.insert(5, intf(c['respostas']))
-                rows.append(row)
+                meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
+                if eff:
+                    meta += f" · {intf(c['respostas'])} resp."
+                rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
+                             'stats': [{'value': intf(c['leads']), 'label': 'leads'},
+                                       {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}]})
             return rows
-        cols = ['Criativo', 'Leads', 'Invest.', 'CPL', 'Tx. Qual', 'CPMQL proj.']
         if cr['best']:
-            can.append({'id': 'can-cri-best', 'type': 'table', 'title': '🏆 Maior volume',
-                        'cols': cols, 'rows': cri_rows(cr['best'])})
-            cg.add('can-cri-best', 'table', 6, 3)
+            can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
+                        'rows': cri_list_rows(cr['best'])})
+            cg.add('can-cri-best', 'cri-list', 6, 4)
         if cr['eff']:
-            eff_cols = ['Criativo', 'Leads', 'Invest.', 'CPL', 'Tx. Qual', 'Resp.', 'CPMQL proj.']
-            can.append({'id': 'can-cri-eff', 'type': 'table', 'title': '🏆 Menor CPMQL projetado',
-                        'cols': eff_cols, 'rows': cri_rows(cr['eff'], with_resp=True),
-                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para o CPMQL projetado ser confiável.'})
-            cg.add('can-cri-eff', 'table', 6, 3)
+            can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Menor CPMQL projetado',
+                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para o CPMQL projetado ser confiável.',
+                        'rows': cri_list_rows(cr['eff'], eff=True)})
+            cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}
     layouts['s03'] = cg.items
@@ -297,7 +304,7 @@ def assemble(rows, config, content, opts=None):
     tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': '6 indicadores de mídia'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
     for m in calc.KPI_TRAF:
-        kcard(tra, tg, m)
+        kcard(tra, tg, m, 'kt')
     if B['risks_traf']:
         tra.append({'id': 'tra-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
                     'title': 'RISCOS DE TRÁFEGO', 'caption': 'KPIs de tráfego com maior desvio'})
@@ -340,13 +347,16 @@ def assemble(rows, config, content, opts=None):
     # Acompanhamento é leitura rápida: os 4 grupos (Visão Geral, Evolução, Canais,
     # Tráfego) empilham numa só seção rolável, cada um aberto por um eyebrow-divisor.
     # Só Detalhamentos e Perguntas ficam em páginas à parte (criadas pela rota/preserve).
-    groups = [('s01', None), ('s02', 'EVOLUÇÃO DIÁRIA'),
-              ('s03', 'CANAIS E AUDIÊNCIA'), ('s04', 'TRÁFEGO PAGO')]
+    groups = [('s01', None, None), ('s02', 'EVOLUÇÃO DIÁRIA', 'séries por dia da campanha'),
+              ('s03', 'CANAIS E AUDIÊNCIA', None), ('s04', 'TRÁFEGO PAGO', None)]
     merged_w, merged_items, y_off = [], [], 0
-    for sid, divider in groups:
+    for sid, divider, dcap in groups:
         if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
             did = f'div-{sid}'
-            merged_w.append({'id': did, 'type': 'eyebrow', 'title': divider})
+            dw = {'id': did, 'type': 'eyebrow', 'title': divider}
+            if dcap:
+                dw['caption'] = dcap
+            merged_w.append(dw)
             merged_items.append({'id': did, 'type': 'eyebrow', 'x': 0, 'y': y_off, 'w': 12, 'h': 1})
             y_off += 1
         merged_w.extend(sections[sid]['widgets'])
@@ -362,6 +372,8 @@ def assemble(rows, config, content, opts=None):
     created = config.get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
+                          'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
+                                    'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},
                           'controls': {'kind': 'acompanhamento-lancamento',
                                        'pages': ['acompanhamento']}},
                  'pages': pages}

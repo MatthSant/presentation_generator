@@ -82,8 +82,8 @@ function readPalette(fallback: string[]): string[] {
 
 function getBase(theme: Theme): Base {
   const dark = theme === 'dark';
-  const labelColor = dark ? '#9CA3AF' : '#71717a';
-  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#e7e7ea';
+  const labelColor = dark ? '#9CA3AF' : '#75727e';
+  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#e7e5ec';
   // Sequência data-viz do design system: violeta, esmeralda, âmbar, laranja, violeta-claro.
   const defColors = readPalette(['#7C3AED', '#059669', '#D97706', '#EA580C', '#C3A4F7']);
   const base = {
@@ -369,7 +369,12 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   // After the base re-merge (which forces data labels off) re-enable them so the
   // flag wins; def.options still has the final say below.
   if (def.showLabels) {
-    opts.dataLabels = { enabled: true, style: { fontSize: '11px', fontWeight: 600 }, dropShadow: { enabled: false } };
+    // Barras horizontais: rótulo FORA da ponta, em tinta escura — branco-dentro fica
+    // ilegível em barras curtas (e em dados muito assimétricos). Vertical mantém o padrão.
+    const horiz = def.type === 'bar-horizontal';
+    opts.dataLabels = horiz
+      ? { enabled: true, textAnchor: 'start', offsetX: 7, style: { fontSize: '11px', fontWeight: 700, colors: [dark ? '#C9C9D2' : '#3A3A45'] }, dropShadow: { enabled: false } }
+      : { enabled: true, style: { fontSize: '11px', fontWeight: 600 }, dropShadow: { enabled: false } };
   }
   // Diverging metric (diff vs. benchmark): bars colored by sign from a benchmark
   // baseline, value just past each bar's end in muted ink, a light value axis with

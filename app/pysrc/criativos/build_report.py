@@ -326,6 +326,7 @@ def assemble(rows, config, content, opts=None):
     created = (config or {}).get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
+                          'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title']},
                           'controls': {'kind': 'criativos', 'pages': ['panorama', 'fichas'],
                                        'mode': mode, 'modes': MODES_OPT, 'temps': B['temps'],
                                        'minInvestPresets': [100, 500, 1000]},

@@ -1,5 +1,5 @@
 /* page-chrome.js — injeta o conteúdo padrão da barra superior das páginas
- * utilitárias (logo + brand + link voltar), a partir de data-attributes:
+ * utilitárias (voltar + logo + brand), a partir de data-attributes:
  *
  *   <header class="home-bar" data-sub="Clientes" data-back="/" data-back-label="Voltar">
  *     ...conteúdo extra da página (botões à direita) é preservado...
@@ -8,11 +8,13 @@
  *
  * data-brand  — título (default "Witly Grimório")
  * data-sub    — subtítulo em caps (ex.: "Guia", "Clientes")
- * data-back   — href do link Voltar (omitir = sem link)
+ * data-back   — href do link Voltar. Ausente: usa "/" automaticamente, exceto na
+ *               home (pathname "/" ou .../index.html), onde não há voltar.
  * data-back-label — rótulo do link (default "Voltar")
  *
- * O conteúdo já existente do header é mantido DEPOIS do brand (ações da página);
- * o link Voltar entra por último (margin-left:auto). */
+ * Ordem injetada (à ESQUERDA, antes do conteúdo da página):
+ *   [← Voltar] [logo → /] [sep] [brand/sub]
+ * O conteúdo já existente do header é mantido DEPOIS (ações da página). */
 (function () {
   var bar = document.querySelector('header.home-bar');
   if (!bar || bar.dataset.chrome === 'done') return;
@@ -20,21 +22,31 @@
 
   var brand = bar.dataset.brand || 'Witly Grimório';
   var sub = bar.dataset.sub || '';
-  var back = bar.dataset.back;
+  var path = location.pathname.replace(/\/+$/, '');
+  var isHome = path === '' || /\/index\.html$/i.test(path);
+  var back = bar.dataset.back || (isHome ? '' : '/');
   var backLabel = bar.dataset.backLabel || 'Voltar';
 
   var frag = document.createDocumentFragment();
 
-  var logo = document.createElement('img');
-  logo.className = 'bar-logo';
-  logo.src = '/assets/witly-logo.png';
-  logo.alt = 'Witly';
-  // Logo é link para a HOME — sem isso, páginas utilitárias (montadores de query,
-  // gerar) ficavam só com "Voltar ao guia" e o menu de navegação parecia ter sumido.
+  // Voltar — primeiro elemento, à esquerda (web-app padrão)
+  if (back) {
+    var a = document.createElement('a');
+    a.className = 'bar-back';
+    a.href = back;
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>' + backLabel;
+    frag.appendChild(a);
+  }
+
+  // Logo grimório — link para a HOME
   var logoLink = document.createElement('a');
   logoLink.className = 'bar-logo-link';
   logoLink.href = '/';
   logoLink.title = 'Início';
+  var logo = document.createElement('img');
+  logo.className = 'bar-logo';
+  logo.src = '/assets/witly-logo.png';
+  logo.alt = 'Witly Grimório';
   logoLink.appendChild(logo);
   frag.appendChild(logoLink);
 
@@ -53,12 +65,4 @@
   frag.appendChild(b);
 
   bar.insertBefore(frag, bar.firstChild);
-
-  if (back) {
-    var a = document.createElement('a');
-    a.className = 'bar-back';
-    a.href = back;
-    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M11 6l-6 6 6 6"/></svg>' + backLabel;
-    bar.appendChild(a);
-  }
 })();

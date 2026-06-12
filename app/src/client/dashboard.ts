@@ -67,6 +67,7 @@ export class Dashboard {
   private tiles: TileRef[] = [];
   private grid: HTMLElement;
   private placed = new Map<string, LayoutItem>();
+  private followsEyebrow = new Set<string>();
   private gridStack: GridStackInstance | null = null;
   private static gridStackLib?: Promise<void>;
 
@@ -186,6 +187,7 @@ export class Dashboard {
     }
 
     const beforeCharts = ctx.charts.length;
+    ctx.afterEyebrow = this.followsEyebrow.has(widget.id);
     tile.appendChild(renderWidget(widget, ctx));
     const newCharts = ctx.charts.slice(beforeCharts);
     this.tiles.push({ widget, tile, chartElId: newCharts[0]?.elId });
@@ -216,7 +218,9 @@ export class Dashboard {
     this.grid.classList.toggle('dash-grid--coords', coords);
     this.placed.clear();
     if (coords) for (const it of compactVertically(this.opts.layout!)) this.placed.set(it.id, it);
-    for (const widget of this.section.widgets || []) {
+    const ws = this.section.widgets || [];
+    this.followsEyebrow = new Set(ws.filter((_, i) => i > 0 && ws[i - 1].type === 'eyebrow').map(w => w.id));
+    for (const widget of ws) {
       this.grid.appendChild(this.buildTile(widget, ctx));
     }
     this.host.appendChild(this.grid);
@@ -244,6 +248,7 @@ export class Dashboard {
       }
       // kpi / table / heatmap (and charts that had no live instance): full re-render
       const ctx = this.resolveCtx();
+      ctx.afterEyebrow = this.followsEyebrow.has(ref.widget.id);
       this.replaceTile(ref, renderWidget(ref.widget, ctx), ctx.charts[0]?.elId);
     }
     this.updateFilterBadges();

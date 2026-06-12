@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atualizar análise</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .u-wrap { max-width: 760px; margin: 0 auto; padding: 30px 28px 80px; }
+    .u-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 24px; margin-top: 18px; }
+    .u-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 0 0 6px; }
+    .u-hsub { font-size: 12px; color: var(--gray2); margin: 0 0 16px; }
+    .u-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .u-file-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
+    .u-file-name { font-size: 12.5px; color: var(--gray); }
+    .u-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 10px; }
+
+    .u-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+    .fld { display: flex; flex-direction: column; gap: 5px; }
+    .fld.wide { grid-column: 1 / -1; }
+    .fld label { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray2); }
+    .fld input, .fld select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .fld input:focus, .fld select:focus { border-color: var(--purple); }
+    .grp { grid-column: 1 / -1; border: 1px solid var(--divider); border-radius: 11px; padding: 14px 16px 4px; margin-top: 2px; }
+    .grp-t { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--purple); margin: 0 0 12px; }
+    .grp .u-grid { gap: 12px 16px; }
+    details.adv { grid-column: 1 / -1; margin-top: 4px; }
+    details.adv summary { font-size: 12px; font-weight: 700; color: var(--gray2); cursor: pointer; }
+    details.adv textarea { width: 100%; min-height: 110px; margin-top: 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; outline: none; resize: vertical; }
+
+    .u-go { margin-top: 22px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #fff; background: var(--purple); border: none; border-radius: var(--r-pill); padding: 12px 22px; cursor: pointer; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
+    .u-go:disabled { opacity: .55; cursor: default; }
+    .u-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 10px; padding: 11px 14px; display: none; }
+    .u-msg.work { display: block; background: var(--purple-bg); color: var(--purple); }
+    .u-msg.ok { display: block; background: var(--ok-bg); color: var(--ok-fg); }
+    .u-msg.err { display: block; background: var(--err-bg); color: var(--err-fg); white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <header class="home-bar" data-sub="Atualizar análise" data-back="/" data-back-label="Voltar"></header>
+  <main class="u-wrap">
+    <div class="page-eyebrow" id="eyebrow">Atualizar análise</div>
+    <h1 class="page-title" id="title">Atualizar análise</h1>
+    <p class="page-sub" id="sub">Reenvie o CSV com dados novos e/ou ajuste a configuração (data de corte, metas, benchmarks…). Detalhamentos, perguntas e comentários do consultor são preservados.</p>
+
+    <div id="loading" class="u-hint" style="margin-top:24px">Carregando configuração…</div>
+
+    <div id="form" hidden>
+      <div class="u-card">
+        <p class="u-h">1 · Novo CSV (opcional)</p>
+        <div class="u-row">
+          <label class="u-file-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Escolher CSV
+            <input type="file" id="csv" accept=".csv,text/csv" hidden>
+          </label>
+          <span class="u-file-name" id="csvName">Mantém o dump atual da base</span>
+        </div>
+        <p class="u-hint">Mesmo formato do CSV original. Deixe em branco para apenas reaplicar a configuração ao dado atual.</p>
+      </div>
+
+      <div class="u-card">
+        <p class="u-h">2 · Configuração</p>
+        <p class="u-hsub">Ajuste e atualize — a regeração é determinística (sem IA).</p>
+        <div class="u-grid" id="fields"></div>
+      </div>
+
+      <button class="u-go" id="go">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 1 0-2.2 6.2"/><path d="M20 5v6.5h-6.5"/></svg>
+        Atualizar análise
+      </button>
+      <div class="u-msg" id="msg"></div>
+    </div>
+
+    <div id="nobase" class="u-card" hidden>
+      <p class="u-h">Atualização indisponível</p>
+      <p class="u-hint" style="margin-top:0">Esta análise não tem a base retida (dump + config). Gere a análise novamente pelo fluxo de criação para habilitar a atualização.</p>
+    </div>
+  </main>
+
+  <script src="/js/page-chrome.js" defer></script>
+  <script>
+    const qs = new URLSearchParams(location.search);
+    const client = qs.get('c') || qs.get('client');
+    const slug = qs.get('s') || qs.get('slug');
+    const $ = (id) => document.getElementById(id);
+
+    // Rótulos amigáveis + ordem preferida dos grupos conhecidos.
+    const LABELS = {
+      nome_campanha: 'Nome da campanha', field_conversion: 'Conversão (field_conversion)',
+      data_corte: 'Data de corte', data_report: 'Data do report',
+      title: 'Título do relatório', client_name: 'Cliente (exibição)',
+      window: 'Janela de conversão', long_window: 'Janela longa',
+      metas: 'Metas da campanha', funnel_bench: 'Benchmarks de tráfego',
+      _leads_total: 'Meta de leads (total)', _leads_td: 'Meta de leads (to date)',
+      cpl: 'Meta CPL (R$)', cpmql: 'Meta CPMQL (R$)',
+      taxa_resp: 'Meta taxa de resposta (%)', taxa_qual: 'Meta taxa de qualidade (%)',
+      ctr: 'CTR (%)', connect: 'Connect rate (%)', conv_pag: 'Conv. de página (%)',
+    };
+    // Chaves internas que o servidor controla — não editáveis aqui.
+    const HIDE = new Set(['type', 'client']);
+    const label = (k) => LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const isNum = (v) => typeof v === 'number';
+    const isDateKey = (k) => /data|date/i.test(k);
+    const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+    let RETAINED = null;  // config completo retido (base p/ o merge no submit)
+    let CLIENTS = [];     // clientes cadastrados (p/ o seletor)
+
+    if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
+    else init();
+
+    async function init() {
+      $('title').textContent = `Atualizar · ${slug}`;
+      $('eyebrow').textContent = `${client} · atualizar`;
+      try {
+        try { CLIENTS = (await (await fetch('/api/clients')).json()).clients || []; } catch { CLIENTS = []; }
+        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/base-config`);
+        const d = await r.json();
+        $('loading').hidden = true;
+        if (!d.hasBase) { $('nobase').hidden = false; return; }
+        RETAINED = d.config;
+        $('form').hidden = false;
+        buildForm(d.config);
+      } catch (e) {
+        $('loading').textContent = 'Falha ao carregar a configuração: ' + e.message;
+      }
+    }
+
+    function clientSelectEl(val) {
+      const f = document.createElement('div'); f.className = 'fld';
+      const lb = document.createElement('label'); lb.textContent = 'Cliente'; f.appendChild(lb);
+      const sel = document.createElement('select'); sel.dataset.path = 'client_name';
+      // valor atual = client_name retido; casa também pelo slug da URL.
+      const curName = val || RETAINED?.client_name || '';
+      const list = CLIENTS.length ? CLIENTS : [{ slug: client, name: curName || client }];
+      let matched = false;
+      for (const c of list) {
+        const o = document.createElement('option'); o.value = c.name; o.textContent = c.name;
+        if (c.name === curName || c.slug === client) { o.selected = true; matched = true; }
+        sel.appendChild(o);
+      }
+      if (!matched && curName) { const o = document.createElement('option'); o.value = curName; o.textContent = curName; o.selected = true; sel.appendChild(o); }
+      f.appendChild(sel);
+      return f;
+    }
+
+    function fieldEl(path, key, val) {
+      const f = document.createElement('div');
+      f.className = 'fld' + (typeof val === 'string' && val.length > 22 ? ' wide' : '');
+      const lb = document.createElement('label'); lb.textContent = label(key); f.appendChild(lb);
+      const inp = document.createElement('input');
+      inp.dataset.path = path.join('.');
+      if (isNum(val)) { inp.type = 'number'; inp.step = 'any'; inp.value = val; inp.dataset.num = '1'; }
+      else if (isDateKey(key) && /^\d{4}-\d{2}-\d{2}/.test(val || '')) { inp.type = 'date'; inp.value = String(val).slice(0, 10); }
+      else { inp.type = 'text'; inp.value = val == null ? '' : String(val); }
+      f.appendChild(inp);
+      return f;
+    }
+
+    function buildForm(cfg) {
+      const root = $('fields');
+      const entries = Object.entries(cfg).filter(([k]) => !HIDE.has(k));
+      // escalares primeiro, depois grupos (objetos), depois avançado (arrays/aninhado complexo)
+      const scal = entries.filter(([, v]) => isNum(v) || typeof v === 'string');
+      const objs = entries.filter(([, v]) => isPlainObj(v));
+      const adv = entries.filter(([, v]) => Array.isArray(v) || (isPlainObj(v) && Object.values(v).some((x) => isPlainObj(x) || Array.isArray(x))));
+      const advKeys = new Set(adv.map(([k]) => k));
+
+      for (const [k, v] of scal) root.appendChild(k === 'client_name' ? clientSelectEl(v) : fieldEl([k], k, v));
+      for (const [k, v] of objs) {
+        if (advKeys.has(k)) continue;
+        const g = document.createElement('div'); g.className = 'grp';
+        const t = document.createElement('div'); t.className = 'grp-t'; t.textContent = label(k); g.appendChild(t);
+        const grid = document.createElement('div'); grid.className = 'u-grid';
+        for (const [sk, sv] of Object.entries(v)) {
+          if (isNum(sv) || typeof sv === 'string') grid.appendChild(fieldEl([k, sk], sk, sv));
+        }
+        g.appendChild(grid); root.appendChild(g);
+      }
+      // arrays / objetos complexos (ex.: criterios, channels) → JSON avançado
+      for (const [k, v] of adv) {
+        const det = document.createElement('details'); det.className = 'adv';
+        const sm = document.createElement('summary'); sm.textContent = `${label(k)} (avançado · JSON)`; det.appendChild(sm);
+        const ta = document.createElement('textarea'); ta.dataset.json = k; ta.value = JSON.stringify(v, null, 2); ta.spellcheck = false;
+        det.appendChild(ta); root.appendChild(det);
+      }
+    }
+
+    function collectConfig() {
+      const cfg = JSON.parse(JSON.stringify(RETAINED));  // parte do retido (preserva o que não está no form)
+      for (const inp of $('fields').querySelectorAll('input[data-path], select[data-path]')) {
+        const parts = inp.dataset.path.split('.');
+        let raw = inp.value;
+        let v;
+        if (inp.dataset.num === '1') { v = raw === '' ? undefined : Number(raw); if (Number.isNaN(v)) v = undefined; }
+        else { v = raw.trim() === '' ? undefined : raw; }
+        let obj = cfg;
+        for (let i = 0; i < parts.length - 1; i++) { obj[parts[i]] = obj[parts[i]] || {}; obj = obj[parts[i]]; }
+        const leaf = parts[parts.length - 1];
+        if (v === undefined) delete obj[leaf]; else obj[leaf] = v;
+      }
+      for (const ta of $('fields').querySelectorAll('textarea[data-json]')) {
+        cfg[ta.dataset.json] = JSON.parse(ta.value);  // pode lançar → tratado no submit
+      }
+      return cfg;
+    }
+
+    $('csv')?.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      $('csvName').textContent = f ? f.name : 'Mantém o dump atual da base';
+    });
+
+    $('go')?.addEventListener('click', async () => {
+      let cfg;
+      try { cfg = collectConfig(); }
+      catch (e) { const m = $('msg'); m.className = 'u-msg err'; m.textContent = 'Campo avançado com JSON inválido: ' + e.message; return; }
+      const msg = $('msg'); msg.className = 'u-msg work'; msg.textContent = 'Atualizando análise…';
+      $('go').disabled = true;
+      const fd = new FormData();
+      fd.append('config', JSON.stringify(cfg));
+      const file = $('csv').files[0];
+      if (file) fd.append('csv', file);
+      try {
+        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/update`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) { msg.className = 'u-msg err'; msg.textContent = d.error + (d.stderr ? '\n\n' + d.stderr : ''); $('go').disabled = false; return; }
+        msg.className = 'u-msg ok';
+        msg.innerHTML = `Análise atualizada${d.csvUpdated ? ' (com CSV novo)' : ''}. <a href="${d.report}" style="font-weight:700;color:inherit;text-decoration:underline">Abrir relatório ↗</a>`;
+        $('go').disabled = false;
+      } catch (e) {
+        msg.className = 'u-msg err'; msg.textContent = 'Erro: ' + e.message; $('go').disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

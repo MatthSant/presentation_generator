@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -554,6 +554,31 @@ export interface StratGridWidget extends WidgetBase {
   cols: { title: string; items: { q: string; chip?: { text: string; tone?: 'pos' | 'neg' | 'neutral' }; val?: string }[] }[];
 }
 
+/** bar-list — lista de barras horizontais com rótulo + valor + %, hierárquica
+ *  (indent) e com cards de stat opcionais no rodapé. Cobre "Origem do Tráfego"
+ *  (Pago/Orgânico + canais) e "Temperatura" (Quente/Morno + CPL médio). */
+export interface BarListWidget extends WidgetBase {
+  type: 'bar-list';
+  title?: string;
+  caption?: string;
+  rows: { label: string; value: string; pct?: number; bar: number; indent?: boolean; icon?: string; color?: string }[];
+  /** escala máxima das barras (default = maior `bar`). */
+  max?: number;
+  /** cards de stat no rodapé (ex.: Quente/Morno com CPL médio em destaque). */
+  cards?: { label: string; tone?: 'red' | 'amber' | 'green' | 'purple'; icon?: string;
+            stats?: { label: string; value: string }[]; headline?: { label: string; value: string } }[];
+}
+
+/** cri-list — lista de entidades ranqueadas (criativos): thumb + nome (link) +
+ *  meta (sub-linha) + stats à direita (ex.: leads + CPMQL proj.). */
+export interface CriListWidget extends WidgetBase {
+  type: 'cri-list';
+  title?: string;
+  caption?: string;
+  rows: { name: string; link?: string; meta?: string;
+          stats: { value: string; label: string; tone?: 'pos' | 'neg' | 'neutral' }[] }[];
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
@@ -561,7 +586,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
@@ -626,7 +651,7 @@ export interface ReportMeta {
   created_at?: string;
   filters?: FilterDef[];
   /** Optional cover block shown once at the top of the report content. */
-  cover?: { eyebrow?: string; meta?: string[] };
+  cover?: { eyebrow?: string; title?: string; meta?: string[] };
   /** Feature flags do relatório. `outliers` controla o botão "Remover outliers"
    *  por gráfico — default LIGADO para qualquer tipo (desative com false). */
   features?: { outliers?: boolean };
