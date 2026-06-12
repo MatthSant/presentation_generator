@@ -225,7 +225,7 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
   },
   'criativos': {
     what: 'desempenho de criativos (anúncios) de Meta Ads — por anúncio, campanha e público — com investimento, ROAS, retorno, CPL, CPM, CAC, captação e qualidade de lead, em dois modos de leitura (Resultado × Captação)',
-    focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+    focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo. ATENÇÃO ao que NÃO existe: a série DIÁRIA é GERAL (saturacao_diaria devolve ROAS/retorno por dia do conjunto, ou de UM criativo só com o nome), NÃO há série diária por-indicador (hook/hold/CTR) de cada criativo — então para saturação identifique pela queda do ROAS/retorno diário e pelo nível CONSOLIDADO do criativo, e NUNCA afirme "o indicador X caiu do dia A ao B" por criativo (esse dado não existe; reconheça num find-note). Toda comparação "vs média dos melhores" exige consultar essa média (ranking/tabela) — não cite um número de referência sem trazê-lo.',
   },
   'acompanhamento-lancamento': {
     what: 'acompanhamento tático DIÁRIO de UM lançamento em curso: KPIs por dia (CPL, CPMQL, CTR, Hook, Hold, Connect, Conv. de Página, Taxa de Resposta/Qualidade) comparados a METAS e BENCHMARKS, com tendência dos últimos 3 dias e funil de tráfego (taxas vs benchmark)',
@@ -626,6 +626,11 @@ Regras duras: gráficos/tabelas só via bind a uma tabela do CATÁLOGO ou a um d
 retornado por "consultar"; números só na prosa dos widgets de texto (find-note/highlight/
 find-block/ni) e no value de um kpi — sempre extraídos das tabelas. NUNCA cite uma coluna
 que não existe na tabela do bind (renderiza célula vazia) — use os nomes EXATOS do catálogo.
+VALOR DERIVADO NÃO É COLUNA: Δ% entre períodos, variação/transição, desvio vs média, "escala",
+classificação ou ranking CALCULADO por você NÃO existem em tabela nenhuma — a TABLE só lista as
+colunas CRUAS que a consulta devolveu. Ponha o derivado na PROSA (find-note/find-block/highlight)
+ou como kpi (1 número), nunca como coluna de table. Para tendência/variação ao longo do tempo,
+use "trend": o resumo dele já traz início→fim, +Δ%, direção e volatilidade (estrutural × oscilante).
 CATÁLOGO PRIMEIRO + NUNCA DESISTIR: se uma "consultar" voltar VAZIA (0 linhas/entidades) ou
 "nao_disponivel", NÃO conclua "não há dados" nem entregue AÇÕES de como coletar — a resposta
 quase sempre JÁ ESTÁ numa tabela do catálogo (ex.: comparar pago × orgânico → a tabela de
@@ -689,12 +694,20 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
   let usage: ModalUsage | undefined;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
+    // No ÚLTIMO turno, FORÇA o emit_modal (tool_choice fixo) + avisa que acabou o
+    // orçamento de consultas: sem isso, uma pergunta difícil esgota os turnos só
+    // consultando e o loop estoura "sem emit_modal" — pior que um detalhamento
+    // imperfeito (que ainda passa pelo gate de qualidade/reparo).
+    const lastTurn = turn === MAX_TURNS - 1;
+    if (lastTurn) {
+      messages.push({ role: 'user', content: 'Limite de consultas atingido. Emita AGORA o emit_modal com o melhor detalhamento possível a partir do que já consultou; o que faltar, reconheça num find-note — NÃO consulte mais.' });
+    }
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
       model: MODEL, max_tokens: 4096,
       system: [{ type: 'text', text: deepSystem(analysisType, deps.meta.consultar), cache_control: { type: 'ephemeral' } }],
       tools: [consultarTool(deps), emitModalTool(names)],
-      tool_choice: { type: 'any' },
+      tool_choice: lastTurn ? { type: 'tool', name: 'emit_modal' } : { type: 'any' },
       messages,
     }, 'modal-fundo');
     usage = sumUsage(usage, usageOf(msg));
@@ -702,10 +715,11 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');
 
-    // A valid emitted modal ends the loop — we don't send another request, so any
-    // sibling tool_uses left unanswered are fine.
+    // Um emit válido encerra o loop. No último turno devolve o que veio MESMO com
+    // erro de schema — o gateAndRepair (fora daqui) ainda valida e repara; um
+    // candidato imperfeito é melhor que estourar a geração inteira.
     const emitted = toolUses.find((t) => t.name === 'emit_modal');
-    if (emitted && (!deps.validate || deps.validate(emitted.input).length === 0)) {
+    if (emitted && (lastTurn || !deps.validate || deps.validate(emitted.input).length === 0)) {
       return { modal: emitted.input, mocked: false, usage };
     }
 

@@ -110,16 +110,30 @@ def correlacao(frame, a):
 
 
 def trend(frame, a):
-    """Uma métrica ao longo do eixo (drop de vazios)."""
+    """Uma métrica ao longo do eixo (drop de vazios) + leitura ESTRUTURAL no summary
+    (início→fim, tendência de alta/queda/estável e volatilidade via CV) — para
+    'está em variação estrutural ou oscilando?' sem o modelo inventar coluna derivada."""
     L = frame['labels']
     m = a.get('metrica')
     if m not in L:
         return nao_disp(f"métrica '{m}' inválida")
     ax = frame['axis']
-    rows = [r for r in ({ax: e['key'], L[m]: rnd(e['m'].get(m))} for e in frame['rows']) if r[L[m]] is not None]
-    if len(rows) < 2:
+    seq = [(e['key'], e['m'].get(m)) for e in frame['rows']]
+    seq = [(k, v) for k, v in seq if isinstance(v, (int, float))]
+    if len(seq) < 2:
         return nao_disp('série insuficiente')
-    return ok(rows, [ax], f'{L[m]} por {ax} ({len(rows)} {_plural(ax)}).')
+    rows = [{ax: k, L[m]: rnd(v)} for k, v in seq]
+    vals = [v for _, v in seq]
+    first, last = vals[0], vals[-1]
+    mean = sum(vals) / len(vals)
+    cv = ((sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5 / abs(mean)) if mean else 0.0
+    delta = (last - first) / abs(first) * 100 if first else None
+    direc = 'alta' if last > first * 1.05 else ('queda' if last < first * 0.95 else 'estável')
+    vol = 'baixa — variação estrutural' if cv < 0.15 else ('moderada' if cv < 0.4 else 'alta — oscila bastante')
+    s = (f'{L[m]} por {ax} ({len(rows)} {_plural(ax)}). De {rnd(first)} a {rnd(last)}'
+         + (f' ({delta:+.0f}%)' if delta is not None else '')
+         + f'; tendência de {direc}, volatilidade {vol} (CV={cv:.2f}).')
+    return ok(rows, [ax], s)
 
 
 def ranking(frame, a):
