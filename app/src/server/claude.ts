@@ -626,6 +626,11 @@ Regras duras: gráficos/tabelas só via bind a uma tabela do CATÁLOGO ou a um d
 retornado por "consultar"; números só na prosa dos widgets de texto (find-note/highlight/
 find-block/ni) e no value de um kpi — sempre extraídos das tabelas. NUNCA cite uma coluna
 que não existe na tabela do bind (renderiza célula vazia) — use os nomes EXATOS do catálogo.
+VALOR DERIVADO NÃO É COLUNA: Δ% entre períodos, variação/transição, desvio vs média, "escala",
+classificação ou ranking CALCULADO por você NÃO existem em tabela nenhuma — a TABLE só lista as
+colunas CRUAS que a consulta devolveu. Ponha o derivado na PROSA (find-note/find-block/highlight)
+ou como kpi (1 número), nunca como coluna de table. Para tendência/variação ao longo do tempo,
+use "trend": o resumo dele já traz início→fim, +Δ%, direção e volatilidade (estrutural × oscilante).
 CATÁLOGO PRIMEIRO + NUNCA DESISTIR: se uma "consultar" voltar VAZIA (0 linhas/entidades) ou
 "nao_disponivel", NÃO conclua "não há dados" nem entregue AÇÕES de como coletar — a resposta
 quase sempre JÁ ESTÁ numa tabela do catálogo (ex.: comparar pago × orgânico → a tabela de
