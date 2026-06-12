@@ -965,7 +965,7 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
   /* minmax(0,1fr), not 1fr: a wide chart canvas must not be allowed to force its
      track past its share and collapse the 12-col grid into one full-width column. */
   grid-template-columns:repeat(12, minmax(0, 1fr));
-  gap:24px;
+  gap:16px;
   align-items:start;
 }
 .dash-tile { position:relative; min-width:0; display:flex; flex-direction:column; }
@@ -1038,7 +1038,7 @@ body.edit-mode .tile-filter-badge { display:none; }
    and break that alignment); columns keep the 24px gutter. */
 .dash-grid--coords {
   grid-auto-rows:auto;
-  column-gap:24px;
+  column-gap:16px;
   row-gap:0;
 }
 
@@ -1047,7 +1047,7 @@ body.edit-mode .tile-filter-badge { display:none; }
    below each tile's content and matches the 24px column gutter. Excluded in edit
    mode, where Gridstack drives sizing. */
 .dash-grid--coords:not(.grid-active) .dash-tile {
-  padding-bottom:24px;
+  padding-bottom:16px;
 }
 
 /* ══════════════════════════════════════════
