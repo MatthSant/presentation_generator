@@ -6,7 +6,7 @@
  *   </header>
  *   <script src="/js/page-chrome.js" defer></script>
  *
- * data-brand  — título (default "Dossiê do Consultor")
+ * data-brand  — título (default "Witly Grimório")
  * data-sub    — subtítulo em caps (ex.: "Guia", "Clientes")
  * data-back   — href do link Voltar (omitir = sem link)
  * data-back-label — rótulo do link (default "Voltar")
@@ -18,7 +18,7 @@
   if (!bar || bar.dataset.chrome === 'done') return;
   bar.dataset.chrome = 'done';
 
-  var brand = bar.dataset.brand || 'Dossiê do Consultor';
+  var brand = bar.dataset.brand || 'Witly Grimório';
   var sub = bar.dataset.sub || '';
   var back = bar.dataset.back;
   var backLabel = bar.dataset.backLabel || 'Voltar';

@@ -755,6 +755,8 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
   w.steps.forEach((s, i) => {
     const bar = el('div', 'funnel-bar');
     bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
+    // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
+    bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
     bar.appendChild(el('span', 'funnel-bar-l', s.label));
     bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
     body.appendChild(bar);
@@ -765,10 +767,15 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       if (t.invalid) {
         pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
       } else {
+        // abaixo do benchmark (gap>0) → a migração é um ALERTA (âmbar/vermelho), não um ✓.
+        const below = t.gap != null && t.gap > 0;
         if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
           `${t.worst ? '⚠️ ' : '▼ '}${t.loss.toFixed(1)}% perda${t.worst ? ' · MAIOR FURO' : ''}`));
-        if (t.migrate != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--migrate', `✓ ${t.migrate.toFixed(1)}% migram`));
-        if (t.bench != null && t.gap != null && t.gap > 0 && !t.worst) pills.appendChild(el('span', 'funnel-pill funnel-pill--bench', `esperado ${t.bench.toFixed(0)}%`));
+        if (t.migrate != null) {
+          const cls = t.worst ? 'funnel-pill--worst' : (below ? 'funnel-pill--alert' : 'funnel-pill--migrate');
+          pills.appendChild(el('span', `funnel-pill ${cls}`, `${(t.worst || below) ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}% migram`));
+        }
+        if (t.bench != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--bench', `esperado ${t.bench.toFixed(0)}%`));
       }
       body.appendChild(pills);
     }
