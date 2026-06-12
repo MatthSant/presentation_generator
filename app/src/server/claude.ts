@@ -223,6 +223,10 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
     what: 'acompanhamento tático DIÁRIO de UM lançamento em curso: KPIs por dia (CPL, CPMQL, CTR, Hook, Hold, Connect, Conv. de Página, Taxa de Resposta/Qualidade) comparados a METAS e BENCHMARKS, com tendência dos últimos 3 dias e funil de tráfego (taxas vs benchmark)',
     focus: 'FOQUE na métrica/dia que o card mostra; o eixo é o DIA da campanha. Os BENCHMARKS/metas estão nas tabelas acom_kpis (colunas meta/dev/cls/trend_dir) e acom_funnel (colunas bench/gap/maior_furo) — SEMPRE compare o realizado contra elas e cite o benchmark. O maior furo do funil é a maior queda RELATIVA ao benchmark (gap), não a maior perda absoluta. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
   },
+  'debriefing-lancamento': {
+    what: 'debriefing pós-campanha de UM lançamento: resultado vs META por canal/temperatura/escopo (pago × orgânico), captação, mídia (CPL/CPMQL/ROAS/CPM) e evolução semanal/diária',
+    focus: 'FOQUE no recorte do card. As METAS e o atingimento estão na tabela de KPIs (deb_kpis: um indicador por linha com colunas value/meta/hist) — para "a meta foi atingida?" compare o value × meta DELA, não diga "meta não configurada". O split pago × orgânico está em deb_chan (coluna tipo) e na dimensão "escopo" da consultar. ATENÇÃO: as métricas por TEMPERATURA contam só lead PAGO (não somam com o total geral por canal) — não misture os dois totais. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
 };
 const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
 const domainOf = (t?: string) => (t && DEEPEN_DOMAIN[t]) || DEFAULT_DOMAIN;
