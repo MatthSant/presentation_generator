@@ -1111,24 +1111,23 @@ body.edit-mode .tile-filter-badge { display:none; }
 .dash-grid .find-note[data-modal] { border-left:1px solid var(--border); }
 .dash-grid .find-note[data-modal]:hover { border-left-color:var(--purple); background:transparent; }
 
-/* highlight: flat line of text led by a small colored dot carrying the signal */
+/* highlight = CONCLUSÃO/RESPOSTA: callout tintado proeminente (não texto chapado).
+   A conclusão da pergunta tem que ter DESTAQUE. */
 .dash-grid .hl {
-  padding:2px 0;
-  display:flex;
-  align-items:baseline;
-  gap:10px;
+  background:var(--purple-bg);
+  border:1px solid color-mix(in srgb, var(--purple) 22%, transparent);
+  border-radius:var(--r-md);
+  padding:13px 16px;
+  font-size:13.5px; line-height:1.55; color:var(--fg); font-weight:500;
 }
-.dash-grid .hl::before {
-  content:'';
-  width:7px; height:7px;
-  border-radius:50%;
-  background:var(--purple);
-  flex-shrink:0;
-  transform:translateY(-1px);
-}
-.dash-grid .hl-a::before { background:var(--amber); }
-.dash-grid .hl-g::before { background:var(--green); }
-.dash-grid .hl-r::before { background:var(--red); }
+.dash-grid .hl .label-sec { color:var(--purple); margin-bottom:4px; display:block; }
+.dash-grid .hl strong { color:var(--purple); font-weight:700; }
+.dash-grid .hl-a { background:var(--amber-bg); border-color:color-mix(in srgb, var(--amber) 24%, transparent); }
+.dash-grid .hl-a .label-sec, .dash-grid .hl-a strong { color:var(--amber); }
+.dash-grid .hl-g { background:var(--green-bg); border-color:color-mix(in srgb, var(--green) 24%, transparent); }
+.dash-grid .hl-g .label-sec, .dash-grid .hl-g strong { color:var(--green); }
+.dash-grid .hl-r { background:var(--red-bg); border-color:color-mix(in srgb, var(--red) 24%, transparent); }
+.dash-grid .hl-r .label-sec, .dash-grid .hl-r strong { color:var(--red); }
 
 @media (max-width: 860px) {
   .dash-grid { grid-template-columns:1fr; }

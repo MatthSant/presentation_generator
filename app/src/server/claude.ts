@@ -399,7 +399,11 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   for grande o bastante para MUDAR A CONCLUSÃO (sinal trocado, ordem de grandeza, fator errado). NÃO
   reprove por "23,4% vs 23,5%". Marque FALSE se: um número claramente não confere com os dados; a prosa
   cita números mas os "dados" estão vazios / não os sustentam; ou o recorte/consulta não faz sentido.
-- issues (≤5, cada uma 1 linha ACIONÁVEL), p.ex.:
+- issues (≤5, cada uma 1 linha ACIONÁVEL com a CORREÇÃO, não só o defeito): sempre diga o que
+  fazer EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo.
+  Ex.: "a meta não está 'sem dados' — use a tabela de KPIs (coluna meta) para o indicador X"; "para
+  pago × org use a dimensão escopo (ou a coluna tipo da tabela de canais)"; "temperatura conta só
+  lead pago — não compare o total dela com o total por canal". Padrões frequentes:
   • não responde à pergunta / responde outra coisa
   • EIXO trocado: respondeu nível (o que é maior) quando a pergunta era tendência (o que muda) ou causa, ou vice-versa
   • CRITÉRIO inventado: cita grupos/números de um critério que não está nos "dados" (deveria ter consultado ou dito que falta)
@@ -565,8 +569,10 @@ CALCULADAS (campo "catalogo") — essa é sua fonte PRIMÁRIA: na maioria das pe
 resposta já está numa tabela do catálogo (split por tipo/canal/temperatura, KPIs vs
 meta/benchmark, série por dia/semana…). Faça o bind dos gráficos/tabelas NAS tabelas do
 catálogo. Só chame a tool "consultar" para um recorte que NÃO existe no catálogo — o app
-calcula e devolve agregados com um "dataset_key" para o bind. Quando tiver o suficiente,
-chame "emit_modal".
+calcula e devolve agregados com um "dataset_key" para o bind. Você PODE fazer VÁRIAS
+consultas (uma por turno) até reunir o que precisa — não force tudo numa só, e se uma
+consulta vier vazia, tente outra dimensão/métrica ou caia no catálogo (NÃO desista). Quando
+tiver o suficiente, chame "emit_modal".
 
 ${funcs}${GUARDRAIL}
 
