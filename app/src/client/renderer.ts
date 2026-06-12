@@ -828,12 +828,17 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       if (t.invalid) {
         pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
       } else {
-        // 2 tags como a referência: ▼ perda (alerta; MAIOR FURO na pior vs benchmark) +
-        // ✓ taxa de passagem SEMPRE verde (a perda é o sinal, não a passagem). O bench
-        // entra só para marcar a MAIOR FURO (worst), não recolore a passagem.
+        // 2 tags: ▼ perda (MAIOR FURO na pior) + taxa de passagem. A passagem é ✓ verde
+        // quando está no/acima do benchmark e ⚠ âmbar quando ABAIXO do recomendado —
+        // aí a meta entra inline (ex.: connect rate 60% abaixo do recomendado 80%).
+        const below = t.gap != null && t.gap > 0;
         if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
           `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
-        if (t.migrate != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--migrate', `✓ ${t.migrate.toFixed(1)}%`));
+        if (t.migrate != null) {
+          const meta = below && t.bench != null ? ` · meta ${t.bench.toFixed(0)}%` : '';
+          pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
+            `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${meta}`));
+        }
       }
       body.appendChild(pills);
     }
