@@ -195,9 +195,8 @@ def assemble(rows, config, content, opts=None):
     layouts['s01'] = pg.items
 
     # ════ s02 — Evolução Diária ════════════════════════════════════════════
+    # (o eyebrow do grupo é o divisor injetado no merge — não duplicar aqui)
     evo, eg = [], Grid()
-    evo.append({'id': 'evo-eb', 'type': 'eyebrow', 'title': 'EVOLUÇÃO DIÁRIA', 'caption': 'séries por dia da campanha'})
-    eg.add('evo-eb', 'eyebrow', 12, 1)
 
     def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None):
         c = {'id': wid, 'type': 'chart', 'chartType': ctype, 'title': title, 'height': 280,
@@ -351,13 +350,16 @@ def assemble(rows, config, content, opts=None):
     # Acompanhamento é leitura rápida: os 4 grupos (Visão Geral, Evolução, Canais,
     # Tráfego) empilham numa só seção rolável, cada um aberto por um eyebrow-divisor.
     # Só Detalhamentos e Perguntas ficam em páginas à parte (criadas pela rota/preserve).
-    groups = [('s01', None), ('s02', 'EVOLUÇÃO DIÁRIA'),
-              ('s03', 'CANAIS E AUDIÊNCIA'), ('s04', 'TRÁFEGO PAGO')]
+    groups = [('s01', None, None), ('s02', 'EVOLUÇÃO DIÁRIA', 'séries por dia da campanha'),
+              ('s03', 'CANAIS E AUDIÊNCIA', None), ('s04', 'TRÁFEGO PAGO', None)]
     merged_w, merged_items, y_off = [], [], 0
-    for sid, divider in groups:
+    for sid, divider, dcap in groups:
         if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
             did = f'div-{sid}'
-            merged_w.append({'id': did, 'type': 'eyebrow', 'title': divider})
+            dw = {'id': did, 'type': 'eyebrow', 'title': divider}
+            if dcap:
+                dw['caption'] = dcap
+            merged_w.append(dw)
             merged_items.append({'id': did, 'type': 'eyebrow', 'x': 0, 'y': y_off, 'w': 12, 'h': 1})
             y_off += 1
         merged_w.extend(sections[sid]['widgets'])
