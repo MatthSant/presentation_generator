@@ -257,8 +257,8 @@ def assemble(rows, config, content, opts=None):
             if tr.get('invalid'):
                 taxa, esp, furo = '⚠️ inválido', '—', '—'
             elif 'migracao' in tr:
-                taxa = f"{tr['migracao']:.0f}%"
-                esp = f"{tr['bench']:.0f}%" if tr.get('bench') else '—'
+                taxa = f"{tr['migracao']:.1f}%"
+                esp = f"{tr['bench']:.1f}%" if tr.get('bench') else '—'
                 gap = tr.get('gap')
                 if gap is None:
                     furo = '—'
@@ -266,7 +266,7 @@ def assemble(rows, config, content, opts=None):
                     furo = {'value': '✓ ok', 'cls': 'c-g'}
                 else:
                     mark = ' · ⚠️ MAIOR FURO' if tr.get('maior_furo') else ''
-                    furo = {'value': f"−{gap:.0f}%{mark}", 'cls': 'c-r' if tr.get('maior_furo') else 'c-a'}
+                    furo = {'value': f"−{gap:.1f}%{mark}", 'cls': 'c-r' if tr.get('maior_furo') else 'c-a'}
             else:
                 taxa, esp, furo = '—', '—', '—'
             rows.append([nome, taxa, esp, furo])

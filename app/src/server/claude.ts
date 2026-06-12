@@ -214,6 +214,10 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
     what: 'desempenho de criativos (anúncios) de Meta Ads — por anúncio, campanha e público — com investimento, ROAS, retorno, CPL, CPM, CAC, captação e qualidade de lead, em dois modos de leitura (Resultado × Captação)',
     focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
   },
+  'acompanhamento-lancamento': {
+    what: 'acompanhamento tático DIÁRIO de UM lançamento em curso: KPIs por dia (CPL, CPMQL, CTR, Hook, Hold, Connect, Conv. de Página, Taxa de Resposta/Qualidade) comparados a METAS e BENCHMARKS, com tendência dos últimos 3 dias e funil de tráfego (taxas vs benchmark)',
+    focus: 'FOQUE na métrica/dia que o card mostra; o eixo é o DIA da campanha. Os BENCHMARKS/metas estão nas tabelas acom_kpis (colunas meta/dev/cls/trend_dir) e acom_funnel (colunas bench/gap/maior_furo) — SEMPRE compare o realizado contra elas e cite o benchmark. O maior furo do funil é a maior queda RELATIVA ao benchmark (gap), não a maior perda absoluta. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
 };
 const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
 const domainOf = (t?: string) => (t && DEEPEN_DOMAIN[t]) || DEFAULT_DOMAIN;
@@ -381,8 +385,11 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
 - numbersGrounded: confira a ARITMÉTICA. TODO número citado na prosa (find-note/highlight/find-block/ni)
   e no value de um kpi deve estar nos "dados" OU ser corretamente DERIVÁVEL deles (delta, variação
   p.p., %, razão, soma, média). Tolere arredondamento e formatação (R$, %, vírgula decimal, "p.p.",
-  milhar). Marque FALSE se: um número não confere com os dados; a prosa cita números mas os "dados"
-  estão vazios / não os sustentam; ou o recorte/consulta usado não faz sentido para a pergunta.
+  milhar). RUÍDO DE ARREDONDAMENTO NÃO É ERRO: ao recalcular um % derivado (variação relativa, razão,
+  média), aceite diferença ≤ 0,5 p.p. OU ≤ 2% relativo do valor citado — só marque FALSE se o desvio
+  for grande o bastante para MUDAR A CONCLUSÃO (sinal trocado, ordem de grandeza, fator errado). NÃO
+  reprove por "23,4% vs 23,5%". Marque FALSE se: um número claramente não confere com os dados; a prosa
+  cita números mas os "dados" estão vazios / não os sustentam; ou o recorte/consulta não faz sentido.
 - issues (≤5, cada uma 1 linha ACIONÁVEL), p.ex.:
   • não responde à pergunta / responde outra coisa
   • EIXO trocado: respondeu nível (o que é maior) quando a pergunta era tendência (o que muda) ou causa, ou vice-versa
