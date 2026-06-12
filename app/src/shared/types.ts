@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -569,6 +569,16 @@ export interface BarListWidget extends WidgetBase {
             stats?: { label: string; value: string }[]; headline?: { label: string; value: string } }[];
 }
 
+/** cri-list — lista de entidades ranqueadas (criativos): thumb + nome (link) +
+ *  meta (sub-linha) + stats à direita (ex.: leads + CPMQL proj.). */
+export interface CriListWidget extends WidgetBase {
+  type: 'cri-list';
+  title?: string;
+  caption?: string;
+  rows: { name: string; link?: string; meta?: string;
+          stats: { value: string; label: string; tone?: 'pos' | 'neg' | 'neutral' }[] }[];
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
@@ -576,7 +586,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

@@ -1117,6 +1117,24 @@ body.edit-mode .tile-filter-badge { display:none; }
   padding:16px;
 }
 .dash-grid:not(.grid-active) .bar-list { border-radius:var(--r-lg); padding:18px 20px; }
+.dash-grid:not(.grid-active) .cri-list { border-radius:var(--r-lg); padding:18px 20px; }
+
+/* ── cri-list — lista de criativos ranqueados (thumb + nome/link + stats) ── */
+.cri-cap { font-size:11.5px; color:var(--gray2); line-height:1.5; margin:2px 0 8px; }
+.cri-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--divider); }
+.cri-row:last-child { border-bottom:none; }
+.cri-thumb { width:38px; height:38px; border-radius:var(--r-sm); background:var(--surface); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--purple); }
+.cri-thumb svg { width:19px; height:19px; }
+.cri-info { flex:1; min-width:0; }
+.cri-name { font-size:12.5px; font-weight:700; color:var(--purple-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cri-meta { font-size:11px; color:var(--gray2); margin-top:2px; }
+.cri-link { display:inline-block; font-size:11px; color:var(--purple); font-weight:600; text-decoration:none; margin-top:3px; }
+.cri-link:hover { text-decoration:underline; }
+.cri-stat { text-align:right; flex-shrink:0; display:grid; grid-template-columns:auto; gap:0; }
+.cri-stat-v { font-size:17px; font-weight:800; color:var(--fg); font-variant-numeric:tabular-nums; line-height:1.1; }
+.cri-stat-v.c-r { color:var(--red-text); } .cri-stat-v.c-g { color:var(--green-text); }
+.cri-stat-l { font-size:9.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--gray2); margin-bottom:5px; }
+.cri-stat-l:last-child { margin-bottom:0; }
 .dash-grid:not(.grid-active) .tw {
   border-radius:8px;
   box-shadow:var(--shadow-card);

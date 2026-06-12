@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -914,6 +914,42 @@ function renderBarList(w: BarListWidget): HTMLElement {
   return wrap;
 }
 
+/* ── cri-list ── lista de criativos ranqueados: thumb + nome (link) + meta +
+ *  stats à direita (leads + CPMQL proj.). Substitui a tabela de criativos. */
+function renderCriList(w: CriListWidget): HTMLElement {
+  const wrap = el('div', 'cri-list');
+  if (w.title) {
+    const head = el('div', 'chart-head');
+    head.appendChild(el('div', 'chart-title', w.title));
+    wrap.appendChild(head);
+  }
+  if (w.caption) wrap.appendChild(el('div', 'cri-cap', w.caption));
+  for (const r of w.rows) {
+    const row = el('div', 'cri-row');
+    const thumb = el('div', 'cri-thumb');
+    thumb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></svg>';
+    row.appendChild(thumb);
+    const info = el('div', 'cri-info');
+    info.appendChild(el('div', 'cri-name', r.name));
+    if (r.meta) info.appendChild(el('div', 'cri-meta', r.meta));
+    if (r.link) {
+      const a = el('a', 'cri-link', 'Ver criativo ↗') as HTMLAnchorElement;
+      a.href = r.link; a.target = '_blank'; a.rel = 'noopener';
+      info.appendChild(a);
+    }
+    row.appendChild(info);
+    const stat = el('div', 'cri-stat');
+    for (const s of r.stats || []) {
+      const c = s.tone === 'pos' ? 'c-g' : s.tone === 'neg' ? 'c-r' : '';
+      stat.appendChild(el('div', `cri-stat-v ${c}`, s.value));
+      stat.appendChild(el('div', 'cri-stat-l', s.label));
+    }
+    row.appendChild(stat);
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
 /* ── strat-grid ── perguntas estratégicas: colunas de cards com linhas
  *  "pergunta · chip de achado · valor de apoio" (espelha o One Pager da fonte). */
 function renderStratGrid(w: StratGridWidget): HTMLElement {
@@ -1273,6 +1309,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'qa-card':     return renderQaCard(widget, ctx);
       case 'funnel':      return renderFunnel(widget);
       case 'bar-list':    return renderBarList(widget);
+      case 'cri-list':    return renderCriList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);
