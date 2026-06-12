@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nova análise — Debriefing de Lançamento</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .g-wrap { max-width: 680px; margin: 0 auto; padding: 40px 28px 80px; }
+    .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
+    .g-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 24px; }
+    .g-card { padding: 22px; }
+    .g-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 18px 0 12px; }
+    .g-h:first-child { margin-top: 0; }
+    .g-row { display:flex; gap: 14px; flex-wrap: wrap; }
+    .g-field { display:flex; flex-direction:column; gap:5px; margin-bottom: 14px; flex: 1 1 150px; }
+    .g-field.full { flex-basis: 100%; }
+    .g-field label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); }
+    .g-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: 'Exo 2', sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .g-field input:focus { border-color: var(--purple); }
+    .g-field small { font-size: 11px; color: var(--gray2); }
+    .g-file-btn { display:inline-flex; align-items:center; gap:8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
+    .g-file-name { font-size: 12.5px; color: var(--gray); margin-left: 10px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .g-go { margin-top: 12px; display:inline-flex; align-items:center; gap:8px; font-size: 14px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 11px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,.3); }
+    .g-go:disabled { opacity: .55; cursor: default; }
+    .g-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 9px; padding: 11px 14px; display:none; }
+    .g-msg.work { display:block; background: var(--purple-bg); color: var(--purple); }
+    .g-msg.ok { display:block; background: var(--ok-bg); color: var(--ok-fg); }
+    .g-msg.err { display:block; background: var(--err-bg); color: var(--err-fg); }
+    .g-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 14px; }
+    .g-hint code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <header class="home-bar" data-sub="Nova análise"></header>
+  <script src="/js/page-chrome.js" defer></script>
+
+  <div class="g-wrap">
+    <span class="g-tag">Debriefing de Lançamento</span>
+    <h1 class="g-title">Novo debriefing pós-campanha</h1>
+    <p class="g-sub">Envie o CSV consolidado do lançamento (view <code>VW_V2_inscricoes_res</code>) e gere o dashboard de 7 abas: Panorama, Canal, Tráfego Pago, Orgânico, Temporal, Análise 360° e One Pager.</p>
+
+    <div class="card g-card">
+      <p class="g-h">Identificação</p>
+      <div class="g-row">
+        <div class="g-field"><label>Cliente (slug)</label><input id="f-client" placeholder="ex.: inde" /></div>
+        <div class="g-field"><label>Slug</label><input id="f-slug" value="debriefing" /></div>
+      </div>
+      <div class="g-field full"><label>Título do relatório</label><input id="f-title" placeholder="ex.: INDÊ · Debriefing Independência" /></div>
+      <div class="g-row">
+        <div class="g-field"><label>Nome do cliente</label><input id="f-nome" placeholder="ex.: INDÊ" /></div>
+        <div class="g-field"><label>Label da campanha</label><input id="f-camp" placeholder="ex.: Independência Mai/26" /></div>
+        <div class="g-field"><label>field_conversion</label><input id="f-fc" placeholder="auto se único" /></div>
+      </div>
+
+      <div class="g-row">
+        <div class="g-field"><label>Início da captação</label><input id="f-cpt-ini" type="date" /><small>opcional — auto pelo 1º dia com leads de captação</small></div>
+        <div class="g-field"><label>Fim da captação</label><input id="f-cpt-fim" type="date" /><small>opcional — limita os gráficos de leads/conversão por dia</small></div>
+      </div>
+
+      <p class="g-h">Classificação (confira contra os dados do cliente)</p>
+      <div class="g-field full"><label>Fontes pagas (utm_source contém)</label><input id="c-paid" value="facebook, meta, google, fb" /><small>separe por vírgula</small></div>
+      <div class="g-field full"><label>Padrão de captação (campanha contém)</label><input id="c-cpt" value="cadastro-, google-search-, -cpt]" /></div>
+      <div class="g-field full"><label>Padrão de vendas (campanha contém)</label><input id="c-vnd" value="venda-, -vnd]" /><small>se não há campanha de vendas, deixe um padrão que não casa</small></div>
+
+      <p class="g-h">Arquivos</p>
+      <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
+        <label class="g-file-btn">CSV do lançamento<input id="f-csv" type="file" accept=".csv" hidden /></label>
+        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
+      </div>
+      <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
+        <label class="g-file-btn">Metas / goals (obrigatório)<input id="f-goals" type="file" accept=".csv" hidden /></label>
+        <span class="g-file-name" id="f-goals-name">nenhum arquivo</span>
+      </div>
+      <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
+        <label class="g-file-btn">Histórico (opcional)<input id="f-hist" type="file" accept=".csv" hidden /></label>
+        <span class="g-file-name" id="f-hist-name">nenhum arquivo</span>
+      </div>
+
+      <button class="btn btn--primary g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar debriefing</button>
+      <div class="g-msg" id="msg"></div>
+      <p class="g-hint">Colunas: <code>field_conversion</code>, <code>data</code>, <code>utm_source</code>, <code>field_campaign_name</code>, <code>leads</code>, <code>vendas</code>, <code>faturamento</code>, <code>invest_total</code>, <code>leads_trafego</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>, <code>vendas_sale</code>, <code>faturamento_sale</code>, <code>refunds</code>, <code>refunded_value</code>. Goals: <code>meta_leads, meta_vendas, meta_cpl, meta_cpmql, meta_receita, meta_valor_invest, meta_conversao, meta_taxa_qual</code>.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    let CSV = null, GOALS = null, HIST = null;
+    const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
+    const list = (id) => $(id).value.split(',').map(s => s.trim()).filter(Boolean);
+
+    $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
+    $('f-goals').addEventListener('change', (e) => { GOALS = e.target.files[0] || null; $('f-goals-name').textContent = GOALS ? GOALS.name : 'nenhum arquivo'; });
+    $('f-hist').addEventListener('change', (e) => { HIST = e.target.files[0] || null; $('f-hist-name').textContent = HIST ? HIST.name : 'nenhum arquivo'; });
+
+    $('go').addEventListener('click', async () => {
+      const client = slugify($('f-client').value);
+      const slug = slugify($('f-slug').value) || 'debriefing';
+      const title = $('f-title').value.trim() || ($('f-nome').value.trim() + ' · Debriefing');
+      if (!client) { show('err', 'Informe o nome do cliente.'); return; }
+      if (!CSV) { show('err', 'Escolha o CSV do lançamento.'); return; }
+      if (!GOALS) { show('err', 'O CSV de metas (goals) é obrigatório no debriefing.'); return; }
+
+      const cfg = { client, slug, title, type: 'debriefing-lancamento',
+        client_name: $('f-nome').value.trim() || undefined,
+        campaign_label: $('f-camp').value.trim() || undefined,
+        field_conversion: $('f-fc').value.trim() || undefined,
+        captacao_inicio: $('f-cpt-ini').value || undefined,
+        captacao_fim: $('f-cpt-fim').value || undefined,
+        paid_sources: list('c-paid'), cpt_pattern: list('c-cpt'), vnd_pattern: list('c-vnd') };
+      $('go').disabled = true;
+      show('work', 'Gerando o debriefing no servidor (pode levar alguns segundos)…');
+      try {
+        const fd = new FormData();
+        fd.append('csv', CSV);
+        if (GOALS) fd.append('goals', GOALS);
+        if (HIST) fd.append('hist', HIST);
+        fd.append('config', JSON.stringify(cfg));
+        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/generate`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error((d.error || 'falha') + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
+        show('ok', 'Pronto! Abrindo o relatório…');
+        setTimeout(() => { location.href = d.report; }, 700);
+      } catch (err) {
+        show('err', '⚠ ' + err.message);
+      } finally {
+        $('go').disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

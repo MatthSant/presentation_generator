@@ -163,6 +163,238 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "criativos",
+      "title": "Análise de Criativos",
+      "tag": "Análise",
+      "summary": "Desempenho anúncio a anúncio (Meta Ads) — investimento, ROAS, captação e qualidade de lead — com uma ficha por criativo e dois modos de leitura: Resultado Final e Captação em Andamento.",
+      "report": { "client": "enxoval", "slug": "criativos" },
+      "gerar": "/gerar-criativos.html",
+      "montador": "criativos",
+      "sections": [
+        {
+          "title": "Objetivo",
+          "blocks": [
+            { "type": "p", "text": "Avaliar o desempenho de cada <strong>criativo</strong> de mídia paga isoladamente — quanto investiu, quanto retornou e com que qualidade captou — para decidir o que <strong>escalar</strong>, o que <strong>pausar</strong> e o que <strong>iterar</strong> no próximo ciclo." },
+            { "type": "p", "text": "Dois modos de leitura, alternáveis no relatório inteiro:" },
+            { "type": "ul", "items": [
+              "<strong>Resultado Final</strong> — performance de venda: ROAS líquido, conversão, retorno e CAC (★ ROAS).",
+              "<strong>Captação em Andamento</strong> — eficiência de aquisição enquanto a venda não fechou: CPL, CPMQL projetado, qualidade e CPM (★ CPMQL)."
+            ] }
+          ]
+        },
+        {
+          "title": "Requisitos dos dados",
+          "blocks": [
+            { "type": "p", "text": "Um CSV ao nível de <strong>anúncio × dia × campanha × público × temperatura</strong> (insights de mídia juntados aos leads/vendas atribuídos)." },
+            { "type": "ul", "items": [
+              "Identificação: <code>field_ad_name</code> (criativo), <code>field_campaign_name</code>, <code>field_adset_name</code> (público), <code>temperatura_lead</code>, <code>data</code>.",
+              "Mídia: <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>.",
+              "Vídeo (só criativos em vídeo): <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code> — viram Hook/Hold Rate.",
+              "Funil e vendas: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>."
+            ] },
+            { "type": "callout", "label": "Filtro de captação", "text": "Os indicadores de mídia (CPL, CPM, CPMQL, ROAS) devem considerar <strong>só as campanhas de captação</strong> — exclua campanhas de vendas e remarketing do investimento, como no debriefing. Confira o padrão de captação da conta antes de gerar." },
+            { "type": "callout", "label": "Dicionário (opcional)", "text": "Um 2º CSV <code>field_ad_name → URL do post</code> habilita o <strong>preview do Reels/anúncio</strong> embutido na ficha. Sem ele, a ficha funciona, só sem o preview." }
+          ]
+        },
+        {
+          "title": "Como criar",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Extraia o CSV ao nível de anúncio/dia com a query padrão (use o <strong>montador</strong> e ajuste tabelas/termos da conta).",
+              "Antes de gerar, confira a atribuição lead→anúncio e a classificação de temperatura.",
+              "Clique em <strong>Criar esta análise</strong>, informe cliente/título, envie o CSV e (opcional) o dicionário de links.",
+              "O relatório abre em <code>/report/[cliente]/[slug]</code> com Panorama + fichas na sidebar."
+            ] }
+          ]
+        },
+        {
+          "title": "O que o relatório entrega",
+          "blocks": [
+            { "type": "sub", "text": "Panorama" },
+            { "type": "p", "text": "KPIs macro do modo ativo + bloco de qualidade de captação (Hook/Hold/CTR/Connect/Conv. Página comparados ao benchmark), gráfico de evolução diária e dispersão (métricas por eixo selecionáveis), e a grade de criativos por desempenho — cada card abre a ficha." },
+            { "type": "sub", "text": "Fichas por criativo (sidebar)" },
+            { "type": "p", "text": "Uma seção por criativo: preview do anúncio, resultado macro, quebra por campanha/público/temperatura e evolução diária. A sidebar permite buscar e ordenar (A–Z, investimento, ROAS)." },
+            { "type": "sub", "text": "Perguntas e Detalhamentos" },
+            { "type": "p", "text": "Perguntas norteadoras ranqueadas por relevância; ao seguir uma, a IA gera um detalhamento como nova seção." }
+          ]
+        },
+        {
+          "title": "Indicadores",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Produto principal = <code>vendas_sale</code> se houver; senão <code>vendas</code>.",
+              "ROAS líquido = faturamento / investimento − 1 · Retorno = faturamento − investimento · CAC = investimento / vendas.",
+              "Qualidade = MQLs / respostas (não / leads) · CPMQL = CPL / qualidade · CPL = investimento / leads · CPM = investimento×1000 / impressões.",
+              "Hook Rate = views 2s / impressões · Hold Rate = views 50% / views 2s (só com vídeo) · Connect Rate = pageviews / clicks.",
+              "Taxas somam brutos e calculam sobre o total — nunca média de médias."
+            ] }
+          ]
+        },
+        {
+          "title": "Cuidados",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Confirmar nomes de tabela/coluna da conta — o montador é uma base, não a query final.",
+              "Garantir que <code>field_ad_name</code> bate nas duas fontes (mídia e conversões), senão a atribuição falha.",
+              "Criativos sem tráfego ficam fora dos KPIs (cinza); use o filtro de investimento mínimo para limpar ruído.",
+              "Métricas de vídeo só existem para criativos em vídeo — não compare Hook/Hold entre vídeo e estático."
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "acompanhamento-lancamento",
+      "title": "Acompanhamento de Campanha",
+      "tag": "Análise",
+      "summary": "Report tático diário de um lançamento em curso — metas vs realizado, tendência dos últimos 3 dias, riscos automáticos e funil de tráfego pago por taxa vs benchmark. Pronto para enviar ao cliente.",
+      "report": { "client": "enxoval", "slug": "acompanhamento" },
+      "gerar": "/gerar-acompanhamento.html",
+      "montador": "acompanhamento-lancamento",
+      "sections": [
+        {
+          "title": "Objetivo",
+          "blocks": [
+            { "type": "p", "text": "Acompanhar <strong>diariamente</strong> uma campanha de lançamento <strong>em andamento</strong> — saber, a cada dia, se está no ritmo da meta, o que melhorou ou piorou nos <strong>últimos 3 dias</strong> e onde está o maior gargalo para agir ainda dentro da campanha." },
+            { "type": "p", "text": "Diferente da Histórica (entre lançamentos) e do Debriefing (pós-campanha), aqui o eixo é o <strong>dia da campanha</strong> de um único lançamento, sempre comparado contra metas e benchmarks." }
+          ]
+        },
+        {
+          "title": "Requisitos dos dados",
+          "blocks": [
+            { "type": "p", "text": "Um CSV da view <code>VW_V2_inscricoes_res_METRICAS</code>: <strong>uma linha por utm_source × campanha × conteúdo × anúncio × dia</strong>, de um lançamento (<code>field_conversion</code>)." },
+            { "type": "ul", "items": [
+              "Identificação: <code>field_conversion</code>, <code>data</code>, <code>field_campaign_name</code> (temperatura inferida), <code>field_ad_name</code> (criativos).",
+              "Volume e funil: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>, <code>leads_trafego</code>.",
+              "Mídia: <code>invest_total</code> (pago = &gt; 0), <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_totais</code>, <code>views_50pc</code>."
+            ] },
+            { "type": "callout", "label": "Filtro de captação", "text": "Os indicadores de mídia (CPL, CPM, CPMQL) e o funil de tráfego consideram <strong>só as campanhas de captação</strong> — exclua campanhas de vendas e remarketing do investimento, como no debriefing." },
+            { "type": "callout", "label": "Metas e dicionário (opcionais)", "text": "Metas (CPL, CPMQL, taxa de resposta/qualidade, leads) habilitam o <strong>semáforo de desvio</strong> e os riscos. Um 2º CSV <code>field_ad_name,link</code> liga cada criativo ao seu post." }
+          ]
+        },
+        {
+          "title": "Como criar",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Extraia o CSV de métricas do lançamento (use o <strong>montador</strong> com o <code>field_conversion</code>).",
+              "Clique em <strong>Criar esta análise</strong>: informe cliente, campanha, <strong>data de corte</strong> (último dia de dados) e as metas conhecidas.",
+              "Envie o CSV e (opcional) o dicionário de criativos.",
+              "O relatório abre em <code>/report/[cliente]/[slug]</code>; rode todo dia trocando a data de corte."
+            ] }
+          ]
+        },
+        {
+          "title": "O que o relatório entrega",
+          "blocks": [
+            { "type": "sub", "text": "Visão Geral" },
+            { "type": "p", "text": "Leads acumulados vs linhas de meta (total e to-date), split Pago × Orgânico, atingimento, e 6 KPIs macro — cada um com valor geral, dos <strong>últimos 3 dias</strong>, tendência (vs início) e desvio vs meta com semáforo. Mais os 2 maiores riscos com texto de impacto." },
+            { "type": "sub", "text": "Evolução · Canais · Tráfego" },
+            { "type": "p", "text": "Séries diárias (leads, investimento, CPL, qualidade, CPMQL); origem, temperatura, tipo de lead e criativos do último dia; e os indicadores de mídia (CPM, Hook, Hold, CTR, Connect, Conv. Página) com o <strong>funil de tráfego por taxa vs benchmark</strong>." },
+            { "type": "sub", "text": "Perguntas e Detalhamentos" },
+            { "type": "p", "text": "Perguntas norteadoras ranqueadas (maior furo, KPI fora da meta, qualidade caindo, custo subindo); ao seguir uma, a IA gera um detalhamento aprofundando os dados por dia." }
+          ]
+        },
+        {
+          "title": "Indicadores",
+          "blocks": [
+            { "type": "ul", "items": [
+              "CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade · CPM = investimento×1000 / impressões.",
+              "Taxa de Resposta = respostas / leads · Taxa de Qualidade = MQLs / <strong>respostas</strong> (não / leads) · Conv. de Página = leads de tráfego / pageviews.",
+              "Hook = views totais / impressões · Hold = views 50% / views totais · CTR = clicks / impressões · Connect = pageviews / clicks.",
+              "Tendência = média dos últimos 3 dias vs o início (±3% = neutro; em custos, subir é pior).",
+              "<strong>Maior furo do funil</strong> = maior queda <strong>relativa ao benchmark</strong> (CTR 1%, Connect 80%, Conv. Página 40%, Resposta/Qualidade = meta), não a maior perda absoluta."
+            ] }
+          ]
+        },
+        {
+          "title": "Cuidados",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Informar sempre a <strong>data de corte</strong> — criativos e funil 3 dias respeitam o corte, não o último dia absoluto dos dados.",
+              "Sem metas, o semáforo de desvio e os riscos não aparecem; os benchmarks de tráfego (CTR/Connect/Conv. Página) já entram como meta-padrão.",
+              "Em dias de baixo volume (início/fim da campanha) as taxas diárias ficam ruidosas — leia a tendência, não o dia isolado.",
+              "Hook/Hold/Connect/Conv. Página dependem de <code>views</code>/<code>pageviews</code> preenchidos; sem eles, o funil sinaliza dado inválido."
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "debriefing-lancamento",
+      "title": "Debriefing de Lançamento",
+      "tag": "Análise",
+      "summary": "Dashboard pós-campanha de 7 abas: atingimento de metas, resultado macro, canais, tráfego pago (só captação), orgânico, análise temporal semanal, Análise 360° (Q1–Q13) e One Pager.",
+      "report": { "client": "inde", "slug": "debriefing" },
+      "gerar": "/gerar-debriefing.html",
+      "montador": "debriefing-lancamento",
+      "sections": [
+        {
+          "title": "Objetivo",
+          "blocks": [
+            { "type": "p", "text": "Fechar o lançamento com evidência: <strong>atingiu as metas?</strong>, o que <strong>puxou</strong> e o que <strong>segurou</strong> o resultado, e o que <strong>escalar/pausar</strong> no próximo ciclo — por canal, temperatura e semana." },
+            { "type": "p", "text": "Diferente do Acompanhamento (diário, em curso), o debriefing é <strong>uma vez, ao fim</strong>, e compara tudo contra <strong>meta</strong> e <strong>histórico</strong>." }
+          ]
+        },
+        {
+          "title": "Requisitos dos dados",
+          "blocks": [
+            { "type": "p", "text": "Um CSV da view <code>VW_V2_inscricoes_res</code>: <strong>uma linha por utm_source × campanha × dia</strong>, de um lançamento (<code>field_conversion</code>). <strong>Obrigatório</strong>: CSV de <strong>metas</strong> (goals) — sem ele não há atingimento nem comparativo. Opcional: CSV de <strong>histórico</strong> (campanha anterior)." },
+            { "type": "ul", "items": [
+              "Volume/funil: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_trafego</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>.",
+              "Vendas: <code>vendas</code>, <code>faturamento</code>, <code>vendas_sale</code>, <code>faturamento_sale</code>, <code>refunds</code>, <code>refunded_value</code>.",
+              "Mídia: <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>.",
+              "Goals (obrigatório): <code>meta_leads, meta_vendas, meta_cpl, meta_cpmql, meta_receita, meta_valor_invest, meta_conversao, meta_taxa_qual</code>."
+            ] },
+            { "type": "callout", "label": "Classificação", "text": "<strong>Confira os padrões do cliente</strong> no gerar: <code>utm_source</code> pago (ex.: <code>facebook</code>), campanha de captação (ex.: <code>cadastro-</code>, prefixo) e temperatura (frio/quente/advantage, com ou sem colchetes)." }
+          ]
+        },
+        {
+          "title": "Como criar",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Extraia o CSV do lançamento (use o <strong>montador</strong> com o <code>field_conversion</code>).",
+              "Clique em <strong>Criar esta análise</strong>: ajuste os padrões de classificação e envie o CSV (+ goals e histórico, se houver).",
+              "O relatório abre em <code>/report/[cliente]/[slug]</code> com as 7 abas e a aba Perguntas norteadoras."
+            ] }
+          ]
+        },
+        {
+          "title": "O que o relatório entrega",
+          "blocks": [
+            { "type": "sub", "text": "Panorama · Canal · Tráfego · Orgânico" },
+            { "type": "p", "text": "Atingimento de leads/vendas, resultado macro (Fat, Retorno, ROI, ROAS) e comparativo vs meta; performance por canal e por escopo (pago × orgânico); indicadores de mídia (só captação) por temperatura e campanha; e os canais orgânicos." },
+            { "type": "sub", "text": "Temporal · Análise 360° · One Pager" },
+            { "type": "p", "text": "Semana a semana por data de inscrição (First Click); 13 perguntas estratégicas com veredito e gráficos; e o resumo executivo de 1 tela com alavancas/gargalos automáticos." },
+            { "type": "sub", "text": "Perguntas e Detalhamentos" },
+            { "type": "p", "text": "Perguntas norteadoras ranqueadas (meta de vendas, temperatura, pago×orgânico, qualidade, custo); ao seguir uma, a IA aprofunda por canal/temperatura/semana." }
+          ]
+        },
+        {
+          "title": "Indicadores",
+          "blocks": [
+            { "type": "ul", "items": [
+              "<strong>Regra invest_cpt</strong>: investimento de mídia = só campanhas de captação. Vendas saem de CPL/ROAS/CPMQL/CPM/CTR (o faturamento de vendas fica).",
+              "ROAS = (fat. pago − invest. cpt) / invest. cpt · ROI = (fat − invest total) / invest total.",
+              "CPL = invest. cpt / leads de tráfego · CPMQL = CPL / qualif. paga · CAC = invest. cpt / vendas pago.",
+              "Qualificação = MQLs / <strong>respostas</strong> (não / leads) · Conversão = vendas / leads por segmento.",
+              "Metas: soma para volume/receita; média das linhas <strong>&gt; 0</strong> para CPL/CPMQL/conversão (zeros de orgânico não distorcem o alvo pago)."
+            ] }
+          ]
+        },
+        {
+          "title": "Cuidados",
+          "blocks": [
+            { "type": "ul", "items": [
+              "Inspecione <code>utm_source</code> e <code>field_campaign_name</code> e ajuste a classificação antes de gerar — é o erro mais comum.",
+              "Análise temporal é <strong>First Click</strong> (data de inscrição), não data da compra — não há curva de carrinho.",
+              "Sem goals, os atingimentos e o Δ vs meta ficam vazios; sem histórico, o Δ vs histórico fica vazio.",
+              "Δ% absurdo (&gt; ±300%) quase sempre é denominador errado — investigue antes de entregar."
+            ] }
+          ]
+        }
+      ]
     }
   ]
 }

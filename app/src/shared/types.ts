@@ -86,6 +86,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -158,6 +159,15 @@ export interface ChartWidget extends WidgetBase {
   secondaryAxis?: number | number[];
   /** Suffix for secondary-axis labels (e.g. "%"). */
   secondaryAxisSuffix?: string;
+  /** Pill exibido ao lado do título (ex.: "▲ 53.5% vs início"). */
+  badge?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
+  /** Número-destaque + legenda acima do gráfico (ex.: total de leads acumulado). */
+  headline?: { value: string; caption?: string };
+  /** Bar: destaca as últimas N barras na cor primária; demais na 1ª cor (lilás).
+   *  Use colors:[claro, escuro]. */
+  highlightLast?: number;
+  /** Linhas de meta tracejadas (referência horizontal): meta total / to-date. */
+  goalLines?: { value: number; label?: string; color?: string }[];
 }
 
 export type TableCell = string | number | {
@@ -165,6 +175,8 @@ export type TableCell = string | number | {
   /** Metric cell: variation vs the previous column, shown as a tinted pill + a
    *  muted relative-% line under the value. `tone` colors the pill. */
   delta?: string; rel?: string; tone?: 'pos' | 'neg' | 'neutral';
+  /** Link cell: renders the value as an anchor opening in a new tab (ex.: criativo → post no IG). */
+  link?: string;
 };
 export interface TableWidget extends WidgetBase {
   type: 'table';
@@ -401,6 +413,14 @@ export interface KpiCardWidget extends WidgetBase {
   /** Variation badge (feature tier), e.g. "↑ +3.0pp vs anterior". */
   delta?: string;
   deltaTone?: 'pos' | 'neg' | 'neutral';
+  /** Dual delta for the meta/histórico toggle: [texto, tone] por modo. Quando
+   *  presente, o badge troca ao vivo com o controle `compare` (feature de plataforma). */
+  cmp?: { meta: [string, string]; hist: [string, string] };
+  /** Hierarquia tática (acompanhamento): valor dos últimos 3 dias, flag de tendência
+   *  e rodapé de meta com selo ✓/⚠/✕. Quando presentes, renderizam em linhas próprias. */
+  d3?: { value: string; dir?: 'up' | 'down'; tone?: 'pos' | 'neg' | 'neutral' };
+  flag?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
+  goal?: { label: string; delta?: string; status?: 'ok' | 'warn' | 'bad' };
   /** Trend sparkline series (feature tier); nulls = gaps. */
   spark?: (number | null)[];
   /** Proportion bar segments (volume tier); remainder fills as a muted track. */
@@ -424,13 +444,110 @@ export interface ChartTableWidget extends WidgetBase {
   table?: TableWidget;
 }
 
+/** Embed de uma publicação (preview do anúncio na ficha de criativo). Instagram via
+ *  iframe /embed/; demais plataformas caem num placeholder com link. Recurso de
+ *  plataforma — qualquer análise pode embutir um post. */
+export interface EmbedWidget extends WidgetBase {
+  type: 'embed';
+  /** URL do post (ex.: https://www.instagram.com/p/CODE/). */
+  url: string;
+  title?: string;
+  /** 'instagram' | 'facebook' | … (derivado da URL quando ausente). */
+  platform?: string;
+  caption?: string;
+}
+
+/** Card clicável que navega para uma seção (ficha). Grid de cards de criativo:
+ *  nome + sub + tags + métricas 2×2 + indicador principal com barra. Recurso de
+ *  plataforma — qualquer análise pode listar entidades que abrem outra seção. */
+export interface LinkCard {
+  title: string;
+  sub?: string;
+  tags?: Array<{ label: string; tone?: ColorToken }>;
+  metrics?: Array<{ label: string; value: string }>;
+  main?: { label: string; value: string; pct?: number; tone?: ColorToken };
+  gotoPage?: string;
+  gotoSection?: string;
+}
+export interface LinkCardWidget extends WidgetBase {
+  type: 'link-card';
+  title?: string;
+  cards: LinkCard[];
+}
+
+/** Dispersão com seletor de métrica por eixo: dois dropdowns (X e Y) reconstroem o
+ *  scatter client-side a partir das métricas embutidas. Recurso de plataforma. */
+export interface ScatterMetric { id: string; label: string; fmt?: string; }
+export interface ScatterPoint { name: string; vals: Record<string, number | null>; }
+export interface ScatterPickerWidget extends WidgetBase {
+  type: 'scatter-picker';
+  title?: string;
+  height?: number;
+  metrics: ScatterMetric[];
+  points: ScatterPoint[];
+  x?: string;
+  y?: string;
+}
+
+/** Evolução no tempo com seletor de métrica: um dropdown reconstrói a linha
+ *  client-side a partir das métricas embutidas (points.name = data do eixo X).
+ *  Recurso de plataforma — opt-in via widget. */
+export interface EvolutionPickerWidget extends WidgetBase {
+  type: 'evolution-picker';
+  title?: string;
+  height?: number;
+  metrics: ScatterMetric[];
+  points: ScatterPoint[];
+  current?: string;
+}
+
+/** Gráfico embutido dentro de outro widget (qa-card) — subconjunto de ChartWidget. */
+export type EmbeddedChart = Omit<ChartWidget, 'type'> & { type?: 'chart' };
+
+/** qa-card — unidade "pergunta" da Análise 360°: chip + título + grade de números +
+ *  chips de veredito + 1 gráfico embutido. */
+export interface QaCardWidget extends WidgetBase {
+  type: 'qa-card';
+  /** Badge da pergunta (ex.: "Q5"). */
+  q?: string;
+  /** Cor do chip/accent: g|a|r|p|n. */
+  qColor?: 'g' | 'a' | 'r' | 'p' | 'n';
+  title: string;
+  /** Chip de veredito do card (canto direito do header). */
+  verdict?: { label: string; tone?: 'pos' | 'neg' | 'neutral' };
+  /** Grade de 2–4 números-chave (cada um vira um stat-tile colorido). */
+  stats?: { label: string; value: string; sub?: string; delta?: string; tone?: 'pos' | 'neg' | 'neutral' | 'purple' }[];
+  /** Fila de chips de veredito (ex.: temperatura por ROAS). */
+  chips?: { label: string; glyph?: string; tone?: 'pos' | 'neg' | 'neutral' }[];
+  /** Gráfico embutido (reusa renderChart + bind). */
+  chart?: EmbeddedChart;
+}
+
+/** funnel — funil visual: barras degradê por etapa + pills perda/migram por transição. */
+export interface FunnelWidget extends WidgetBase {
+  type: 'funnel';
+  title?: string;
+  sub?: string;
+  steps: { label: string; value: number }[];
+  /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido. */
+  transitions?: { loss?: number; migrate?: number; bench?: number; gap?: number; worst?: boolean; invalid?: boolean }[];
+}
+
+/** strat-grid — perguntas estratégicas: N colunas (cards), cada uma com título e
+ *  linhas "pergunta · chip de achado · valor de apoio". Espelha o One Pager da fonte. */
+export interface StratGridWidget extends WidgetBase {
+  type: 'strat-grid';
+  cols: { title: string; items: { q: string; chip?: { text: string; tone?: 'pos' | 'neg' | 'neutral' }; val?: string }[] }[];
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
-  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget;
+  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
+  | QaCardWidget | FunnelWidget | StratGridWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

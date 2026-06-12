@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nova análise — Criativos</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+
+    .g-wrap { max-width: 640px; margin: 0 auto; padding: 40px 28px 80px; }
+    .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
+    .g-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 24px; }
+    .g-card { padding: 22px; }
+    .g-row { display:flex; gap: 14px; flex-wrap: wrap; }
+    .g-field { display:flex; flex-direction:column; gap:5px; margin-bottom: 15px; flex: 1 1 160px; }
+    .g-field label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); }
+    .g-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: 'Exo 2', sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .g-field input:focus { border-color: var(--purple); }
+    .g-fileline { display:flex; align-items:center; margin-bottom: 15px; min-width: 0; }
+    .g-file-btn { display:inline-flex; align-items:center; gap:8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
+    .g-file-name { font-size: 12.5px; color: var(--gray); margin-left: 10px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .g-go { margin-top: 8px; display:inline-flex; align-items:center; gap:8px; font-size: 14px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 11px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,.3); }
+    .g-go:disabled { opacity: .55; cursor: default; }
+    .g-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 9px; padding: 11px 14px; display:none; }
+    .g-msg.work { display:block; background: var(--purple-bg); color: var(--purple); }
+    .g-msg.ok { display:block; background: var(--ok-bg); color: var(--ok-fg); }
+    .g-msg.err { display:block; background: var(--err-bg); color: var(--err-fg); }
+    .g-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 14px; }
+    .g-hint code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <header class="home-bar" data-sub="Nova análise" data-back="/guia/criativos" data-back-label="Voltar ao guia"></header>
+  <script src="/js/page-chrome.js" defer></script>
+
+  <div class="g-wrap">
+    <span class="g-tag">Análise de Criativos</span>
+    <h1 class="g-title">Nova análise de criativos</h1>
+    <p class="g-sub">Envie o CSV de criativos (uma linha por anúncio × dia × campanha/público) e, opcionalmente, o dicionário de links (anúncio → URL do post) para os previews. O relatório abre com Panorama + uma ficha por criativo na sidebar.</p>
+
+    <div class="card g-card">
+      <div class="g-row">
+        <div class="g-field"><label>Cliente</label><input id="f-client" placeholder="ex.: inde" /></div>
+        <div class="g-field"><label>Slug da análise</label><input id="f-slug" value="criativos" /></div>
+      </div>
+      <div class="g-field"><label>Título do relatório</label><input id="f-title" placeholder="ex.: INDÊ · Análise de Criativos" /></div>
+
+      <div class="g-fileline">
+        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV de criativos<input id="f-csv" type="file" accept=".csv" hidden /></label>
+        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
+      </div>
+      <div class="g-fileline">
+        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Dicionário de links <span style="font-weight:600;opacity:.7">(opcional)</span><input id="f-dict" type="file" accept=".csv" hidden /></label>
+        <span class="g-file-name" id="f-dict-name">nenhum arquivo</span>
+      </div>
+
+      <button class="btn btn--primary g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
+      <div class="g-msg" id="msg"></div>
+      <p class="g-hint">Colunas esperadas no CSV: <code>field_ad_name</code>, <code>field_campaign_name</code>, <code>field_adset_name</code>, <code>temperatura_lead</code>, <code>data</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code>. Dicionário: 1ª coluna <code>field_ad_name</code>, 2ª coluna a URL do post.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    let CSV = null, DICT = null;
+    const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
+
+    $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
+    $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
+
+    $('go').addEventListener('click', async () => {
+      const client = slugify($('f-client').value);
+      const slug = slugify($('f-slug').value) || 'criativos';
+      const title = $('f-title').value.trim() || ($('f-client').value.trim() + ' · Análise de Criativos');
+      if (!client) { show('err', 'Informe o nome do cliente.'); return; }
+      if (!CSV) { show('err', 'Escolha o CSV de criativos.'); return; }
+      const cfg = { client, slug, title, type: 'criativos' };
+      $('go').disabled = true;
+      show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
+      try {
+        const fd = new FormData();
+        fd.append('csv', CSV);
+        if (DICT) fd.append('dict', DICT);
+        fd.append('config', JSON.stringify(cfg));
+        const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/generate`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error((d.error || 'falha') + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
+        show('ok', 'Pronto! Abrindo o relatório…');
+        setTimeout(() => { location.href = d.report; }, 700);
+      } catch (err) {
+        show('err', '⚠ ' + err.message);
+      } finally {
+        $('go').disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

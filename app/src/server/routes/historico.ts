@@ -20,6 +20,9 @@ export function registerHistorico(app: Express, _ctx: Ctx): void {
     const opts = {
       launches: Array.isArray(body.launches) ? body.launches.map(String) : undefined,
       metric: typeof body.metric === 'string' ? body.metric : undefined,
+      mode: typeof body.mode === 'string' ? body.mode : undefined,   // criativos: resultado × captação
+      min_invest: typeof body.min_invest === 'number' ? body.min_invest : undefined,
+      temp: typeof body.temp === 'string' ? body.temp : undefined,
     };
     const r = await runRenderView(client, slug, opts);
     if (!r) { res.status(404).json({ error: 'análise sem base retida ou tipo sem recompute' }); return; }

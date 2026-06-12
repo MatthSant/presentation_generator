@@ -10,9 +10,10 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
-import { defFromResolved, type ChartDef } from './charts.js';
+import { defFromResolved, buildOptions, type ChartDef } from './charts.js';
 
 export interface RenderCtx {
   /** Resolve a bind against the loaded datasets + active filters, or null if unbound/error. */
@@ -63,20 +64,30 @@ function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
 /** Robust per-series outlier removal — turns outliers into gaps. Combines MAD
  *  (median absolute deviation) and Tukey IQR fences: MAD catches a single big spike
  *  even in sparse series (≈3–4 pts), where IQR fails because the spike inflates Q3
- *  (and 2σ fails because it inflates σ). Used by the per-chart "outliers" toggle. */
+ *  (and 2σ fails because it inflates σ). Used by the per-chart "outliers" toggle.
+ *
+ *  Cercas DELIBERADAMENTE conservadoras (IQR "far-out" 3×, MAD 5×): numa série
+ *  temporal com tendência (ex.: investimento que cresce a cada lançamento) o ponto
+ *  mais recente é legítimo, não ruído — cercas apertadas (1.5×IQR / 3.5 MAD) o
+ *  cortavam indevidamente. Aqui só sai o pico claramente espúrio (erro de dado),
+ *  não o extremo natural de uma tendência. */
 function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
   const median = (a: number[]) => { const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
   return series.map(s => {
     const nums = s.data.filter((v): v is number => typeof v === 'number');
-    if (nums.length < 4) return s;
+    if (nums.length < 5) return s;
     const sorted = [...nums].sort((a, b) => a - b);
     const med = median(sorted);
     const mad = median(nums.map(v => Math.abs(v - med)).sort((a, b) => a - b));
     const q = (p: number) => { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); };
     const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
-    const madThr = mad > 0 ? 3.5 * 1.4826 * mad : Infinity;
-    const lo = iqr > 0 ? q1 - 1.5 * iqr : -Infinity, hi = iqr > 0 ? q3 + 1.5 * iqr : Infinity;
-    const isOut = (v: number) => Math.abs(v - med) > madThr || v < lo || v > hi;
+    const madThr = mad > 0 ? 5 * 1.4826 * mad : Infinity;
+    const lo = iqr > 0 ? q1 - 3 * iqr : -Infinity, hi = iqr > 0 ? q3 + 3 * iqr : Infinity;
+    // Só remove um ponto se AMBAS as cercas robustas concordam que é espúrio — uma
+    // sozinha dispara fácil demais no extremo de uma tendência (a queixa original).
+    const madOut = (v: number) => Math.abs(v - med) > madThr;
+    const tukeyOut = (v: number) => v < lo || v > hi;
+    const isOut = (v: number) => madOut(v) && tukeyOut(v);
     if (madThr === Infinity && !(iqr > 0)) return s;
     return { name: s.name, data: s.data.map(v => (typeof v === 'number' && isOut(v)) ? null : v) };
   });
@@ -85,7 +96,16 @@ function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
 /* ── chart ── */
 function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'widget-chart');
-  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  if (w.title || w.badge) {
+    const head = el('div', 'chart-head');
+    if (w.title) head.appendChild(el('div', 'chart-title', w.title));
+    if (w.badge) head.appendChild(el('span', `pill ${PILL_TONE[w.badge.tone || 'neutral']} chart-badge`, w.badge.text));
+    wrap.appendChild(head);
+  }
+  if (w.headline) {
+    wrap.appendChild(el('div', 'chart-headline', w.headline.value));
+    if (w.headline.caption) wrap.appendChild(el('div', 'chart-headline-cap', w.headline.caption));
+  }
 
   const height = ctx.chartHeight?.(w.id) ?? w.height;
   // First-class chart variants (scatter trend-line, donut center total, slice
@@ -93,7 +113,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const variant = {
     trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
     showLabels: w.showLabels, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
-    dashLast: w.dashLast, valueFormat: w.valueFormat,
+    dashLast: w.dashLast, valueFormat: w.valueFormat, goalLines: w.goalLines, highlightLast: w.highlightLast,
   };
   let def: ChartDef | null = null;
   if (w.bind) {
@@ -182,6 +202,20 @@ function sparkSvg(data: (number | null)[]): SVGElement | null {
 /* tone → base .pill color modifier (kpi deltas, rich table cells) */
 const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', neutral: 'pill--neutral' };
 
+/* Modo de comparação (meta | hist) do toggle de plataforma. Os badges com `cmp`
+ * leem este modo no render e trocam ao vivo via setCmpMode (sem re-render). */
+let cmpMode: 'meta' | 'hist' = 'meta';
+export function setCmpMode(m: 'meta' | 'hist'): void {
+  cmpMode = m;
+  document.querySelectorAll<HTMLElement>('.pill.kc-cmp').forEach((p) => {
+    const val = p.dataset[m] ?? '';
+    const tone = p.dataset[`${m}Tone`] ?? 'neutral';
+    p.textContent = val;
+    p.className = `pill ${PILL_TONE[tone] ?? PILL_TONE.neutral} kc-cmp`;
+  });
+}
+export function getCmpMode(): 'meta' | 'hist' { return cmpMode; }
+
 /* ── kpi-card ── one elevated metric card (feature = icon+pill+spark; volume = bar) */
 const ICONS: Record<string, string> = {
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
@@ -230,7 +264,15 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   const head = el('div', 'kc-head');
   if (feature) {
     head.appendChild(iconBox(w.icon, w.iconColor));
-    if (w.delta) head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
+    if (w.cmp) {
+      const cur = w.cmp[cmpMode] || w.cmp.meta;
+      const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
+      pill.dataset.meta = w.cmp.meta[0]; pill.dataset.metaTone = w.cmp.meta[1];
+      pill.dataset.hist = w.cmp.hist[0]; pill.dataset.histTone = w.cmp.hist[1];
+      head.appendChild(pill);
+    } else if (w.delta) {
+      head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
+    }
   } else {
     head.appendChild(el('span', 'kc-lbl', w.label));
     head.appendChild(iconBox(w.icon, w.iconColor));
@@ -245,9 +287,30 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
     card.appendChild(row);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+    if (w.d3) {
+      const c = w.d3.tone === 'pos' ? 'c-g' : w.d3.tone === 'neg' ? 'c-r' : 'c-a';
+      const dd = el('div', `kc-d3 ${c}`);
+      dd.appendChild(document.createTextNode(`3d ${w.d3.value} `));
+      if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? '↑3d' : '↓3d'));
+      card.appendChild(dd);
+    }
+    if (w.flag) {
+      const c = w.flag.tone === 'pos' ? 'c-g' : w.flag.tone === 'neg' ? 'c-r' : 'c-a';
+      card.appendChild(el('div', `kc-flag ${c}`, w.flag.text));
+    }
+    if (w.goal) {
+      const g = el('div', 'kc-goal');
+      g.appendChild(el('span', 'kc-goal-lbl', w.goal.label));
+      if (w.goal.delta) {
+        const sym = w.goal.status === 'ok' ? '✓' : w.goal.status === 'bad' ? '✕' : '⚠';
+        g.appendChild(el('span', `kc-goal-val kg-${w.goal.status || 'warn'}`, `${w.goal.delta} ${sym}`));
+      }
+      card.appendChild(g);
+    }
   } else {
     card.appendChild(val);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']} kc-vol-delta`, w.delta));
     card.appendChild(barEl(w.bar || []));
   }
   return card;
@@ -372,7 +435,31 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   const table = el('table');
   const thead = el('thead');
   const hrow = el('tr');
-  for (const h of w.cols || []) {
+
+  // Resolução DEFENSIVA das colunas de uma tabela bindada: o `cols` é aplicado via
+  // r[col], então um RÓTULO ("Tx.Conv") onde a coluna é a chave ("conv") deixaria a
+  // célula vazia. Casa exato → case-insensitive; se NENHUMA coluna casar, cai para as
+  // colunas reais do dataset — nunca uma tabela inteira vazia por mismatch de nome.
+  let rows: TableCell[][];
+  let cols: string[] = w.cols || [];
+  if (w.bind) {
+    const resolved = ctx.resolve(w.bind);
+    if (!resolved || resolved.rows.length === 0) { tw.append(table); wrap.append(tw, empty()); return wrap; }
+    const keys = Object.keys(resolved.rows[0] || {});
+    const byLower = new Map(keys.map(k => [k.toLowerCase(), k]));
+    const keyFor = (c: string): string | null => keys.includes(c) ? c : (byLower.get(c.toLowerCase()) ?? null);
+    let mapped = (w.cols || []).map(c => ({ label: c, key: keyFor(c) }));
+    if (!mapped.length || mapped.every(m => m.key === null)) {
+      if (w.cols?.length) console.warn(`table "${w.title || w.id}": colunas ${JSON.stringify(w.cols)} não casam com o dataset (${keys.join(', ')}); usando as colunas reais.`);
+      mapped = keys.map(k => ({ label: k, key: k }));
+    }
+    cols = mapped.map(m => m.label);
+    rows = resolved.rows.map(r => mapped.map(m => (m.key ? (r[m.key] ?? '') : '') as TableCell));
+  } else {
+    rows = w.rows || [];
+  }
+
+  for (const h of cols) {
     const th = el('th', '', h);
     const def = w.defs?.[h];
     if (def) { th.appendChild(document.createTextNode(' ')); th.appendChild(infoBadge(def)); }
@@ -382,16 +469,6 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   table.appendChild(thead);
 
   const tbody = el('tbody');
-  let rows: TableCell[][];
-  if (w.bind) {
-    const resolved = ctx.resolve(w.bind);
-    if (!resolved || resolved.rows.length === 0) { tw.append(table); wrap.append(tw, empty()); return wrap; }
-    rows = resolved.rows.map(r => (w.cols || []).map(c => (r[c] ?? '') as TableCell));
-  } else {
-    rows = w.rows || [];
-  }
-
-  const cols = w.cols || [];
   for (const r of rows) {
     const tr = el('tr');
     r.forEach((cell, i) => {
@@ -403,6 +480,11 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
         td.appendChild(el('span', 'tm-val', formatValue(value)));
         td.appendChild(el('span', `pill ${PILL_TONE[obj.tone || 'neutral']} tm-pill`, obj.delta));
         if (obj.rel) td.appendChild(el('span', 'tm-rel', obj.rel));
+      } else if (obj && obj.link) {
+        const a = el('a', 'td-link') as HTMLAnchorElement;
+        a.href = obj.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = formatValue(value); a.appendChild(el('span', 'td-link-ic', ' ↗'));
+        td.appendChild(a);
       } else {
         td.textContent = formatValue(value);
       }
@@ -638,6 +720,104 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
   return div;
 }
 
+/* ── qa-card ── unidade "pergunta" da Análise 360°: chip + título + grade de
+ * números-chave + chips de veredito + 1 gráfico embutido (reusa renderChart). */
+function renderQaCard(w: QaCardWidget, ctx: RenderCtx): HTMLElement {
+  const color = w.qColor || 'p';
+  const card = el('div', `qa-card qa-${color}`);
+  const head = el('div', 'qa-head');
+  if (w.q) head.appendChild(el('span', `qa-chip qa-chip-${color}`, w.q));
+  head.appendChild(el('span', 'qa-title', w.title));
+  if (w.verdict) head.appendChild(el('span', `pill ${PILL_TONE[w.verdict.tone || 'neutral']} qa-verdict`, w.verdict.label));
+  card.appendChild(head);
+  if (w.stats?.length) {
+    const grid = el('div', 'qa-stats');
+    for (const s of w.stats) {
+      const tile = el('div', `qa-stat qa-stat-${s.tone || 'neutral'}`);
+      tile.appendChild(el('div', 'qa-stat-l', s.label));
+      tile.appendChild(el('div', 'qa-stat-v', s.value));
+      if (s.sub || s.delta) {
+        const sub = el('div', 'qa-stat-s');
+        if (s.sub) sub.appendChild(document.createTextNode(`${s.sub} `));
+        if (s.delta) sub.appendChild(el('span', `pill ${PILL_TONE[s.tone === 'pos' ? 'pos' : s.tone === 'neg' ? 'neg' : 'neutral']}`, s.delta));
+        tile.appendChild(sub);
+      }
+      grid.appendChild(tile);
+    }
+    card.appendChild(grid);
+  }
+  if (w.chips?.length) {
+    const row = el('div', 'qa-chips');
+    for (const ch of w.chips) row.appendChild(el('span', `qa-vchip qa-vchip-${ch.tone || 'neutral'}`, `${ch.glyph ? ch.glyph + ' ' : ''}${ch.label}`));
+    card.appendChild(row);
+  }
+  if (w.chart) {
+    const slot = el('div', 'qa-chart');
+    slot.appendChild(renderChart({ ...w.chart, type: 'chart', id: `${w.id}-chart` } as ChartWidget, ctx));
+    card.appendChild(slot);
+  }
+  return card;
+}
+
+/* ── funnel ── funil visual: barras degradê por etapa + pills perda/migram. */
+const FUNNEL_GRAD = ['#534AB7', '#6257C4', '#7265D1', '#8374DC', '#9787E5', '#AFA9EC'];
+function renderFunnel(w: FunnelWidget): HTMLElement {
+  const wrap = el('div', 'funnel-card');
+  if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
+  if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
+  const body = el('div', 'funnel-body');
+  const n = w.steps.length;
+  w.steps.forEach((s, i) => {
+    const bar = el('div', 'funnel-bar');
+    bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
+    // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
+    bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
+    bar.appendChild(el('span', 'funnel-bar-l', s.label));
+    bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
+    body.appendChild(bar);
+    const t = w.transitions?.[i];
+    if (t && i < n - 1) {
+      body.appendChild(el('div', 'funnel-conn'));
+      const pills = el('div', 'funnel-pills');
+      if (t.invalid) {
+        pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
+      } else {
+        // abaixo do benchmark (gap>0) → a migração é um ALERTA (âmbar/vermelho), não um ✓.
+        const below = t.gap != null && t.gap > 0;
+        if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
+          `${t.worst ? '⚠️ ' : '▼ '}${t.loss.toFixed(1)}% perda${t.worst ? ' · MAIOR FURO' : ''}`));
+        if (t.migrate != null) {
+          const cls = t.worst ? 'funnel-pill--worst' : (below ? 'funnel-pill--alert' : 'funnel-pill--migrate');
+          pills.appendChild(el('span', `funnel-pill ${cls}`, `${(t.worst || below) ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}% migram`));
+        }
+        if (t.bench != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--bench', `esperado ${t.bench.toFixed(0)}%`));
+      }
+      body.appendChild(pills);
+    }
+  });
+  wrap.appendChild(body);
+  return wrap;
+}
+
+/* ── strat-grid ── perguntas estratégicas: colunas de cards com linhas
+ *  "pergunta · chip de achado · valor de apoio" (espelha o One Pager da fonte). */
+function renderStratGrid(w: StratGridWidget): HTMLElement {
+  const grid = el('div', 'strat-grid');
+  for (const col of w.cols || []) {
+    const card = el('div', 'strat-col');
+    card.appendChild(el('div', 'strat-col-t', col.title));
+    for (const it of col.items || []) {
+      const row = el('div', 'strat-row');
+      row.appendChild(el('span', 'strat-q', it.q));
+      if (it.chip) row.appendChild(el('span', `pill ${PILL_TONE[it.chip.tone || 'neutral']} strat-chip`, it.chip.text));
+      if (it.val) row.appendChild(el('span', 'strat-val', it.val));
+      card.appendChild(row);
+    }
+    grid.appendChild(card);
+  }
+  return grid;
+}
+
 function renderFindNote(w: FindNoteWidget): HTMLElement {
   const p = el('p', 'find-note find-note-p');
   p.innerHTML = w.text || '';
@@ -698,6 +878,39 @@ function renderXs(w: XsWidget): HTMLElement {
   return p;
 }
 
+/* ── embed ── preview de uma publicação (Instagram via iframe /embed/; demais
+ *  plataformas caem num placeholder com link). */
+function renderEmbed(w: EmbedWidget): HTMLElement {
+  const card = el('div', 'embed-card');
+  if (w.title) card.appendChild(el('div', 'embed-title', w.title));
+  const url = (w.url || '').trim();
+  const m = url.match(/instagram\.com\/(p|reel|reels|tv)\/([^/?#]+)/i);
+  if (m) {
+    const kind = m[1] === 'reels' ? 'reel' : m[1];
+    const iframe = document.createElement('iframe');
+    iframe.className = 'embed-ig';
+    iframe.src = `https://www.instagram.com/${kind}/${m[2]}/embed/`;
+    iframe.loading = 'lazy';
+    iframe.setAttribute('scrolling', 'no');
+    iframe.setAttribute('allowtransparency', 'true');
+    iframe.setAttribute('title', w.title || 'Post do Instagram');
+    card.appendChild(iframe);
+    if (w.caption) card.appendChild(el('div', 'embed-cap', w.caption));
+    return card;
+  }
+  const ph = el('div', 'embed-ph');
+  ph.appendChild(el('div', 'embed-ph-t', w.platform === 'Facebook' ? 'Anúncio no Facebook' : 'Pré-visualização indisponível'));
+  if (url) {
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.className = 'embed-link'; a.textContent = 'Abrir anúncio ↗';
+    ph.appendChild(a);
+  }
+  card.appendChild(ph);
+  if (w.caption) card.appendChild(el('div', 'embed-cap', w.caption));
+  return card;
+}
+
 /* ── methodology widgets ── bullets may carry inline <strong>/<em>, so each li
  *  is set via innerHTML (same trust model as find-block/ni). */
 function bulletList(items: string[]): HTMLElement {
@@ -756,6 +969,147 @@ function renderGrpList(w: GrpListWidget): HTMLElement {
   return wrap;
 }
 
+/* ── link-card ── grid de cards clicáveis que abrem uma seção (ficha). Cada card:
+ *  nome + sub + tags + métricas 2×2 + indicador principal com barra. O clique
+ *  dispara 'goto-section' (o main navega). */
+function renderLinkCard(w: LinkCardWidget): HTMLElement {
+  const wrap = el('div', 'lc-wrap');
+  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  const grid = el('div', 'lc-grid');
+  for (const c of w.cards || []) {
+    const card = el('button', 'lc-card') as HTMLButtonElement;
+    card.type = 'button';
+    const head = el('div', 'lc-head');
+    head.append(el('div', 'lc-name', c.title), el('div', 'lc-sub', c.sub || ''));
+    card.appendChild(head);
+    if (c.tags?.length) {
+      const t = el('div', 'lc-tags');
+      for (const tg of c.tags) t.appendChild(el('span', `lc-tag lc-tag-${tg.tone || 'n'}`, tg.label));
+      card.appendChild(t);
+    }
+    if (c.metrics?.length) {
+      const m = el('div', 'lc-metrics');
+      for (const mt of c.metrics) {
+        const cell = el('div', 'lc-metric');
+        cell.append(el('div', 'lc-m-v', mt.value), el('div', 'lc-m-l', mt.label));
+        m.appendChild(cell);
+      }
+      card.appendChild(m);
+    }
+    if (c.main) {
+      const mn = el('div', `lc-main lc-main-${c.main.tone || 'p'}`);
+      mn.append(el('div', 'lc-main-l', c.main.label), el('div', 'lc-main-v', c.main.value));
+      if (typeof c.main.pct === 'number') {
+        const bar = el('div', 'lc-bar');
+        const fill = el('div', 'lc-bar-f');
+        fill.style.width = `${Math.max(0, Math.min(100, c.main.pct))}%`;
+        bar.appendChild(fill);
+        mn.appendChild(bar);
+      }
+      card.appendChild(mn);
+    }
+    if (c.gotoSection) {
+      card.addEventListener('click', () => document.dispatchEvent(
+        new CustomEvent('goto-section', { detail: { page: c.gotoPage, section: c.gotoSection } })));
+    }
+    grid.appendChild(card);
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ── scatter-picker ── dispersão com 2 dropdowns (X e Y). Reconstrói o scatter
+ *  client-side a partir das métricas embutidas; gerencia a própria instância
+ *  ApexCharts. Cada ponto = um criativo (nome no hover). */
+function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
+  const wrap = el('div', 'sp-wrap');
+  const hd = el('div', 'sp-hd');
+  if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
+  const mkSel = (cur: string): HTMLSelectElement => {
+    const s = document.createElement('select');
+    s.className = 'sp-sel';
+    for (const m of w.metrics) {
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.label; if (m.id === cur) o.selected = true;
+      s.appendChild(o);
+    }
+    return s;
+  };
+  const xSel = mkSel(w.x || w.metrics[0]?.id || '');
+  const ySel = mkSel(w.y || w.metrics[1]?.id || w.metrics[0]?.id || '');
+  const ctrls = el('div', 'sp-ctrls');
+  ctrls.append(el('span', 'sp-lbl', 'X'), xSel, el('span', 'sp-lbl', 'Y'), ySel);
+  hd.appendChild(ctrls);
+  wrap.appendChild(hd);
+  const host = el('div', 'sp-chart');
+  wrap.appendChild(host);
+
+  let chart: ApexInstance | null = null;
+  const build = (): void => {
+    const xk = xSel.value, yk = ySel.value;
+    const xm = w.metrics.find(m => m.id === xk), ym = w.metrics.find(m => m.id === yk);
+    const series = (w.points || [])
+      .filter(p => p.vals[xk] != null && p.vals[yk] != null)
+      .map(p => ({ name: p.name, data: [{ x: p.vals[xk], y: p.vals[yk] }] }));
+    const def = {
+      type: 'scatter', series, height: w.height ?? 320, colors: ['#7C3AED'],
+      options: { legend: { show: false }, tooltip: { shared: false },
+        xaxis: { type: 'numeric', title: { text: xm?.label } }, yaxis: { title: { text: ym?.label } } },
+    } as unknown as ChartDef;
+    const opts = buildOptions(def);
+    if (chart) { void chart.updateOptions(opts); return; }
+    if (typeof ApexCharts === 'undefined') return;
+    chart = new ApexCharts(host, opts);
+    void chart.render();
+  };
+  xSel.addEventListener('change', build);
+  ySel.addEventListener('change', build);
+  requestAnimationFrame(build);
+  return wrap;
+}
+
+/* ── evolution-picker ── linha no tempo com 1 dropdown de métrica; reconstrói a
+ *  série client-side a partir das métricas embutidas (reusa o chrome do scatter-picker). */
+function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
+  const wrap = el('div', 'sp-wrap');
+  const hd = el('div', 'sp-hd');
+  if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
+  const cur = w.current || w.metrics[0]?.id || '';
+  const sel = document.createElement('select');
+  sel.className = 'sp-sel';
+  for (const m of w.metrics) {
+    const o = document.createElement('option');
+    o.value = m.id; o.textContent = m.label; if (m.id === cur) o.selected = true;
+    sel.appendChild(o);
+  }
+  const ctrls = el('div', 'sp-ctrls');
+  ctrls.append(el('span', 'sp-lbl', 'Métrica'), sel);
+  hd.appendChild(ctrls);
+  wrap.appendChild(hd);
+  const host = el('div', 'sp-chart');
+  wrap.appendChild(host);
+
+  const cats = (w.points || []).map(p => p.name);
+  let chart: ApexInstance | null = null;
+  const build = (): void => {
+    const mk = sel.value;
+    const m = w.metrics.find(x => x.id === mk);
+    const data = (w.points || []).map(p => (p.vals[mk] ?? null));
+    const def = {
+      type: 'line', series: [{ name: m?.label || mk, data }], categories: cats,
+      height: w.height ?? 320, colors: ['#7C3AED'], valueFormat: m?.fmt,
+    } as unknown as ChartDef;
+    const opts = buildOptions(def);
+    if (chart) { void chart.updateOptions(opts); return; }
+    if (typeof ApexCharts === 'undefined') return;
+    chart = new ApexCharts(host, opts);
+    void chart.render();
+  };
+  sel.addEventListener('change', build);
+  requestAnimationFrame(build);
+  return wrap;
+}
+
 /* ── dispatch ── */
 export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
   try {
@@ -773,6 +1127,9 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'chart-toggle': return renderChartToggle(widget, ctx);
       case 'rank-card':   return renderRankCard(widget, ctx);
       case 'find-block':  return renderFindBlock(widget);
+      case 'qa-card':     return renderQaCard(widget, ctx);
+      case 'funnel':      return renderFunnel(widget);
+      case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);
       case 'ni':
@@ -783,6 +1140,10 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'def-step':    return renderDefStep(widget);
       case 'mdef-block':  return renderMdefBlock(widget);
       case 'grp-list':    return renderGrpList(widget);
+      case 'embed':       return renderEmbed(widget);
+      case 'link-card':   return renderLinkCard(widget);
+      case 'scatter-picker': return renderScatterPicker(widget);
+      case 'evolution-picker': return renderEvolutionPicker(widget);
       default:            return errorCard((widget as { type: string }).type, 'tipo desconhecido');
     }
   } catch (e) {

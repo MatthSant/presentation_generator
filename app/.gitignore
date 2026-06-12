@@ -1,6 +1,9 @@
 node_modules/
 dist/
-public/js/
+# public/js é o outDir do tsc client (build) — ignorado. EXCETO page-chrome.js, que é
+# fonte escrita à mão (sem .ts) e precisa ser versionada para deployar.
+public/js/*
+!public/js/page-chrome.js
 *.tsbuildinfo
 *.log
 coverage/

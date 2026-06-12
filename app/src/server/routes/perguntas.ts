@@ -16,7 +16,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { Express, Request, Response } from 'express';
 import type { Ctx } from '../context.js';
-import type { PerguntasDoc, Pergunta, ReportData, PageRef, Section } from '../../shared/types.js';
+import type { PerguntasDoc, Pergunta, ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
 import { typeOf } from '../typeRegistry.js';
@@ -69,6 +69,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const m = new Map<string, { status: 'seguida' | 'ignorada'; det?: string }>();
     for (const r of rows) {
       if (r.acao === 'ignorar') m.set(r.pergunta_id, { status: 'ignorada' });
+      else if (r.acao === 'descartar') m.delete(r.pergunta_id);
       else if (r.acao === 'seguir' || r.acao === 'detalhamento') {
         const prev = m.get(r.pergunta_id);
         const det = r.modal_id || (prev?.status === 'seguida' ? prev.det : undefined);
@@ -104,9 +105,17 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const { client, slug } = req.params;
     const dir = analysisDir(ctx.out, client, slug);
     const file = docPath(client, slug);
-    // First access: derive the ranked questions from the analysis data on demand.
-    if (dir && file && !fs.existsSync(file) && fs.existsSync(path.join(dir, 'dataset.json'))) {
-      await generateDoc(dir).catch(() => { /* fall through to empty */ });
+    // Deriva (ou re-deriva) as perguntas ranqueadas a partir do dataset quando o doc
+    // está AUSENTE, VAZIO ou DEFASADO (dataset regenerado depois dele). Sem o caso
+    // "vazio/defasado", um perguntas.json salvo sem perguntas — ou anterior a uma
+    // regeração da análise — travava a página para sempre.
+    const dsFile = dir ? path.join(dir, 'dataset.json') : '';
+    if (dir && file && dsFile && fs.existsSync(dsFile)) {
+      const existing = fs.existsSync(file) ? readJson<PerguntasDoc>(file) : null;
+      const stale = !existing
+        || !(existing.perguntas || []).length
+        || fs.statSync(dsFile).mtimeMs > fs.statSync(file).mtimeMs;
+      if (stale) await generateDoc(dir).catch(() => { /* fall through to empty */ });
     }
     const doc = file ? readJson<PerguntasDoc>(file) : null;
     // Idempotent: keep the nav page present even after the analysis is regenerated
@@ -151,8 +160,9 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       r = await generateDetalhamento({
         out: ctx.out, client, slug,
         srcSecId: p.deepen.sectionId, blockId: p.deepen.blockId, prompt: p.deepen.prompt,
-        resultId: sectionId,
+        resultId: sectionId, objetivo: p.pergunta,
         fewShot: getFewShot(ctx.db, analysisTypeOf(client, slug, dir), 3),
+        onProgress: (msg) => ctx.emitProgress?.(client, slug, msg),
       });
     } catch (e) {
       // falha também vira histórico (instrumentação do harness)
@@ -175,10 +185,19 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       prompt: p.deepen.prompt, cardContext: r.cardContext,
       modalJson: { title: p.pergunta, widgets: r.widgets },
       validatedOk: true, usage: r.usage, mocked: r.mocked,
+      gateAttempts: r.gate.attempts, gateIssues: r.gate.issues, gateResidual: r.gate.residual,
     });
     section.historyId = historyId;   // âncora do rating no rodapé da seção
     ctx.skipNextSSE.add(`${sectionId}.json`);
     writeJson(path.join(dir, `${sectionId}.json`), section);
+    // disposição decidida pelo agente de layout → grade de coordenadas da seção
+    if (r.layout?.length) {
+      const layoutFile = path.join(dir, 'layout.json');
+      const layout = readJson<Layout>(layoutFile) || { sections: {} };
+      (layout.sections ||= {})[sectionId] = r.layout;
+      ctx.skipNextSSE.add('layout.json');
+      writeJson(layoutFile, layout);
+    }
     attachToDetalhamentos(dir, { id: sectionId, label });
     record(client, slug, p, 'detalhamento', sectionId);
     return { sectionId, mocked: r.mocked, historyId };

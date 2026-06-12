@@ -7,6 +7,13 @@
       "runtimeArgs": ["dist/server/index.js"],
       "cwd": "app",
       "port": 3131
+    },
+    {
+      "name": "verify-authoff",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/Matheus/AppData/Local/Temp/_verify_launch.mjs"],
+      "cwd": "app",
+      "port": 3141
     }
   ]
 }

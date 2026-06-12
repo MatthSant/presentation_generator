@@ -26,6 +26,11 @@ export interface DeepenEntry {
   validationErrors?: string[];
   usage?: ModalUsage;
   mocked: boolean;
+  /** Telemetria do gate de qualidade (loop máx-3): quantas tentativas, todas as
+   *  issues encontradas/reparadas e as que sobraram na versão entregue. */
+  gateAttempts?: number;
+  gateIssues?: string[];
+  gateResidual?: string[];
 }
 
 export function recordDeepen(db: DB, e: DeepenEntry): string {
@@ -34,11 +39,13 @@ export function recordDeepen(db: DB, e: DeepenEntry): string {
     INSERT INTO deepen_history
       (id, client, slug, analysis_type, origem, section_id, block_id, modal_id,
        prompt, prev_modal_id, card_context, modal_json, validated_ok,
-       validation_errors, model, tokens_in, tokens_out, cost_usd, mocked, created_at)
+       validation_errors, model, tokens_in, tokens_out, cost_usd, mocked,
+       gate_attempts, gate_issues, gate_residual, created_at)
     VALUES
       (@id, @client, @slug, @analysis_type, @origem, @section_id, @block_id, @modal_id,
        @prompt, @prev_modal_id, @card_context, @modal_json, @validated_ok,
-       @validation_errors, @model, @tokens_in, @tokens_out, @cost_usd, @mocked, @created_at)
+       @validation_errors, @model, @tokens_in, @tokens_out, @cost_usd, @mocked,
+       @gate_attempts, @gate_issues, @gate_residual, @created_at)
   `).run({
     id, client: e.client, slug: e.slug, analysis_type: e.analysisType, origem: e.origem,
     section_id: e.sectionId || '', block_id: e.blockId || '', modal_id: e.modalId || '',
@@ -49,7 +56,11 @@ export function recordDeepen(db: DB, e: DeepenEntry): string {
     validation_errors: JSON.stringify(e.validationErrors ?? []),
     model: e.usage?.model || '', tokens_in: e.usage?.tokensIn ?? null,
     tokens_out: e.usage?.tokensOut ?? null, cost_usd: e.usage?.costUsd ?? null,
-    mocked: e.mocked ? 1 : 0, created_at: new Date().toISOString(),
+    mocked: e.mocked ? 1 : 0,
+    gate_attempts: e.gateAttempts ?? 1,
+    gate_issues: JSON.stringify(e.gateIssues ?? []),
+    gate_residual: JSON.stringify(e.gateResidual ?? []),
+    created_at: new Date().toISOString(),
   });
   return id;
 }
@@ -102,7 +113,7 @@ export function listHistory(db: DB, f: HistoryFilters = {}): Array<Record<string
   if (f.ids?.length) { where.push(`id IN (${f.ids.map(() => '?').join(',')})`); args.push(...f.ids); }
   const sql = `SELECT id, client, slug, analysis_type, origem, section_id, block_id, modal_id,
       prompt, validated_ok, validation_errors, model, tokens_in, tokens_out, cost_usd,
-      mocked, rating, feedback_text, status, created_at
+      mocked, rating, feedback_text, status, gate_attempts, gate_issues, gate_residual, created_at
     FROM deepen_history ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY created_at DESC LIMIT ?`;
   args.push(Math.min(Math.max(f.limit ?? 50, 1), 500));

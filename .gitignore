@@ -1,3 +1,6 @@
+# Arquivos fora do app (skills antigas, dados de cliente, artefatos) — movidos para cá
+backup/
+
 _source/
 input/
 temp/
@@ -18,8 +21,16 @@ __pycache__/
 
 # Dados de runtime (SQLite + log das chamadas Claude) — nunca versionar
 app/data/
+# SQLite baixado de produção p/ refino (dado de cliente) + dump de análise — nunca versionar
+*.db
+*.db-wal
+*.db-shm
+comments-prod.db
+temp_feedback_*.md
 
 # Scratch de uploads (CSV bruto transitório) — nunca versionar
 app/.scratch/
 # Dado-base retido por análise (Fase 3b) — dado de cliente, nunca versionar
 app/.base/
+.claude/settings.local.json
+.claude/settings.local.json

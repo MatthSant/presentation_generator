@@ -10,13 +10,14 @@ import os from 'node:os';
 import path from 'node:path';
 import request from 'supertest';
 import { createApp, type CreatedApp } from '../../src/server/app.js';
-import { openDb } from '../../src/server/db.js';
+import { openDb, type DB } from '../../src/server/db.js';
 
 const CLIENT = 'acme';
 const SLUG = 'ltv-mai-2026';
 
 let tmp: string;
 let created: CreatedApp;
+let db: DB;
 
 function analysisPath(...parts: string[]): string {
   return path.join(tmp, CLIENT, SLUG, ...parts);
@@ -56,7 +57,8 @@ const SECTION = {
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ltv-srv-'));
-  created = createApp({ out: tmp, db: openDb(':memory:') });
+  db = openDb(':memory:');
+  created = createApp({ out: tmp, db });
 });
 afterEach(() => {
   created.close();
@@ -241,6 +243,63 @@ test('GET /api/edits → global log across analyses', async () => {
   assert.equal(res.status, 200);
   assert.equal(res.body.length, 1);
   assert.equal(res.body[0].client, CLIENT);
+});
+
+/* ── descartar detalhamento ── */
+
+test('descartar det: remove arquivo + ref + layout; mantém a página se sobrar det', async () => {
+  writeFixture('data.json', {
+    meta: { client: 'ACME' },
+    pages: [
+      { id: 'p1', label: 'Geral', sections: [{ id: 's01', label: 'Receita' }] },
+      { id: 'detalhamentos', label: 'Detalhamentos', sections: [
+        { id: 'det-abc-111111', label: 'Q1' }, { id: 'det-def-222222', label: 'Q2' }] },
+    ],
+  });
+  writeFixture('det-abc-111111.json', { id: 'det-abc-111111', header: { title: 'Q1' }, widgets: [{ id: 'w0', type: 'xs', text: 'a' }] });
+  writeFixture('det-def-222222.json', { id: 'det-def-222222', header: { title: 'Q2' }, widgets: [{ id: 'w0', type: 'xs', text: 'b' }] });
+  writeFixture('layout.json', { sections: { 'det-abc-111111': [{ id: 'w0', x: 0, y: 0, w: 6, h: 2 }], s01: [] } });
+  db.prepare(`INSERT INTO perguntas_history (id, client, slug, pergunta_id, pergunta, acao, modal_id, created_at)
+              VALUES (?, ?, ?, ?, ?, 'detalhamento', ?, ?)`)
+    .run('e1', CLIENT, SLUG, 'q1', 'Pergunta?', 'det-abc-111111', '2026-05-01T00:00:00Z');
+
+  const res = await request(created.app).post(`/api/${CLIENT}/${SLUG}/det/det-abc-111111/descartar`).send({});
+  assert.equal(res.status, 200);
+  assert.equal(res.body.pageRemoved, false);
+  assert.equal(fs.existsSync(analysisPath('det-abc-111111.json')), false);
+
+  const data = JSON.parse(fs.readFileSync(analysisPath('data.json'), 'utf8'));
+  const det = data.pages.find((p: { id: string }) => p.id === 'detalhamentos');
+  assert.ok(det, 'a página Detalhamentos permanece');
+  assert.deepEqual(det.sections.map((s: { id: string }) => s.id), ['det-def-222222']);
+
+  const layout = JSON.parse(fs.readFileSync(analysisPath('layout.json'), 'utf8'));
+  assert.equal('det-abc-111111' in layout.sections, false);
+
+  const row = db.prepare(`SELECT acao FROM perguntas_history WHERE modal_id = ? ORDER BY created_at DESC LIMIT 1`)
+    .get('det-abc-111111') as { acao: string };
+  assert.equal(row.acao, 'descartar');
+});
+
+test('descartar det: remove a página Detalhamentos quando esvazia', async () => {
+  writeFixture('data.json', { meta: {}, pages: [
+    { id: 'p1', label: 'Geral', sections: [{ id: 's01', label: 'x' }] },
+    { id: 'detalhamentos', label: 'Detalhamentos', sections: [{ id: 'det-solo-999999', label: 'Q' }] }] });
+  writeFixture('det-solo-999999.json', { id: 'det-solo-999999', header: { title: 'Q' }, widgets: [{ id: 'w', type: 'xs', text: 'x' }] });
+
+  const res = await request(created.app).post(`/api/${CLIENT}/${SLUG}/det/det-solo-999999/descartar`).send({});
+  assert.equal(res.status, 200);
+  assert.equal(res.body.pageRemoved, true);
+  const data = JSON.parse(fs.readFileSync(analysisPath('data.json'), 'utf8'));
+  assert.equal(data.pages.some((p: { id: string }) => p.id === 'detalhamentos'), false);
+});
+
+test('descartar: recusa id que não é det-* (400) e arquivo inexistente (404)', async () => {
+  writeFixture('s01.json', SECTION);
+  const bad = await request(created.app).post(`/api/${CLIENT}/${SLUG}/det/s01/descartar`).send({});
+  assert.equal(bad.status, 400);
+  const missing = await request(created.app).post(`/api/${CLIENT}/${SLUG}/det/det-nao-existe/descartar`).send({});
+  assert.equal(missing.status, 404);
 });
 
 /* ── path safety ── */

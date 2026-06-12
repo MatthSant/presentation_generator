@@ -197,6 +197,37 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'label-sec':
       if (!isNonEmptyStr(w.text)) c.err(`${path}.text`, `${type} text is required`);
       break;
+    case 'embed':
+      if (!isNonEmptyStr(w.url)) c.err(`${path}.url`, 'embed url is required');
+      break;
+    case 'link-card':
+      if (!Array.isArray(w.cards)) c.err(`${path}.cards`, 'link-card requires a cards array');
+      break;
+    case 'scatter-picker':
+      if (!Array.isArray(w.metrics)) c.err(`${path}.metrics`, 'scatter-picker requires a metrics array');
+      if (!Array.isArray(w.points)) c.err(`${path}.points`, 'scatter-picker requires a points array');
+      break;
+    case 'evolution-picker':
+      if (!Array.isArray(w.metrics)) c.err(`${path}.metrics`, 'evolution-picker requires a metrics array');
+      if (!Array.isArray(w.points)) c.err(`${path}.points`, 'evolution-picker requires a points array');
+      break;
+    case 'qa-card': {
+      if (!isNonEmptyStr(w.title)) c.err(`${path}.title`, 'qa-card title is required');
+      const ch = w.chart as Obj | undefined;
+      if (ch && isObj(ch) && isObj(ch.bind) && datasets) {
+        const b = ch.bind as Obj;
+        if (b.y !== undefined && isStr(b.y) && !isNumericColumn(datasets, b.dataset, b.y)) {
+          c.err(`${path}.chart.bind.y`, `qa-card chart y "${b.y}" is not numeric`);
+        }
+      }
+      break;
+    }
+    case 'funnel':
+      if (!Array.isArray(w.steps) || w.steps.length === 0) c.err(`${path}.steps`, 'funnel requires a steps array');
+      break;
+    case 'strat-grid':
+      if (!Array.isArray(w.cols) || w.cols.length === 0) c.err(`${path}.cols`, 'strat-grid requires a cols array');
+      break;
   }
 }
 

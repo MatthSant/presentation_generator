@@ -72,7 +72,9 @@ export class PerguntasView {
     const niv = (p.nivel && NIVEL[p.nivel]) || NIVEL.media;
     const tag = isCustom ? { label: 'Sua pergunta', cls: 'pg-tag-custom' } : niv;
     const rel = isCustom || p.relevancia == null ? '' : `<span class="pg-rel" title="Relevância calculada">${Math.round(p.relevancia)}</span>`;
-    const pid = isCustom ? '✎' : esc(p.id);
+    // Perguntas do banco têm id interno (ex.: "cp-sustain") sem significado para o
+    // consultor — não exibir o código cru. Só o marcador "✎" de pergunta própria.
+    const pid = isCustom ? '✎' : '';
     const kpis = (p.kpis || []).slice(0, 3).map((k) => `
       <div class="pg-kpi"><div class="pg-kpi-v">${esc(k.value)}</div><div class="pg-kpi-l">${esc(k.label)}</div></div>`).join('');
     const kpisBlock = kpis ? `<div class="pg-kpis">${kpis}</div>` : '';
@@ -95,7 +97,7 @@ export class PerguntasView {
         <div class="pg-card-top">
           <span class="pg-tag ${tag.cls}">${esc(tag.label)}</span>
           ${rel}
-          <span class="pg-pid">${pid}</span>
+          ${pid ? `<span class="pg-pid">${pid}</span>` : ''}
         </div>
         <h2 class="pg-q">${esc(p.pergunta)}</h2>
         <p class="pg-just">${esc(p.justificativa)}</p>

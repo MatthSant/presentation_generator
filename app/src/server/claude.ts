@@ -10,6 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { Digest, DeepenCatalog } from './datasetCatalog.js';
+import type { LayoutItem } from '../shared/types.js';
+import { auditLayout, rowsToItems, packFallback, type Audit, type LayoutCell, type LayWidget } from './layoutAudit.js';
 import { CLAUDE_LOG } from './paths.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
@@ -145,10 +147,93 @@ export async function generateInsights(digest: Digest, opts?: { tone?: string })
 
 // --- B2: deepen a card into a modal -----------------------------------------
 
-const MODAL_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil, gerando uma MODAL
+const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha pelo dado, não por estética):
+- NUNCA um gráfico de valor único / 1 categoria (ex.: uma barra "Geral" sozinha): um número é um kpi, não um gráfico.
+- bar / bar-horizontal: comparar 2–12 categorias discretas. Não use com 1 categoria nem com >16.
+- line / area: evolução ao longo do tempo (≥3 pontos no eixo). Não use para categorias sem ordem temporal.
+- stacked: composição que soma um todo (partes de 100%/total). Não use se as séries não compõem um todo.
+- donut: participação de poucas fatias (≤6). Não use para evolução nem com muitas fatias.
+- SÉRIES (agrupado/empilhado): no máximo ~6. Com mais (ex.: uma por lançamento) o gráfico fica ilegível —
+  agregue, foque nas MAIORES variações, ou use heatmap. Tabela vazia (só cabeçalho) ou gráfico que não
+  comunica é DEFEITO: corte ou troque por kpi/prosa.
+- MULTI-LINHA / multi-série de MÉTRICAS de ESCALA COMPARÁVEL (ex.: leads pago × leads orgânico por dia,
+  CPL × CPMQL por semana): PODE e DEVE. Chame a consulta "series_long" (devolve formato longo com colunas
+  "serie" e "valor") e plote um line/bar com bind { x: <eixo>, y: "valor", series: "serie" } — vira 2+ linhas
+  no mesmo eixo. Só exige que as métricas dividam ordem de grandeza parecida.
+- LIMITE deste detalhamento: NÃO tem gráfico de DISPERSÃO (correlação ponto-a-ponto entre duas métricas) nem
+  EIXO DUPLO (duas métricas de escalas MUITO diferentes em eixos y independentes, ex.: investimento R$ ×
+  conversão %). Para esses casos NÃO finja eixo duplo: ponha as duas métricas como COLUNAS de uma TABLE — com
+  a variação/Δ% já calculada quando der — e registre num find-note, em uma linha, que dispersão/eixo-duplo não
+  está disponível aqui. (Métricas de MESMA escala → use series_long e plote multi-linha, acima.)`;
+
+const GUARDRAIL = `GUARDRAIL — NUNCA perca de vista a PERGUNTA ORIGINAL (campo "pergunta_original" do input): toda a
+saída existe para respondê-la. Pedidos de revisão/ajuste ("instrucao") refinam a FORMA (trocar gráfico,
+encurtar, focar um grupo) — JAMAIS trocam o alvo. Se um ajuste afastaria a saída da pergunta original,
+priorize a pergunta. A primeira coisa que o leitor deve extrair é a resposta DIRETA à pergunta original.`;
+
+const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
+- O PRIMEIRO widget é SEMPRE um highlight que responde a "pergunta_original" em UMA frase, com o número
+  decisivo (ex.: "CPL explicou ~65% da dispersão do CPA; conversão, ~35%"). Nunca deixe a resposta só no fim.
+- LINGUAGEM DO CLIENTE, não do analista: quem lê é o cliente final (dono do negócio), não um analista de dados.
+  Escreva em português claro e direto; explique o porquê em termos de negócio (o que isso significa para a
+  campanha/o resultado). Evite jargão estatístico cru (dispersão, R², variância, correlação, p.p. sem contexto,
+  "qualificador/qualificante", nomes de coluna) — se um termo técnico for inevitável, dê o significado em
+  meia linha. Prefira "explicou a maior parte da variação do custo" a "respondeu por 65% da dispersão".
+- Pergunta ANALÍTICA (o que causou? qual fator pesa mais? qual a relação?) → entregue o DIAGNÓSTICO com
+  números. NÃO a transforme em lista de "o que fazer": só inclua widgets de ação (ni/ni-vertical) quando a
+  pergunta pedir recomendação explícita.
+- EIXO DA PERGUNTA: nível (qual é MAIOR / converte mais) ≠ tendência (o que está MELHORANDO/PIORANDO) ≠
+  causa (qual fator EXPLICA a variação). São perguntas diferentes — responda exatamente o eixo pedido; não
+  troque "o que está mudando" por "o que mais converte".
+- AMPLIAÇÃO DE CRITÉRIO: se a instrução pede VÁRIOS critérios macro (ex.: "renda, patrimônio, idade — não só
+  renda"), traga cada um a partir dos DADOS daquele critério (no modo fundo, CONSULTE-o). É proibido citar
+  grupos/números de um critério que não está nos dados — sem o dado, diga em um find-note que aquele critério
+  não está disponível, nunca o invente.
+- MÉTRICA DERIVADA: CPA = CPL ÷ Taxa de Conversão. Para EXPLICAR o CPA, atribua sua variação a CPL vs.
+  conversão — nunca liste o próprio CPA como um terceiro fator independente ao lado deles.
+- Use a métrica que o texto NOMEIA: se a frase diz "CPL", use o valor de CPL (não o de CPA); confira a ordem
+  de grandeza (um CPL de leads costuma ser ~R$10–50, não milhares — um valor de milhares ali é quase sempre
+  a métrica errada).
+- RÓTULOS LEGÍVEIS: nomes de série, eixos e títulos de coluna NUNCA exibem código cru do dataset
+  (ex.: "cls", "cup", "csn", "avgDiff_lcto"). Traduza para pt-BR humano ("Conversão paga", "Variação vs.
+  benchmark"). Se uma sigla for inevitável, defina-a na prosa na primeira aparição.`;
+
+const REVISION_RULE = `AJUSTE CIRÚRGICO: ao partir de "modal_anterior", mude SOMENTE o que a "instrucao" pede.
+NÃO remova widgets que o consultor não pediu para remover (pediu para corrigir o gráfico → mantenha a tabela).
+Reentregue a modal final completa, preservando todo o resto.`;
+
+/** Enquadramento de DOMÍNIO por tipo de análise — injetado no prompt de deepen para
+ *  que a orientação reflita o tipo certo. Sem isso, todo detalhamento herdava o texto
+ *  de "conversão por perfil" (critério/grupos/benchmark da pesquisa), errado p/ criativos
+ *  e histórico. `what` = o que a análise mede; `focus` = onde concentrar o aprofundamento. */
+const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
+  'conversao-perfil': {
+    what: 'conversão por perfil de lead ao longo de vários lançamentos: cada CRITÉRIO (renda, idade, patrimônio…) tem GRUPOS, comparados à conversão média (benchmark = respondentes da pesquisa)',
+    focus: 'FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as tabelas do catálogo desse critério; não troque por outro critério.',
+  },
+  'historico-lancamentos': {
+    what: 'histórico de lançamentos: a evolução de métricas (investimento, faturamento líquido, ROAS, CPL, CPA, conversão paga, qualificação, reembolso, leads recapturados) entre eventos/lançamentos ao longo do tempo',
+    focus: 'FOQUE na métrica e no período que o card mostra — compare lançamentos no tempo. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
+  'criativos': {
+    what: 'desempenho de criativos (anúncios) de Meta Ads — por anúncio, campanha e público — com investimento, ROAS, retorno, CPL, CPM, CAC, captação e qualidade de lead, em dois modos de leitura (Resultado × Captação)',
+    focus: 'FOQUE no criativo/recorte que o card mostra (anúncio, campanha, público ou dia). NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
+  'acompanhamento-lancamento': {
+    what: 'acompanhamento tático DIÁRIO de UM lançamento em curso: KPIs por dia (CPL, CPMQL, CTR, Hook, Hold, Connect, Conv. de Página, Taxa de Resposta/Qualidade) comparados a METAS e BENCHMARKS, com tendência dos últimos 3 dias e funil de tráfego (taxas vs benchmark)',
+    focus: 'FOQUE na métrica/dia que o card mostra; o eixo é o DIA da campanha. Os BENCHMARKS/metas estão nas tabelas acom_kpis (colunas meta/dev/cls/trend_dir) e acom_funnel (colunas bench/gap/maior_furo) — SEMPRE compare o realizado contra elas e cite o benchmark. O maior furo do funil é a maior queda RELATIVA ao benchmark (gap), não a maior perda absoluta. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
+};
+const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
+const domainOf = (t?: string) => (t && DEEPEN_DOMAIN[t]) || DEFAULT_DOMAIN;
+
+const modalSystem = (analysisType?: string): string => {
+  const d = domainOf(analysisType);
+  return `Você aprofunda um card de ${d.what}, gerando uma MODAL
 com widgets do app. Regras inegociáveis:
-- FOQUE no critério do card (campos "criterio"/"pagina" no input) — prefira as
-  tabelas do catálogo desse critério; não troque por outro critério.
+${GUARDRAIL}
+${ANSWER_RULES}
+- ${d.focus}
 - Entenda O QUE O BLOCO MOSTRA por card.title, card.bind e card.tabs (datasets que
   ele usa) e aprofunde sobre ESSE assunto.
 - Widgets de gráfico/tabela NÃO carregam números — eles fazem "bind" a uma tabela do
@@ -158,7 +243,21 @@ com widgets do app. Regras inegociáveis:
   são TEXTO — use só em widgets de TABELA; num gráfico elas renderizam zerado. Para
   representatividade/diff/conversão num gráfico, use as tabelas numéricas (ex.: *_rank,
   *_grp).
-- A prosa vai em widgets find-note (texto), onde números são permitidos como narrativa.
+- DECOMPONHA em blocos escaneáveis — não num paredão de prosa. Vocabulário disponível
+  (use o que couber ao recorte; nem todos precisam aparecer):
+  • highlight {text,label?,color?} — a ALEGAÇÃO central (1 linha) e a IMPLICAÇÃO ("e daí?").
+  • kpi {label,value,color?,format?} — um número-chave isolado (chip), ex.: label "CPA", value "+35%".
+  • table — a COMPARAÇÃO por segmento (uma linha por grupo, deltas por coluna): é o lugar
+    do comparativo — NÃO descreva 3+ grupos em prosa.
+  • chart — UM gráfico que conte a MESMA história do texto (achado sobre conversão → gráfico
+    de conversão; não troque o eixo).
+  • ni / ni-vertical {n,title,why,action} — cada AÇÃO recomendada como card (porquê + acionável),
+    não como item de lista dentro de um parágrafo.
+  • find-block {tag,tagColor,title,detail} — um achado nomeado e tagueado.
+  • find-note {text} — só CONECTOR interpretativo curto entre blocos; NUNCA o depósito da
+    análise inteira. Números são permitidos como narrativa em qualquer widget de texto e no
+    value de um kpi, sempre extraídos das tabelas (nunca inventados).
+  color/tagColor ∈ p(roxo) g(verde) a(âmbar) r(vermelho) n(eutro).
 - RECORTE POR VALOR (where): cada linha da tabela é uma combinação das "dims". Para
   ISOLAR um valor de uma dimensão (um mês, uma categoria), use bind.where — ex.:
   {"dataset":"vendas","x":"canal","y":"receita","where":{"mes":"Jan"}}. Use SOMENTE
@@ -168,10 +267,15 @@ com widgets do app. Regras inegociáveis:
 - Se o recorte NÃO é representável — não há coluna nem valor para ele em tabela alguma
   (ex.: categoria por mês quando nenhuma tabela cruza os dois) — diga isso num find-note;
   nunca finja um filtro que o bind não aplica nem rotule um recorte que não foi aplicado.
-- No máximo UM gráfico. Tabela só se for curta; para tabelas longas (muitas linhas /
-  vários períodos), prefira um gráfico agregado ou a prosa — nunca despeje a tabela inteira.
+- No máximo UM gráfico. Para a comparação por segmento, prefira a table (com deltas) à prosa;
+  só evite a table quando ela ficaria longa demais (muitas linhas / vários períodos) — aí
+  agregue num gráfico. Nunca despeje a tabela inteira.
+${CHART_GUIDE}
+- Estrutura sugerida (adapte ao recorte, não é obrigatória): alegação (highlight) → comparação
+  (table ou 1 gráfico) → implicação (highlight/find-note) → ações (ni), quando houver.
 - Se vier "modal_anterior", AJUSTE/aprofunde essa modal conforme a "instrucao",
   partindo dela e mantendo o que faz sentido (emita a modal final completa).
+  ${REVISION_RULE}
 - ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: os find-note trazem números
   concretos extraídos das tabelas, comparações e uma conclusão acionável. É proibido
   descrever como a análise seria feita ("calcule…", "avalie…", "compare…",
@@ -182,6 +286,7 @@ com widgets do app. Regras inegociáveis:
   siga o ESTILO e a ESTRUTURA deles (nunca os dados — os números saem das tabelas
   desta análise).
 - Responda exclusivamente chamando a ferramenta emit_modal.`;
+};
 
 function bindSchema(tableNames: string[]): unknown {
   return {
@@ -196,6 +301,7 @@ function bindSchema(tableNames: string[]): unknown {
 }
 
 function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
+  const color = { type: 'string', enum: ['p', 'g', 'a', 'r', 'n'] };
   return {
     type: 'object',
     required: ['id', 'title', 'widgets'],
@@ -203,10 +309,14 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
       id: { type: 'string', pattern: '^modal-' },
       title: { type: 'string' },
       widgets: {
-        type: 'array', minItems: 1, maxItems: 6,
+        type: 'array', minItems: 1, maxItems: 9,
         items: {
           oneOf: [
             { type: 'object', required: ['type', 'text'], properties: { type: { const: 'find-note' }, id: { type: 'string' }, text: { type: 'string' } } },
+            { type: 'object', required: ['type', 'text'], properties: { type: { const: 'highlight' }, id: { type: 'string' }, text: { type: 'string' }, label: { type: 'string' }, color } },
+            { type: 'object', required: ['type', 'label', 'value'], properties: { type: { const: 'kpi' }, id: { type: 'string' }, label: { type: 'string' }, value: { type: ['string', 'number'] }, color, format: { type: 'string' } } },
+            { type: 'object', required: ['type', 'title'], properties: { type: { const: 'find-block' }, id: { type: 'string' }, tag: { type: 'string' }, tagColor: color, title: { type: 'string' }, detail: { type: 'string' } } },
+            { type: 'object', required: ['type', 'title'], properties: { type: { type: 'string', enum: ['ni', 'ni-vertical'] }, id: { type: 'string' }, n: { type: ['string', 'number'] }, title: { type: 'string' }, why: { type: 'string' }, action: { type: 'string' } } },
             { type: 'object', required: ['type', 'chartType', 'bind'], properties: { type: { const: 'chart' }, id: { type: 'string' }, title: { type: 'string' }, chartType: { type: 'string', enum: ['bar', 'bar-horizontal', 'line', 'stacked', 'donut', 'area'] }, diverging: { type: 'boolean' }, bind: bindSchema(tableNames) } },
             { type: 'object', required: ['type', 'cols', 'bind'], properties: { type: { const: 'table' }, id: { type: 'string' }, title: { type: 'string' }, cols: { type: 'array', items: { type: 'string' } }, bind: bindSchema(tableNames) } },
           ],
@@ -229,13 +339,13 @@ function usageOf(msg: Anthropic.Message): ModalUsage {
   return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model: MODEL };
 }
 
-function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
+export function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
   if (!a) return b;
   return { tokensIn: a.tokensIn + b.tokensIn, tokensOut: a.tokensOut + b.tokensOut,
     costUsd: Number((a.costUsd + b.costUsd).toFixed(6)), model: b.model };
 }
 
-export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[]): Promise<ModalResult> {
+export async function generateModal(prompt: string, card: CardCtx, catalog: DeepenCatalog, repair?: string, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: mockModal(catalog, card), mocked: true };
 
@@ -245,12 +355,12 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   // (the display "_detail" rows are huge), and columns + numericCols + dimValues
   // already tell the model what it needs.
   const lean = catalog.tables.map(({ sample, ...t }) => t);
-  const payload = { instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev,
+  const payload = { pergunta_original: objetivo, instrucao: prompt, card, catalogo: lean, reparar: repair, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined };
   const msg = await loggedCreate(client, {
     model: MODEL,
     max_tokens: 4096,
-    system: [{ type: 'text', text: MODAL_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: modalSystem(analysisType), cache_control: { type: 'ephemeral' } }],
     tools: [{ name: 'emit_modal', description: 'Emite a modal de aprofundamento.', input_schema: modalSchema(names) }],
     tool_choice: { type: 'tool', name: 'emit_modal' },
     messages: [{ role: 'user', content: JSON.stringify(payload) }],
@@ -260,11 +370,178 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
   return { modal: tu.input, mocked: false, usage: usageOf(msg) };
 }
 
+// --- Critic: valida SEMANTICAMENTE o detalhamento contra a pergunta original --
+
+const CRITIQUE_SCHEMA = {
+  type: 'object',
+  required: ['answersQuestion', 'numbersGrounded', 'issues'],
+  properties: {
+    answersQuestion: { type: 'boolean', description: 'a saída responde DIRETAMENTE a pergunta_original?' },
+    numbersGrounded: { type: 'boolean', description: 'todo número da prosa bate com os "dados" (ou é derivável deles)?' },
+    issues: { type: 'array', items: { type: 'string' }, description: 'até 5 problemas acionáveis (vazio = ok)' },
+  },
+} as const;
+
+const CRITIC_SYSTEM = `Você é um revisor de qualidade de um detalhamento analítico do app. Recebe a
+PERGUNTA que ele deve responder, os WIDGETS gerados (tipos + títulos + textos) e os
+DADOS reais por trás dos gráficos/tabelas ("dados": números JÁ calculados, com os valores
+e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
+- answersQuestion: o conjunto RESPONDE diretamente à pergunta? (não tangencia, não troca de assunto)
+- numbersGrounded: confira a ARITMÉTICA. TODO número citado na prosa (find-note/highlight/find-block/ni)
+  e no value de um kpi deve estar nos "dados" OU ser corretamente DERIVÁVEL deles (delta, variação
+  p.p., %, razão, soma, média). Tolere arredondamento e formatação (R$, %, vírgula decimal, "p.p.",
+  milhar). RUÍDO DE ARREDONDAMENTO NÃO É ERRO: ao recalcular um % derivado (variação relativa, razão,
+  média), aceite diferença ≤ 0,5 p.p. OU ≤ 2% relativo do valor citado — só marque FALSE se o desvio
+  for grande o bastante para MUDAR A CONCLUSÃO (sinal trocado, ordem de grandeza, fator errado). NÃO
+  reprove por "23,4% vs 23,5%". Marque FALSE se: um número claramente não confere com os dados; a prosa
+  cita números mas os "dados" estão vazios / não os sustentam; ou o recorte/consulta não faz sentido.
+- issues (≤5, cada uma 1 linha ACIONÁVEL), p.ex.:
+  • não responde à pergunta / responde outra coisa
+  • EIXO trocado: respondeu nível (o que é maior) quando a pergunta era tendência (o que muda) ou causa, ou vice-versa
+  • CRITÉRIO inventado: cita grupos/números de um critério que não está nos "dados" (deveria ter consultado ou dito que falta)
+  • resposta ENTERRADA: o 1º widget não é um highlight respondendo à pergunta com o número decisivo
+  • entregou AÇÕES ("o que fazer") quando a pergunta é analítica ("o que aconteceu / qual fator pesa mais")
+  • número "X" não confere com os dados (esperado ~Y) — ou números sem tabela/gráfico que os sustente
+  • métrica trocada: o texto nomeia uma métrica (ex.: "CPL") mas usa o valor de outra (ex.: CPA), ou ordem de
+    grandeza implausível (CPL de leads em milhares); CPA tratado como fator independente de CPL e conversão
+  • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução nem definição
+  • o recorte/consulta não faz sentido para a pergunta
+  • paredão de prosa em vez de blocos; falta conclusão acionável; gráfico inadequado (1 categoria, séries demais)
+Não invente defeitos: se está bom, answersQuestion=true, numbersGrounded=true e issues=[].`;
+
+/** Juízo semântico + NUMÉRICO de uma modal/seção já válida no schema: responde à
+ *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
+ *  binds)? o recorte faz sentido? Devolve {ok, issues} para o gate de reparo.
+ *  No-op (ok) em modo mock/sem API key, para o fluxo offline seguir testável. */
+export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; usage?: ModalUsage }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [] };
+  const ws = ((modal as { widgets?: Array<Record<string, unknown>> })?.widgets) || [];
+  const slim = ws.map((w) => ({ type: w.type, title: w.title, label: w.label, value: w.value, text: w.text, tag: w.tag, why: w.why, action: w.action, chartType: w.chartType, cols: w.cols }));
+  const client = new Anthropic({ apiKey });
+  const msg = await loggedCreate(client, {
+    model: MODEL, max_tokens: 1024,
+    system: [{ type: 'text', text: CRITIC_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    tools: [{ name: 'emit_critique', description: 'Emite o veredito de qualidade.', input_schema: CRITIQUE_SCHEMA as unknown as Anthropic.Tool.InputSchema }],
+    tool_choice: { type: 'tool', name: 'emit_critique' },
+    messages: [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao, widgets: slim, dados: factsheet }) }],
+  }, 'critic');
+  const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+  const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; issues?: string[] };
+  const issues = Array.isArray(out.issues) ? out.issues.filter((s) => typeof s === 'string' && s.trim()) : [];
+  const ok = out.answersQuestion !== false && out.numbersGrounded !== false && issues.length === 0;
+  return { ok, issues, usage: usageOf(msg) };
+}
+
+// --- Agente de DISPOSIÇÃO: arruma os widgets numa grade de 12 colunas --------
+// As regras fechadas (hard/soft) + o packer de fallback vivem em layoutAudit.ts
+// (puro, testável). Aqui fica só a chamada ao modelo + o loop de reparo.
+
+const LAYOUT_SCHEMA = {
+  type: 'object',
+  required: ['rows'],
+  properties: {
+    rows: {
+      type: 'array',
+      description: 'linhas da grade, de cima para baixo; cada linha é uma lista de tiles lado a lado',
+      items: {
+        type: 'array',
+        items: {
+          type: 'object', required: ['id', 'w'],
+          properties: {
+            id: { type: 'string' }, w: { type: 'integer', minimum: 2, maximum: 12 },
+            h: { type: 'integer', minimum: 1, maximum: 8 },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+const LAYOUT_SYSTEM = `Você organiza a DISPOSIÇÃO dos widgets de um detalhamento numa grade de 12 colunas.
+Recebe a PERGUNTA e os WIDGETS (id + tipo + título/resumo) e devolve "rows": linhas de cima para baixo;
+cada linha é uma lista de tiles {id, w, h} lado a lado.
+
+REGRAS DURAS (verificadas — se violar, é rejeitado e você refaz):
+- A soma dos "w" de CADA linha é NO MÁXIMO 12.
+- Todo widget aparece EXATAMENTE UMA vez; não invente ids; não omita nenhum.
+- w em colunas (2–12); h em linhas de grade (1–8).
+
+DISPOSIÇÃO CLARA (qualidade — também verificada):
+- A RESPOSTA primeiro: o 1º widget (highlight/find-note que responde à pergunta) sozinho no topo, w=12, h2.
+- CADA conclusão ao lado da SUA evidência: ponha o find-block/kpi/ni que LÊ um gráfico/tabela na MESMA linha
+  (ou imediatamente acima/abaixo) do gráfico/tabela que ele explica. Nunca deixe um gráfico/tabela sem a
+  leitura dele por perto, nem uma conclusão solta longe do dado que a sustenta.
+- SEM VÃOS HORIZONTAIS: encha cada linha (alvo: somar ~12). Não deixe um tile pequeno sozinho numa linha
+  se ele cabe ao lado de outro. Ex.: 2 kpis (w3) + 1 gráfico (w6) = 12; find-block (w4) + tabela (w8) = 12;
+  par de find-block (6+6).
+- SEM VÃOS VERTICAIS: na mesma linha, use tiles de ALTURA parecida (não ponha um kpi h2 ao lado de uma
+  tabela h6 — eles abrem um buraco embaixo do menor). Agrupe alturas próximas.
+- Tamanhos típicos: tabela/gráfico w6–12 h4–6; kpi w3–4 h2–3; find-block/ni w4–6 h3; find-note/eyebrow w12 h1.
+
+Responda chamando emit_layout.`;
+
+/** Agente de disposição: 2ª passada que arruma os widgets do detalhamento numa
+ *  grade de 12 colunas, com harness fechado (auditLayout: hard = larguras ≤ 12 +
+ *  cobertura; soft = vãos + adjacência conclusão↔evidência). Até 3 tentativas
+ *  reenviando os problemas; se sobrar HARD ou estiver offline, cai no packer
+ *  determinístico — nunca bloqueia o detalhamento. */
+export async function layoutSection(widgets: LayWidget[], objetivo?: string): Promise<{ layout: LayoutItem[]; usage?: ModalUsage; mocked: boolean; attempts: number; residual: string[] }> {
+  const typeOf = new Map(widgets.map((w) => [w.id, w.type]));
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { layout: packFallback(widgets), mocked: true, attempts: 0, residual: [] };
+
+  const slim = widgets.map((w) => ({
+    id: w.id, tipo: w.type,
+    titulo: (w.title || w.label || (w.text ? String(w.text) : '')).slice(0, 70),
+  }));
+  const client = new Anthropic({ apiKey });
+  let usage: ModalUsage | undefined;
+  let repair = '';
+  let last: { rows: LayoutCell[][]; audit: Audit } | null = null;
+  let attempt = 0;
+  for (; attempt < 3; attempt++) {
+    const payload = { pergunta_original: objetivo, widgets: slim, corrigir: repair || undefined };
+    const msg = await loggedCreate(client, {
+      model: MODEL, max_tokens: 1024,
+      system: [{ type: 'text', text: LAYOUT_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      tools: [{ name: 'emit_layout', description: 'Emite a disposição (rows) dos widgets.', input_schema: LAYOUT_SCHEMA as unknown as Anthropic.Tool.InputSchema }],
+      tool_choice: { type: 'tool', name: 'emit_layout' },
+      messages: [{ role: 'user', content: JSON.stringify(payload) }],
+    }, 'layout');
+    usage = sumUsage(usage, usageOf(msg));
+    const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+    const rows = ((tu?.input as { rows?: LayoutCell[][] })?.rows) || [];
+    const audit = auditLayout(rows, widgets);
+    last = { rows, audit };
+    if (rows.length && !audit.hard.length && !audit.soft.length)
+      return { layout: rowsToItems(rows, typeOf), usage, mocked: false, attempts: attempt + 1, residual: [] };
+    const probs = [...audit.hard, ...audit.soft];
+    repair = `A disposição anterior tem problemas: ${probs.join('; ')}. Reemita "rows" corrigindo TODOS: cada linha soma ≤ 12, todo widget aparece uma vez, sem vãos grandes, e cada conclusão ao lado do gráfico/tabela que ela explica.`;
+  }
+  // Esgotou: se ainda há HARD (render quebraria), usa o packer; se só sobrou SOFT,
+  // o layout é válido — entrega o melhor que veio.
+  if (last && last.rows.length && !last.audit.hard.length)
+    return { layout: rowsToItems(last.rows, typeOf), usage, mocked: false, attempts: attempt, residual: last.audit.soft };
+  return { layout: packFallback(widgets), usage, mocked: false, attempts: attempt, residual: last ? [...last.audit.hard, ...last.audit.soft] : [] };
+}
+
 // --- B2 deep: model-driven query loop over the retained base ----------------
 
 export interface QueryReply { status: string; table?: { dims: string[]; filters: string[]; rows: Array<Record<string, unknown>> }; summary?: string; motivo?: string }
+/** Descritor genérico das CONSULTAS sob demanda de um tipo (modo fundo). Cada tipo
+ *  declara suas `funcoes` e os `params` (com enum/descrição) — a tool "consultar" e o
+ *  prompt são montados a partir disso, sem hardcode por tipo. */
+export interface ConsultarSpec {
+  funcoes: Array<{ id: string; desc: string }>;
+  params: Record<string, { enum?: string[]; desc?: string }>;
+}
 export interface DeepDeps {
-  meta: { criterios: Array<{ id: string; label: string }>; canais: string[]; metricas: string[] };
+  meta: {
+    consultar?: ConsultarSpec;
+    // Legado (conversao-perfil): usado pelo fallback da tool e por buildFactsheet.
+    criterios?: Array<{ id: string; label: string }>; canais?: string[]; metricas?: string[];
+  };
   /** Run a catalog query (the app computes; returns only aggregates). */
   runQuery: (fn: string, args: Record<string, unknown>) => Promise<QueryReply>;
   /** Merge a returned table into the dataset; returns the new dataset key to bind to. */
@@ -273,10 +550,20 @@ export interface DeepDeps {
   validate?: (modal: unknown) => string[];
 }
 
-const DEEP_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil. Você NÃO recebe o
+const deepSystem = (analysisType?: string, spec?: ConsultarSpec): string => {
+  const d = domainOf(analysisType);
+  const funcs = spec && spec.funcoes.length
+    ? 'CONSULTAS DISPONÍVEIS (campo "funcao" da tool "consultar"):\n'
+      + spec.funcoes.map((f) => `  • ${f.id} — ${f.desc}`).join('\n') + '\n\n'
+    : '';
+  return `Você aprofunda um card de ${d.what}. Você NÃO recebe o
 dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
 devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
 gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
+
+${funcs}${GUARDRAIL}
+
+${ANSWER_RULES}
 
 ENTREGUE A ANÁLISE EXECUTADA, NUNCA O MÉTODO: a prosa traz os números consultados,
 comparações e uma conclusão acionável — jamais instruções de como fazer ("calcule…",
@@ -284,42 +571,59 @@ comparações e uma conclusão acionável — jamais instruções de como fazer 
 falta e apresente o corte mais próximo (com números). Se vierem "exemplos_aprovados",
 siga o estilo/estrutura deles (nunca os dados).
 
-A modal deve ser ENXUTA e legível — qualidade, não quantidade:
-- NO MÁXIMO UM gráfico, o mais informativo do recorte. Para um cruzamento, prefira
-  barras agrupadas (chartType "bar", x="grupo", series="cruzar", y="valor").
-- NUNCA use gráfico de valor único (ex.: associação / Cramér's V) — comente
-  associação na PROSA, não num gráfico.
+A modal deve ser ENXUTA e ESCANEÁVEL — decomposta em blocos, não num paredão de prosa:
+- NO MÁXIMO UM gráfico, o mais informativo do recorte.
+- NUNCA use gráfico de valor único (ex.: uma correlação/associação isolada) — comente na PROSA.
 - Use tabela só se for curta; NUNCA despeje a tabela inteira de um cruzamento.
-- 1 a 2 find-note curtos que interpretam o número e dão a implicação prática.
-- Estrutura sugerida: nota de contexto → 1 gráfico → nota de conclusão.
+${CHART_GUIDE}
+- VOCABULÁRIO (use o que couber): highlight {text,label?,color?} p/ a ALEGAÇÃO e a
+  IMPLICAÇÃO; kpi {label,value,color?} p/ um número-chave isolado; table p/ a comparação
+  por grupo (deltas por coluna — não descreva grupos em prosa); ni/ni-vertical
+  {n,title,why,action} p/ cada AÇÃO; find-block {tag,tagColor,title,detail} p/ um achado
+  nomeado. O find-note é só conector curto, NUNCA o depósito da análise. color ∈ p/g/a/r/n.
+- Estrutura sugerida (adapte ao recorte): alegação (highlight) → comparação (table ou 1
+  gráfico) → implicação (highlight/find-note) → ações (ni), quando houver.
 
-FOCO (importante): o card pertence à página de um critério específico — campos
-"criterio" e "pagina" no input. FOQUE nesse critério: use card.criterio como
-\`criterio\` nas consultas e mantenha-o como eixo principal. Só envolva OUTRO
-critério se o pedido pedir explicitamente um cruzamento — e ainda assim cruzando
-COM o critério do card, nunca trocando por outro.
+FOCO: ${d.focus}
 
-O QUE O BLOCO MOSTRA: use card.title, card.bind e card.tabs (os datasets/rótulos
-que o bloco usa) para entender o assunto exato do bloco e escolher o recorte mais
-relevante a ELE (ex.: um bloco de "proporção/representatividade" pede métrica de
-participação por lançamento; um bloco de conversão pede a métrica de conversão).
+O QUE O BLOCO MOSTRA: use card.title, card.bind e card.tabs (os datasets/rótulos que o
+bloco usa) para entender o assunto exato do bloco e escolher a consulta/recorte mais
+relevante a ELE.
 
 AJUSTE/ITERAÇÃO: se vier "modal_anterior", o consultor quer AJUSTAR ou APROFUNDAR
 essa modal já existente — PARTA dela, mantenha o que ainda faz sentido e aplique
 exatamente o que a "instrucao" pede (ex.: trocar o gráfico, encurtar, focar num
 grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
+${REVISION_RULE}
 
 Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
-catálogo inicial); números só na prosa dos find-note. Se uma consulta voltar
+catálogo inicial); números só na prosa dos widgets de texto (find-note/highlight/
+find-block/ni) e no value de um kpi — sempre extraídos das tabelas. Se uma consulta voltar
 "nao_disponivel", diga isso na prosa — nunca invente número.
 
 BIND: para isolar um valor de uma dimensão numa tabela já existente, use bind.where
 (ex.: {"mes":"Jan"}) com valores que existam na tabela — o filtro é real e aí PODE
 rotular o widget com o recorte. Para um corte que exige NOVO cálculo (não está em tabela
 alguma), peça via "consultar". Se nem assim der, diga na prosa — nunca finja o filtro.`;
+};
 
 function consultarTool(deps: DeepDeps): Anthropic.Tool {
-  const ids = deps.meta.criterios.map((c) => c.id);
+  const spec = deps.meta.consultar;
+  if (spec) {
+    const props: Record<string, unknown> = {
+      funcao: { type: 'string', enum: spec.funcoes.map((f) => f.id),
+        description: spec.funcoes.map((f) => `${f.id} — ${f.desc}`).join(' | ') },
+    };
+    for (const [name, p] of Object.entries(spec.params)) {
+      props[name] = { type: 'string', ...(p.enum ? { enum: p.enum } : {}), ...(p.desc ? { description: p.desc } : {}) };
+    }
+    return {
+      name: 'consultar', description: 'Calcula um recorte agregado sobre o dado retido (o app computa; devolve só agregados).',
+      input_schema: { type: 'object', required: ['funcao'], properties: props } as unknown as Anthropic.Tool.InputSchema,
+    };
+  }
+  // Fallback legado (conversao-perfil sem meta.consultar).
+  const ids = (deps.meta.criterios ?? []).map((c) => c.id);
   return {
     name: 'consultar',
     description: 'Calcula um recorte agregado sobre o dado retido (o app computa).',
@@ -330,8 +634,8 @@ function consultarTool(deps: DeepDeps): Anthropic.Tool {
         funcao: { type: 'string', enum: ['cut_by_criterion', 'trend', 'crosstab', 'association'] },
         criterio: { type: 'string', enum: ids },
         cruzar_com: { type: 'string', enum: ids },
-        canal: { type: 'string', enum: deps.meta.canais },
-        metrica: { type: 'string', enum: deps.meta.metricas },
+        canal: { type: 'string', enum: deps.meta.canais ?? ['Geral'] },
+        metrica: { type: 'string', enum: deps.meta.metricas ?? [] },
       },
     } as unknown as Anthropic.Tool.InputSchema,
   };
@@ -342,13 +646,13 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[]): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
+  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
   let usage: ModalUsage | undefined;
 
@@ -356,7 +660,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
       model: MODEL, max_tokens: 4096,
-      system: [{ type: 'text', text: DEEP_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: deepSystem(analysisType, deps.meta.consultar), cache_control: { type: 'ephemeral' } }],
       tools: [consultarTool(deps), emitModalTool(names)],
       tool_choice: { type: 'any' },
       messages,
@@ -397,12 +701,12 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
 /** Offline deep modal: runs one real crosstab (card criterion × another factor)
  *  through the query catalog, registers it, and binds a chart to it. */
 async function mockModalDeep(card: CardCtx, _catalog: DeepenCatalog, deps: DeepDeps): Promise<unknown> {
-  const ids = deps.meta.criterios.map((c) => c.id);
+  const ids = (deps.meta.criterios ?? []).map((c) => c.id);
   const bindName = (card.bind as { dataset?: string } | undefined)?.dataset || '';
   const m = bindName.match(/^crit_([a-z0-9]+)_/i);
   const criterio = (m && ids.includes(m[1]) ? m[1] : ids[0]) || ids[0];
   const cruzar = ids.find((x) => x !== criterio) || criterio;
-  const canal = deps.meta.canais[0] || 'Geral';
+  const canal = (deps.meta.canais ?? ['Geral'])[0] || 'Geral';
 
   const widgets: unknown[] = [];
   const r = await deps.runQuery('crosstab', { criterio, cruzar_com: cruzar, canal });

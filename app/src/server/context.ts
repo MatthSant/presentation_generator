@@ -7,6 +7,9 @@ export interface Ctx {
   out: string;
   /** Filenames whose next fs.watch event should be ignored (our own writes). */
   skipNextSSE: Set<string>;
+  /** Push a transient progress line to the SSE watchers of an analysis (deepen
+   *  stages → the busy overlay). Set by registerWatch; no-op if nobody listens. */
+  emitProgress?: (client: string, slug: string, msg: string) => void;
   /** When true, auth + multi-tenant isolation is enforced (off in unit tests). */
   auth?: boolean;
 }

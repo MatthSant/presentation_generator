@@ -10,10 +10,11 @@ import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Filters } from './filters.js';
 import { Dashboard } from './dashboard.js';
-import { renderWidget, type RenderCtx } from './renderer.js';
+import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
 import { HistoricoFilters } from './historico-controls.js';
+import { CriativosControls } from './criativos-controls.js';
 import { resolveBind } from '../shared/bind.js';
 import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
 
@@ -40,6 +41,11 @@ class App {
   private histSel: string[] | null = null;
   private histLaunches: string[] | null = null;
   private histMetric = 'conv';
+  /** Modo ativo da análise de criativos (resultado × captação) + filtros do FAB. */
+  private histMode: string | undefined;
+  private histMinInvest: number | undefined;
+  private histTemp: string | null = null;
+  private criativos: CriativosControls | null = null;
   private busyEl: HTMLElement | null = null;
 
   constructor(private client: string, private slug: string) {
@@ -70,9 +76,14 @@ class App {
     if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
     this.renderCover();
     this.setupHistorico();
+    // Cards clicáveis (link-card) → navegam para uma seção (ficha).
+    document.addEventListener('goto-section', (e) => {
+      const d = (e as CustomEvent<{ page?: string; section: string }>).detail;
+      if (d?.section) void this.go(d.page || this.store.currentPageId, d.section);
+    });
 
     this.nav.build();
-    if (!this.hist) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
+    if (!this.hist && !this.criativos) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
     this.watch();
 
     const first = this.store.allSections()[0];
@@ -148,6 +159,7 @@ class App {
     this.nav.setActive(pageId, sectionId);
 
     this.hist?.setPage(pageId);
+    this.criativos?.setPage(pageId);
 
     if (this.store.page(pageId)?.kind === 'perguntas') {
       await this.renderPerguntas();
@@ -215,6 +227,16 @@ class App {
         } catch (e) {
           this.toast(`Falha na revisão: ${(e as Error).message}`);
         } finally { this.setBusy(false); }
+      }, async () => {
+        if (!window.confirm('Descartar este detalhamento? A seção será removida e não dá para desfazer.')) return;
+        this.setBusy(true, 'Descartando…');
+        try {
+          await this.api.descartarDet(section.id);
+          this.removeDetSection(section.id);
+          this.toast('Detalhamento descartado.');
+        } catch (e) {
+          this.toast(`Falha ao descartar: ${(e as Error).message}`);
+        } finally { this.setBusy(false); }
       });
       rt.classList.add('rate--section');
       host.appendChild(rt);
@@ -226,6 +248,32 @@ class App {
     }
   }
 
+  /** Após descartar uma seção det-*: tira-a do nav (e remove a página Detalhamentos
+   *  se ela esvaziar) e navega para um destino seguro. */
+  private removeDetSection(id: string): void {
+    this.store.dropSection(id);
+    const pages = this.store.data.pages || [];
+    for (const p of pages) {
+      const i = (p.sections || []).findIndex(s => s.id === id);
+      if (i >= 0) { p.sections.splice(i, 1); break; }
+    }
+    const di = pages.findIndex(p => p.id === 'detalhamentos' && (p.sections || []).length === 0);
+    if (di >= 0) pages.splice(di, 1);
+    this.nav.build();
+
+    const det = pages.find(p => p.id === 'detalhamentos');
+    let target: { p: string; s: string } | null = det?.sections?.[0] ? { p: 'detalhamentos', s: det.sections[0].id } : null;
+    if (!target) {
+      const perg = pages.find(p => p.kind === 'perguntas');
+      if (perg?.sections?.[0]) target = { p: perg.id, s: perg.sections[0].id };
+    }
+    if (!target) {
+      const f = this.store.allSections()[0];
+      if (f) target = { p: f.pageId, s: f.id };
+    }
+    if (target) void this.go(target.p, target.s);
+  }
+
   /* ───────────────────────────  Histórico — vista interativa  ─────────────────────────── */
 
   /** Mount the launch/metric control bar above the report when meta.controls says so. */
@@ -233,7 +281,27 @@ class App {
     const controls = this.store.data?.meta?.controls;
     // Dispatch por kind: cada tipo com controles interativos registra o seu setup
     // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
-    if (!controls || controls.kind !== 'historico-lancamentos') return;
+    if (!controls) return;
+    // Feature de plataforma (qualquer tipo): toggle vs Meta / vs Histórico nos badges
+    // de KPI que trazem `cmp`. Independe do `kind`.
+    if ((controls as { compare?: string }).compare) this.setupCompare();
+    // Criativos: único controle é o toggle de MODO (resultado × captação) — um
+    // metric-toggle que dispara 'metric-change'; recompute server-side por modo.
+    if (controls.kind === 'criativos') {
+      const cc = controls as { mode?: string; modes?: Array<{ id: string }> };
+      this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
+      // Controles NÍVEL-RELATÓRIO no FAB: modo + investimento mínimo + temperatura.
+      this.criativos = new CriativosControls(controls, {
+        apply: (o) => {
+          this.histMode = o.mode;
+          this.histMinInvest = o.minInvest || undefined;
+          this.histTemp = o.temp;
+          void this.recompute();
+        },
+      });
+      return;
+    }
+    if (controls.kind !== 'historico-lancamentos') return;
     this.histMetric = controls.metrics[0]?.id || 'conv';
     const total = controls.launches.length;
     this.hist = new HistoricoFilters(controls, {
@@ -247,12 +315,37 @@ class App {
     });
   }
 
+  /** Toggle de plataforma "vs Meta / vs Histórico": injeta um segmented na barra
+   *  superior e troca, ao vivo, os badges de KPI que trazem `cmp`. */
+  private setupCompare(): void {
+    const right = document.querySelector('.tn-right');
+    if (!right || document.getElementById('cmp-toggle')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'cmp-toggle';
+    wrap.className = 'cmp-toggle';
+    for (const [mode, label] of [['meta', 'vs Meta'], ['hist', 'vs Histórico']] as const) {
+      const b = document.createElement('button');
+      b.className = 'cmp-btn' + (mode === 'meta' ? ' on' : '');
+      b.textContent = label;
+      b.addEventListener('click', () => {
+        setCmpMode(mode);
+        wrap.querySelectorAll('.cmp-btn').forEach((x) => x.classList.toggle('on', x === b));
+      });
+      wrap.appendChild(b);
+    }
+    right.insertBefore(wrap, right.firstChild);
+  }
+
   /** Recompute the filtered/metric view server-side and re-render the current section. */
   private async recompute(): Promise<void> {
     this.histSel = this.histLaunches;
     const y = window.scrollY;
     try {
-      const r = await this.api.historicoRender(this.histLaunches, this.histMetric);
+      const kind = (this.store.data?.meta?.controls as { kind?: string } | undefined)?.kind;
+      const body = kind === 'criativos'
+        ? { mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }
+        : { launches: this.histLaunches, metric: this.histMetric };
+      const r = await this.api.renderView(body);
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);
       this.store.layout = { ...this.store.layout, sections: { ...this.store.layout.sections, ...r.layout } };
@@ -297,21 +390,60 @@ class App {
   /** Blocking loading overlay — shown while a detalhamento is generated server-side
    *  (the LLM call takes a few seconds), so the wait is explicit and clicks are
    *  locked until we navigate to the result. */
+  private ensureBusy(): void {
+    if (this.busyEl) return;
+    const el = document.createElement('div');
+    el.className = 'busy-overlay';
+    el.hidden = true;
+    el.innerHTML = `
+      <div class="busy-box">
+        <div class="busy-load"><div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div></div>
+        <div class="busy-err" hidden>
+          <div class="busy-err-title">Não foi possível gerar o detalhamento</div>
+          <p class="busy-err-sub"></p>
+          <ul class="busy-err-issues"></ul>
+          <div class="busy-err-actions">
+            <button type="button" class="busy-err-retry">↻ Rerodar</button>
+            <button type="button" class="busy-err-close">Fechar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    this.busyEl = el;
+  }
+
   private setBusy(on: boolean, msg = 'Carregando…'): void {
+    this.ensureBusy();
+    if (!this.busyEl) return;
     if (on) {
-      if (!this.busyEl) {
-        const el = document.createElement('div');
-        el.className = 'busy-overlay';
-        el.innerHTML = '<div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div>';
-        document.body.appendChild(el);
-        this.busyEl = el;
-      }
+      this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = false;
+      this.busyEl.querySelector<HTMLElement>('.busy-err')!.hidden = true;
       const m = this.busyEl.querySelector('.busy-msg');
       if (m) m.textContent = msg;
       this.busyEl.hidden = false;
-    } else if (this.busyEl) {
+    } else {
       this.busyEl.hidden = true;
     }
+  }
+
+  /** Tela de erro no overlay quando o detalhamento é REPROVADO após todas as tentativas:
+   *  explica em itens o que falhou e oferece "Rerodar" (re-executa a mesma geração). */
+  private busyError(detail: string, onRetry: () => void): void {
+    this.ensureBusy();
+    if (!this.busyEl) return;
+    this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = true;
+    const err = this.busyEl.querySelector<HTMLElement>('.busy-err')!;
+    // a mensagem vem como "<motivo> — issue1; issue2…" → motivo em cima, issues em lista.
+    const sep = detail.indexOf('—');
+    const head = (sep >= 0 ? detail.slice(0, sep) : detail).trim();
+    const issues = (sep >= 0 ? detail.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+    err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = head || 'Falha na geração.';
+    err.querySelector<HTMLElement>('.busy-err-issues')!.innerHTML =
+      issues.length ? issues.map(i => `<li>${esc(i)}</li>`).join('') : '';
+    err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
+    err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
+    err.hidden = false;
+    this.busyEl.hidden = false;
   }
 
   /** Follow a question: the server generates its detalhamento as a new section on
@@ -326,10 +458,10 @@ class App {
       this.nav.build();
       await this.go(r.pageId, r.sectionId);
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
-    } catch (e) {
-      this.toast(`Falha ao seguir a pergunta: ${(e as Error).message}`);
-    } finally {
       this.setBusy(false);
+    } catch (e) {
+      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
+      this.busyError((e as Error).message, () => void this.seguirPergunta(p));
     }
   }
 
@@ -391,7 +523,7 @@ class App {
   }
 
   /** Content widget types worth deepening (skips eyebrows, notes, kpi strips). */
-  private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card', 'heatmap-toggle', 'chart-toggle']);
+  private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card', 'heatmap-toggle', 'chart-toggle', 'chart-table']);
   private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
@@ -458,10 +590,10 @@ class App {
       this.store.dropSection(secId);
       await this.go(this.store.currentPageId, secId);
       this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
-    } catch (e) {
-      this.toast(`Falha ao detalhar: ${(e as Error).message}`);
-    } finally {
       this.setBusy(false);
+    } catch (e) {
+      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
+      this.busyError((e as Error).message, () => void this.runDeepen(secId, blockId, prompt, prev));
     }
   }
 
@@ -536,7 +668,7 @@ class App {
    *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
    *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
    *  itera via prev; seção det-* regenera a própria seção). */
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'rate';
     const lbl = document.createElement('span');
@@ -620,6 +752,14 @@ class App {
     wrap.append(lbl, approve);
     if (revisar) wrap.append(askRev, rev);
     wrap.append(stars, fb);
+    if (onDiscard) {
+      const discard = document.createElement('button');
+      discard.type = 'button';
+      discard.className = 'btn btn--sm rate-discard';
+      discard.textContent = '🗑 Descartar';
+      discard.addEventListener('click', () => { void onDiscard(); });
+      wrap.append(discard);
+    }
     return wrap;
   }
 
@@ -935,7 +1075,18 @@ ${body}
           if (openModal) this.openModal(openModal);
         });
       }
-    });
+    }, (msg) => this.setBusyMsg(msg));
+  }
+
+  /** Atualiza só o texto da tela de carregamento (estágio do detalhamento, via SSE)
+   *  sem mexer na visibilidade — ignorado se o overlay não está visível ou se a tela
+   *  de erro está à mostra. */
+  private setBusyMsg(msg: string): void {
+    if (!this.busyEl || this.busyEl.hidden) return;
+    const load = this.busyEl.querySelector<HTMLElement>('.busy-load');
+    if (!load || load.hidden) return;   // tela de erro à mostra → não sobrescreve
+    const m = this.busyEl.querySelector('.busy-msg');
+    if (m) m.textContent = msg;
   }
 }
 

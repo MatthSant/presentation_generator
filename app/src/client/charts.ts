@@ -42,6 +42,10 @@ export interface ChartDef {
   dashLast?: boolean;
   /** Value formatting for axis/tooltip/labels: pct | money | x | int | num. */
   valueFormat?: string;
+  /** Bar: destaca as últimas N barras na cor primária (colors[1]); demais colors[0]. */
+  highlightLast?: number;
+  /** Linhas de meta tracejadas (referência horizontal). */
+  goalLines?: { value: number; label?: string; color?: string }[];
 }
 
 type Theme = 'light' | 'dark';
@@ -216,6 +220,17 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       ] };
       bar.columnWidth = '78%';
     }
+    // Destaca as últimas N barras (ex.: "últimos 3 dias") na cor primária; o resto
+    // na 1ª cor (lilás) — colore cada barra via distributed.
+    if (def.type === 'bar' && def.highlightLast && def.highlightLast > 0) {
+      const n = def.categories?.length
+        ?? (Array.isArray(series) ? ((series[0] as { data?: unknown[] })?.data?.length ?? 0) : 0);
+      const light = def.colors?.[0] || '#AFA9EC';
+      const dark = def.colors?.[1] || def.colors?.[0] || defColors[0];
+      opts.colors = Array.from({ length: n }, (_, i) => (i >= n - def.highlightLast! ? dark : light));
+      bar.distributed = true;
+      opts.legend = { show: false };
+    }
     opts.plotOptions = { bar };
     opts.yaxis = { ...b.yaxis, min: axisMin };
   }
@@ -259,11 +274,11 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   if (def.type === 'line') {
     const n = Array.isArray(series) ? series.length : 0;
     if (def.dashLast && n > 1) {
-      opts.stroke = { curve: 'smooth', width: Array.from({ length: n }, () => 2),
+      opts.stroke = { curve: 'smooth', width: Array.from({ length: n }, (_, i) => (i === n - 1 ? 2 : 3.5)),
         dashArray: Array.from({ length: n }, (_, i) => (i === n - 1 ? 5 : 0)) };
       opts.markers = { size: Array.from({ length: n }, (_, i) => (i === n - 1 ? 0 : 3)) };
     } else {
-      opts.stroke = { curve: 'smooth', width: 2 };
+      opts.stroke = { curve: 'smooth', width: 3.5 };
       opts.markers = { size: 3 };
     }
     opts.yaxis = { ...b.yaxis, min: axisMin };
@@ -302,6 +317,17 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     chart.type = 'treemap';
     opts.plotOptions = { treemap: { distributed: true, enableShades: true, shadeIntensity: 0.3 } };
     opts.legend = { show: false };
+  }
+
+  // Muitas categorias (ex.: série diária ~30 dias) sobrepõem os rótulos do eixo x.
+  // Em gráficos verticais de categoria, rotaciona e rareia os ticks (tickAmount) para
+  // manter legível sem cortar dados.
+  const VERT_CAT = ['bar', 'line', 'area', 'mixed', 'stacked'];
+  if (def.categories && VERT_CAT.includes(def.type) && def.categories.length > 12) {
+    const baseX = isObj(opts.xaxis) ? opts.xaxis : (b.xaxis as Record<string, unknown>);
+    const baseLabels = isObj(baseX.labels) ? baseX.labels : {};
+    opts.xaxis = { ...baseX, tickAmount: Math.min(12, def.categories.length - 1),
+      labels: { ...baseLabels, rotate: -45, rotateAlways: true, hideOverlappingLabels: true, trim: false } };
   }
 
   mergeDeep(opts, { chart: b.chart, grid: b.grid, tooltip: b.tooltip, dataLabels: b.dataLabels });
@@ -429,6 +455,19 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       };
       opts.annotations = def.type === 'bar-horizontal' ? { xaxis: [{ x: mean, ...line }] } : { yaxis: [{ y: mean, ...line }] };
     }
+  }
+  // Linhas de meta tracejadas (referência horizontal) — meta total / to-date.
+  if (def.goalLines?.length && def.type !== 'bar-horizontal') {
+    const ya = def.goalLines.map((g) => {
+      const c = g.color || '#EF9F27';
+      return {
+        y: g.value, strokeDashArray: 6, borderColor: c, opacity: 1,
+        label: { text: g.label || '', position: 'right', orientation: 'horizontal', borderWidth: 0, offsetX: -4,
+          style: { color: '#fff', background: c, fontSize: '10px', fontWeight: 700, padding: { left: 5, right: 5, top: 2, bottom: 2 } } },
+      };
+    });
+    const ann = (isObj(opts.annotations) ? opts.annotations : (opts.annotations = {})) as Record<string, unknown>;
+    ann.yaxis = [...((ann.yaxis as unknown[]) || []), ...ya];
   }
   if (def.options) mergeDeep(opts, def.options);
 

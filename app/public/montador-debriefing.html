@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gerar SQL — Debriefing de Lançamento</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); }
+    .m-wrap { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
+    .m-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
+    .m-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
+    .m-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 22px; max-width: 72ch; }
+    .m-card { padding: 20px 22px; margin-bottom: 18px; }
+    .m-h { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); margin: 0 0 14px; }
+    .m-field { display:flex; flex-direction:column; gap:5px; max-width: 360px; }
+    .m-field label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--gray2); }
+    .m-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: var(--fg); outline: none; }
+    .m-field input:focus { border-color: var(--purple); }
+    .m-actions { display:flex; gap:10px; margin-top: 16px; }
+    .m-sql { width: 100%; min-height: 300px; background: #0E0E14; color: #E6E6F0; border: 1px solid var(--border); border-radius: 11px; padding: 16px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.55; white-space: pre; overflow: auto; resize: vertical; }
+    .m-note { font-size: 12.5px; color: var(--gray); line-height: 1.6; }
+    .m-note code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
+    .m-ok { font-size: 12.5px; font-weight: 700; color: var(--ok-fg); margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <header class="home-bar" data-sub="Gerar SQL"></header>
+  <script src="/js/page-chrome.js" defer></script>
+
+  <div class="m-wrap">
+    <span class="m-tag">Debriefing de Lançamento</span>
+    <h1 class="m-title">Extrair os dados do lançamento</h1>
+    <p class="m-sub">O debriefing lê a view <code>VW_V2_inscricoes_res</code> — uma linha por <code>utm_source × campanha × dia</code>. Informe o <code>field_conversion</code> e copie o SELECT. Metas e histórico são CSVs à parte (opcionais).</p>
+
+    <div class="card m-card">
+      <p class="m-h">Lançamento</p>
+      <div class="m-field"><label>field_conversion</label><input id="t-fc" value="lcto-independencia-mai26" /></div>
+      <div class="m-actions">
+        <button class="btn btn--primary" id="gen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar SQL</button>
+        <button class="btn btn--ghost" id="copy">Copiar</button>
+        <span class="m-ok" id="ok" hidden>copiado ✓</span>
+      </div>
+    </div>
+
+    <textarea class="m-sql" id="sql" readonly spellcheck="false"></textarea>
+    <p class="m-note" style="margin-top:14px"><strong>Classificação:</strong> confira no gerar os padrões de <code>utm_source</code> pago (ex.: <code>facebook</code>), de campanha de captação (ex.: <code>cadastro-</code>) e de temperatura — variam por conta.</p>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/'/g, "''");
+    const COLS = ['field_conversion', 'data', 'utm_source', 'utm_medium', 'field_campaign_name', 'field_ad_name',
+      'leads', 'leads_mqls', 'respostas', 'leads_novo', 'leads_antigos', 'cliente_inscrito', 'vendas', 'faturamento',
+      'invest_total', 'impressoes', 'link_clicks', 'pageviews', 'leads_trafego', 'leads_mqls_trafego',
+      'vendas_sale', 'faturamento_sale', 'refunds', 'refunded_value'];
+    function buildSql() {
+      const fc = esc($('t-fc').value.trim() || 'lcto-...');
+      return `-- Consolidado do lançamento (debriefing)\n-- Origem: VW_V2_inscricoes_res\nSELECT\n  ${COLS.join(',\n  ')}\nFROM "VW_V2_inscricoes_res"\nWHERE field_conversion = '${fc}'\nORDER BY data, utm_source, field_campaign_name;`;
+    }
+    const render = () => { $('sql').value = buildSql(); };
+    $('gen').addEventListener('click', render);
+    $('copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText($('sql').value); const ok = $('ok'); ok.hidden = false; setTimeout(() => ok.hidden = true, 1600); } catch {}
+    });
+    render();
+  </script>
+</body>
+</html>

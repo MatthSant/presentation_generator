@@ -91,19 +91,37 @@ export class Api {
     });
   }
 
-  historicoRender(launches: string[] | null, metric: string): Promise<HistoricoView> {
-    return this.json(`${this.base()}/render`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ launches, metric }),
+  descartarDet(sectionId: string): Promise<{ ok: boolean; sectionId: string; pageRemoved: boolean }> {
+    return this.json(`${this.base()}/det/${encodeURIComponent(sectionId)}/descartar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     });
   }
 
-  watch(onSection: (id: string) => void): () => void {
+  historicoRender(launches: string[] | null, metric: string, mode?: string): Promise<HistoricoView> {
+    return this.json(`${this.base()}/render`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ launches, metric, mode }),
+    });
+  }
+
+  /** Recompute genérico da vista — o corpo varia por tipo (criativos: mode/min_invest/temp). */
+  renderView(body: Record<string, unknown>): Promise<HistoricoView> {
+    return this.json(`${this.base()}/render`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  watch(onSection: (id: string) => void, onProgress?: (msg: string) => void): () => void {
     // Static mode (?static): skip the live-reload SSE so headless tooling
     // (screenshots/print) can reach network-idle.
     if (new URLSearchParams(location.search).has('static')) return () => {};
     const es = new EventSource(`${this.base()}/watch`);
-    es.onmessage = ({ data }) => { if (data && data !== 'connected') onSection(data); };
+    es.onmessage = ({ data }) => {
+      if (!data || data === 'connected') return;
+      if (data.startsWith('progress:')) { onProgress?.(data.slice(9)); return; }
+      onSection(data);
+    };
     let closed = false;
     es.onerror = () => { if (!closed) { /* browser auto-reconnects */ } };
     return () => { closed = true; es.close(); };
