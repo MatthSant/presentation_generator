@@ -136,6 +136,9 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
       text: (w as { text?: string }).text })),
     objetivo,
   );
+  if (lay.residual.length) {
+    console.warn(`[layout] ${inp.client}/${inp.slug}/${inp.resultId}: ${lay.attempts} tentativas, resíduo →`, lay.residual);
+  }
   return { widgets, layout: lay.layout, mocked: gate.mocked, datasetChanged, dataset,
     usage: sumUsage(gate.usage, lay.usage ?? { tokensIn: 0, tokensOut: 0, costUsd: 0, model: '' }),
     cardContext: cardCtx, analysisType,

@@ -11,6 +11,7 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { Digest, DeepenCatalog } from './datasetCatalog.js';
 import type { LayoutItem } from '../shared/types.js';
+import { auditLayout, rowsToItems, packFallback, type Audit, type LayoutCell, type LayWidget } from './layoutAudit.js';
 import { CLAUDE_LOG } from './paths.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
@@ -433,25 +434,8 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
 }
 
 // --- Agente de DISPOSIÇÃO: arruma os widgets numa grade de 12 colunas --------
-
-/** Largura/altura padrão por tipo (espelha o DEFAULT_W do cliente) — usadas quando
- *  o agente omite w/h e no fallback determinístico. */
-const LAY_W: Record<string, number> = {
-  'label-sec': 12, 'find-note': 12, 'xs': 12, 'chart-table': 12, 'strat-grid': 12, 'eyebrow': 12,
-  'chart': 6, 'table': 6, 'highlight': 6, 'request': 6, 'qa-card': 6, 'funnel': 6, 'evolution-picker': 6,
-  'heatmap': 8, 'find-block': 4, 'ni': 4, 'ni-vertical': 4, 'kpi-card': 4, 'kpi': 3,
-};
-const LAY_H: Record<string, number> = {
-  'kpi': 2, 'kpi-card': 3, 'find-note': 1, 'xs': 1, 'eyebrow': 1, 'highlight': 2, 'label-sec': 1,
-  'find-block': 3, 'ni': 3, 'ni-vertical': 3, 'chart': 4, 'table': 4, 'heatmap': 4, 'chart-table': 5,
-  'qa-card': 5, 'funnel': 5, 'strat-grid': 4, 'evolution-picker': 5,
-};
-const layW = (t: string): number => LAY_W[t] ?? 6;
-const layH = (t: string): number => LAY_H[t] ?? 3;
-const clampN = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, Math.round(v)));
-
-interface LayoutCell { id: string; w?: number; h?: number }
-export interface LayWidget { id: string; type: string; title?: string; label?: string; text?: string }
+// As regras fechadas (hard/soft) + o packer de fallback vivem em layoutAudit.ts
+// (puro, testável). Aqui fica só a chamada ao modelo + o loop de reparo.
 
 const LAYOUT_SCHEMA = {
   type: 'object',
@@ -477,77 +461,35 @@ const LAYOUT_SCHEMA = {
 const LAYOUT_SYSTEM = `Você organiza a DISPOSIÇÃO dos widgets de um detalhamento numa grade de 12 colunas.
 Recebe a PERGUNTA e os WIDGETS (id + tipo + título/resumo) e devolve "rows": linhas de cima para baixo;
 cada linha é uma lista de tiles {id, w, h} lado a lado.
-REGRAS DURAS (serão verificadas — se violar, será rejeitado):
-- A soma dos "w" de CADA linha é NO MÁXIMO 12 (pode somar menos para dar respiro).
+
+REGRAS DURAS (verificadas — se violar, é rejeitado e você refaz):
+- A soma dos "w" de CADA linha é NO MÁXIMO 12.
 - Todo widget aparece EXATAMENTE UMA vez; não invente ids; não omita nenhum.
 - w em colunas (2–12); h em linhas de grade (1–8).
-DESIGN (boa leitura):
-- O 1º widget (o highlight que responde à pergunta) sozinho no topo, w=12.
-- Coloque NA MESMA LINHA o que se explica junto: um kpi/find-block pequeno (w3–4) ao lado da tabela ou
-  gráfico que ele resume (w8–9); pares de find-block lado a lado (6+6).
-- Tabela/gráfico: w6–12, h4–6. kpi: w3–4, h2–3. find-note/eyebrow: w12, h1. highlight: w12, h2.
-- Não deixe um tile pequeno sozinho numa linha se ele cabe ao lado de outro. Evite vãos.
+
+DISPOSIÇÃO CLARA (qualidade — também verificada):
+- A RESPOSTA primeiro: o 1º widget (highlight/find-note que responde à pergunta) sozinho no topo, w=12, h2.
+- CADA conclusão ao lado da SUA evidência: ponha o find-block/kpi/ni que LÊ um gráfico/tabela na MESMA linha
+  (ou imediatamente acima/abaixo) do gráfico/tabela que ele explica. Nunca deixe um gráfico/tabela sem a
+  leitura dele por perto, nem uma conclusão solta longe do dado que a sustenta.
+- SEM VÃOS HORIZONTAIS: encha cada linha (alvo: somar ~12). Não deixe um tile pequeno sozinho numa linha
+  se ele cabe ao lado de outro. Ex.: 2 kpis (w3) + 1 gráfico (w6) = 12; find-block (w4) + tabela (w8) = 12;
+  par de find-block (6+6).
+- SEM VÃOS VERTICAIS: na mesma linha, use tiles de ALTURA parecida (não ponha um kpi h2 ao lado de uma
+  tabela h6 — eles abrem um buraco embaixo do menor). Agrupe alturas próximas.
+- Tamanhos típicos: tabela/gráfico w6–12 h4–6; kpi w3–4 h2–3; find-block/ni w4–6 h3; find-note/eyebrow w12 h1.
+
 Responda chamando emit_layout.`;
 
-function checkRows(rows: LayoutCell[][], ids: Set<string>): string[] {
-  const errs: string[] = [];
-  const seen = new Set<string>();
-  rows.forEach((row, ri) => {
-    const sum = row.reduce((s, c) => s + (c.w ?? 6), 0);
-    if (sum > 12) errs.push(`linha ${ri + 1} soma ${sum} de largura (> 12)`);
-    for (const c of row) {
-      if (!ids.has(c.id)) errs.push(`id desconhecido "${c.id}"`);
-      else if (seen.has(c.id)) errs.push(`widget "${c.id}" repetido`);
-      seen.add(c.id);
-    }
-  });
-  for (const id of ids) if (!seen.has(id)) errs.push(`faltou posicionar o widget "${id}"`);
-  return errs;
-}
-
-function rowsToItems(rows: LayoutCell[][], typeOf: Map<string, string>): LayoutItem[] {
-  const items: LayoutItem[] = [];
-  let y = 0;
-  for (const row of rows) {
-    let x = 0, rowH = 1;
-    for (const cell of row) {
-      const t = typeOf.get(cell.id) || '';
-      const w = clampN(cell.w ?? layW(t), 2, 12);
-      const h = clampN(cell.h ?? layH(t), 1, 12);
-      if (x + w > 12) break;          // defensivo: nunca estoura a linha
-      items.push({ id: cell.id, type: t, x, y, w, h });
-      x += w; rowH = Math.max(rowH, h);
-    }
-    if (row.length) y += rowH;
-  }
-  return items;
-}
-
-/** Fallback determinístico: tipos largos ocupam a linha; pequenos são agrupados
- *  até somar 12. Garante um layout válido quando o agente falha/está offline. */
-function packFallback(widgets: LayWidget[]): LayoutItem[] {
-  const items: LayoutItem[] = [];
-  let x = 0, y = 0, rowH = 1;
-  const flush = (): void => { if (x > 0) { y += rowH; x = 0; rowH = 1; } };
-  for (const wdg of widgets) {
-    const t = wdg.type, h = layH(t);
-    const w = clampN(layW(t), 2, 12);
-    if (w >= 12) { flush(); items.push({ id: wdg.id, type: t, x: 0, y, w: 12, h }); y += h; continue; }
-    if (x + w > 12) flush();
-    items.push({ id: wdg.id, type: t, x, y, w, h }); x += w; rowH = Math.max(rowH, h);
-  }
-  return items;
-}
-
 /** Agente de disposição: 2ª passada que arruma os widgets do detalhamento numa
- *  grade de 12 colunas. Check fechado (soma de larguras ≤ 12 por linha + todos os
- *  ids exatamente uma vez); até 3 tentativas; cai no packer determinístico se não
- *  passar ou em modo mock/sem API key. */
-export async function layoutSection(widgets: LayWidget[], objetivo?: string): Promise<{ layout: LayoutItem[]; usage?: ModalUsage; mocked: boolean }> {
+ *  grade de 12 colunas, com harness fechado (auditLayout: hard = larguras ≤ 12 +
+ *  cobertura; soft = vãos + adjacência conclusão↔evidência). Até 3 tentativas
+ *  reenviando os problemas; se sobrar HARD ou estiver offline, cai no packer
+ *  determinístico — nunca bloqueia o detalhamento. */
+export async function layoutSection(widgets: LayWidget[], objetivo?: string): Promise<{ layout: LayoutItem[]; usage?: ModalUsage; mocked: boolean; attempts: number; residual: string[] }> {
   const typeOf = new Map(widgets.map((w) => [w.id, w.type]));
-  const ids = new Set(widgets.map((w) => w.id));
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { layout: packFallback(widgets), mocked: true };
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { layout: packFallback(widgets), mocked: true, attempts: 0, residual: [] };
 
   const slim = widgets.map((w) => ({
     id: w.id, tipo: w.type,
@@ -556,7 +498,9 @@ export async function layoutSection(widgets: LayWidget[], objetivo?: string): Pr
   const client = new Anthropic({ apiKey });
   let usage: ModalUsage | undefined;
   let repair = '';
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let last: { rows: LayoutCell[][]; audit: Audit } | null = null;
+  let attempt = 0;
+  for (; attempt < 3; attempt++) {
     const payload = { pergunta_original: objetivo, widgets: slim, corrigir: repair || undefined };
     const msg = await loggedCreate(client, {
       model: MODEL, max_tokens: 1024,
@@ -568,12 +512,18 @@ export async function layoutSection(widgets: LayWidget[], objetivo?: string): Pr
     usage = sumUsage(usage, usageOf(msg));
     const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     const rows = ((tu?.input as { rows?: LayoutCell[][] })?.rows) || [];
-    const errs = checkRows(rows, ids);
-    if (!errs.length && rows.length) return { layout: rowsToItems(rows, typeOf), usage, mocked: false };
-    repair = `A disposição anterior tem erros: ${errs.join('; ')}. Reemita "rows" corrigindo: cada linha soma no MÁXIMO 12 de largura e TODO widget aparece exatamente uma vez.`;
+    const audit = auditLayout(rows, widgets);
+    last = { rows, audit };
+    if (rows.length && !audit.hard.length && !audit.soft.length)
+      return { layout: rowsToItems(rows, typeOf), usage, mocked: false, attempts: attempt + 1, residual: [] };
+    const probs = [...audit.hard, ...audit.soft];
+    repair = `A disposição anterior tem problemas: ${probs.join('; ')}. Reemita "rows" corrigindo TODOS: cada linha soma ≤ 12, todo widget aparece uma vez, sem vãos grandes, e cada conclusão ao lado do gráfico/tabela que ela explica.`;
   }
-  // esgotou as tentativas sem passar no check → nunca bloqueia o detalhamento
-  return { layout: packFallback(widgets), usage, mocked: false };
+  // Esgotou: se ainda há HARD (render quebraria), usa o packer; se só sobrou SOFT,
+  // o layout é válido — entrega o melhor que veio.
+  if (last && last.rows.length && !last.audit.hard.length)
+    return { layout: rowsToItems(last.rows, typeOf), usage, mocked: false, attempts: attempt, residual: last.audit.soft };
+  return { layout: packFallback(widgets), usage, mocked: false, attempts: attempt, residual: last ? [...last.audit.hard, ...last.audit.soft] : [] };
 }
 
 // --- B2 deep: model-driven query loop over the retained base ----------------
