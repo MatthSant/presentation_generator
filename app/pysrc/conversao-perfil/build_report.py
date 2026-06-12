@@ -26,7 +26,7 @@ sys.path.insert(0, _here)                    # irmãos (conv_calc)
 sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import conv_calc as cc
 from common.layout import Grid
-from common.preserve import preserve
+from common.preserve import preserve, preserve_dataset
 
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 def lcto_label(slug):
@@ -376,6 +376,7 @@ def build(csv_path, config, content, out_dir):
                  'pages': all_pages}
 
     preserve(out_dir, data_json, sections)   # detalhamentos, perguntas e modais sobrevivem à regeneração
+    preserve_dataset(out_dir, dataset)       # tabelas q-* dos detalhamentos sobrevivem
 
     def dump(name, obj): json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', dataset); dump('data.json', data_json)

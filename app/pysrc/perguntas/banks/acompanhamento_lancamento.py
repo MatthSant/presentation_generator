@@ -179,6 +179,8 @@ def evaluate_all(dataset):
     out = []
     for q in QUESTIONS:
         r = q['fn'](ctx)
+        if r.get('na'):   # dado necessário ausente nesta base → descarta a pergunta
+            continue
         out.append({
             'id': q['id'], 'pergunta': q['pergunta'],
             'justificativa': r['justificativa'], 'kpis': r['kpis'],

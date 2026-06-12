@@ -115,16 +115,23 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     lastValid = cand; // renderável a partir daqui
 
     const widgets = (cand.widgets as Widget[]) ?? [];
-    issues = [...qualityIssues(widgets, inp.dataset as unknown as DataMap), ...methodologySmell(cand)];
-    if (issues.length === 0 && runCritic && !mocked) {
+    // Defeitos determinísticos (tabela vazia, gráfico ilegível, coluna inexistente) são
+    // sempre BLOQUEANTES. O critic acrescenta o juízo semântico, já separado em
+    // bloqueante × polimento. Só o bloqueante reprova; polimento entra no reparo mas
+    // não trava a entrega — depois de N tentativas, nitpick de estilo não pode falhar.
+    let blocking = [...qualityIssues(widgets, inp.dataset as unknown as DataMap), ...methodologySmell(cand)];
+    let suggestions: string[] = [];
+    if (blocking.length === 0 && runCritic && !mocked) {
       inp.onProgress?.('Verificando a qualidade…');
       const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
       const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet);
       if (crit.usage) usage = sumUsage(usage, crit.usage);
-      if (!crit.ok) issues = crit.issues.length ? crit.issues : ['o revisor concluiu que a saída não responde à pergunta original'];
+      if (!crit.ok) blocking = crit.blocking.length ? crit.blocking : ['o revisor concluiu que a saída não responde à pergunta original'];
+      suggestions = crit.suggestions;
     }
+    issues = [...blocking, ...suggestions];   // próximo reparo tenta corrigir ambos
     log(issues);
-    if (issues.length === 0) return { modal: cand, mocked, usage, residualIssues: [], issuesLog, attempts: attempt + 1 };
+    if (blocking.length === 0) return { modal: cand, mocked, usage, residualIssues: [], issuesLog, attempts: attempt + 1 };
     if (mocked) break;
   }
 

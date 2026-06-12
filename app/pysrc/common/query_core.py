@@ -60,6 +60,18 @@ def series(frame, a):
     return ok(rows, [ax], f'{", ".join(L[m] for m in ms)} por {ax} ({len(rows)} {_plural(ax)}).')
 
 
+def tabela(frame, a):
+    """Tabela COMPLETA do eixo: TODAS as métricas como colunas, uma linha por
+    entidade. Use quando quiser uma visão geral por grupo sem escolher métricas —
+    qualquer coluna que você cite na table vai existir (evita coluna inexistente)."""
+    L = frame['labels']
+    ax = frame['axis']
+    rows = [{ax: e['key'], **{L[m]: rnd(e['m'].get(m)) for m in L}} for e in frame['rows']]
+    if not rows:
+        return nao_disp('sem dados')
+    return ok(rows, [ax], f'Todas as métricas por {ax} ({len(rows)} {_plural(ax)}).')
+
+
 def series_long(frame, a):
     """Mesmo eixo, VÁRIAS métricas como SÉRIES (formato longo) — habilita gráfico
     multi-linha / barra agrupada (bind series='serie'). Use só quando as métricas
@@ -127,8 +139,8 @@ def ranking(frame, a):
     return ok(rows, [ax], f'{len(rows)} {_plural(ax)} ordenados por {L[m]} ({"menor" if cost else "maior"} melhor).')
 
 
-GENERIC = {'series': series, 'series_long': series_long, 'correlacao': correlacao,
-           'trend': trend, 'ranking': ranking}
+GENERIC = {'series': series, 'series_long': series_long, 'tabela': tabela,
+           'correlacao': correlacao, 'trend': trend, 'ranking': ranking}
 
 
 def run(build_frame, extra, ctx, fn, a):

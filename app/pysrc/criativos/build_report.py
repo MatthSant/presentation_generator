@@ -332,8 +332,9 @@ def build(csv_path, config, content, out_dir):
     dic = calc.load_dict(dict_csv) if dict_csv and os.path.exists(dict_csv) else {}
     r = assemble(rows, config, content, {'dict': dic})
     try:
-        from common.preserve import preserve
+        from common.preserve import preserve, preserve_dataset
         preserve(out_dir, r['data'], r['sections'])
+        preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     except Exception:
         pass
     def dump(name, obj):

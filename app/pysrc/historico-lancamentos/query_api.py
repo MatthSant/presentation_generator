@@ -79,22 +79,26 @@ def decomposicao(S, _a):
 
 
 def por_dimensao(S, a):
+    # Devolve TODAS as métricas do grupo (uma coluna cada) por (lançamento × grupo),
+    # em vez de uma só — evita o modelo referenciar coluna inexistente. O arg
+    # 'metrica' (opcional) só guia a leitura/summary, não restringe as colunas.
     dim = _DIM.get(a.get('dimensao', ''))
-    metrica = a.get('metrica', 'conv')
     if not dim:
         return {'status': 'nao_disponivel', 'motivo': "dimensao deve ser canal/plataforma/temperatura"}
-    lab = _LABEL.get(metrica, metrica)
     out = []
     for fc in S['events']:
         by = S['ov'].get(fc, {}).get('by', {}).get(dim, {})
         for grupo, trio in by.items():
-            v = trio.get(metrica)
-            if v is not None:
-                out.append({'lcto': S['labels'][fc], a.get('dimensao'): grupo, lab: _r(v, 2)})
+            row = {'lcto': S['labels'][fc], a.get('dimensao'): grupo}
+            for m, v in trio.items():
+                if v is not None and m in _LABEL:
+                    row[_LABEL[m]] = _r(v, 2)
+            if len(row) > 2:
+                out.append(row)
     if not out:
-        return {'status': 'nao_disponivel', 'motivo': f"sem dado de {metrica} por {a.get('dimensao')}"}
+        return {'status': 'nao_disponivel', 'motivo': f"sem dado por {a.get('dimensao')}"}
     return {'status': 'ok', 'table': {'dims': ['lcto', a.get('dimensao')], 'filters': [], 'rows': out},
-            'summary': f'{lab} por {a.get("dimensao")} ao longo dos lançamentos.'}
+            'summary': f'Métricas por {a.get("dimensao")} ao longo dos lançamentos.'}
 
 
 EXTRA = {'decomposicao': decomposicao, 'por_dimensao': por_dimensao}

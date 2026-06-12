@@ -200,7 +200,15 @@ def build(rows, config=None):
     if not fc:
         fcs = sorted({r.get('field_conversion', '') for r in rows if r.get('field_conversion')})
         fc = fcs[0] if fcs else ''
-    rows = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    sub = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    # Config defasado: o field_conversion gravado não casa nenhuma linha do dump
+    # (base retida com fc errado/antigo) → auto-detecta o lançamento presente em vez
+    # de zerar tudo (senão o deep/recompute fica sem dados).
+    if fc and not sub:
+        fcs = sorted({r.get('field_conversion', '') for r in rows if r.get('field_conversion')})
+        fc = fcs[0] if fcs else ''
+        sub = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    rows = sub
 
     all_dates = sorted({_date(r) for r in rows if _date(r)})
     corte = config.get('data_corte') or (all_dates[-1] if all_dates else '')

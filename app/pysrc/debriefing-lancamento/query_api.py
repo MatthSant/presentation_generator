@@ -18,25 +18,37 @@ sys.path.insert(0, os.path.dirname(_here))
 import calc  # noqa: E402
 import common.query_core as qc  # noqa: E402
 
-METRICS = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'fpl']
+METRICS = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'cpmql', 'fpl']
 LABELS = {'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Conversão', 'qual': 'Qualificação',
-          'fat': 'Faturamento', 'invest': 'Investimento', 'roas': 'ROAS', 'cpl': 'CPL', 'fpl': 'Fat/lead'}
-COST = {'cpl'}
+          'fat': 'Faturamento', 'invest': 'Investimento', 'roas': 'ROAS', 'cpl': 'CPL',
+          'cpmql': 'CPMQL', 'fpl': 'Fat/lead'}
+COST = {'cpl', 'cpmql'}
 
 
 def build_frame(M, a):
-    """Eixo = dimensão escolhida (canal | temperatura | semana)."""
+    """Eixo = dimensão escolhida (escopo | canal | temperatura | semana)."""
     dim = a.get('dimensao', 'canal')
-    if dim == 'temperatura':
+    if dim == 'escopo':
+        # invest de mídia é só captação (pago); orgânico ~ 0. roas idem.
+        rows = [{'key': 'Pago', 'm': {'leads': M['leads_pago'], 'vendas': M['vendas_pago'],
+                                      'conv': M['conv_pago'], 'qual': M['qual_pago'], 'fat': M['fat_pago'],
+                                      'invest': M['invest_cpt'], 'roas': M['roas']}},
+                {'key': 'Orgânico', 'm': {'leads': M['leads_org'], 'vendas': M['vendas_org'],
+                                          'conv': M['conv_org'], 'qual': M['qual_org'], 'fat': M['fat_org'],
+                                          'invest': 0, 'roas': None}}]
+        labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas']}
+    elif dim == 'temperatura':
         rows = [{'key': t['temp'], 'm': {'leads': t['leads'], 'invest': t['inv'], 'fat': t['fat'],
-                                         'roas': t['roas'], 'vendas': t['vendas'], 'conv': t['conv'], 'qual': t['qual']}}
+                                         'roas': t['roas'], 'vendas': t['vendas'], 'conv': t['conv'],
+                                         'qual': t['qual'], 'cpl': t.get('cpl'), 'cpmql': t.get('cpmql')}}
                 for t in M['temp']]
-        labs = {k: LABELS[k] for k in ['leads', 'invest', 'fat', 'roas', 'vendas', 'conv', 'qual']}
+        labs = {k: LABELS[k] for k in ['leads', 'invest', 'fat', 'roas', 'vendas', 'conv', 'qual', 'cpl', 'cpmql']}
     elif dim == 'semana':
         rows = [{'key': f"S{w['snum']}", 'm': {'leads': w['leads'], 'vendas': w['vendas'], 'conv': w['conv'],
-                                               'qual': w['qual'], 'cpl': w['cpl'], 'fpl': w['fpl']}}
+                                               'qual': w['qual'], 'cpl': w['cpl'], 'cpmql': w.get('cpmql'),
+                                               'fat': w.get('fat'), 'invest': w.get('inv_cpt'), 'fpl': w['fpl']}}
                 for w in M['weekly']]
-        labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'cpl', 'fpl']}
+        labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'cpl', 'cpmql', 'fat', 'invest', 'fpl']}
     else:
         rows = [{'key': c['canal'], 'm': {'leads': c['leads'], 'vendas': c['vendas'], 'conv': c['conv'],
                                           'qual': c['qual'], 'fat': c['fat']}}
@@ -45,7 +57,30 @@ def build_frame(M, a):
     return {'axis': dim, 'rows': rows, 'labels': labs, 'cost': {m: (m in COST) for m in labs}}
 
 
-EXTRA = {}
+def atingimento(M, _a):
+    """Realizado × meta × gap por indicador GLOBAL. A meta mora aqui (o build_frame é
+    cross-tab e não a carrega) — serve 'a meta foi atingida? onde ficou o gap?'. As
+    métricas de custo (CPL/CPMQL) atingem a meta quando ficam ABAIXO dela."""
+    G = M.get('goals') or {}
+    spec = [('vendas', 'Vendas', M.get('vendas_total')), ('leads', 'Leads', M.get('leads_total')),
+            ('fat', 'Faturamento', M.get('fat')), ('qual', 'Qualificação', M.get('qual')),
+            ('cpl', 'CPL', M.get('cpl')), ('cpmql', 'CPMQL', M.get('cpmql'))]
+    rows = []
+    for key, lab, val in spec:
+        meta = G.get(key)
+        row = {'indicador': lab, 'Realizado': round(val, 2) if isinstance(val, (int, float)) else None}
+        if meta:
+            row['Meta'] = round(meta, 2)
+            row['Gap'] = round((val or 0) - meta, 2)
+            row['Atingimento'] = round((val or 0) / meta * 100, 1)
+        rows.append(row)
+    if not any('Meta' in r for r in rows):
+        return {'status': 'nao_disponivel', 'motivo': 'sem metas configuradas na base'}
+    return {'status': 'ok', 'table': {'dims': ['indicador'], 'filters': [], 'rows': rows},
+            'summary': 'Realizado vs meta da campanha (Gap absoluto e Atingimento %).'}
+
+
+EXTRA = {'atingimento': atingimento}
 
 
 def main():

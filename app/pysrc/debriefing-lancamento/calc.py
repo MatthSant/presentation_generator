@@ -405,7 +405,15 @@ def build(rows, config=None):
     if not fc:
         fcs = sorted({r.get('field_conversion', '') for r in rows if r.get('field_conversion')})
         fc = fcs[0] if fcs else ''
-    rows = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    sub = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    # Config defasado: o field_conversion gravado não casa NENHUMA linha do dump
+    # (ex.: base retida com fc errado/antigo). Em vez de zerar tudo, auto-detecta
+    # o lançamento presente no dump — assim o deep/recompute nunca fica sem dados.
+    if fc and not sub:
+        fcs = sorted({r.get('field_conversion', '') for r in rows if r.get('field_conversion')})
+        fc = fcs[0] if fcs else ''
+        sub = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    rows = sub
     classify(rows, config)
     goals = None
     if config.get('goals_csv'):

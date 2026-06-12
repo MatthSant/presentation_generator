@@ -156,15 +156,19 @@ const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha p
 - SÉRIES (agrupado/empilhado): no máximo ~6. Com mais (ex.: uma por lançamento) o gráfico fica ilegível —
   agregue, foque nas MAIORES variações, ou use heatmap. Tabela vazia (só cabeçalho) ou gráfico que não
   comunica é DEFEITO: corte ou troque por kpi/prosa.
-- MULTI-LINHA / multi-série de MÉTRICAS de ESCALA COMPARÁVEL (ex.: leads pago × leads orgânico por dia,
-  CPL × CPMQL por semana): PODE e DEVE. Chame a consulta "series_long" (devolve formato longo com colunas
-  "serie" e "valor") e plote um line/bar com bind { x: <eixo>, y: "valor", series: "serie" } — vira 2+ linhas
-  no mesmo eixo. Só exige que as métricas dividam ordem de grandeza parecida.
-- LIMITE deste detalhamento: NÃO tem gráfico de DISPERSÃO (correlação ponto-a-ponto entre duas métricas) nem
-  EIXO DUPLO (duas métricas de escalas MUITO diferentes em eixos y independentes, ex.: investimento R$ ×
-  conversão %). Para esses casos NÃO finja eixo duplo: ponha as duas métricas como COLUNAS de uma TABLE — com
-  a variação/Δ% já calculada quando der — e registre num find-note, em uma linha, que dispersão/eixo-duplo não
-  está disponível aqui. (Métricas de MESMA escala → use series_long e plote multi-linha, acima.)`;
+- MULTI-LINHA / multi-série de MÉTRICAS de ESCALA COMPARÁVEL (ex.: leads pago × leads orgânico por dia):
+  Chame "series_long" (formato longo, colunas "serie"/"valor") e plote line/bar com bind { x, y:"valor",
+  series:"serie" } — 2+ linhas no mesmo eixo. OU, se já tem uma tabela LARGA com uma coluna por métrica
+  (ex.: a consulta "tabela" devolve [semana, CPL, qual, …]), passe y como ARRAY: bind { x:"semana",
+  y:["leads_pago","leads_org"] } → uma linha por coluna.
+- EIXO DUPLO — duas métricas de ESCALAS DIFERENTES no mesmo gráfico (ex.: CPL em R$ × Qualificação em %,
+  investimento × conversão): AGORA É POSSÍVEL. Use uma tabela larga (consulta "tabela") e plote um line com
+  y ARRAY e secondaryAxis no índice da 2ª métrica: { chartType:"line", bind:{ x:"semana", y:["CPL","qual"] },
+  secondaryAxis:1, secondaryAxisSuffix:"%" }. A série do secondaryAxis vai no eixo da DIREITA, então nenhuma
+  fica achatada. Se o título promete DUAS métricas, o bind TEM que trazer as duas (y array) — nunca titule
+  "CPL e Qualificação" plotando só CPL.
+- LIMITE: NÃO há gráfico de DISPERSÃO (correlação ponto-a-ponto). Para isso, ponha as duas métricas como
+  COLUNAS de uma TABLE e registre num find-note que dispersão não está disponível aqui.`;
 
 const GUARDRAIL = `GUARDRAIL — NUNCA perca de vista a PERGUNTA ORIGINAL (campo "pergunta_original" do input): toda a
 saída existe para respondê-la. Pedidos de revisão/ajuste ("instrucao") refinam a FORMA (trocar gráfico,
@@ -191,6 +195,10 @@ const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
   não está disponível, nunca o invente.
 - MÉTRICA DERIVADA: CPA = CPL ÷ Taxa de Conversão. Para EXPLICAR o CPA, atribua sua variação a CPL vs.
   conversão — nunca liste o próprio CPA como um terceiro fator independente ao lado deles.
+- ROAS já vem PRONTO na coluna ROAS — NÃO recalcule nem some 1. ROAS = retorno por R$1 investido:
+  ROAS < 1 é PREJUÍZO (ROAS 0,64 = retornou só R$0,64, perdeu R$0,36 por real), ROAS = 1 empata, ROAS > 1
+  dá lucro. Nunca trate um ROAS < 1 como lucro nem o cite como se fosse > 1 (ex.: ler 0,64 como "1,64");
+  ESCALAR exige ROAS > 1 (idealmente bem acima), ROAS < 1 → PAUSAR/revisar.
 - Use a métrica que o texto NOMEIA: se a frase diz "CPL", use o valor de CPL (não o de CPA); confira a ordem
   de grandeza (um CPL de leads costuma ser ~R$10–50, não milhares — um valor de milhares ali é quase sempre
   a métrica errada).
@@ -222,6 +230,10 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
   'acompanhamento-lancamento': {
     what: 'acompanhamento tático DIÁRIO de UM lançamento em curso: KPIs por dia (CPL, CPMQL, CTR, Hook, Hold, Connect, Conv. de Página, Taxa de Resposta/Qualidade) comparados a METAS e BENCHMARKS, com tendência dos últimos 3 dias e funil de tráfego (taxas vs benchmark)',
     focus: 'FOQUE na métrica/dia que o card mostra; o eixo é o DIA da campanha. Os BENCHMARKS/metas estão nas tabelas acom_kpis (colunas meta/dev/cls/trend_dir) e acom_funnel (colunas bench/gap/maior_furo) — SEMPRE compare o realizado contra elas e cite o benchmark. O maior furo do funil é a maior queda RELATIVA ao benchmark (gap), não a maior perda absoluta. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+  },
+  'debriefing-lancamento': {
+    what: 'debriefing pós-campanha de UM lançamento: resultado vs META por canal/temperatura/escopo (pago × orgânico), captação, mídia (CPL/CPMQL/ROAS/CPM) e evolução semanal/diária',
+    focus: 'FOQUE no recorte do card. As METAS e o atingimento estão na tabela de KPIs (deb_kpis: um indicador por linha com colunas value/meta/hist) — para "a meta foi atingida?" compare o value × meta DELA, não diga "meta não configurada". As metas existem SÓ no nível GLOBAL (deb_kpis: vendas/leads/fat/qualif/CPL); NÃO há meta por canal nem por temperatura (a menos que a consultar de fato retorne uma coluna de meta). NUNCA invente metas por dimensão (ex.: "Facebook meta 300", "quente meta 180") — isso reprova na qualidade. Para "ONDE o gap se concentrou", decomponha o resultado por CONTRIBUIÇÃO DE VOLUME ABSOLUTO (quais canais/temperaturas trouxeram mais vendas e quais trouxeram pouca/nenhuma escala), e reconheça num find-note que não há metas desagregadas. O split pago × orgânico está em deb_chan (coluna tipo) e na dimensão "escopo" da consultar. Métricas de MÍDIA (invest, ROAS, CPL, CPMQL) existem por TEMPERATURA, por SEMANA e no PAGO do escopo — NÃO por canal (canal traz só leads/vendas/conversão/qualificação/faturamento). Na dúvida sobre quais colunas uma dimensão tem, consulte "tabela" (devolve todas as métricas daquela dimensão). ATENÇÃO: as métricas por TEMPERATURA contam só lead PAGO (não somam com o total geral por canal) — não misture os dois totais. A soma de vendas por canal/escopo pode NÃO fechar com o total geral (há vendas sem canal/escopo atribuído) — se não bater, reconheça a diferença num find-note ("X vendas sem canal atribuído"), não force os números a casar nem invente. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
   },
 };
 const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
@@ -293,7 +305,9 @@ function bindSchema(tableNames: string[]): unknown {
     type: 'object', required: ['dataset'],
     properties: {
       dataset: { type: 'string', enum: tableNames },
-      x: { type: 'string' }, y: { type: 'string' }, series: { type: 'string' },
+      x: { type: 'string' },
+      y: { oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'coluna numérica; ARRAY = uma série por coluna (ex.: ["CPL","qual"] → 2 linhas). Use com secondaryAxis p/ escalas diferentes.' },
+      series: { type: 'string' },
       agg: { type: 'string', enum: ['sum', 'avg', 'min', 'max', 'count'] },
       where: { type: 'object', additionalProperties: { type: 'string' }, description: 'recorte por valor de dimensão, ex.: {"mes":"Jan"} — só colunas/valores do catálogo' },
     },
@@ -317,7 +331,7 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
             { type: 'object', required: ['type', 'label', 'value'], properties: { type: { const: 'kpi' }, id: { type: 'string' }, label: { type: 'string' }, value: { type: ['string', 'number'] }, color, format: { type: 'string' } } },
             { type: 'object', required: ['type', 'title'], properties: { type: { const: 'find-block' }, id: { type: 'string' }, tag: { type: 'string' }, tagColor: color, title: { type: 'string' }, detail: { type: 'string' } } },
             { type: 'object', required: ['type', 'title'], properties: { type: { type: 'string', enum: ['ni', 'ni-vertical'] }, id: { type: 'string' }, n: { type: ['string', 'number'] }, title: { type: 'string' }, why: { type: 'string' }, action: { type: 'string' } } },
-            { type: 'object', required: ['type', 'chartType', 'bind'], properties: { type: { const: 'chart' }, id: { type: 'string' }, title: { type: 'string' }, chartType: { type: 'string', enum: ['bar', 'bar-horizontal', 'line', 'stacked', 'donut', 'area'] }, diverging: { type: 'boolean' }, bind: bindSchema(tableNames) } },
+            { type: 'object', required: ['type', 'chartType', 'bind'], properties: { type: { const: 'chart' }, id: { type: 'string' }, title: { type: 'string' }, chartType: { type: 'string', enum: ['bar', 'bar-horizontal', 'line', 'stacked', 'donut', 'area'] }, diverging: { type: 'boolean' }, secondaryAxis: { type: ['integer', 'array'], items: { type: 'integer' }, description: 'índice (0-based) da série que vai no eixo Y da DIREITA — use quando y é array de métricas de escalas diferentes (ex.: y:["CPL","qual"], secondaryAxis:1)' }, secondaryAxisSuffix: { type: 'string', description: 'sufixo do eixo direito, ex.: "%"' }, bind: bindSchema(tableNames) } },
             { type: 'object', required: ['type', 'cols', 'bind'], properties: { type: { const: 'table' }, id: { type: 'string' }, title: { type: 'string' }, cols: { type: 'array', items: { type: 'string' } }, bind: bindSchema(tableNames) } },
           ],
         },
@@ -374,11 +388,12 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
 
 const CRITIQUE_SCHEMA = {
   type: 'object',
-  required: ['answersQuestion', 'numbersGrounded', 'issues'],
+  required: ['answersQuestion', 'numbersGrounded', 'blocking', 'suggestions'],
   properties: {
     answersQuestion: { type: 'boolean', description: 'a saída responde DIRETAMENTE a pergunta_original?' },
     numbersGrounded: { type: 'boolean', description: 'todo número da prosa bate com os "dados" (ou é derivável deles)?' },
-    issues: { type: 'array', items: { type: 'string' }, description: 'até 5 problemas acionáveis (vazio = ok)' },
+    blocking: { type: 'array', items: { type: 'string' }, description: 'até 5 defeitos GRAVES que tornam a saída ERRADA ou ENGANOSA (número que não bate, dado/categoria inventado, não responde à pergunta, resposta enterrada sem conclusão, gráfico ilegível). Cada um 1 linha ACIONÁVEL com a correção. Vazio = nada grave a corrigir.' },
+    suggestions: { type: 'array', items: { type: 'string' }, description: 'melhorias de POLIMENTO que NÃO bloqueiam a aprovação (escolha de tipo de gráfico, acrescentar número absoluto ao lado do %, redação mais clara). Vazio se não houver.' },
   },
 } as const;
 
@@ -395,27 +410,29 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   for grande o bastante para MUDAR A CONCLUSÃO (sinal trocado, ordem de grandeza, fator errado). NÃO
   reprove por "23,4% vs 23,5%". Marque FALSE se: um número claramente não confere com os dados; a prosa
   cita números mas os "dados" estão vazios / não os sustentam; ou o recorte/consulta não faz sentido.
-- issues (≤5, cada uma 1 linha ACIONÁVEL), p.ex.:
-  • não responde à pergunta / responde outra coisa
-  • EIXO trocado: respondeu nível (o que é maior) quando a pergunta era tendência (o que muda) ou causa, ou vice-versa
-  • CRITÉRIO inventado: cita grupos/números de um critério que não está nos "dados" (deveria ter consultado ou dito que falta)
-  • resposta ENTERRADA: o 1º widget não é um highlight respondendo à pergunta com o número decisivo
+- Classifique cada problema em DOIS baldes. Cada item: 1 linha ACIONÁVEL com a CORREÇÃO (o que fazer
+  EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo), não só o defeito.
+- "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
+  • não responde à pergunta / responde outra coisa / EIXO trocado (nível quando era tendência/causa, ou vice-versa)
+  • número "X" não confere com os dados (esperado ~Y); prosa cita números sem tabela/gráfico que os sustente
+  • CRITÉRIO/CATEGORIA inventado: cita grupos/categorias/números que não estão nos "dados"
+  • métrica trocada (nomeia "CPL" mas usa o valor de CPA; ordem de grandeza implausível); CPA tratado como independente de CPL×conversão
+  • resposta ENTERRADA: nenhum highlight no topo respondendo à pergunta com o número decisivo
   • entregou AÇÕES ("o que fazer") quando a pergunta é analítica ("o que aconteceu / qual fator pesa mais")
-  • número "X" não confere com os dados (esperado ~Y) — ou números sem tabela/gráfico que os sustente
-  • métrica trocada: o texto nomeia uma métrica (ex.: "CPL") mas usa o valor de outra (ex.: CPA), ou ordem de
-    grandeza implausível (CPL de leads em milhares); CPA tratado como fator independente de CPL e conversão
-  • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução nem definição
-  • o recorte/consulta não faz sentido para a pergunta
-  • paredão de prosa em vez de blocos; falta conclusão acionável; gráfico inadequado (1 categoria, séries demais)
-Não invente defeitos: se está bom, answersQuestion=true, numbersGrounded=true e issues=[].`;
+  • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução; gráfico ilegível (1 categoria, séries demais)
+- "suggestions" (POLIMENTO — NÃO reprova): a saída já está correta e responde, mas poderia ficar melhor.
+  Ex.: trocar bar por column/pie com poucas categorias; acrescentar o número absoluto ao lado do %; redação
+  mais enxuta; reordenar para leitura. NUNCA ponha em "blocking" algo que é só preferência de estilo/formatação.
+Não invente defeitos: se está bom e responde, answersQuestion=true, numbersGrounded=true, blocking=[]
+(suggestions pode ter 0+ itens). Na dúvida entre blocking e suggestion, é suggestion.`;
 
 /** Juízo semântico + NUMÉRICO de uma modal/seção já válida no schema: responde à
  *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
  *  binds)? o recorte faz sentido? Devolve {ok, issues} para o gate de reparo.
  *  No-op (ok) em modo mock/sem API key, para o fluxo offline seguir testável. */
-export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; usage?: ModalUsage }> {
+export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; blocking: string[]; suggestions: string[]; usage?: ModalUsage }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [] };
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [], blocking: [], suggestions: [] };
   const ws = ((modal as { widgets?: Array<Record<string, unknown>> })?.widgets) || [];
   const slim = ws.map((w) => ({ type: w.type, title: w.title, label: w.label, value: w.value, text: w.text, tag: w.tag, why: w.why, action: w.action, chartType: w.chartType, cols: w.cols }));
   const client = new Anthropic({ apiKey });
@@ -427,10 +444,14 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
     messages: [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao, widgets: slim, dados: factsheet }) }],
   }, 'critic');
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-  const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; issues?: string[] };
-  const issues = Array.isArray(out.issues) ? out.issues.filter((s) => typeof s === 'string' && s.trim()) : [];
-  const ok = out.answersQuestion !== false && out.numbersGrounded !== false && issues.length === 0;
-  return { ok, issues, usage: usageOf(msg) };
+  const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; blocking?: string[]; suggestions?: string[] };
+  const clean = (xs?: string[]): string[] => (Array.isArray(xs) ? xs.filter((s) => typeof s === 'string' && s.trim()) : []);
+  const blocking = clean(out.blocking);
+  const suggestions = clean(out.suggestions);
+  // Aprovação = responde + números batem + SEM defeito grave. Polimento (suggestions)
+  // não reprova: depois de N tentativas, nitpick de estilo não pode travar a entrega.
+  const ok = out.answersQuestion !== false && out.numbersGrounded !== false && blocking.length === 0;
+  return { ok, issues: [...blocking, ...suggestions], blocking, suggestions, usage: usageOf(msg) };
 }
 
 // --- Agente de DISPOSIÇÃO: arruma os widgets numa grade de 12 colunas --------
@@ -556,10 +577,15 @@ const deepSystem = (analysisType?: string, spec?: ConsultarSpec): string => {
     ? 'CONSULTAS DISPONÍVEIS (campo "funcao" da tool "consultar"):\n'
       + spec.funcoes.map((f) => `  • ${f.id} — ${f.desc}`).join('\n') + '\n\n'
     : '';
-  return `Você aprofunda um card de ${d.what}. Você NÃO recebe o
-dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
-devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
-gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
+  return `Você aprofunda um card de ${d.what}. Você recebe um CATÁLOGO de tabelas JÁ
+CALCULADAS (campo "catalogo") — essa é sua fonte PRIMÁRIA: na maioria das perguntas a
+resposta já está numa tabela do catálogo (split por tipo/canal/temperatura, KPIs vs
+meta/benchmark, série por dia/semana…). Faça o bind dos gráficos/tabelas NAS tabelas do
+catálogo. Só chame a tool "consultar" para um recorte que NÃO existe no catálogo — o app
+calcula e devolve agregados com um "dataset_key" para o bind. Você PODE fazer VÁRIAS
+consultas (uma por turno) até reunir o que precisa — não force tudo numa só, e se uma
+consulta vier vazia, tente outra dimensão/métrica ou caia no catálogo (NÃO desista). Quando
+tiver o suficiente, chame "emit_modal".
 
 ${funcs}${GUARDRAIL}
 
@@ -596,10 +622,16 @@ exatamente o que a "instrucao" pede (ex.: trocar o gráfico, encurtar, focar num
 grupo, adicionar um cruzamento). Emita a modal final completa (não um diff).
 ${REVISION_RULE}
 
-Regras duras: gráficos/tabelas só via bind a um dataset_key retornado (ou tabela do
-catálogo inicial); números só na prosa dos widgets de texto (find-note/highlight/
-find-block/ni) e no value de um kpi — sempre extraídos das tabelas. Se uma consulta voltar
-"nao_disponivel", diga isso na prosa — nunca invente número.
+Regras duras: gráficos/tabelas só via bind a uma tabela do CATÁLOGO ou a um dataset_key
+retornado por "consultar"; números só na prosa dos widgets de texto (find-note/highlight/
+find-block/ni) e no value de um kpi — sempre extraídos das tabelas. NUNCA cite uma coluna
+que não existe na tabela do bind (renderiza célula vazia) — use os nomes EXATOS do catálogo.
+CATÁLOGO PRIMEIRO + NUNCA DESISTIR: se uma "consultar" voltar VAZIA (0 linhas/entidades) ou
+"nao_disponivel", NÃO conclua "não há dados" nem entregue AÇÕES de como coletar — a resposta
+quase sempre JÁ ESTÁ numa tabela do catálogo (ex.: comparar pago × orgânico → a tabela de
+canais tem a coluna de tipo; KPI vs meta → a tabela de KPIs tem meta/desvio). Faça bind nela.
+Só diga "indisponível" se NEM o catálogo NEM as consultas tiverem o recorte — e ainda assim
+apresente o corte mais próximo COM números.
 
 BIND: para isolar um valor de uma dimensão numa tabela já existente, use bind.where
 (ex.: {"mes":"Jan"}) com valores que existam na tabela — o filtro é real e aí PODE

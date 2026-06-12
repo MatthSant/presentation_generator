@@ -288,6 +288,21 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     opts.fill = { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.2, opacityTo: 0 } };
     opts.yaxis = { ...b.yaxis, min: axisMin };
   }
+  // Eixo secundário também em line/area (não só mixed): duas métricas de escalas
+  // diferentes (ex.: CPL em R$ × Qualificação em %) — a 2ª série vai no eixo da
+  // direita, senão ela fica achatada contra a de maior magnitude.
+  if ((def.type === 'line' || def.type === 'area') && def.secondaryAxis != null) {
+    const arr = Array.isArray(series) ? (series as unknown[]) : [];
+    const secs = Array.isArray(def.secondaryAxis) ? def.secondaryAxis : [def.secondaryAxis];
+    const suffix = def.secondaryAxisSuffix || '';
+    const firstSec = secs[0];
+    const firstPrim = arr.findIndex((_, i) => !secs.includes(i));
+    const lbl = { style: { colors: labelColor, fontSize: '11px' } };
+    opts.yaxis = arr.map((_, i) => secs.includes(i)
+      ? { opposite: true, show: i === firstSec, min: 0, ...(suffix === '%' ? { max: 100 } : {}),
+          labels: { ...lbl, ...(suffix ? { formatter: (v: number) => `${v}${suffix}` } : {}) } }
+      : { show: i === firstPrim, min: axisMin, labels: lbl });
+  }
   if (def.type === 'radialBar') {
     chart.type = 'radialBar';
     opts.plotOptions = { radialBar: { hollow: { size: '40%' }, dataLabels: {

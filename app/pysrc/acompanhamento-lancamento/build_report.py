@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, intf
-from common.preserve import preserve
+from common.preserve import preserve, preserve_dataset
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
@@ -319,17 +319,34 @@ def assemble(rows, config, content, opts=None):
                        'sub': 'CPM, Hook, Hold, CTR, Connect, Conversão de Página e funil de conversão.'}, 'widgets': tra}
     layouts['s04'] = tg.items
 
-    # ── páginas + meta ───────────────────────────────────────────────────────
-    pages = [{'id': 'visao-geral', 'label': 'Visão Geral', 'sections': [{'id': 's01', 'label': 'Visão Geral'}]},
-             {'id': 'evolucao', 'label': 'Evolução', 'sections': [{'id': 's02', 'label': 'Evolução Diária'}]},
-             {'id': 'canais', 'label': 'Canais', 'sections': [{'id': 's03', 'label': 'Canais e Audiência'}]},
-             {'id': 'trafego', 'label': 'Tráfego', 'sections': [{'id': 's04', 'label': 'Tráfego Pago'}]}]
+    # ── merge: dashboard de leitura rápida numa ÚNICA página ──────────────────
+    # Acompanhamento é leitura rápida: os 4 grupos (Visão Geral, Evolução, Canais,
+    # Tráfego) empilham numa só seção rolável, cada um aberto por um eyebrow-divisor.
+    # Só Detalhamentos e Perguntas ficam em páginas à parte (criadas pela rota/preserve).
+    groups = [('s01', None), ('s02', 'EVOLUÇÃO DIÁRIA'),
+              ('s03', 'CANAIS E AUDIÊNCIA'), ('s04', 'TRÁFEGO PAGO')]
+    merged_w, merged_items, y_off = [], [], 0
+    for sid, divider in groups:
+        if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
+            did = f'div-{sid}'
+            merged_w.append({'id': did, 'type': 'eyebrow', 'title': divider})
+            merged_items.append({'id': did, 'type': 'eyebrow', 'x': 0, 'y': y_off, 'w': 12, 'h': 1})
+            y_off += 1
+        merged_w.extend(sections[sid]['widgets'])
+        for it in layouts[sid]:
+            merged_items.append({**it, 'y': it['y'] + y_off})
+        y_off += max((it['y'] + it['h'] for it in layouts[sid]), default=0)
+
+    sections = {'s01': {'id': 's01', 'header': sections['s01']['header'], 'widgets': merged_w}}
+    layouts = {'s01': merged_items}
+    pages = [{'id': 'acompanhamento', 'label': 'Acompanhamento',
+              'sections': [{'id': 's01', 'label': 'Acompanhamento'}]}]
 
     created = config.get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'controls': {'kind': 'acompanhamento-lancamento',
-                                       'pages': ['visao-geral', 'evolucao', 'canais', 'trafego']}},
+                                       'pages': ['acompanhamento']}},
                  'pages': pages}
     return {'dataset': dataset, 'data': data_json,
             'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'},
@@ -371,6 +388,7 @@ def build(csv_path, config, content, out_dir):
     rows = calc.load_rows(csv_path)
     r = assemble(rows, config, content, {})
     preserve(out_dir, r['data'], r['sections'])
+    preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     def dump(name, obj):
         json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])

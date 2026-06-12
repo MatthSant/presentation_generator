@@ -34,8 +34,10 @@ export interface Bind {
   dataset: string;
   /** Dimension column for categories (group-by axis). */
   x?: string;
-  /** Numeric column projected into series values. */
-  y?: string;
+  /** Numeric column projected into series values. An ARRAY plots one series PER
+   *  column (ex.: ["CPL","qual"] → duas linhas) — use com secondaryAxis quando as
+   *  métricas têm escalas diferentes. Não combine y-array com `series`. */
+  y?: string | string[];
   /** Optional column whose distinct values split the data into multiple series. */
   series?: string;
   /** Numeric columns to total (used by kpi widgets). */
