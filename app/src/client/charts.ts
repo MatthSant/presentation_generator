@@ -73,20 +73,19 @@ interface Base {
 function readPalette(fallback: string[]): string[] {
   if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') return fallback;
   const cs = getComputedStyle(document.documentElement);
-  const tokens = ['--purple', '--green', '--amber', '--orange', '--red'];
+  const tokens = ['--purple', '--green', '--amber', '--orange', '--data-5'];
   const read = tokens.map(t => cs.getPropertyValue(t).trim());
   return read.every(Boolean) ? read : fallback;
 }
 
 function getBase(theme: Theme): Base {
   const dark = theme === 'dark';
-  const labelColor = dark ? '#9CA3AF' : '#6B6B73';
-  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#ECECEC';
-  const defColors = readPalette(dark
-    ? ['#8B5CF6', '#10B981', '#F59E0B', '#F97316', '#EF4444']
-    : ['#7C3AED', '#059669', '#D97706', '#EA580C', '#DC2626']);
+  const labelColor = dark ? '#9CA3AF' : '#71717a';
+  const gridColor = dark ? 'rgba(255,255,255,.07)' : '#e7e7ea';
+  // Sequência data-viz do design system: violeta, esmeralda, âmbar, laranja, violeta-claro.
+  const defColors = readPalette(['#7C3AED', '#059669', '#D97706', '#EA580C', '#C3A4F7']);
   const base = {
-    chart: { background: 'transparent', fontFamily: "'Exo 2', system-ui, sans-serif", toolbar: { show: false }, zoom: { enabled: false }, selection: { enabled: false }, animations: EXPORT_MODE ? { enabled: false } : { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
+    chart: { background: 'transparent', fontFamily: "'Poppins', system-ui, sans-serif", toolbar: { show: false }, zoom: { enabled: false }, selection: { enabled: false }, animations: EXPORT_MODE ? { enabled: false } : { enabled: true, speed: 400, dynamicAnimation: { enabled: true, speed: 350 } } },
     theme: { mode: dark ? 'dark' : 'light' },
     grid: { borderColor: gridColor, strokeDashArray: 3 },
     tooltip: { theme: dark ? 'dark' : 'light' },
@@ -129,7 +128,8 @@ export function mergeDeep<T extends Record<string, unknown>>(target: T, source: 
 }
 
 export function currentTheme(): Theme {
-  return (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark') ? 'dark' : 'light';
+  // Dark mode removido no redesign — o app é light-only.
+  return 'light';
 }
 
 /* Brazilian number formatting: comma decimal, period thousands; integers without ",0". */
