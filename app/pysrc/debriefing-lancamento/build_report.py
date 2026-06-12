@@ -74,6 +74,36 @@ def assemble(rows, config, content, opts=None):
     add_table('deb_daily', ['data'], [
         {'data': d['label'], 'leads': d['l_all'], 'l_pago': d['l_pago'], 'l_org': d['l_org'],
          'vendas': d['v_all'], 'conv': d['c_all'], 'q_pago': d['q_pago']} for d in M['daily']])
+    # agregados (gráficos do 360° + perguntas norteadoras + deep mode)
+    add_table('deb_chan', ['canal'], [
+        {'canal': c['canal'], 'tipo': c['tipo'], 'leads': c['leads'], 'vendas': c['vendas'],
+         'conv': c['conv'], 'qual': c['qual'], 'fat': c['fat']} for c in M['chan']])
+    add_table('deb_temp', ['temperatura'], [
+        {'temperatura': t['temp'], 'leads': t['leads'], 'invest': t['inv'], 'fat': t['fat'],
+         'roas': t['roas'], 'vendas': t['vendas'], 'conv': t['conv'], 'qual': t['qual'],
+         'meta_vendas': t['meta_vendas']} for t in M['temp']])
+    add_table('deb_weekly', ['semana'], [
+        {'semana': f"S{w['snum']}", 'leads': w['leads'], 'leads_pago': w['leads_pago'], 'leads_org': w['leads_org'],
+         'vendas': w['vendas'], 'conv': w['conv'], 'qual': w['qual'], 'cpl': w['cpl'], 'fpl': w['fpl']}
+        for w in M['weekly']])
+    add_table('deb_camp', ['campanha'], [
+        {'campanha': c['campanha'], 'inv': c['inv'], 'fat': c['fat'], 'roas': c['roas'],
+         'leads': c['leads'], 'vendas': c['vendas'], 'cpl': c['cpl'], 'conv': c['conv']} for c in M['camp_roas']])
+    G2 = M['goals']
+    mv = sum((G2.get('meta_vendas_canal') or {}).values()) or G2.get('vendas')
+    add_table('deb_kpis', ['metric'], [
+        {'metric': k, 'label': lbl, 'value': M.get(vk), 'meta': mt, 'hist': ht, 'grupo': grp}
+        for k, lbl, vk, mt, ht, grp in [
+            ('vendas', 'Vendas', 'vendas_total', mv, H.get('vendas'), 'volume'),
+            ('leads', 'Leads', 'leads_total', G2.get('leads'), H.get('leads'), 'volume'),
+            ('fat', 'Faturamento', 'fat', G2.get('fat'), H.get('fat'), 'financeiro'),
+            ('conv', 'Conversão', 'conv_geral', G2.get('conv'), None, 'conversao'),
+            ('qual', 'Qualificação', 'qual', G2.get('qual'), H.get('qual'), 'qualidade'),
+            ('cpl', 'CPL', 'cpl', G2.get('cpl'), H.get('cpl'), 'midia'),
+            ('cpmql', 'CPMQL', 'cpmql', G2.get('cpmql'), H.get('cpmql'), 'midia'),
+            ('roas', 'ROAS', 'roas', None, H.get('roas'), 'midia'),
+            ('invest_cpt', 'Invest. Captação', 'invest_cpt', G2.get('invest_cpt'), H.get('invest_cpt'), 'financeiro'),
+        ]])
 
     # ════ s01 — Panorama ════════════════════════════════════════════════════
     pan, pg = [], Grid()
@@ -225,6 +255,19 @@ def assemble(rows, config, content, opts=None):
     vereditos = _a360(M, G, H)
     for i, q in enumerate(vereditos):
         fb(a3, ag, f'a3-q{i}', q['tag'], q['cor'], q['titulo'], q['detalhe'], w=6, h=3)
+    eb(a3, ag, 'a3-eb-g', 'EVIDÊNCIA EM GRÁFICOS')
+    a3.append({'id': 'a3-g-q5', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Conversão por canal (%)',
+               'height': 300, 'pct': True, 'valueFormat': 'pct', 'distributed': True,
+               'bind': {'dataset': 'deb_chan', 'x': 'canal', 'y': 'conv'}}); ag.add('a3-g-q5', 'chart', 6, 4)
+    a3.append({'id': 'a3-g-q9', 'type': 'chart', 'chartType': 'bar', 'title': 'ROAS por temperatura (×)',
+               'height': 300, 'valueFormat': 'x', 'distributed': True,
+               'bind': {'dataset': 'deb_temp', 'x': 'temperatura', 'y': 'roas'}}); ag.add('a3-g-q9', 'chart', 6, 4)
+    a3.append({'id': 'a3-g-q11', 'type': 'chart', 'chartType': 'bar', 'title': 'Fat/lead por semana (R$)',
+               'height': 300, 'valueFormat': 'money', 'colors': ['#534AB7'],
+               'bind': {'dataset': 'deb_weekly', 'x': 'semana', 'y': 'fpl'}}); ag.add('a3-g-q11', 'chart', 6, 4)
+    a3.append({'id': 'a3-g-q12', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Vendas por canal',
+               'height': 300, 'distributed': True,
+               'bind': {'dataset': 'deb_chan', 'x': 'canal', 'y': 'vendas'}}); ag.add('a3-g-q12', 'chart', 6, 4)
     sections['s06'] = {'id': 's06', 'header': {'badge': 'Análise 360°', 'title': 'Análise 360°',
                        'sub': 'As perguntas estratégicas do lançamento, com evidência.'}, 'widgets': a3}
     layouts['s06'] = ag.items
@@ -305,39 +348,77 @@ def _canais_vs_meta(chan, by_canal, mvc):
 
 def _a360(M, G, H):
     out = []
-    # Q1 Resultado
+    recap = M['l_ant'] + M['l_cli']
+    recap_pct = pct_of(recap, M['leads_total'])
     at_v = M['at_vendas']
     out.append({'tag': 'Q1 · Resultado Global', 'cor': 'g' if (at_v and at_v >= 100) else 'a',
                 'titulo': f"Fat {money(M['fat'])} · {intf(M['vendas_total'])} vendas · ROAS {xf(M['roas'])}",
                 'detalhe': f"ROI {M['roi']:.0f}%. Atingimento de vendas {at_v:.0f}%." if at_v else f"ROI {M['roi']:.0f}%."})
-    # Q4 Qualidade
+    out.append({'tag': 'Q2 · Receita e Retorno', 'cor': 'g',
+                'titulo': f"Retorno {money(M['retorno'])} · R$ {M['roi'] / 100:.2f} por R$1 investido",
+                'detalhe': f"Invest. captação {pct_of(M['invest_cpt'], M['invest_total'])} · vendas {pct_of(M['invest_vnd'], M['invest_total'])}. "
+                           f"Recaptação {recap_pct} (sustentabilidade)."})
+    out.append({'tag': 'Q3 · Captação por Canal', 'cor': 'g',
+                'titulo': f"{intf(M['leads_total'])} leads" + (f" · {M['at_leads']:.0f}% da meta" if M['at_leads'] else ''),
+                'detalhe': f"Novos {pct_of(M['l_novo'], M['leads_total'])} · Antigos {pct_of(M['l_ant'], M['leads_total'])}."})
     out.append({'tag': 'Q4 · Qualidade', 'cor': 'a',
                 'titulo': f"Qualificação {pctf(M['qual'])}" + (f" (meta {pctf(G.get('qual'))})" if G.get('qual') else ''),
-                'detalhe': f"Novos {pct_of(M['l_novo'], M['leads_total'])} · Antigos {pct_of(M['l_ant'], M['leads_total'])}."})
-    # Q5 Conversão
+                'detalhe': f"Novos {pct_of(M['l_novo'], M['leads_total'])} · Antigos {pct_of(M['l_ant'], M['leads_total'])} · Clientes {pct_of(M['l_cli'], M['leads_total'])}."})
     out.append({'tag': 'Q5 · Conversão', 'cor': 'r' if (G.get('conv') and M['conv_geral'] < G['conv']) else 'g',
                 'titulo': f"Geral {pctf(M['conv_geral'])} · Pago {pctf(M['conv_pago'])} · Org {pctf(M['conv_org'])}",
-                'detalhe': f"Orgânico {_pp(M['conv_org'] - M['conv_pago'])} vs pago."})
-    # Q6 Pago vs Orgânico
+                'detalhe': f"Orgânico {_pp(M['conv_org'] - M['conv_pago'])} vs pago." + (f" Meta {pctf(G['conv'])}." if G.get('conv') else '')})
     out.append({'tag': 'Q6 · Orgânico vs Pago', 'cor': 'g',
                 'titulo': f"Vendas: org {pct_of(M['vendas_org'], M['vendas_total'])} · pago {pct_of(M['vendas_pago'], M['vendas_total'])}",
                 'detalhe': f"Faturamento: org {pct_of(M['fat_org'], M['fat'])} · pago {pct_of(M['fat_pago'], M['fat'])}."})
-    # Q8 Mídia
+    # Q7 Captação orgânica — concentração do canal dominante
+    org = [c for c in M['chan'] if c['tipo'] == 'organico']
+    if org:
+        top = max(org, key=lambda c: c['leads'])
+        org_leads = sum(c['leads'] for c in org)
+        conc = (top['leads'] / org_leads * 100) if org_leads else 0
+        out.append({'tag': 'Q7 · Captação Orgânica', 'cor': 'r' if conc > 50 else 'g',
+                    'titulo': f"{top['canal']} = {conc:.0f}% dos leads orgânicos",
+                    'detalhe': ('⚠ Dependência crítica de um canal.' if conc > 50 else 'Captação orgânica diversificada.')})
     out.append({'tag': 'Q8 · Mídia Paga', 'cor': 'a',
                 'titulo': f"CPL {money(M['cpl'])} · CPMQL {money(M['cpmql'])} · ROAS {xf(M['roas'])}",
                 'detalhe': f"CPM {money(M['cpm'])} · CTR {pctf(M['ctr'])} · Taxa de Página {pctf(M['tx_pag'])}."})
-    # Q9 Temperatura
     if M['temp']:
         best = max(M['temp'], key=lambda t: t['roas'])
         chips = ' · '.join(f"{t['temp']} {xf(t['roas'])}" for t in M['temp'])
         out.append({'tag': 'Q9 · Temperatura (ROAS)', 'cor': 'g' if best['roas'] >= 2 else ('a' if best['roas'] >= 0 else 'r'),
                     'titulo': f"Melhor: {best['temp']} ({xf(best['roas'])})", 'detalhe': chips})
-    # Q10 Temporal
     bw = M['best_week']
     if bw.get('conv_snum'):
         out.append({'tag': 'Q10 · Dinâmica Temporal', 'cor': 'p',
                     'titulo': f"Melhor semana S{bw['conv_snum']} ({pctf(bw['conv_val'])})",
                     'detalhe': f"Semana mais valiosa S{bw['fpl_snum']} · {money(bw['fpl_val'])}/lead (First Click)."})
+    if M['weekly']:
+        wbest = max(M['weekly'], key=lambda w: w['fpl'])
+        out.append({'tag': 'Q11 · Momento de Inscrição', 'cor': 'p',
+                    'titulo': f"S{wbest['snum']}: {money(wbest['fpl'])}/lead · conv {pctf(wbest['conv'])}",
+                    'detalhe': 'Fat/lead e conversão por semana de inscrição — onde estão os leads mais valiosos.'})
+    if M['chan']:
+        topc = sorted(M['chan'], key=lambda c: -c['conv'])[:3]
+        out.append({'tag': 'Q12 · Perfil (conversão por canal)', 'cor': 'g',
+                    'titulo': ' · '.join(f"{c['canal']} {pctf(c['conv'])}" for c in topc),
+                    'detalhe': 'Top 3 canais por taxa de conversão.'})
+    # Q13 Aprendizados (certezas/interromper auto)
+    certezas, interromper = [], []
+    if M['temp']:
+        b = max(M['temp'], key=lambda t: t['roas']); w = min(M['temp'], key=lambda t: t['roas'])
+        certezas.append(f"{b['temp']} é o melhor ROAS ({xf(b['roas'])}) — escalar")
+        if w['roas'] < 1:
+            interromper.append(f"{w['temp']} ROAS {xf(w['roas'])} — revisar")
+    if M['vendas_total'] and M['vendas_org'] / M['vendas_total'] * 100 > 50:
+        certezas.append(f"Orgânico = {pct_of(M['vendas_org'], M['vendas_total'])} das vendas")
+    if G.get('cpmql') and M['cpmql'] > G['cpmql']:
+        interromper.append(f"CPMQL {money(M['cpmql'])} acima da meta ({money(G['cpmql'])})")
+    out.append({'tag': 'Q13 · Aprendizados', 'cor': 'g',
+                'titulo': 'Certezas — manter',
+                'detalhe': '<br>'.join(f"✓ {x}" for x in certezas) or '✓ Sem certezas claras nos dados.'})
+    out.append({'tag': 'Q13 · Corrigir', 'cor': 'r',
+                'titulo': 'Interromper / corrigir',
+                'detalhe': '<br>'.join(f"✗ {x}" for x in interromper) or '✗ Nada no negativo.'})
     return out
 
 
