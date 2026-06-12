@@ -1367,21 +1367,20 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kpi-spark { display: block; width: 100%; height: 18px; margin-top: 7px; color: var(--purple); opacity: .65; }
 
 /* — kpi-card — elevated metric card (feature: icon+pill+spark · volume: bar) */
-.kc { padding: 16px 17px; display: flex; flex-direction: column; height: 100%; }
-.kc--volume { padding: 14px 14px 12px; }
-.kc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 11px; }
-.kc--volume .kc-head { margin-bottom: 6px; }
-.kc-ico { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }
-[data-theme="dark"] .kc-ico { background: color-mix(in srgb, var(--ic, var(--purple)) 22%, transparent); }
-.kc--volume .kc-ico { width: 30px; height: 30px; border-radius: 9px; }
-.kc-ico svg { width: 19px; height: 19px; }
-.kc--volume .kc-ico svg { width: 15px; height: 15px; }
-.kc-lbl { font-size: 11.5px; font-weight: 600; color: var(--fg); }
-.kc--feature .kc-lbl { margin-bottom: 4px; }
-.kc-val { font-family: var(--font-mono); font-size: 25px; font-weight: 600; color: var(--fg); line-height: 1.1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; }
+.kc { padding: 13px 15px; display: flex; flex-direction: column; height: 100%; }
+.kc--volume { padding: 12px 13px 11px; }
+.kc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.kc--volume .kc-head { margin-bottom: 5px; }
+.kc-ico { width: 31px; height: 31px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }
+.kc--volume .kc-ico { width: 27px; height: 27px; border-radius: 8px; }
+.kc-ico svg { width: 17px; height: 17px; }
+.kc--volume .kc-ico svg { width: 14px; height: 14px; }
+.kc-lbl { font-size: 11px; font-weight: 600; color: var(--fg); }
+.kc--feature .kc-lbl { margin-bottom: 3px; }
+.kc-val { font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--fg); line-height: 1.05; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; }
 .kc-val .kpi-sep { color: var(--border-strong); font-weight: 500; margin: 0 4px; }
-.kc--volume .kc-val { font-size: 21px; margin-top: 2px; }
-.kc-sub { font-size: 10.5px; color: var(--gray2); line-height: 1.45; margin-top: 5px; flex: 1; }
+.kc--volume .kc-val { font-size: 19px; margin-top: 1px; }
+.kc-sub { font-size: 10.5px; color: var(--gray2); line-height: 1.4; margin-top: 4px; flex: 1; }
 .kc-sub::first-letter { text-transform: uppercase; }
 .kc-vol-delta { align-self: flex-start; margin-top: 6px; font-size: 9.5px; padding: 1px 6px; border-radius: 5px; }
 .kc-btm { display: flex; justify-content: flex-end; margin-top: 12px; }
