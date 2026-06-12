@@ -76,6 +76,9 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     const type = def.type;
     const cfgErrors = def.validateConfig(config);
     if (cfgErrors.length) { res.status(400).json({ error: cfgErrors.join('; ') }); return; }
+    // Arquivos auxiliares obrigatórios por tipo (ex.: debriefing → metas).
+    const missing = (def.requiredFiles || []).filter((n) => !files?.[n]?.[0]);
+    if (missing.length) { res.status(400).json({ error: `arquivo(s) obrigatório(s) ausente(s): ${missing.join(', ')}` }); return; }
     let content: unknown;
     try { content = req.body?.content ? JSON.parse(String(req.body.content)) : defaultContent(); }
     catch { res.status(400).json({ error: 'content inválido (JSON)' }); return; }

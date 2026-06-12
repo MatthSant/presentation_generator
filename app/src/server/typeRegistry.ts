@@ -22,6 +22,8 @@ export interface AnalysisTypeDef {
   renderScript?: string;
   gerarPage: string;
   montadorPage: string;
+  /** Arquivos auxiliares obrigatórios no /generate além do `csv` (ex.: `goals`). */
+  requiredFiles?: string[];
   /** meta.controls.kind emitido pelo gerador (dispatch no client). */
   controlsKind?: string;
   /** Metadados do deep deepen (tool `consultar`). `null` → só modo raso (catálogo). */
@@ -188,6 +190,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/ranking por canal/temperatura/semana
     gerarPage: 'gerar-debriefing.html',
     montadorPage: 'montador-debriefing.html',
+    requiredFiles: ['goals'],             // metas são obrigatórias (atingimento, comparativo, Δ vs meta)
     controlsKind: 'debriefing-lancamento',
     validateConfig() { return []; },
     buildDeepenMeta() {

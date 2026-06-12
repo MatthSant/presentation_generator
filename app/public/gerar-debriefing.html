@@ -67,7 +67,7 @@
         <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
       </div>
       <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
-        <label class="g-file-btn">Metas / goals (opcional)<input id="f-goals" type="file" accept=".csv" hidden /></label>
+        <label class="g-file-btn">Metas / goals (obrigatório)<input id="f-goals" type="file" accept=".csv" hidden /></label>
         <span class="g-file-name" id="f-goals-name">nenhum arquivo</span>
       </div>
       <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
@@ -98,6 +98,7 @@
       const title = $('f-title').value.trim() || ($('f-nome').value.trim() + ' · Debriefing');
       if (!client) { show('err', 'Informe o nome do cliente.'); return; }
       if (!CSV) { show('err', 'Escolha o CSV do lançamento.'); return; }
+      if (!GOALS) { show('err', 'O CSV de metas (goals) é obrigatório no debriefing.'); return; }
 
       const cfg = { client, slug, title, type: 'debriefing-lancamento',
         client_name: $('f-nome').value.trim() || undefined,

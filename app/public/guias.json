@@ -338,12 +338,12 @@
         {
           "title": "Requisitos dos dados",
           "blocks": [
-            { "type": "p", "text": "Um CSV da view <code>VW_V2_inscricoes_res</code>: <strong>uma linha por utm_source × campanha × dia</strong>, de um lançamento (<code>field_conversion</code>). Opcionais: CSV de <strong>metas</strong> (goals) e de <strong>histórico</strong> (campanha anterior)." },
+            { "type": "p", "text": "Um CSV da view <code>VW_V2_inscricoes_res</code>: <strong>uma linha por utm_source × campanha × dia</strong>, de um lançamento (<code>field_conversion</code>). <strong>Obrigatório</strong>: CSV de <strong>metas</strong> (goals) — sem ele não há atingimento nem comparativo. Opcional: CSV de <strong>histórico</strong> (campanha anterior)." },
             { "type": "ul", "items": [
               "Volume/funil: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_trafego</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>.",
               "Vendas: <code>vendas</code>, <code>faturamento</code>, <code>vendas_sale</code>, <code>faturamento_sale</code>, <code>refunds</code>, <code>refunded_value</code>.",
               "Mídia: <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>.",
-              "Goals (opcional): <code>meta_leads, meta_vendas, meta_cpl, meta_cpmql, meta_receita, meta_valor_invest, meta_conversao, meta_taxa_qual</code>."
+              "Goals (obrigatório): <code>meta_leads, meta_vendas, meta_cpl, meta_cpmql, meta_receita, meta_valor_invest, meta_conversao, meta_taxa_qual</code>."
             ] },
             { "type": "callout", "label": "Classificação", "text": "<strong>Confira os padrões do cliente</strong> no gerar: <code>utm_source</code> pago (ex.: <code>facebook</code>), campanha de captação (ex.: <code>cadastro-</code>, prefixo) e temperatura (frio/quente/advantage, com ou sem colchetes)." }
           ]
