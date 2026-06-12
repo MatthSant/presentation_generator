@@ -1108,6 +1108,7 @@ body.edit-mode .tile-filter-badge { display:none; }
 /* — Elevated data cards — */
 .dash-grid:not(.grid-active) .widget-chart,
 .dash-grid:not(.grid-active) .sp-wrap,
+.dash-grid:not(.grid-active) .bar-list,
 .dash-grid:not(.grid-active) .hm-wrap {
   background:var(--bg);
   border:1px solid var(--border);
@@ -1115,6 +1116,7 @@ body.edit-mode .tile-filter-badge { display:none; }
   box-shadow:var(--shadow-card);
   padding:16px;
 }
+.dash-grid:not(.grid-active) .bar-list { border-radius:var(--r-lg); padding:18px 20px; }
 .dash-grid:not(.grid-active) .tw {
   border-radius:8px;
   box-shadow:var(--shadow-card);
