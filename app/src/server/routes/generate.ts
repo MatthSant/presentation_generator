@@ -54,7 +54,8 @@ const tail = (s: string, n: number): string => (s.length > n ? s.slice(-n) : s);
 export function registerGenerate(app: Express, ctx: Ctx): void {
   // `csv` é o dump principal; `dict` é um arquivo auxiliar opcional (ex.: criativos →
   // dicionário field_ad_name→link). Tipos que não usam `dict` simplesmente o ignoram.
-  const genUpload = upload.fields([{ name: 'csv', maxCount: 1 }, { name: 'dict', maxCount: 1 }]);
+  const genUpload = upload.fields([{ name: 'csv', maxCount: 1 }, { name: 'dict', maxCount: 1 },
+    { name: 'goals', maxCount: 1 }, { name: 'hist', maxCount: 1 }]);
   app.post('/api/:client/:slug/generate', genUpload, async (req, res) => {
     if (!gateOk(req)) { res.status(401).json({ error: 'unauthorized' }); return; }
     const { client, slug } = req.params;
@@ -91,6 +92,15 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       const dictPath = path.join(job, 'dict.csv');
       fs.writeFileSync(dictPath, dictFile.buffer);
       config.dict_csv = dictPath;
+    }
+    // CSVs auxiliares adicionais (ex.: debriefing → metas e histórico).
+    for (const aux of ['goals', 'hist'] as const) {
+      const f = files?.[aux]?.[0];
+      if (f) {
+        const p = path.join(job, `${aux}.csv`);
+        fs.writeFileSync(p, f.buffer);
+        (config as Record<string, unknown>)[`${aux}_csv`] = p;
+      }
     }
     writeJson(configPath, config);
     writeJson(contentPath, content);
