@@ -806,7 +806,7 @@ function renderQaCard(w: QaCardWidget, ctx: RenderCtx): HTMLElement {
 }
 
 /* ── funnel ── funil visual: barras degradê por etapa + pills perda/migram. */
-const FUNNEL_GRAD = ['#534AB7', '#6257C4', '#7265D1', '#8374DC', '#9787E5', '#AFA9EC'];
+const FUNNEL_GRAD = ['#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#3B1675', '#2E084B'];
 function renderFunnel(w: FunnelWidget): HTMLElement {
   const wrap = el('div', 'funnel-card');
   if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
@@ -828,15 +828,12 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       if (t.invalid) {
         pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
       } else {
-        // abaixo do benchmark (gap>0) → a migração é um ALERTA (âmbar/vermelho), não um ✓.
-        const below = t.gap != null && t.gap > 0;
+        // 2 tags como a referência: ▼ perda (alerta; MAIOR FURO na pior vs benchmark) +
+        // ✓ taxa de passagem SEMPRE verde (a perda é o sinal, não a passagem). O bench
+        // entra só para marcar a MAIOR FURO (worst), não recolore a passagem.
         if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
-          `${t.worst ? '⚠️ ' : '▼ '}${t.loss.toFixed(1)}% perda${t.worst ? ' · MAIOR FURO' : ''}`));
-        if (t.migrate != null) {
-          const cls = t.worst ? 'funnel-pill--worst' : (below ? 'funnel-pill--alert' : 'funnel-pill--migrate');
-          pills.appendChild(el('span', `funnel-pill ${cls}`, `${(t.worst || below) ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}% migram`));
-        }
-        if (t.bench != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--bench', `esperado ${t.bench.toFixed(0)}%`));
+          `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
+        if (t.migrate != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--migrate', `✓ ${t.migrate.toFixed(1)}%`));
       }
       body.appendChild(pills);
     }
