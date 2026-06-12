@@ -123,8 +123,8 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s01 — Visão Geral ════════════════════════════════════════════════
     pan, pg = [], Grid()
-    pan.append({'id': 'pan-eb-vg', 'type': 'eyebrow', 'title': 'VISÃO GERAL',
-                'caption': f"Dia {B['dia_campanha']} de campanha · dados até {B['corte_label']}"})
+    pan.append({'id': 'pan-eb-vg', 'type': 'eyebrow', 'title': 'CAPTAÇÃO',
+                'caption': f"leads captados, origem e atingimento de meta · dia {B['dia_campanha']} · dados até {B['corte_label']}"})
     pg.add('pan-eb-vg', 'eyebrow', 12, 1)
 
     # acumulado de leads (barras, últimas 3 destacadas) + linhas de meta + número-destaque
@@ -179,7 +179,7 @@ def assemble(rows, config, content, opts=None):
     pg.items = hero_lay
     pg.x, pg.y, pg.rowh = 0, bottom, 0
 
-    pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'PRINCIPAIS KPIS', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
+    pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'KPIS MACRO', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
     pg.add('pan-eb-kpi', 'eyebrow', 12, 1)
     for m in calc.KPI_MACRO:
         kcard(pan, pg, m)
