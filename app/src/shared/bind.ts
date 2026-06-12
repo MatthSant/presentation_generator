@@ -79,8 +79,13 @@ export function resolveBind(
   const byLower = new Map([...allCols].map((k) => [k.toLowerCase(), k]));
   const resolveCol = (c?: string): string | undefined =>
     (c == null || allCols.has(c)) ? c : (byLower.get(c.toLowerCase()) ?? c);
+  // y pode ser uma coluna (1 série) ou várias colunas (1 série por coluna).
+  const yList: string[] = Array.isArray(bind.y) ? bind.y.map((c) => resolveCol(c) as string) : [];
   bind = {
-    ...bind, x: resolveCol(bind.x), y: resolveCol(bind.y), series: resolveCol(bind.series),
+    ...bind,
+    x: resolveCol(bind.x),
+    y: Array.isArray(bind.y) ? yList : resolveCol(bind.y as string | undefined),
+    series: resolveCol(bind.series),
     metrics: bind.metrics?.map((m) => resolveCol(m) as string),
     where: bind.where ? Object.fromEntries(Object.entries(bind.where).map(([k, v]) => [resolveCol(k) ?? k, v])) : bind.where,
   };
@@ -90,7 +95,8 @@ export function resolveBind(
     }
   };
   requireCol(bind.x, 'x');
-  requireCol(bind.y, 'y');
+  if (Array.isArray(bind.y)) bind.y.forEach((c, i) => requireCol(c, `y[${i}]`));
+  else requireCol(bind.y, 'y');
   requireCol(bind.series, 'series');
   (bind.metrics ?? []).forEach((m, i) => requireCol(m, `metrics[${i}]`));
   for (const col of Object.keys(bind.where ?? {})) requireCol(col, `where.${col}`);
@@ -115,25 +121,32 @@ export function resolveBind(
   // Aggregate a category's y values, but return null (a CHART GAP) when there is
   // no real datum — so missing/empty points break the line instead of plunging to
   // 0. An explicit numeric 0 is kept (it's real data, not a gap).
-  const aggOrNull = (subset: DatasetRow[]): number | null => {
-    const raw = subset.map(r => r[bind.y!]).filter(v => v !== null && v !== undefined && v !== '');
+  const aggOrNull = (subset: DatasetRow[], col: string): number | null => {
+    const raw = subset.map(r => r[col]).filter(v => v !== null && v !== undefined && v !== '');
     return raw.length ? aggregate(raw.map(toNum), agg) : null;
   };
 
   if (bind.x && bind.y) {
     categories = distinct(rows, bind.x);
+    const rowsFor = (cat: string) => rows.filter(r => String(r[bind.x!] ?? '') === cat);
 
-    if (bind.series) {
+    if (Array.isArray(bind.y)) {
+      // y-array: uma série por coluna (ex.: ["CPL","qual"] → duas linhas).
+      series = bind.y.map(col => ({
+        name: col,
+        data: categories.map(cat => aggOrNull(rowsFor(cat), col)),
+      }));
+    } else if (bind.series) {
       const seriesKeys = distinct(rows, bind.series);
       series = seriesKeys.map(sk => ({
         name: sk,
         data: categories.map(cat => aggOrNull(
-          rows.filter(r => String(r[bind.x!] ?? '') === cat && String(r[bind.series!] ?? '') === sk))),
+          rowsFor(cat).filter(r => String(r[bind.series!] ?? '') === sk), bind.y as string)),
       }));
     } else {
       series = [{
-        name: bind.name ?? bind.y,
-        data: categories.map(cat => aggOrNull(rows.filter(r => String(r[bind.x!] ?? '') === cat))),
+        name: bind.name ?? (bind.y as string),
+        data: categories.map(cat => aggOrNull(rowsFor(cat), bind.y as string)),
       }];
     }
   }

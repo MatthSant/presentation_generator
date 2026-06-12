@@ -156,15 +156,19 @@ const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha p
 - SÉRIES (agrupado/empilhado): no máximo ~6. Com mais (ex.: uma por lançamento) o gráfico fica ilegível —
   agregue, foque nas MAIORES variações, ou use heatmap. Tabela vazia (só cabeçalho) ou gráfico que não
   comunica é DEFEITO: corte ou troque por kpi/prosa.
-- MULTI-LINHA / multi-série de MÉTRICAS de ESCALA COMPARÁVEL (ex.: leads pago × leads orgânico por dia,
-  CPL × CPMQL por semana): PODE e DEVE. Chame a consulta "series_long" (devolve formato longo com colunas
-  "serie" e "valor") e plote um line/bar com bind { x: <eixo>, y: "valor", series: "serie" } — vira 2+ linhas
-  no mesmo eixo. Só exige que as métricas dividam ordem de grandeza parecida.
-- LIMITE deste detalhamento: NÃO tem gráfico de DISPERSÃO (correlação ponto-a-ponto entre duas métricas) nem
-  EIXO DUPLO (duas métricas de escalas MUITO diferentes em eixos y independentes, ex.: investimento R$ ×
-  conversão %). Para esses casos NÃO finja eixo duplo: ponha as duas métricas como COLUNAS de uma TABLE — com
-  a variação/Δ% já calculada quando der — e registre num find-note, em uma linha, que dispersão/eixo-duplo não
-  está disponível aqui. (Métricas de MESMA escala → use series_long e plote multi-linha, acima.)`;
+- MULTI-LINHA / multi-série de MÉTRICAS de ESCALA COMPARÁVEL (ex.: leads pago × leads orgânico por dia):
+  Chame "series_long" (formato longo, colunas "serie"/"valor") e plote line/bar com bind { x, y:"valor",
+  series:"serie" } — 2+ linhas no mesmo eixo. OU, se já tem uma tabela LARGA com uma coluna por métrica
+  (ex.: a consulta "tabela" devolve [semana, CPL, qual, …]), passe y como ARRAY: bind { x:"semana",
+  y:["leads_pago","leads_org"] } → uma linha por coluna.
+- EIXO DUPLO — duas métricas de ESCALAS DIFERENTES no mesmo gráfico (ex.: CPL em R$ × Qualificação em %,
+  investimento × conversão): AGORA É POSSÍVEL. Use uma tabela larga (consulta "tabela") e plote um line com
+  y ARRAY e secondaryAxis no índice da 2ª métrica: { chartType:"line", bind:{ x:"semana", y:["CPL","qual"] },
+  secondaryAxis:1, secondaryAxisSuffix:"%" }. A série do secondaryAxis vai no eixo da DIREITA, então nenhuma
+  fica achatada. Se o título promete DUAS métricas, o bind TEM que trazer as duas (y array) — nunca titule
+  "CPL e Qualificação" plotando só CPL.
+- LIMITE: NÃO há gráfico de DISPERSÃO (correlação ponto-a-ponto). Para isso, ponha as duas métricas como
+  COLUNAS de uma TABLE e registre num find-note que dispersão não está disponível aqui.`;
 
 const GUARDRAIL = `GUARDRAIL — NUNCA perca de vista a PERGUNTA ORIGINAL (campo "pergunta_original" do input): toda a
 saída existe para respondê-la. Pedidos de revisão/ajuste ("instrucao") refinam a FORMA (trocar gráfico,
@@ -297,7 +301,9 @@ function bindSchema(tableNames: string[]): unknown {
     type: 'object', required: ['dataset'],
     properties: {
       dataset: { type: 'string', enum: tableNames },
-      x: { type: 'string' }, y: { type: 'string' }, series: { type: 'string' },
+      x: { type: 'string' },
+      y: { oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'coluna numérica; ARRAY = uma série por coluna (ex.: ["CPL","qual"] → 2 linhas). Use com secondaryAxis p/ escalas diferentes.' },
+      series: { type: 'string' },
       agg: { type: 'string', enum: ['sum', 'avg', 'min', 'max', 'count'] },
       where: { type: 'object', additionalProperties: { type: 'string' }, description: 'recorte por valor de dimensão, ex.: {"mes":"Jan"} — só colunas/valores do catálogo' },
     },
@@ -321,7 +327,7 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
             { type: 'object', required: ['type', 'label', 'value'], properties: { type: { const: 'kpi' }, id: { type: 'string' }, label: { type: 'string' }, value: { type: ['string', 'number'] }, color, format: { type: 'string' } } },
             { type: 'object', required: ['type', 'title'], properties: { type: { const: 'find-block' }, id: { type: 'string' }, tag: { type: 'string' }, tagColor: color, title: { type: 'string' }, detail: { type: 'string' } } },
             { type: 'object', required: ['type', 'title'], properties: { type: { type: 'string', enum: ['ni', 'ni-vertical'] }, id: { type: 'string' }, n: { type: ['string', 'number'] }, title: { type: 'string' }, why: { type: 'string' }, action: { type: 'string' } } },
-            { type: 'object', required: ['type', 'chartType', 'bind'], properties: { type: { const: 'chart' }, id: { type: 'string' }, title: { type: 'string' }, chartType: { type: 'string', enum: ['bar', 'bar-horizontal', 'line', 'stacked', 'donut', 'area'] }, diverging: { type: 'boolean' }, bind: bindSchema(tableNames) } },
+            { type: 'object', required: ['type', 'chartType', 'bind'], properties: { type: { const: 'chart' }, id: { type: 'string' }, title: { type: 'string' }, chartType: { type: 'string', enum: ['bar', 'bar-horizontal', 'line', 'stacked', 'donut', 'area'] }, diverging: { type: 'boolean' }, secondaryAxis: { type: ['integer', 'array'], items: { type: 'integer' }, description: 'índice (0-based) da série que vai no eixo Y da DIREITA — use quando y é array de métricas de escalas diferentes (ex.: y:["CPL","qual"], secondaryAxis:1)' }, secondaryAxisSuffix: { type: 'string', description: 'sufixo do eixo direito, ex.: "%"' }, bind: bindSchema(tableNames) } },
             { type: 'object', required: ['type', 'cols', 'bind'], properties: { type: { const: 'table' }, id: { type: 'string' }, title: { type: 'string' }, cols: { type: 'array', items: { type: 'string' } }, bind: bindSchema(tableNames) } },
           ],
         },

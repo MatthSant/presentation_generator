@@ -98,7 +98,9 @@ function validateBind(c: Collector, path: string, bind: unknown, datasets?: Data
     if (!cols.has(val)) c.err(`${path}.${field}`, `column "${val}" not in dataset "${bind.dataset}"`);
   };
   checkCol('x', bind.x);
-  checkCol('y', bind.y);
+  // y pode ser uma coluna ou um array de colunas (uma série por coluna).
+  if (Array.isArray(bind.y)) bind.y.forEach((col, i) => checkCol(`y[${i}]`, col));
+  else checkCol('y', bind.y);
   checkCol('series', bind.series);
   if (bind.metrics !== undefined) {
     if (!Array.isArray(bind.metrics)) c.err(`${path}.metrics`, 'metrics must be an array');
@@ -148,8 +150,11 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       // display "*_detail" tables: "16,7%") resolves to 0 and renders an empty chart.
       if (hasBind && datasets) {
         const b = w.bind as Obj;
-        if (b.y !== undefined && isStr(b.y) && !isNumericColumn(datasets, b.dataset, b.y)) {
-          c.err(`${path}.bind.y`, `chart y "${b.y}" is not numeric — bind to a numeric column (e.g. *_rank / *_grp), not a formatted *_detail column`);
+        const ys = Array.isArray(b.y) ? b.y : (b.y !== undefined ? [b.y] : []);
+        for (const yc of ys) {
+          if (isStr(yc) && !isNumericColumn(datasets, b.dataset, yc)) {
+            c.err(`${path}.bind.y`, `chart y "${yc}" is not numeric — bind to a numeric column (e.g. *_rank / *_grp), not a formatted *_detail column`);
+          }
         }
       }
       break;
