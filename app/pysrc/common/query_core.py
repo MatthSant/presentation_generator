@@ -122,10 +122,12 @@ def trend(frame, a):
     seq = [(k, v) for k, v in seq if isinstance(v, (int, float))]
     if len(seq) < 2:
         return nao_disp('série insuficiente')
-    rows = [{ax: k, L[m]: rnd(v)} for k, v in seq]
     vals = [v for _, v in seq]
     first, last = vals[0], vals[-1]
     mean = sum(vals) / len(vals)
+    # coluna pronta de desvio vs média da série (o "vs média" que o modelo costuma querer)
+    rows = [{ax: k, L[m]: rnd(v), 'vs média %': (rnd((v - mean) / abs(mean) * 100, 1) if mean else None)}
+            for k, v in seq]
     cv = ((sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5 / abs(mean)) if mean else 0.0
     delta = (last - first) / abs(first) * 100 if first else None
     direc = 'alta' if last > first * 1.05 else ('queda' if last < first * 0.95 else 'estável')
@@ -153,8 +155,35 @@ def ranking(frame, a):
     return ok(rows, [ax], f'{len(rows)} {_plural(ax)} ordenados por {L[m]} ({"menor" if cost else "maior"} melhor).')
 
 
+def variacao(frame, a):
+    """Δ% período-a-período (transições consecutivas) de 1–3 métricas, lado a lado —
+    para 'como X variou entre lançamentos' e comparar crescimento de duas métricas
+    (ex.: investimento × faturamento) na mesma tabela de transições."""
+    L = frame['labels']
+    ms = [m for m in (a.get('metrica_x') or a.get('metrica'), a.get('metrica_y'), a.get('metrica_z')) if m]
+    if not ms:
+        return nao_disp('informe metrica_x (e opcional metrica_y/metrica_z)')
+    for m in ms:
+        if m not in L:
+            return nao_disp(f"métrica '{m}' inválida")
+    keys = [e['key'] for e in frame['rows']]
+    vmap = {e['key']: e['m'] for e in frame['rows']}
+    if len(keys) < 2:
+        return nao_disp('série insuficiente para variação (mín. 2 períodos)')
+    rows = []
+    for i in range(1, len(keys)):
+        prev, cur = keys[i - 1], keys[i]
+        row = {'transição': f'{prev}→{cur}'}
+        for m in ms:
+            a0, a1 = vmap[prev].get(m), vmap[cur].get(m)
+            row[f'Δ% {L[m]}'] = (rnd((a1 - a0) / abs(a0) * 100, 1)
+                                 if isinstance(a0, (int, float)) and isinstance(a1, (int, float)) and a0 else None)
+        rows.append(row)
+    return ok(rows, ['transição'], f'Variação % período-a-período: {", ".join(L[m] for m in ms)} ({len(rows)} transições).')
+
+
 GENERIC = {'series': series, 'series_long': series_long, 'tabela': tabela,
-           'correlacao': correlacao, 'trend': trend, 'ranking': ranking}
+           'correlacao': correlacao, 'trend': trend, 'ranking': ranking, 'variacao': variacao}
 
 
 def run(build_frame, extra, ctx, fn, a):

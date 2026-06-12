@@ -38,14 +38,15 @@ type Params = Record<string, { enum?: string[]; desc?: string }>;
 /** Catálogo das consultas GENÉRICAS (common.query_core). Descritas UMA vez aqui;
  *  cada tipo escolhe quais expor passando o nome do seu eixo. Função genérica nova
  *  = adicionar aqui + em query_core.py — nunca por tipo. */
-function genericFuncoes(eixo: string): Record<'series' | 'series_long' | 'tabela' | 'correlacao' | 'trend' | 'ranking', Funcao> {
+function genericFuncoes(eixo: string): Record<'series' | 'series_long' | 'tabela' | 'correlacao' | 'trend' | 'ranking' | 'variacao', Funcao> {
   return {
     tabela: { id: 'tabela', desc: `tabela COMPLETA por ${eixo}: TODAS as métricas como colunas (sem escolher) — use p/ um panorama por grupo; qualquer coluna que você citar na table existe` },
     series: { id: 'series', desc: `VÁRIAS métricas por ${eixo} numa tabela só (metrica_x, metrica_y, opcional metrica_z) — compare indicadores/evoluções lado a lado` },
     series_long: { id: 'series_long', desc: `VÁRIAS métricas por ${eixo} em formato LONGO (coluna "serie" + "valor") — para gráfico MULTI-LINHA / barra agrupada (bind series="serie", y="valor"); só com métricas de escala comparável (metrica_x, metrica_y, opcional metrica_z)` },
     correlacao: { id: 'correlacao', desc: `correlação de Pearson entre duas métricas ao longo dos ${eixo}s (metrica_x, metrica_y)` },
-    trend: { id: 'trend', desc: `uma métrica (metrica) ao longo dos ${eixo}s` },
+    trend: { id: 'trend', desc: `uma métrica (metrica) ao longo dos ${eixo}s — JÁ traz coluna "vs média %" por linha + resumo com início→fim, tendência e volatilidade (estrutural × oscilante)` },
     ranking: { id: 'ranking', desc: `${eixo}s ordenados por uma métrica (metrica), com as colunas principais` },
+    variacao: { id: 'variacao', desc: `Δ% período-a-período (transições consecutivas) de 1–3 métricas lado a lado (metrica_x, opcional metrica_y/metrica_z) — para "como X variou entre ${eixo}s" e comparar crescimento (ex.: investimento × faturamento) com a coluna "Δ% ..." pronta` },
   };
 }
 
@@ -150,7 +151,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       return {
         consultar: {
           funcoes: [
-            G.tabela, G.trend, G.series, G.series_long, G.correlacao,
+            G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao,
             { id: 'decomposicao', desc: 'decompõe o CPA (= CPL ÷ conversão paga): diz se a variação do CPA foi mais de CPL ou de conversão' },
             { id: 'por_dimensao', desc: 'TODAS as métricas por dimensão (canal/plataforma/temperatura) × lançamento (uma coluna por métrica) — escolha as colunas no bind' },
           ],
@@ -178,7 +179,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const G = genericFuncoes('dia');
       return {
         consultar: {
-          funcoes: [G.tabela, G.trend, G.series, G.series_long, G.correlacao, G.ranking],
+          funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking],
           params: { ...genericParams(M) },
         },
       };
@@ -201,7 +202,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       return {
         consultar: {
           funcoes: [
-            G.tabela, G.ranking, G.series, G.series_long, G.correlacao, G.trend,
+            G.tabela, G.ranking, G.series, G.series_long, G.correlacao, G.trend, G.variacao,
             { id: 'atingimento', desc: 'realizado × META × gap × atingimento% por indicador GLOBAL (vendas/leads/fat/qualif/CPL/CPMQL) — use para "a meta foi atingida? onde ficou o gap?"' },
           ],
           params: {
