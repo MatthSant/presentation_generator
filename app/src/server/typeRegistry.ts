@@ -46,10 +46,26 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     },
     buildDeepenMeta(config) {
       const c = config as PerfilConfig | null;
+      const ids = (c?.criterios || []).map((x) => x.id);
+      const canais = c?.channels || ['Geral'];
+      const metricas = ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'];
       return {
         criterios: (c?.criterios || []).map((x) => ({ id: x.id, label: x.label || x.id })),
-        canais: c?.channels || ['Geral'],
-        metricas: ['conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'],
+        canais, metricas,
+        consultar: {
+          funcoes: [
+            { id: 'cut_by_criterion', desc: 'uma métrica por grupo de um critério (criterio, metrica)' },
+            { id: 'trend', desc: 'a métrica de cada grupo ao longo dos lançamentos (criterio, metrica)' },
+            { id: 'crosstab', desc: 'cruzamento de um critério com outro (criterio, cruzar_com)' },
+            { id: 'association', desc: 'força de associação entre dois critérios (criterio, cruzar_com)' },
+          ],
+          params: {
+            criterio: { enum: ids, desc: 'critério principal' },
+            cruzar_com: { enum: ids, desc: 'segundo critério (só crosstab/association)' },
+            canal: { enum: canais },
+            metrica: { enum: metricas },
+          },
+        },
       };
     },
   },
@@ -59,12 +75,33 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     pysrcDir: 'criativos',
     supportsInsights: false,
     renderScript: 'render_view.py',   // recompute do toggle de modo (resultado × captação)
+    queryScript: 'query_api.py',      // modo FUNDO: consultas sob demanda (correlação, temperatura, saturação…)
     gerarPage: 'gerar-criativos.html',
     montadorPage: 'montador-criativos.html',
     controlsKind: 'criativos',
     validateConfig() { return []; },
-    // Deepen no modo raso (catálogo) — sem query_api próprio ainda.
-    buildDeepenMeta() { return null; },
+    buildDeepenMeta() {
+      const M = ['roas', 'retorno', 'cpl', 'cpmql', 'cpm', 'ctr', 'hook_rate', 'hold_rate',
+                 'connect_rate', 'conv_pagina', 'qualidade', 'tx_resposta', 'conv', 'cac', 'leads', 'invest'];
+      return {
+        consultar: {
+          funcoes: [
+            { id: 'correlacao', desc: 'correlação (Pearson) entre duas métricas ao longo dos criativos válidos (metrica_x, metrica_y)' },
+            { id: 'por_temperatura', desc: 'uma métrica (metrica) agregada por temperatura do lead' },
+            { id: 'saturacao_diaria', desc: 'ROAS e retorno por DIA (geral, ou de um criativo) para detectar saturação' },
+            { id: 'ranking', desc: 'criativos ordenados por uma métrica (metrica), com as colunas principais' },
+            { id: 'benchmark_gap', desc: 'distância média de cada indicador de anúncio (hook/hold/ctr/connect/conv_pagina) frente ao benchmark' },
+          ],
+          params: {
+            metrica: { enum: M, desc: 'métrica do recorte (ranking/por_temperatura)' },
+            metrica_x: { enum: M, desc: 'métrica X (correlacao)' },
+            metrica_y: { enum: M, desc: 'métrica Y (correlacao)' },
+            temperatura: { desc: 'nome da temperatura (opcional; validado contra os dados)' },
+            criativo: { desc: 'nome exato do criativo (opcional; saturacao_diaria)' },
+          },
+        },
+      };
+    },
   },
   'historico-lancamentos': {
     type: 'historico-lancamentos',

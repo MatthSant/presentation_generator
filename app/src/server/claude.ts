@@ -424,8 +424,19 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
 // --- B2 deep: model-driven query loop over the retained base ----------------
 
 export interface QueryReply { status: string; table?: { dims: string[]; filters: string[]; rows: Array<Record<string, unknown>> }; summary?: string; motivo?: string }
+/** Descritor genérico das CONSULTAS sob demanda de um tipo (modo fundo). Cada tipo
+ *  declara suas `funcoes` e os `params` (com enum/descrição) — a tool "consultar" e o
+ *  prompt são montados a partir disso, sem hardcode por tipo. */
+export interface ConsultarSpec {
+  funcoes: Array<{ id: string; desc: string }>;
+  params: Record<string, { enum?: string[]; desc?: string }>;
+}
 export interface DeepDeps {
-  meta: { criterios: Array<{ id: string; label: string }>; canais: string[]; metricas: string[] };
+  meta: {
+    consultar?: ConsultarSpec;
+    // Legado (conversao-perfil): usado pelo fallback da tool e por buildFactsheet.
+    criterios?: Array<{ id: string; label: string }>; canais?: string[]; metricas?: string[];
+  };
   /** Run a catalog query (the app computes; returns only aggregates). */
   runQuery: (fn: string, args: Record<string, unknown>) => Promise<QueryReply>;
   /** Merge a returned table into the dataset; returns the new dataset key to bind to. */
@@ -434,12 +445,18 @@ export interface DeepDeps {
   validate?: (modal: unknown) => string[];
 }
 
-const DEEP_SYSTEM = `Você aprofunda um card de uma análise de conversão por perfil. Você NÃO recebe o
+const deepSystem = (analysisType?: string, spec?: ConsultarSpec): string => {
+  const d = domainOf(analysisType);
+  const funcs = spec && spec.funcoes.length
+    ? 'CONSULTAS DISPONÍVEIS (campo "funcao" da tool "consultar"):\n'
+      + spec.funcoes.map((f) => `  • ${f.id} — ${f.desc}`).join('\n') + '\n\n'
+    : '';
+  return `Você aprofunda um card de ${d.what}. Você NÃO recebe o
 dado bruto: para olhar QUALQUER recorte, chame a tool "consultar" — o app calcula e
 devolve só agregados. Cada resultado ganha um "dataset_key" para usar no bind de um
 gráfico/tabela. Quando tiver o suficiente, chame "emit_modal".
 
-${GUARDRAIL}
+${funcs}${GUARDRAIL}
 
 ${ANSWER_RULES}
 
@@ -450,10 +467,8 @@ falta e apresente o corte mais próximo (com números). Se vierem "exemplos_apro
 siga o estilo/estrutura deles (nunca os dados).
 
 A modal deve ser ENXUTA e ESCANEÁVEL — decomposta em blocos, não num paredão de prosa:
-- NO MÁXIMO UM gráfico, o mais informativo do recorte. Para um cruzamento, prefira
-  barras agrupadas (chartType "bar", x="grupo", series="cruzar", y="valor").
-- NUNCA use gráfico de valor único (ex.: associação / Cramér's V) — comente
-  associação na PROSA, não num gráfico.
+- NO MÁXIMO UM gráfico, o mais informativo do recorte.
+- NUNCA use gráfico de valor único (ex.: uma correlação/associação isolada) — comente na PROSA.
 - Use tabela só se for curta; NUNCA despeje a tabela inteira de um cruzamento.
 ${CHART_GUIDE}
 - VOCABULÁRIO (use o que couber): highlight {text,label?,color?} p/ a ALEGAÇÃO e a
@@ -464,16 +479,11 @@ ${CHART_GUIDE}
 - Estrutura sugerida (adapte ao recorte): alegação (highlight) → comparação (table ou 1
   gráfico) → implicação (highlight/find-note) → ações (ni), quando houver.
 
-FOCO (importante): o card pertence à página de um critério específico — campos
-"criterio" e "pagina" no input. FOQUE nesse critério: use card.criterio como
-\`criterio\` nas consultas e mantenha-o como eixo principal. Só envolva OUTRO
-critério se o pedido pedir explicitamente um cruzamento — e ainda assim cruzando
-COM o critério do card, nunca trocando por outro.
+FOCO: ${d.focus}
 
-O QUE O BLOCO MOSTRA: use card.title, card.bind e card.tabs (os datasets/rótulos
-que o bloco usa) para entender o assunto exato do bloco e escolher o recorte mais
-relevante a ELE (ex.: um bloco de "proporção/representatividade" pede métrica de
-participação por lançamento; um bloco de conversão pede a métrica de conversão).
+O QUE O BLOCO MOSTRA: use card.title, card.bind e card.tabs (os datasets/rótulos que o
+bloco usa) para entender o assunto exato do bloco e escolher a consulta/recorte mais
+relevante a ELE.
 
 AJUSTE/ITERAÇÃO: se vier "modal_anterior", o consultor quer AJUSTAR ou APROFUNDAR
 essa modal já existente — PARTA dela, mantenha o que ainda faz sentido e aplique
@@ -490,9 +500,25 @@ BIND: para isolar um valor de uma dimensão numa tabela já existente, use bind.
 (ex.: {"mes":"Jan"}) com valores que existam na tabela — o filtro é real e aí PODE
 rotular o widget com o recorte. Para um corte que exige NOVO cálculo (não está em tabela
 alguma), peça via "consultar". Se nem assim der, diga na prosa — nunca finja o filtro.`;
+};
 
 function consultarTool(deps: DeepDeps): Anthropic.Tool {
-  const ids = deps.meta.criterios.map((c) => c.id);
+  const spec = deps.meta.consultar;
+  if (spec) {
+    const props: Record<string, unknown> = {
+      funcao: { type: 'string', enum: spec.funcoes.map((f) => f.id),
+        description: spec.funcoes.map((f) => `${f.id} — ${f.desc}`).join(' | ') },
+    };
+    for (const [name, p] of Object.entries(spec.params)) {
+      props[name] = { type: 'string', ...(p.enum ? { enum: p.enum } : {}), ...(p.desc ? { description: p.desc } : {}) };
+    }
+    return {
+      name: 'consultar', description: 'Calcula um recorte agregado sobre o dado retido (o app computa; devolve só agregados).',
+      input_schema: { type: 'object', required: ['funcao'], properties: props } as unknown as Anthropic.Tool.InputSchema,
+    };
+  }
+  // Fallback legado (conversao-perfil sem meta.consultar).
+  const ids = (deps.meta.criterios ?? []).map((c) => c.id);
   return {
     name: 'consultar',
     description: 'Calcula um recorte agregado sobre o dado retido (o app computa).',
@@ -503,8 +529,8 @@ function consultarTool(deps: DeepDeps): Anthropic.Tool {
         funcao: { type: 'string', enum: ['cut_by_criterion', 'trend', 'crosstab', 'association'] },
         criterio: { type: 'string', enum: ids },
         cruzar_com: { type: 'string', enum: ids },
-        canal: { type: 'string', enum: deps.meta.canais },
-        metrica: { type: 'string', enum: deps.meta.metricas },
+        canal: { type: 'string', enum: deps.meta.canais ?? ['Geral'] },
+        metrica: { type: 'string', enum: deps.meta.metricas ?? [] },
       },
     } as unknown as Anthropic.Tool.InputSchema,
   };
@@ -515,7 +541,7 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
@@ -529,7 +555,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
       model: MODEL, max_tokens: 4096,
-      system: [{ type: 'text', text: DEEP_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: deepSystem(analysisType, deps.meta.consultar), cache_control: { type: 'ephemeral' } }],
       tools: [consultarTool(deps), emitModalTool(names)],
       tool_choice: { type: 'any' },
       messages,
@@ -570,12 +596,12 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
 /** Offline deep modal: runs one real crosstab (card criterion × another factor)
  *  through the query catalog, registers it, and binds a chart to it. */
 async function mockModalDeep(card: CardCtx, _catalog: DeepenCatalog, deps: DeepDeps): Promise<unknown> {
-  const ids = deps.meta.criterios.map((c) => c.id);
+  const ids = (deps.meta.criterios ?? []).map((c) => c.id);
   const bindName = (card.bind as { dataset?: string } | undefined)?.dataset || '';
   const m = bindName.match(/^crit_([a-z0-9]+)_/i);
   const criterio = (m && ids.includes(m[1]) ? m[1] : ids[0]) || ids[0];
   const cruzar = ids.find((x) => x !== criterio) || criterio;
-  const canal = deps.meta.canais[0] || 'Geral';
+  const canal = (deps.meta.canais ?? ['Geral'])[0] || 'Geral';
 
   const widgets: unknown[] = [];
   const r = await deps.runQuery('crosstab', { criterio, cruzar_com: cruzar, canal });

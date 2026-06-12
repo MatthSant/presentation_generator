@@ -131,7 +131,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
           const p = prevCand ?? prev;
           if (deps) {
             const dp = repair ? `${framedPrompt}\n\n${repair}` : framedPrompt;
-            return generateModalDeep(dp, cardCtx, catalog, deps, p, fewShot, objetivo);
+            return generateModalDeep(dp, cardCtx, catalog, deps, p, fewShot, objetivo, analysisType);
           }
           return generateModal(framedPrompt, cardCtx, catalog, repair, p, fewShot, objetivo, analysisType);
         },
