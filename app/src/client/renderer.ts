@@ -479,6 +479,11 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
         td.appendChild(el('span', 'tm-val', formatValue(value)));
         td.appendChild(el('span', `pill ${PILL_TONE[obj.tone || 'neutral']} tm-pill`, obj.delta));
         if (obj.rel) td.appendChild(el('span', 'tm-rel', obj.rel));
+      } else if (obj && obj.link) {
+        const a = el('a', 'td-link') as HTMLAnchorElement;
+        a.href = obj.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = formatValue(value); a.appendChild(el('span', 'td-link-ic', ' ↗'));
+        td.appendChild(a);
       } else {
         td.textContent = formatValue(value);
       }

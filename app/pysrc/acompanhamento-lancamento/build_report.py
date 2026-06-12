@@ -250,7 +250,9 @@ def assemble(rows, config, content, opts=None):
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
         def cri_rows(lst):
-            return [[c['name'], intf(c['leads']), money(c['invest']), vfmt('cpl', c['cpl']),
+            def name_cell(c):
+                return {'value': c['name'], 'link': c['link']} if c.get('link') else c['name']
+            return [[name_cell(c), intf(c['leads']), money(c['invest']), vfmt('cpl', c['cpl']),
                      pctf(c['taxa_qual']), vfmt('cpmql', c['cpmql_proj'])] for c in lst]
         cols = ['Criativo', 'Leads', 'Invest.', 'CPL', 'Tx. Qual', 'CPMQL proj.']
         if cr['best']:

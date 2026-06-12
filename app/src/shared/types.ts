@@ -175,6 +175,8 @@ export type TableCell = string | number | {
   /** Metric cell: variation vs the previous column, shown as a tinted pill + a
    *  muted relative-% line under the value. `tone` colors the pill. */
   delta?: string; rel?: string; tone?: 'pos' | 'neg' | 'neutral';
+  /** Link cell: renders the value as an anchor opening in a new tab (ex.: criativo → post no IG). */
+  link?: string;
 };
 export interface TableWidget extends WidgetBase {
   type: 'table';

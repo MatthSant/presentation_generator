@@ -1612,3 +1612,6 @@ td.td-metric { vertical-align: top; line-height: 1.25; white-space: nowrap; }
 /* delta menor dentro de célula de tabela (compõe com .pill .pill--*) */
 .tm-pill { display: inline-block; margin-top: 3px; font-size: 9.5px; padding: 1px 6px; border-radius: 5px; }
 .tm-rel { display: block; margin-top: 2px; font-size: 9.5px; font-weight: 600; color: var(--gray2); font-variant-numeric: tabular-nums; }
+.td-link { color: var(--accent); font-weight: 600; text-decoration: none; }
+.td-link:hover { text-decoration: underline; }
+.td-link-ic { opacity: .6; font-size: .85em; }

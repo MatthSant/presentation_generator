@@ -380,9 +380,14 @@ def build(rows, config=None):
         goals = load_goals(config['goals_csv'], fc, config.get('meta_vendas_canal'), config.get('meta_vendas_temperatura'))
     hist = None
     if config.get('hist_csv'):
-        hrows = [r for r in load_rows(config['hist_csv']) if not fc or True]
-        classify(hrows, config)
-        hist = _hist_meta(hrows)
+        hrows = load_rows(config['hist_csv'])
+        # o histórico nunca pode incluir o próprio lançamento atual: senão a coluna
+        # "Histórico" só repete o "Realizado". Filtra fora o field_conversion corrente.
+        if fc:
+            hrows = [r for r in hrows if r.get('field_conversion') != fc]
+        if hrows:
+            classify(hrows, config)
+            hist = _hist_meta(hrows)
     M = metrics(rows, config, goals, hist)
     M['field_conversion'] = fc
     M['nome'] = config.get('client_name') or config.get('nome_campanha') or fc
