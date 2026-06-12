@@ -193,6 +193,20 @@ function sparkSvg(data: (number | null)[]): SVGElement | null {
 /* tone → base .pill color modifier (kpi deltas, rich table cells) */
 const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', neutral: 'pill--neutral' };
 
+/* Modo de comparação (meta | hist) do toggle de plataforma. Os badges com `cmp`
+ * leem este modo no render e trocam ao vivo via setCmpMode (sem re-render). */
+let cmpMode: 'meta' | 'hist' = 'meta';
+export function setCmpMode(m: 'meta' | 'hist'): void {
+  cmpMode = m;
+  document.querySelectorAll<HTMLElement>('.pill.kc-cmp').forEach((p) => {
+    const val = p.dataset[m] ?? '';
+    const tone = p.dataset[`${m}Tone`] ?? 'neutral';
+    p.textContent = val;
+    p.className = `pill ${PILL_TONE[tone] ?? PILL_TONE.neutral} kc-cmp`;
+  });
+}
+export function getCmpMode(): 'meta' | 'hist' { return cmpMode; }
+
 /* ── kpi-card ── one elevated metric card (feature = icon+pill+spark; volume = bar) */
 const ICONS: Record<string, string> = {
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
@@ -241,7 +255,15 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   const head = el('div', 'kc-head');
   if (feature) {
     head.appendChild(iconBox(w.icon, w.iconColor));
-    if (w.delta) head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
+    if (w.cmp) {
+      const cur = w.cmp[cmpMode] || w.cmp.meta;
+      const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
+      pill.dataset.meta = w.cmp.meta[0]; pill.dataset.metaTone = w.cmp.meta[1];
+      pill.dataset.hist = w.cmp.hist[0]; pill.dataset.histTone = w.cmp.hist[1];
+      head.appendChild(pill);
+    } else if (w.delta) {
+      head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
+    }
   } else {
     head.appendChild(el('span', 'kc-lbl', w.label));
     head.appendChild(iconBox(w.icon, w.iconColor));

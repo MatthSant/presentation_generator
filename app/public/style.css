@@ -242,6 +242,10 @@ html, body {
 }
 
 /* Right zone */
+.cmp-toggle { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; margin-right: 4px; }
+.cmp-btn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--gray); background: transparent; border: none; border-radius: 6px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.cmp-btn.on { background: var(--purple); color: #fff; }
+
 .tn-right {
   display: flex;
   align-items: center;

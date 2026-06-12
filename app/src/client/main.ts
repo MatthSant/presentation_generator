@@ -10,7 +10,7 @@ import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Filters } from './filters.js';
 import { Dashboard } from './dashboard.js';
-import { renderWidget, type RenderCtx } from './renderer.js';
+import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
 import { HistoricoFilters } from './historico-controls.js';
@@ -282,6 +282,9 @@ class App {
     // Dispatch por kind: cada tipo com controles interativos registra o seu setup
     // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
     if (!controls) return;
+    // Feature de plataforma (qualquer tipo): toggle vs Meta / vs Histórico nos badges
+    // de KPI que trazem `cmp`. Independe do `kind`.
+    if ((controls as { compare?: string }).compare) this.setupCompare();
     // Criativos: único controle é o toggle de MODO (resultado × captação) — um
     // metric-toggle que dispara 'metric-change'; recompute server-side por modo.
     if (controls.kind === 'criativos') {
@@ -310,6 +313,27 @@ class App {
       this.histMetric = (e as CustomEvent<string>).detail;
       void this.recompute();
     });
+  }
+
+  /** Toggle de plataforma "vs Meta / vs Histórico": injeta um segmented na barra
+   *  superior e troca, ao vivo, os badges de KPI que trazem `cmp`. */
+  private setupCompare(): void {
+    const right = document.querySelector('.tn-right');
+    if (!right || document.getElementById('cmp-toggle')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'cmp-toggle';
+    wrap.className = 'cmp-toggle';
+    for (const [mode, label] of [['meta', 'vs Meta'], ['hist', 'vs Histórico']] as const) {
+      const b = document.createElement('button');
+      b.className = 'cmp-btn' + (mode === 'meta' ? ' on' : '');
+      b.textContent = label;
+      b.addEventListener('click', () => {
+        setCmpMode(mode);
+        wrap.querySelectorAll('.cmp-btn').forEach((x) => x.classList.toggle('on', x === b));
+      });
+      wrap.appendChild(b);
+    }
+    right.insertBefore(wrap, right.firstChild);
   }
 
   /** Recompute the filtered/metric view server-side and re-render the current section. */

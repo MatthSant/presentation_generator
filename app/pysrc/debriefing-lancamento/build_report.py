@@ -40,13 +40,17 @@ def assemble(rows, config, content, opts=None):
     def add_table(name, dims, rows_):
         dataset[name] = {'dims': list(dims), 'filters': [], 'rows': rows_}
 
-    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, w=4, h=3):
+    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=3):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
                 'sub': sub, 'icon': icon, 'iconColor': color}
         if real is not None and meta:
             d, tone = _dev(real, meta, invert)
             if d is not None:
                 card['delta'] = f'{d:+.0f}% vs meta'; card['deltaTone'] = tone
+                # dual delta para o toggle vs Meta / vs Histórico (hist = '—' sem histórico)
+                dh, th = _dev(real, hist, invert) if hist else (None, 'neutral')
+                card['cmp'] = {'meta': [f'{d:+.0f}% vs meta', tone],
+                               'hist': ([f'{dh:+.0f}% vs hist.', th] if dh is not None else ['— vs hist.', 'neutral'])}
         arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
     def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2):
@@ -112,17 +116,17 @@ def assemble(rows, config, content, opts=None):
     if M['at_leads'] is not None:
         km(pan, pg, 'pan-at-leads', 'Atingimento · Leads', f"{M['at_leads']:.0f}%",
            f"{intf(M['leads_total'])} de {intf(G.get('leads') or 0)} leads", 'target', '#534AB7',
-           real=M['leads_total'], meta=G.get('leads'), w=6)
+           real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), w=6)
     if M['at_vendas'] is not None:
         km(pan, pg, 'pan-at-vendas', 'Atingimento · Vendas', f"{M['at_vendas']:.0f}%",
            f"{intf(M['vendas_total'])} de {intf((G.get('meta_vendas_canal') and sum(G['meta_vendas_canal'].values())) or G.get('vendas') or 0)} vendas",
            'circle-check', '#3B6D11', real=M['vendas_total'],
-           meta=(sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')), w=6)
+           meta=(sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')), hist=H.get('vendas'), w=6)
 
     eb(pan, pg, 'pan-eb-macro', 'RESULTADO MACRO', '5 indicadores')
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
-       real=M['fat'], meta=G.get('fat'))
+       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'))
     km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7')
     km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5')
     km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27')
@@ -304,7 +308,7 @@ def assemble(rows, config, content, opts=None):
     created = config.get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
-                          'controls': {'kind': 'debriefing-lancamento',
+                          'controls': {'kind': 'debriefing-lancamento', 'compare': 'meta',
                                        'pages': [p['id'] for p in pages]}}, 'pages': pages}
     return {'dataset': dataset, 'data': data_json,
             'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'}, 'sections': sections}

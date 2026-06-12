@@ -402,6 +402,9 @@ export interface KpiCardWidget extends WidgetBase {
   /** Variation badge (feature tier), e.g. "↑ +3.0pp vs anterior". */
   delta?: string;
   deltaTone?: 'pos' | 'neg' | 'neutral';
+  /** Dual delta for the meta/histórico toggle: [texto, tone] por modo. Quando
+   *  presente, o badge troca ao vivo com o controle `compare` (feature de plataforma). */
+  cmp?: { meta: [string, string]; hist: [string, string] };
   /** Trend sparkline series (feature tier); nulls = gaps. */
   spark?: (number | null)[];
   /** Proportion bar segments (volume tier); remainder fills as a muted track. */
