@@ -112,12 +112,16 @@ export class Api {
     });
   }
 
-  watch(onSection: (id: string) => void): () => void {
+  watch(onSection: (id: string) => void, onProgress?: (msg: string) => void): () => void {
     // Static mode (?static): skip the live-reload SSE so headless tooling
     // (screenshots/print) can reach network-idle.
     if (new URLSearchParams(location.search).has('static')) return () => {};
     const es = new EventSource(`${this.base()}/watch`);
-    es.onmessage = ({ data }) => { if (data && data !== 'connected') onSection(data); };
+    es.onmessage = ({ data }) => {
+      if (!data || data === 'connected') return;
+      if (data.startsWith('progress:')) { onProgress?.(data.slice(9)); return; }
+      onSection(data);
+    };
     let closed = false;
     es.onerror = () => { if (!closed) { /* browser auto-reconnects */ } };
     return () => { closed = true; es.close(); };

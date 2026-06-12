@@ -154,6 +154,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
         srcSecId: p.deepen.sectionId, blockId: p.deepen.blockId, prompt: p.deepen.prompt,
         resultId: sectionId, objetivo: p.pergunta,
         fewShot: getFewShot(ctx.db, analysisTypeOf(client, slug, dir), 3),
+        onProgress: (msg) => ctx.emitProgress?.(client, slug, msg),
       });
     } catch (e) {
       // falha também vira histórico (instrumentação do harness)

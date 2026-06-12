@@ -127,6 +127,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
       const objetivo = cardCtx.title || prompt;
       const gate = await gateAndRepair({
         dataset, objetivo, instrucao: prompt,
+        onProgress: (msg) => ctx.emitProgress?.(client, slug, msg),
         generate: (repair, prevCand) => {
           const p = prevCand ?? prev;
           if (deps) {

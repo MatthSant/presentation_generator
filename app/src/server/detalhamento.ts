@@ -36,6 +36,8 @@ export interface DetalheInput {
   /** Pergunta original que o detalhamento DEVE responder — fica pinada pelo gate
    *  através de todas as revisões/reparos (guardrail). Default: o próprio prompt. */
   objetivo?: string;
+  /** Callback de progresso (estágio) → tela de carregamento. */
+  onProgress?: (msg: string) => void;
 }
 
 export interface DetalheResult {
@@ -98,7 +100,7 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
   // Loop máx-3 com gate (schema + qualidade + critic), repinando a pergunta original.
   const objetivo = inp.objetivo || inp.prompt;
   const gate = await gateAndRepair({
-    dataset, objetivo, instrucao: inp.prompt,
+    dataset, objetivo, instrucao: inp.prompt, onProgress: inp.onProgress,
     generate: (repair, prevCand) => {
       const prev = prevCand ?? inp.prev;
       if (deps) {

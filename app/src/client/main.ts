@@ -1051,7 +1051,18 @@ ${body}
           if (openModal) this.openModal(openModal);
         });
       }
-    });
+    }, (msg) => this.setBusyMsg(msg));
+  }
+
+  /** Atualiza só o texto da tela de carregamento (estágio do detalhamento, via SSE)
+   *  sem mexer na visibilidade — ignorado se o overlay não está visível ou se a tela
+   *  de erro está à mostra. */
+  private setBusyMsg(msg: string): void {
+    if (!this.busyEl || this.busyEl.hidden) return;
+    const load = this.busyEl.querySelector<HTMLElement>('.busy-load');
+    if (!load || load.hidden) return;   // tela de erro à mostra → não sobrescreve
+    const m = this.busyEl.querySelector('.busy-msg');
+    if (m) m.textContent = msg;
   }
 }
 

@@ -38,6 +38,8 @@ export interface GateInput {
   maxAttempts?: number;
   /** Liga o critic semântico (default true; ignorado em mock). */
   runCritic?: boolean;
+  /** Callback de progresso (estágio atual) — alimenta a tela de carregamento. */
+  onProgress?: (msg: string) => void;
 }
 
 export interface GateResult {
@@ -98,6 +100,9 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   const log = (xs: string[]): void => { for (const x of xs) if (!seen.has(x)) { seen.add(x); issuesLog.push(x); } };
 
   for (let attempt = 0; attempt < max; attempt++) {
+    inp.onProgress?.(attempt === 0
+      ? 'Analisando os dados e escrevendo o detalhamento…'
+      : `Revisando o detalhamento (tentativa ${attempt + 1} de ${max})…`);
     const repair = attempt === 0 ? undefined : repairMessage(inp.objetivo, issues);
     const r = await inp.generate(repair, prev);
     mocked = r.mocked;
@@ -112,6 +117,7 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     const widgets = (cand.widgets as Widget[]) ?? [];
     issues = [...qualityIssues(widgets, inp.dataset as unknown as DataMap), ...methodologySmell(cand)];
     if (issues.length === 0 && runCritic && !mocked) {
+      inp.onProgress?.('Verificando a qualidade…');
       const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
       const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet);
       if (crit.usage) usage = sumUsage(usage, crit.usage);

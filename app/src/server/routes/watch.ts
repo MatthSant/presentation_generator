@@ -16,6 +16,14 @@ export function registerWatch(app: Express, ctx: Ctx): () => void {
   const clients = new Map<string, Set<Response>>();
   const watchers = new Map<string, fs.FSWatcher>();
 
+  // Transient deepen-progress lines piggyback on the same SSE channel, prefixed
+  // so the client routes them to the busy overlay instead of a section reload.
+  ctx.emitProgress = (client, slug, msg) => {
+    clients.get(`${client}/${slug}`)?.forEach((c) => {
+      try { c.write(`data: progress:${msg.replace(/\n/g, ' ')}\n\n`); } catch { /* client gone */ }
+    });
+  };
+
   app.get('/api/:client/:slug/watch', (req, res) => {
     const { client, slug } = req.params;
     const dir = analysisDir(ctx.out, client, slug);
