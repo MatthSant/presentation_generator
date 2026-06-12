@@ -180,6 +180,17 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       };
     },
   },
+  'debriefing-lancamento': {
+    type: 'debriefing-lancamento',
+    label: 'Debriefing de Lançamento',
+    pysrcDir: 'debriefing-lancamento',
+    supportsInsights: false,
+    gerarPage: 'gerar-debriefing.html',
+    montadorPage: 'montador-debriefing.html',
+    controlsKind: 'debriefing-lancamento',
+    validateConfig() { return []; },
+    buildDeepenMeta() { return null; },   // modo raso por ora (deep mode vem depois)
+  },
 };
 
 /** Resolve o tipo a partir de uma string ou de um config ({type}). Fallback:

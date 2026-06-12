@@ -1,0 +1,385 @@
+"""build_report — gerador do "debriefing de lançamento" (3 camadas do app).
+
+`assemble(rows, config, content, opts)` (puro) → {dataset, data, layout, sections}.
+7 páginas: Panorama · Canal · Tráfego Pago · Orgânico · Temporal · Análise 360° ·
+One Pager. Números nascem no calc.py; mapeados a widgets de plataforma (kpi-card,
+chart, table, find-block, highlight). Toggle meta/histórico: v1 mostra Δ vs meta no
+card e cita o histórico no sub (controle vivo fica para uma feature de plataforma).
+"""
+import sys, os, json, datetime
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _here)
+sys.path.insert(0, os.path.dirname(_here))
+import calc
+from common.layout import Grid
+from common.fmt import money, pctf, xf, intf
+from common.preserve import preserve
+
+
+def _pp(v):
+    return '—' if v is None else f'{v:+.1f} p.p.'
+
+
+def _dev(real, meta, invert=False):
+    """Δ% vs meta (+ = melhor). invert para custos (menor é melhor)."""
+    if not meta:
+        return None, 'neutral'
+    d = (real - meta) / meta * 100
+    if invert:
+        d = -d
+    tone = 'pos' if d >= 1 else ('neg' if d <= -1 else 'neutral')
+    return d, tone
+
+
+def assemble(rows, config, content, opts=None):
+    config = config or {}
+    M = calc.build(rows, config)
+    G, H = M['goals'], M['hist']
+    dataset, sections, layouts = {}, {}, {}
+
+    def add_table(name, dims, rows_):
+        dataset[name] = {'dims': list(dims), 'filters': [], 'rows': rows_}
+
+    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, w=4, h=3):
+        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
+                'sub': sub, 'icon': icon, 'iconColor': color}
+        if real is not None and meta:
+            d, tone = _dev(real, meta, invert)
+            if d is not None:
+                card['delta'] = f'{d:+.0f}% vs meta'; card['deltaTone'] = tone
+        arr.append(card); pg.add(wid, 'kpi-card', w, h)
+
+    def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2):
+        arr.append({'id': wid, 'type': 'kpi-card', 'tier': 'volume', 'label': label, 'value': value,
+                    'sub': sub, 'icon': icon, 'iconColor': color})
+        pg.add(wid, 'kpi-card', w, h)
+
+    def eb(arr, pg, wid, title, caption='', n=None, color=None):
+        b = {'id': wid, 'type': 'eyebrow', 'title': title, 'caption': caption}
+        if n:
+            b['n'] = n
+        if color:
+            b['color'] = color
+        arr.append(b); pg.add(wid, 'eyebrow', 12, 1)
+
+    def fb(arr, pg, wid, tag, tagColor, title, detail, w=4, h=3):
+        arr.append({'id': wid, 'type': 'find-block', 'card': True, 'tag': tag, 'tagColor': tagColor,
+                    'title': title, 'detail': detail}); pg.add(wid, 'find-block', w, h)
+
+    def table(arr, pg, wid, title, cols, rows_, w=12, h=4):
+        arr.append({'id': wid, 'type': 'table', 'title': title, 'cols': cols, 'rows': rows_})
+        pg.add(wid, 'table', w, h)
+
+    # daily dataset (gráficos)
+    add_table('deb_daily', ['data'], [
+        {'data': d['label'], 'leads': d['l_all'], 'l_pago': d['l_pago'], 'l_org': d['l_org'],
+         'vendas': d['v_all'], 'conv': d['c_all'], 'q_pago': d['q_pago']} for d in M['daily']])
+
+    # ════ s01 — Panorama ════════════════════════════════════════════════════
+    pan, pg = [], Grid()
+    eb(pan, pg, 'pan-eb-meta', 'METAS ATINGIDAS?', 'realizado vs meta da campanha')
+    # donuts de atingimento como kpi-card com barra
+    if M['at_leads'] is not None:
+        km(pan, pg, 'pan-at-leads', 'Atingimento · Leads', f"{M['at_leads']:.0f}%",
+           f"{intf(M['leads_total'])} de {intf(G.get('leads') or 0)} leads", 'target', '#534AB7',
+           real=M['leads_total'], meta=G.get('leads'), w=6)
+    if M['at_vendas'] is not None:
+        km(pan, pg, 'pan-at-vendas', 'Atingimento · Vendas', f"{M['at_vendas']:.0f}%",
+           f"{intf(M['vendas_total'])} de {intf((G.get('meta_vendas_canal') and sum(G['meta_vendas_canal'].values())) or G.get('vendas') or 0)} vendas",
+           'circle-check', '#3B6D11', real=M['vendas_total'],
+           meta=(sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')), w=6)
+
+    eb(pan, pg, 'pan-eb-macro', 'RESULTADO MACRO', '5 indicadores')
+    km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
+       f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
+       real=M['fat'], meta=G.get('fat'))
+    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7')
+    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5')
+    km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27')
+    km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
+       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D')
+
+    eb(pan, pg, 'pan-eb-vol', 'INDICADORES DE VOLUME', '8 métricas')
+    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7')
+    ks(pan, pg, 'pan-v-leads', 'Leads Totais', intf(M['leads_total']), f"pago {pct_of(M['leads_pago'], M['leads_total'])} · org {pct_of(M['leads_org'], M['leads_total'])}", 'users', '#185FA5')
+    ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B')
+    ks(pan, pg, 'pan-v-conv', 'Conversão Geral', pctf(M['conv_geral']), f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#534AB7')
+    ks(pan, pg, 'pan-v-inv', 'Investimento Total', money(M['invest_total']), f"captação {money(M['invest_cpt'])}", 'coin', '#534AB7')
+    ks(pan, pg, 'pan-v-cpl', 'CPL', money(M['cpl']), f"meta {money(G.get('cpl') or 0)}" if G.get('cpl') else 'invest. cpt / leads tráfego', 'users', '#185FA5')
+    ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), f"meta {money(G.get('cpmql') or 0)}" if G.get('cpmql') else 'CPL / qualif. paga', 'star', '#854F0B')
+    ks(pan, pg, 'pan-v-recap', 'Leads Recapturados', intf(M['l_ant'] + M['l_cli']), f"antigos {intf(M['l_ant'])} · clientes {intf(M['l_cli'])}", 'refresh', '#854F0B')
+
+    eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META')
+    table(pan, pg, 'pan-cmp', '', ['Indicador', 'Realizado', 'Meta', 'Δ vs Meta', 'Histórico'], [
+        cmp_row('Vendas', M['vendas_total'], sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas'), H.get('vendas'), 'int'),
+        cmp_row('Leads', M['leads_total'], G.get('leads'), H.get('leads'), 'int'),
+        cmp_row('Conversão', M['conv_geral'], G.get('conv'), None, 'pct'),
+        cmp_row('Invest. Captação', M['invest_cpt'], G.get('invest_cpt'), H.get('invest_cpt'), 'money', invert=True),
+        cmp_row('CPL', M['cpl'], G.get('cpl'), H.get('cpl'), 'money', invert=True),
+        cmp_row('Qualificação', M['qual'], G.get('qual'), H.get('qual'), 'pct'),
+        cmp_row('CPMQL', M['cpmql'], G.get('cpmql'), H.get('cpmql'), 'money', invert=True),
+    ], h=5)
+    sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': f"Debriefing · {M['nome']}",
+                       'sub': f"{M['campaign_label']} — atingiu as metas? resumo macro do lançamento."}, 'widgets': pan}
+    layouts['s01'] = pg.items
+
+    # ════ s02 — Canal e Conversão ═══════════════════════════════════════════
+    can, cg = [], Grid()
+    eb(can, cg, 'can-eb', 'RESUMO POR ESCOPO', 'geral · pago · orgânico')
+    for esc, lbl, lp, lv, cv, color in [
+        ('ger', 'Geral', M['leads_total'], M['vendas_total'], M['conv_geral'], '#534AB7'),
+        ('pago', 'Pago', M['leads_pago'], M['vendas_pago'], M['conv_pago'], '#185FA5'),
+        ('org', 'Orgânico', M['leads_org'], M['vendas_org'], M['conv_org'], '#3B6D11')]:
+        km(can, cg, f'can-r-{esc}', lbl, intf(lp), f"{intf(lv)} vendas · conv {pctf(cv)}", 'users', color)
+    # canais vs meta de vendas
+    vs = _canais_vs_meta(M['chan'], G.get('by_canal') or {}, M['goals'].get('meta_vendas_canal') or {})
+    eb(can, cg, 'can-eb-vs', 'CANAIS vs META DE VENDAS', 'acima / próximo / abaixo')
+    for col, key, tagc in [('↑ Acima da meta', 'acima', 'g'), ('≈ Próximo', 'prox', 'a'), ('↓ Abaixo', 'abaixo', 'r')]:
+        nomes = vs[key]
+        fb(can, cg, f'can-vs-{key}', f'{col} ({len(nomes)})', tagc,
+           ', '.join(nomes[:6]) or '—', '', w=4, h=3)
+    table(can, cg, 'can-tbl', 'Resultado por Canal',
+          ['Canal', 'Tipo', 'Leads', 'Vendas', 'Conv.', 'Qualif.', 'Faturamento'],
+          [[c['canal'], 'pago' if c['tipo'] == 'pago' else 'org.', intf(c['leads']), intf(c['vendas']),
+            pctf(c['conv']), pctf(c['qual']), money(c['fat'])] for c in M['chan'][:14]], h=6)
+    sections['s02'] = {'id': 's02', 'header': {'badge': 'Canal', 'title': 'Canal e Conversão',
+                       'sub': 'Performance por canal e por escopo (pago × orgânico).'}, 'widgets': can}
+    layouts['s02'] = cg.items
+
+    # ════ s03 — Tráfego Pago ════════════════════════════════════════════════
+    tra, tg = [], Grid()
+    tra.append({'id': 'tra-rule', 'type': 'highlight', 'color': 'p', 'label': 'Regra do invest_cpt',
+                'text': f"Investimento de mídia = só campanhas de captação ({money(M['invest_cpt'])}). "
+                        f"Invest. de vendas ({money(M['invest_vnd'])}) fica fora de CPL/ROAS/CPMQL/CPM/CTR."}); tg.add('tra-rule', 'highlight', 12, 2)
+    eb(tra, tg, 'tra-eb', 'INDICADORES DE MÍDIA', '9 métricas (só captação)')
+    ks(tra, tg, 'tra-cpl', 'CPL', money(M['cpl']), 'invest. cpt / leads tráfego', 'users', '#185FA5')
+    ks(tra, tg, 'tra-cpmql', 'CPMQL', money(M['cpmql']), 'CPL / qualif. paga', 'star', '#854F0B')
+    ks(tra, tg, 'tra-qual', 'Qualificação', pctf(M['qual_pago']), 'MQLs / respostas (pago)', 'circle-check', '#534AB7')
+    ks(tra, tg, 'tra-ctr', 'CTR', pctf(M['ctr']), 'clicks / impressões', 'trending-up', '#3B6D11')
+    ks(tra, tg, 'tra-cpm', 'CPM', money(M['cpm']), 'invest. cpt×1000 / impressões', 'database', '#534AB7')
+    ks(tra, tg, 'tra-cpc', 'CPC', money(M['cpc']), 'invest. cpt / clicks', 'coin', '#185FA5')
+    ks(tra, tg, 'tra-txpag', 'Taxa de Página', pctf(M['tx_pag']), 'leads tráfego / clicks', 'target', '#3B6D11')
+    ks(tra, tg, 'tra-inv', 'Invest. Captação', money(M['invest_cpt']), 'verba de mídia paga', 'coin', '#534AB7')
+    ks(tra, tg, 'tra-cac', 'CAC', money(M['cac']), 'invest. cpt / vendas pago', 'shopping-cart', '#A32D2D')
+    eb(tra, tg, 'tra-eb-d', 'CAPTAÇÃO PAGA POR DIA')
+    tra.append({'id': 'tra-daily', 'type': 'chart', 'chartType': 'bar', 'title': 'Leads pagos por dia', 'height': 280,
+                'colors': ['#534AB7'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'l_pago'}}); tg.add('tra-daily', 'chart', 12, 4)
+    table(tra, tg, 'tra-temp', 'Por Temperatura',
+          ['Temperatura', 'Leads', 'Invest.', 'Fat.', 'ROAS', 'Vendas', 'Conv.', 'Qualif.'],
+          [[t['temp'], intf(t['leads']), money(t['inv']), money(t['fat']),
+            {'value': xf(t['roas']), 'cls': 'c-g' if t['roas'] > 1 else 'c-r'}, intf(t['vendas']),
+            pctf(t['conv']), pctf(t['qual'])] for t in M['temp']], h=4)
+    table(tra, tg, 'tra-roas', 'Melhores Campanhas por ROAS',
+          ['Campanha', 'Invest.', 'Fat.', 'ROAS', 'Leads', 'Vendas', 'CPL', 'Conv.'],
+          [[c['campanha'][:48], money(c['inv']), money(c['fat']),
+            {'value': xf(c['roas']), 'cls': 'c-g' if c['roas'] > 1 else 'c-r'}, intf(c['leads']),
+            intf(c['vendas']), money(c['cpl']), pctf(c['conv'])] for c in M['camp_roas'][:12]], h=5)
+    sections['s03'] = {'id': 's03', 'header': {'badge': 'Tráfego Pago', 'title': 'Tráfego Pago',
+                       'sub': 'Indicadores de mídia (só captação), por temperatura e por campanha.'}, 'widgets': tra}
+    layouts['s03'] = tg.items
+
+    # ════ s04 — Orgânico ════════════════════════════════════════════════════
+    org_chan = [c for c in M['chan'] if c['tipo'] == 'organico']
+    o, og = [], Grid()
+    eb(o, og, 'org-eb', 'RESUMO ORGÂNICO')
+    km(o, og, 'org-leads', 'Leads Orgânicos', intf(M['leads_org']), f"{pct_of(M['leads_org'], M['leads_total'])} do total", 'users', '#3B6D11')
+    km(o, og, 'org-vendas', 'Vendas Orgânicas', intf(M['vendas_org']), f"{pct_of(M['vendas_org'], M['vendas_total'])} do total", 'shopping-cart', '#534AB7')
+    km(o, og, 'org-conv', 'Conversão Orgânica', pctf(M['conv_org']), f"{_pp(M['conv_org'] - M['conv_pago'])} vs pago", 'circle-check', '#185FA5')
+    eb(o, og, 'org-eb-d', 'DESTAQUES POR CONVERSÃO', '≥20 leads')
+    dest = sorted([c for c in org_chan if c['leads'] >= 20], key=lambda c: -c['conv'])[:5]
+    for i, c in enumerate(dest):
+        fb(o, og, f'org-d-{i}', c['canal'], 'g', pctf(c['conv']), f"{intf(c['leads'])} leads · {intf(c['vendas'])} vendas", w=4, h=2)
+    o.append({'id': 'org-daily', 'type': 'chart', 'chartType': 'bar', 'title': 'Leads orgânicos por dia', 'height': 260,
+              'colors': ['#3B6D11'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'l_org'}}); og.add('org-daily', 'chart', 12, 4)
+    table(o, og, 'org-tbl', 'Resultado por Canal Orgânico',
+          ['Canal', 'Leads', 'Vendas', 'Conv.', 'Qualif.', 'Faturamento'],
+          [[c['canal'], intf(c['leads']), intf(c['vendas']), pctf(c['conv']), pctf(c['qual']), money(c['fat'])]
+           for c in org_chan[:12]], h=5)
+    sections['s04'] = {'id': 's04', 'header': {'badge': 'Orgânico', 'title': 'Orgânico',
+                       'sub': 'Captação e conversão dos canais orgânicos.'}, 'widgets': o}
+    layouts['s04'] = og.items
+
+    # ════ s05 — Análise Temporal ════════════════════════════════════════════
+    tmp, mg = [], Grid()
+    bw = M['best_week']
+    tmp.append({'id': 'tmp-note', 'type': 'highlight', 'color': 'a', 'label': 'First Click',
+                'text': 'As vendas são atribuídas pela <strong>data de inscrição</strong> (First Click), não pela data da compra. A análise temporal é por semana de inscrição.'}); mg.add('tmp-note', 'highlight', 12, 2)
+    eb(tmp, mg, 'tmp-eb', 'VISÃO EXECUTIVA')
+    if bw.get('conv_snum'):
+        km(tmp, mg, 'tmp-conv', 'Melhor Semana · Conversão', f"S{bw['conv_snum']}", f"{pctf(bw['conv_val'])} de conversão", 'circle-check', '#3B6D11', w=6)
+    if bw.get('fpl_snum'):
+        km(tmp, mg, 'tmp-fpl', 'Semana mais valiosa · Fat/Lead', f"S{bw['fpl_snum']}", f"{money(bw['fpl_val'])} por lead", 'coin', '#534AB7', w=6)
+    table(tmp, mg, 'tmp-tbl', 'Análise Semanal — First Click',
+          ['Sem.', 'Início', 'Fim', 'Leads', 'LP', 'LO', 'CPL Pago', 'Qualif.', 'Vendas', 'Conv.', 'Fat/Lead'],
+          [[f"S{w['snum']}", w['ini'], w['fim'], intf(w['leads']), intf(w['leads_pago']), intf(w['leads_org']),
+            money(w['cpl']), pctf(w['qual']), intf(w['vendas']),
+            {'value': pctf(w['conv']), 'cls': 'c-g' if w['conv'] >= 4 else ('c-a' if w['conv'] >= 2.4 else None)},
+            money(w['fpl'])] for w in M['weekly']], h=6)
+    sections['s05'] = {'id': 's05', 'header': {'badge': 'Temporal', 'title': 'Análise Temporal',
+                       'sub': 'Semana a semana por data de inscrição (First Click).'}, 'widgets': tmp}
+    layouts['s05'] = mg.items
+
+    # ════ s06 — Análise 360° ════════════════════════════════════════════════
+    a3, ag = [], Grid()
+    eb(a3, ag, 'a3-eb', 'ANÁLISE 360° — PERGUNTAS ESTRATÉGICAS', 'resultado, captação, qualidade, mídia, temperatura')
+    vereditos = _a360(M, G, H)
+    for i, q in enumerate(vereditos):
+        fb(a3, ag, f'a3-q{i}', q['tag'], q['cor'], q['titulo'], q['detalhe'], w=6, h=3)
+    sections['s06'] = {'id': 's06', 'header': {'badge': 'Análise 360°', 'title': 'Análise 360°',
+                       'sub': 'As perguntas estratégicas do lançamento, com evidência.'}, 'widgets': a3}
+    layouts['s06'] = ag.items
+
+    # ════ s07 — One Pager ═══════════════════════════════════════════════════
+    op, opg = [], Grid()
+    eb(op, opg, 'op-eb', 'KPIS PRINCIPAIS')
+    for wid, lbl, val, color in [('op-fat', 'Faturamento', money(M['fat']), '#3B6D11'),
+                                 ('op-roas', 'ROAS', xf(M['roas']), '#EF9F27'),
+                                 ('op-leads', 'Leads', intf(M['leads_total']), '#185FA5'),
+                                 ('op-vendas', 'Vendas', intf(M['vendas_total']), '#534AB7'),
+                                 ('op-cpl', 'CPL', money(M['cpl']), '#185FA5'),
+                                 ('op-conv', 'Conversão', pctf(M['conv_geral']), '#3B6D11')]:
+        ks(op, opg, wid, lbl, val, '', 'target', color, w=4, h=2)
+    op.append({'id': 'op-daily', 'type': 'chart', 'chartType': 'line', 'title': 'Leads por dia', 'height': 260,
+               'colors': ['#534AB7'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'leads'}}); opg.add('op-daily', 'chart', 6, 4)
+    op.append({'id': 'op-conv-c', 'type': 'chart', 'chartType': 'line', 'title': 'Conversão por dia (%)', 'height': 260,
+               'pct': True, 'valueFormat': 'pct', 'colors': ['#3B6D11'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'conv'}}); opg.add('op-conv-c', 'chart', 6, 4)
+    al, ga = calc_alavancas(M, G, H)
+    eb(op, opg, 'op-eb-ag', 'ALAVANCAS E GARGALOS', 'gerados dos dados')
+    fb(op, opg, 'op-alav', '↑ Alavancas', 'g', 'O que puxou o resultado', '<br>'.join(f'• {x}' for x in al) or '—', w=6, h=4)
+    fb(op, opg, 'op-garg', '↓ Gargalos', 'r', 'O que segurou o resultado', '<br>'.join(f'• {x}' for x in ga) or '—', w=6, h=4)
+    sections['s07'] = {'id': 's07', 'header': {'badge': 'One Pager', 'title': 'One Pager',
+                       'sub': 'Visão executiva de 1 tela.'}, 'widgets': op}
+    layouts['s07'] = opg.items
+
+    pages = [{'id': 'panorama', 'label': 'Panorama', 'sections': [{'id': 's01', 'label': 'Panorama'}]},
+             {'id': 'canal', 'label': 'Canal', 'sections': [{'id': 's02', 'label': 'Canal e Conversão'}]},
+             {'id': 'trafego', 'label': 'Tráfego Pago', 'sections': [{'id': 's03', 'label': 'Tráfego Pago'}]},
+             {'id': 'organico', 'label': 'Orgânico', 'sections': [{'id': 's04', 'label': 'Orgânico'}]},
+             {'id': 'temporal', 'label': 'Temporal', 'sections': [{'id': 's05', 'label': 'Análise Temporal'}]},
+             {'id': 'analise', 'label': 'Análise 360°', 'sections': [{'id': 's06', 'label': 'Análise 360°'}]},
+             {'id': 'onepager', 'label': 'One Pager', 'sections': [{'id': 's07', 'label': 'One Pager'}]}]
+    created = config.get('created_at') or datetime.date.today().isoformat()
+    data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
+                          'theme': 'light', 'created_at': created, 'filters': [],
+                          'controls': {'kind': 'debriefing-lancamento',
+                                       'pages': [p['id'] for p in pages]}}, 'pages': pages}
+    return {'dataset': dataset, 'data': data_json,
+            'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'}, 'sections': sections}
+
+
+# ── helpers de conteúdo ────────────────────────────────────────────────────────
+
+def pct_of(a, b):
+    return '—' if not b else f'{a / b * 100:.0f}%'
+
+
+def cmp_row(label, real, meta, hist, fmt, invert=False):
+    from common.fmt import money as _m, pctf as _p, intf as _i
+
+    def f(v):
+        if v is None:
+            return '—'
+        return _m(v) if fmt == 'money' else (_p(v) if fmt == 'pct' else _i(v))
+    cell_real = f(real)
+    cell_meta = f(meta) if meta else '—'
+    if meta:
+        d = (real - meta) / meta * 100
+        if invert:
+            d = -d
+        delta = {'value': f'{d:+.0f}%', 'cls': 'c-g' if d >= 1 else ('c-r' if d <= -1 else None)}
+    else:
+        delta = '—'
+    return [label, cell_real, cell_meta, delta, f(hist)]
+
+
+def _canais_vs_meta(chan, by_canal, mvc):
+    acima, prox, abaixo = [], [], []
+    for c in chan:
+        meta = mvc.get(c['canal']) or (by_canal.get(c['canal'], {}).get('meta_vendas'))
+        if not meta:
+            continue
+        dv = (c['vendas'] - meta) / meta * 100
+        (acima if dv > 5 else prox if dv >= -5 else abaixo).append(c['canal'])
+    return {'acima': acima, 'prox': prox, 'abaixo': abaixo}
+
+
+def _a360(M, G, H):
+    out = []
+    # Q1 Resultado
+    at_v = M['at_vendas']
+    out.append({'tag': 'Q1 · Resultado Global', 'cor': 'g' if (at_v and at_v >= 100) else 'a',
+                'titulo': f"Fat {money(M['fat'])} · {intf(M['vendas_total'])} vendas · ROAS {xf(M['roas'])}",
+                'detalhe': f"ROI {M['roi']:.0f}%. Atingimento de vendas {at_v:.0f}%." if at_v else f"ROI {M['roi']:.0f}%."})
+    # Q4 Qualidade
+    out.append({'tag': 'Q4 · Qualidade', 'cor': 'a',
+                'titulo': f"Qualificação {pctf(M['qual'])}" + (f" (meta {pctf(G.get('qual'))})" if G.get('qual') else ''),
+                'detalhe': f"Novos {pct_of(M['l_novo'], M['leads_total'])} · Antigos {pct_of(M['l_ant'], M['leads_total'])}."})
+    # Q5 Conversão
+    out.append({'tag': 'Q5 · Conversão', 'cor': 'r' if (G.get('conv') and M['conv_geral'] < G['conv']) else 'g',
+                'titulo': f"Geral {pctf(M['conv_geral'])} · Pago {pctf(M['conv_pago'])} · Org {pctf(M['conv_org'])}",
+                'detalhe': f"Orgânico {_pp(M['conv_org'] - M['conv_pago'])} vs pago."})
+    # Q6 Pago vs Orgânico
+    out.append({'tag': 'Q6 · Orgânico vs Pago', 'cor': 'g',
+                'titulo': f"Vendas: org {pct_of(M['vendas_org'], M['vendas_total'])} · pago {pct_of(M['vendas_pago'], M['vendas_total'])}",
+                'detalhe': f"Faturamento: org {pct_of(M['fat_org'], M['fat'])} · pago {pct_of(M['fat_pago'], M['fat'])}."})
+    # Q8 Mídia
+    out.append({'tag': 'Q8 · Mídia Paga', 'cor': 'a',
+                'titulo': f"CPL {money(M['cpl'])} · CPMQL {money(M['cpmql'])} · ROAS {xf(M['roas'])}",
+                'detalhe': f"CPM {money(M['cpm'])} · CTR {pctf(M['ctr'])} · Taxa de Página {pctf(M['tx_pag'])}."})
+    # Q9 Temperatura
+    if M['temp']:
+        best = max(M['temp'], key=lambda t: t['roas'])
+        chips = ' · '.join(f"{t['temp']} {xf(t['roas'])}" for t in M['temp'])
+        out.append({'tag': 'Q9 · Temperatura (ROAS)', 'cor': 'g' if best['roas'] >= 2 else ('a' if best['roas'] >= 0 else 'r'),
+                    'titulo': f"Melhor: {best['temp']} ({xf(best['roas'])})", 'detalhe': chips})
+    # Q10 Temporal
+    bw = M['best_week']
+    if bw.get('conv_snum'):
+        out.append({'tag': 'Q10 · Dinâmica Temporal', 'cor': 'p',
+                    'titulo': f"Melhor semana S{bw['conv_snum']} ({pctf(bw['conv_val'])})",
+                    'detalhe': f"Semana mais valiosa S{bw['fpl_snum']} · {money(bw['fpl_val'])}/lead (First Click)."})
+    return out
+
+
+def calc_alavancas(M, G, H):
+    al, ga = [], []
+    for t in M['temp']:
+        if t['roas'] > 1:
+            al.append(f"{t['temp']}: ROAS {xf(t['roas'])} — escalar")
+        elif t['roas'] < 1 and t['leads'] >= 100:
+            ga.append(f"{t['temp']}: ROAS {xf(t['roas'])} — revisar")
+    if M['vendas_total'] and M['vendas_org'] / M['vendas_total'] * 100 > 50:
+        al.append(f"Orgânico dominou ({pct_of(M['vendas_org'], M['vendas_total'])} das vendas)")
+    if G.get('cpl') and (M['cpl'] - G['cpl']) / G['cpl'] * 100 > 10:
+        ga.append(f"CPL {money(M['cpl'])} acima da meta ({money(G['cpl'])})")
+    if G.get('qual') and M['qual'] - G['qual'] < -5:
+        ga.append(f"Qualificação {pctf(M['qual'])} abaixo da meta ({pctf(G['qual'])})")
+    recap = M['l_ant'] + M['l_cli']
+    if M['leads_total'] and recap / M['leads_total'] * 100 > 45:
+        ga.append(f"{pct_of(recap, M['leads_total'])} de leads recaptados — base nova cresceu pouco")
+    if M['at_vendas'] and M['at_vendas'] >= 100:
+        al.append(f"Meta de vendas superada ({M['at_vendas']:.0f}%)")
+    return al[:4], ga[:4]
+
+
+def build(csv_path, config, content, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    rows = calc.load_rows(csv_path)
+    r = assemble(rows, config, content, {})
+    preserve(out_dir, r['data'], r['sections'])
+    def dump(name, obj):
+        json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+    dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])
+    for sid, sec in r['sections'].items():
+        dump(f'{sid}.json', sec)
+    return {'tables': len(r['dataset']), 'sections': len(r['sections']), 'pages': len(r['data']['pages']), 'out_dir': out_dir}
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 5:
+        print('uso: build_report.py <config.json> <content.json> <csv> <out_dir>'); sys.exit(1)
+    cfg_path, content_path, csv_path, out = sys.argv[1:5]
+    config = json.load(open(cfg_path, encoding='utf-8'))
+    content = json.load(open(content_path, encoding='utf-8')) if os.path.exists(content_path) else {}
+    summ = build(csv_path, config, content, out)
+    print('OK ->', summ['out_dir'], '| tabelas', summ['tables'], '| seções', summ['sections'], '| páginas', summ['pages'])
