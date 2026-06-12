@@ -166,6 +166,29 @@ def metrics(rows, produto):
     }
 
 
+def apply_temp_rules(rows, rules, overwrite=False):
+    """Deriva `temperatura_lead` do `field_campaign_name` por ILIKE (substring case-
+    insensitive). `rules` = [{'contains': <termo>, 'label': <temperatura>}, ...] em
+    ordem de prioridade (1º match vence). Para CSVs crus de mídia (sem coluna de
+    temperatura limpa) — espelha o CASE WHEN ... LIKE do montador.
+
+    Sem `overwrite`, só classifica linhas cuja temperatura está vazia (preserva o que
+    já vier preenchido). Não-casadas viram 'N/C', como na query fonte. Muta as linhas
+    in-place e devolve a mesma lista."""
+    norm = [(str(r.get('contains') or '').strip().lower(), str(r.get('label') or '').strip())
+            for r in (rules or [])]
+    norm = [(c, l) for c, l in norm if c and l]
+    if not norm:
+        return rows
+    for r in rows:
+        cur = (r.get('temperatura_lead') or '').strip()
+        if cur and not overwrite:
+            continue
+        camp = (r.get('field_campaign_name') or '').lower()
+        r['temperatura_lead'] = next((l for c, l in norm if c in camp), 'N/C')
+    return rows
+
+
 def _distinct(rows, col):
     seen = []
     for r in rows:
