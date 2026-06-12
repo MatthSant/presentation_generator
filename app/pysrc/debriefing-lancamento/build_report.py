@@ -108,6 +108,19 @@ def assemble(rows, config, content, opts=None):
             ('roas', 'ROAS', 'roas', None, H.get('roas'), 'midia'),
             ('invest_cpt', 'Invest. Captação', 'invest_cpt', G2.get('invest_cpt'), H.get('invest_cpt'), 'financeiro'),
         ]])
+    # tabelas dos gráficos da Análise 360° (Q1 realizado×meta, Q4 tipos, Q6 split vendas)
+    add_table('deb_tipos', ['tipo'], [{'tipo': 'Novos', 'leads': M['l_novo']},
+                                      {'tipo': 'Antigos', 'leads': M['l_ant']},
+                                      {'tipo': 'Clientes', 'leads': M['l_cli']}])
+    add_table('deb_split_vend', ['escopo'], [{'escopo': 'Orgânico', 'vendas': M['vendas_org']},
+                                            {'escopo': 'Pago', 'vendas': M['vendas_pago']}])
+    add_table('deb_q1', ['indicador'], [
+        {'indicador': 'Fat. (÷1k)', 'serie': 'Realizado', 'v': round(M['fat'] / 1000)},
+        {'indicador': 'Fat. (÷1k)', 'serie': 'Meta', 'v': round((G2.get('fat') or 0) / 1000)},
+        {'indicador': 'Leads (÷100)', 'serie': 'Realizado', 'v': round(M['leads_total'] / 100)},
+        {'indicador': 'Leads (÷100)', 'serie': 'Meta', 'v': round((G2.get('leads') or 0) / 100)},
+        {'indicador': 'Vendas', 'serie': 'Realizado', 'v': M['vendas_total']},
+        {'indicador': 'Vendas', 'serie': 'Meta', 'v': round(mv or 0)}])
 
     # ════ s01 — Panorama ════════════════════════════════════════════════════
     pan, pg = [], Grid()
@@ -369,8 +382,13 @@ def _st(label, value, sub=None, delta=None, tone=None):
     return s
 
 
-def _chart(ctype, dataset, x, y, **kw):
-    c = {'chartType': ctype, 'height': 200, 'bind': {'dataset': dataset, 'x': x, 'y': y}}
+def _chart(ctype, dataset, x, y, series=None, where=None, **kw):
+    bind = {'dataset': dataset, 'x': x, 'y': y}
+    if series:
+        bind['series'] = series
+    if where:
+        bind['where'] = where
+    c = {'chartType': ctype, 'height': 200, 'bind': bind}
     c.update(kw)
     return c
 
@@ -392,7 +410,9 @@ def _a360(M, G, H):
                               (cmp_pct(M['fat'], G.get('fat')) if G.get('fat') else None), 'purple'),
                           _st('Vendas', intf(M['vendas_total']), (f'meta {intf(mv)}' if mv else None),
                               (cmp_pct(M['vendas_total'], mv) if mv else None)),
-                          _st('ROAS Captação', xf(M['roas'])), _st('ROI Global', f"{M['roi']:.0f}%")]})
+                          _st('ROAS Captação', xf(M['roas'])), _st('ROI Global', f"{M['roi']:.0f}%")],
+                'chart': _chart('bar', 'deb_q1', 'indicador', 'v', series='serie',
+                                colors=['#AFA9EC', '#534AB7'], height=210)})
     # Q2 Receita e Retorno
     out.append({'q': 'Q2', 'qColor': 'p', 'title': 'Receita, Vendas e Retorno',
                 'stats': [_st('Retorno', money(M['retorno']), 'fat − invest.'),
@@ -412,7 +432,8 @@ def _a360(M, G, H):
                               (cmp_pct(M['qual'], G.get('qual')) if G.get('qual') else None)),
                           _st('Novos', pct_of(M['l_novo'], M['leads_total'])),
                           _st('Antigos', pct_of(M['l_ant'], M['leads_total'])),
-                          _st('Clientes', pct_of(M['l_cli'], M['leads_total']))]})
+                          _st('Clientes', pct_of(M['l_cli'], M['leads_total']))],
+                'chart': _chart('donut', 'deb_tipos', 'tipo', 'leads', height=210, donutTotal=True, totalLabel='leads')})
     # Q5 Conversão + gráfico
     out.append({'q': 'Q5', 'qColor': 'r' if (G.get('conv') and M['conv_geral'] < G['conv']) else 'g', 'title': 'Conversão — geral, pago e orgânico',
                 'stats': [_st('Geral', pctf(M['conv_geral']), (f'meta {pctf(G["conv"])}' if G.get('conv') else None),
@@ -425,7 +446,9 @@ def _a360(M, G, H):
                 'stats': [_st('Vendas orgânico', pct_of(M['vendas_org'], M['vendas_total']), tone='pos'),
                           _st('Vendas pago', pct_of(M['vendas_pago'], M['vendas_total']), tone='purple'),
                           _st('Fat. orgânico', pct_of(M['fat_org'], M['fat']), tone='pos'),
-                          _st('Fat. pago', pct_of(M['fat_pago'], M['fat']), tone='purple')]})
+                          _st('Fat. pago', pct_of(M['fat_pago'], M['fat']), tone='purple')],
+                'chart': _chart('donut', 'deb_split_vend', 'escopo', 'vendas', height=210,
+                                colors=['#3B6D11', '#534AB7'], donutTotal=True, totalLabel='vendas')})
     # Q7 Captação Orgânica
     org = [c for c in M['chan'] if c['tipo'] == 'organico']
     if org:
@@ -435,7 +458,9 @@ def _a360(M, G, H):
                     'verdict': {'label': ('⚠ Dependência crítica' if conc > 50 else '✓ Diversificada'),
                                 'tone': 'neg' if conc > 50 else 'pos'},
                     'stats': [_st('Canal dominante', str(top['canal'])), _st('Concentração', f'{conc:.0f}%'),
-                              _st('Leads orgânicos', intf(ol))]})
+                              _st('Leads orgânicos', intf(ol))],
+                    'chart': _chart('bar-horizontal', 'deb_chan', 'canal', 'leads',
+                                    where={'tipo': 'organico'}, distributed=True, height=220)})
     # Q8 Mídia Paga
     out.append({'q': 'Q8', 'qColor': 'a', 'title': 'Mídia Paga',
                 'stats': [_st('CPL', money(M['cpl']), (f'meta {money(G["cpl"])}' if G.get('cpl') else None),
