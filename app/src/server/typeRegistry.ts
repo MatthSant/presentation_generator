@@ -87,6 +87,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
         consultar: {
           funcoes: [
             { id: 'correlacao', desc: 'correlação (Pearson) entre duas métricas ao longo dos criativos válidos (metrica_x, metrica_y)' },
+            { id: 'series', desc: 'VÁRIAS métricas por criativo numa tabela só (metrica_x, metrica_y, opcional metrica_z) — use para comparar indicadores lado a lado' },
             { id: 'por_temperatura', desc: 'uma métrica (metrica) agregada por temperatura do lead' },
             { id: 'saturacao_diaria', desc: 'ROAS e retorno por DIA (geral, ou de um criativo) para detectar saturação' },
             { id: 'ranking', desc: 'criativos ordenados por uma métrica (metrica), com as colunas principais' },
@@ -94,8 +95,9 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
           ],
           params: {
             metrica: { enum: M, desc: 'métrica do recorte (ranking/por_temperatura)' },
-            metrica_x: { enum: M, desc: 'métrica X (correlacao)' },
-            metrica_y: { enum: M, desc: 'métrica Y (correlacao)' },
+            metrica_x: { enum: M, desc: 'métrica X (correlacao/series)' },
+            metrica_y: { enum: M, desc: 'métrica Y (correlacao/series)' },
+            metrica_z: { enum: M, desc: 'métrica Z opcional (series — terceira coluna)' },
             temperatura: { desc: 'nome da temperatura (opcional; validado contra os dados)' },
             criativo: { desc: 'nome exato do criativo (opcional; saturacao_diaria)' },
           },
@@ -109,13 +111,33 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     pysrcDir: 'historico-lancamentos',
     supportsInsights: false,
     renderScript: 'render_view.py',
+    queryScript: 'query_api.py',      // modo FUNDO: trend, correlação, decomposição CPA, por dimensão
     gerarPage: 'gerar-historico.html',
     montadorPage: 'montador-historico.html',
     controlsKind: 'historico-lancamentos',
     validateConfig() { return []; },
-    // Sem query_api próprio ainda → deepen roda no modo raso (catálogo).
-    // Sem isso, o deep mode entraria com criterios=[] e quebraria a tool `consultar`.
-    buildDeepenMeta() { return null; },
+    buildDeepenMeta() {
+      const M = ['conv_ger', 'qualificacao', 'taxa_qualidade', 'conv_mql', 'reembolso', 'roas', 'roi',
+                 'ret', 'leads', 'invest', 'fat_liq', 'vendas', 'recap', 'cpm', 'ctr', 'cpc', 'cpl', 'conv_paga', 'cpa'];
+      return {
+        consultar: {
+          funcoes: [
+            { id: 'trend', desc: 'uma métrica (metrica) ao longo dos lançamentos' },
+            { id: 'series', desc: 'VÁRIAS métricas por lançamento numa tabela só (metrica_x, metrica_y, opcional metrica_z) — use para comparar evoluções, ex.: CPL, CPM e CTR juntos' },
+            { id: 'correlacao', desc: 'correlação (Pearson) entre duas métricas ao longo dos lançamentos (metrica_x, metrica_y)' },
+            { id: 'decomposicao', desc: 'decompõe o CPA (= CPL ÷ conversão paga): diz se a variação do CPA foi mais de CPL ou de conversão' },
+            { id: 'por_dimensao', desc: 'uma métrica (metrica) por dimensão (canal/plataforma/temperatura) ao longo dos lançamentos' },
+          ],
+          params: {
+            metrica: { enum: M, desc: 'métrica do recorte (trend/por_dimensao)' },
+            metrica_x: { enum: M, desc: 'métrica X (correlacao/series)' },
+            metrica_y: { enum: M, desc: 'métrica Y (correlacao/series)' },
+            metrica_z: { enum: M, desc: 'métrica Z opcional (series — terceira coluna)' },
+            dimensao: { enum: ['canal', 'plataforma', 'temperatura'], desc: 'dimensão (por_dimensao)' },
+          },
+        },
+      };
+    },
   },
 };
 

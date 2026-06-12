@@ -57,6 +57,19 @@ def correlacao(B, a):
             'summary': f'Correlação {_LABEL[mx]} × {_LABEL[my]} = {r:+.2f} entre {n} criativos.'}
 
 
+def series(B, a):
+    """Várias métricas por criativo numa tabela só (ex.: ROAS, CTR e Hook juntos)."""
+    ms = [m for m in (a.get('metrica_x'), a.get('metrica_y'), a.get('metrica_z')) if m in _LABEL]
+    ms = list(dict.fromkeys(ms))
+    if len(ms) < 2:
+        return {'status': 'nao_disponivel', 'motivo': 'informe ao menos metrica_x e metrica_y (e opcional metrica_z)'}
+    rows = [{'criativo': c['name'], **{_LABEL[m]: _r(c['m'].get(m), 2) for m in ms}} for c in B['valid']]
+    if not rows:
+        return {'status': 'nao_disponivel', 'motivo': 'sem criativos válidos'}
+    return {'status': 'ok', 'table': {'dims': ['criativo'], 'filters': [], 'rows': rows},
+            'summary': f'{", ".join(_LABEL[m] for m in ms)} por criativo ({len(rows)} criativos).'}
+
+
 def por_temperatura(B, a):
     metrica = a.get('metrica', 'roas')
     if metrica not in _LABEL:
@@ -127,7 +140,7 @@ def benchmark_gap(B, a):
             'summary': f'Média de {len(out)} indicadores de anúncio vs. benchmark/referência.'}
 
 
-FUNCS = {'correlacao': correlacao, 'por_temperatura': por_temperatura,
+FUNCS = {'correlacao': correlacao, 'series': series, 'por_temperatura': por_temperatura,
          'saturacao_diaria': saturacao_diaria, 'ranking': ranking, 'benchmark_gap': benchmark_gap}
 
 
