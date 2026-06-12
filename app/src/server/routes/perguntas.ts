@@ -234,8 +234,11 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     if (!p) { res.status(404).json({ error: 'pergunta não encontrada' }); return; }
 
     record(client, slug, p, 'seguir'); // intent (kept even if generation fails)
+    // Detecta o consultor cancelar (fechar modal / sair) durante a geração: só a
+    // RESPOSTA fechando ANTES de terminar é abort real. Usar req.on('close') daria
+    // falso-positivo — o stream do corpo do POST fecha cedo, abortando toda geração.
     let clientGone = false;
-    req.on('close', () => { if (!res.writableEnded) clientGone = true; });
+    res.on('close', () => { if (!res.writableFinished) clientGone = true; });
     try {
       const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta), 'pergunta', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, historyId });
@@ -271,7 +274,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
 
     record(client, slug, p, 'seguir');
     let clientGone = false;
-    req.on('close', () => { if (!res.writableEnded) clientGone = true; });
+    res.on('close', () => { if (!res.writableFinished) clientGone = true; });
     try {
       const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p, historyId });
