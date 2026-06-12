@@ -47,7 +47,13 @@ CSV  →  pysrc/<tipo>/calc.py        (stdlib pura: agrega, calcula indicadores)
   `common/preserve.preserve()` (não perde trabalho do consultor numa regeração).
 - **`render_view.py`** *(opcional)* — recompute da vista quando há **controles interativos**
   (toggles/filtros). Rota genérica `POST /api/:client/:slug/render`.
-- **`query_api.py`** *(opcional)* — cruzamentos sob demanda do **deep deepen**.
+- **`query_api.py`** *(opcional)* — cruzamentos sob demanda do **deep deepen**. As
+  consultas genéricas (`series`/`correlacao`/`trend`/`ranking`) vivem em
+  **`common/query_core.py`** e operam sobre um FRAME uniforme (`{axis, rows:[{key,m}],
+  labels, cost}`); cada tipo só fornece um `build_frame(ctx,args)→frame` + suas funções
+  específicas e roteia com `qc.run(build_frame, EXTRA, ctx, fn, args)`. **Consulta
+  genérica nova = editar só `query_core.py`** + listá-la em `genericFuncoes()` no
+  registry — nunca reimplementar por tipo.
 
 **Despacho:** `src/server/pygen.ts` resolve `buildScript = pysrc/<pysrcDir>/build_report.py`
 a partir do registry — **nenhum if/else por tipo** no servidor.
