@@ -21,6 +21,12 @@ function slugify(s: string): string {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+/** Nome de exibição de um cliente do registro (ou null se não cadastrado). */
+export function clientName(slug: string): string | null {
+  const d = readJson<Store>(FILE) || { clients: [] };
+  return d.clients.find((c) => c.slug === slug)?.name ?? null;
+}
+
 export function registerClients(app: Express): void {
   app.get('/api/clients', (_req, res) => {
     const d = readJson<Store>(FILE) || { clients: [] };

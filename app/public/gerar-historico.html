@@ -41,11 +41,11 @@
     <p class="g-sub">Envie o CSV consolidado (uma linha por evento × tráfego × plataforma × temperatura) e gere o relatório com Panorama, Investimentos e perguntas norteadoras.</p>
 
     <div class="card g-card">
-      <div class="g-row">
-        <div class="g-field"><label>Cliente</label><input id="f-client" placeholder="ex.: inde" /></div>
-        <div class="g-field"><label>Slug da análise</label><input id="f-slug" value="historico-lancamentos" /></div>
+      <div class="g-field full">
+        <label>Cliente</label>
+        <select id="f-client"></select>
+        <small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
       </div>
-      <div class="g-field"><label>Título do relatório</label><input id="f-title" placeholder="ex.: INDÊ · Histórico de Lançamentos" /></div>
       <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
         <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Escolher CSV<input id="f-csv" type="file" accept=".csv" hidden /></label>
         <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
@@ -56,21 +56,21 @@
     </div>
   </div>
 
+  <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     let CSV = null;
-    const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
+
+    window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
 
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
 
     $('go').addEventListener('click', async () => {
-      const client = slugify($('f-client').value);
-      const slug = slugify($('f-slug').value) || 'historico-lancamentos';
-      const title = $('f-title').value.trim() || ($('f-client').value.trim() + ' · Histórico de Lançamentos');
-      if (!client) { show('err', 'Informe o nome do cliente.'); return; }
+      const client = $('f-client').value;
+      if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV) { show('err', 'Escolha o arquivo CSV.'); return; }
-      const cfg = { client, slug, title, type: 'historico-lancamentos' };
+      const cfg = { type: 'historico-lancamentos' };
       $('go').disabled = true;
       show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
       try {

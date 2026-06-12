@@ -68,11 +68,7 @@
     <div class="g-card">
       <div class="g-step"><b>1</b> Identificação</div>
       <div class="g-row">
-        <div class="g-field"><label>Cliente</label><input id="f-client" placeholder="Ex.: Instituto Singular" /><span class="g-hint">Vira o slug da pasta (sem acento, em minúsculas).</span></div>
-        <div class="g-field"><label>Título do relatório</label><input id="f-title" placeholder="Conversão por Perfil — Histórico" /></div>
-      </div>
-      <div class="g-row" style="margin-top:12px">
-        <div class="g-field"><label>Slug da análise</label><input id="f-slug" value="conversao-perfil" /></div>
+        <div class="g-field"><label>Cliente</label><select id="f-client"></select><small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug é criado automaticamente.</small></div>
         <div class="g-field"><label>Janela longa</label><select id="f-long"><option value="12m">12 meses</option><option value="6m">6 meses</option></select></div>
       </div>
     </div>
@@ -101,6 +97,7 @@
     </div>
   </div>
 
+  <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     const FIXED = new Set(['field_conversion', 'tipo_trafego', 'total_leads', 'vendas_lancamento', 'vendas_6meses', 'vendas_12meses']);
@@ -108,7 +105,7 @@
     const slugify = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     let CSV_FILE = null, INSPECT = null;
 
-    $('f-client').addEventListener('input', () => { if (!$('f-slug').dataset.touched) {} });
+    window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
 
     $('f-csv').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -158,8 +155,7 @@
     }
 
     function buildConfig() {
-      const client = $('f-client').value.trim();
-      const slug = slugify($('f-slug').value) || 'conversao-perfil';
+      const client = $('f-client').value;
       const criterios = [];
       for (const el of $('crit-list').querySelectorAll('.g-crit')) {
         if (!el.querySelector('[data-on]').checked) continue;
@@ -180,17 +176,16 @@
         });
       }
       return {
-        client: slugify(client) || 'cliente', title: $('f-title').value.trim() || label_default(client), slug,
+        client,
         channels: ['Geral', 'Pago', 'Orgânico'], window: 'lcto', long_window: $('f-long').value,
         criterios,
       };
     }
-    const label_default = (c) => 'Conversão por Perfil — ' + (c || '');
 
     $('go').addEventListener('click', async () => {
       const msg = $('msg');
       const cfg = buildConfig();
-      if (!cfg.client || cfg.client === 'cliente') { show('err', 'Informe o nome do cliente.'); return; }
+      if (!cfg.client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV_FILE) { show('err', 'Escolha o arquivo CSV.'); return; }
       if (!cfg.criterios.length) { show('err', 'Marque ao menos um critério.'); return; }
       $('go').disabled = true;
@@ -200,7 +195,7 @@
         fd.append('csv', CSV_FILE);
         fd.append('config', JSON.stringify(cfg));
         fd.append('insights', $('f-insights').checked ? 'true' : 'false');
-        const r = await fetch(`/api/${encodeURIComponent(cfg.client)}/${encodeURIComponent(cfg.slug)}/generate`, { method: 'POST', body: fd });
+        const r = await fetch(`/api/${encodeURIComponent(cfg.client)}/_new/generate`, { method: 'POST', body: fd });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
         if (!d.ok) { show('err', 'Gerou, mas a validação acusou ' + (d.validation?.errors.length || '?') + ' erro(s). Veja o console.'); console.warn(d.validation); }
