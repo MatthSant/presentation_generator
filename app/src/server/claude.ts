@@ -378,11 +378,12 @@ export async function generateModal(prompt: string, card: CardCtx, catalog: Deep
 
 const CRITIQUE_SCHEMA = {
   type: 'object',
-  required: ['answersQuestion', 'numbersGrounded', 'issues'],
+  required: ['answersQuestion', 'numbersGrounded', 'blocking', 'suggestions'],
   properties: {
     answersQuestion: { type: 'boolean', description: 'a saída responde DIRETAMENTE a pergunta_original?' },
     numbersGrounded: { type: 'boolean', description: 'todo número da prosa bate com os "dados" (ou é derivável deles)?' },
-    issues: { type: 'array', items: { type: 'string' }, description: 'até 5 problemas acionáveis (vazio = ok)' },
+    blocking: { type: 'array', items: { type: 'string' }, description: 'até 5 defeitos GRAVES que tornam a saída ERRADA ou ENGANOSA (número que não bate, dado/categoria inventado, não responde à pergunta, resposta enterrada sem conclusão, gráfico ilegível). Cada um 1 linha ACIONÁVEL com a correção. Vazio = nada grave a corrigir.' },
+    suggestions: { type: 'array', items: { type: 'string' }, description: 'melhorias de POLIMENTO que NÃO bloqueiam a aprovação (escolha de tipo de gráfico, acrescentar número absoluto ao lado do %, redação mais clara). Vazio se não houver.' },
   },
 } as const;
 
@@ -399,31 +400,29 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   for grande o bastante para MUDAR A CONCLUSÃO (sinal trocado, ordem de grandeza, fator errado). NÃO
   reprove por "23,4% vs 23,5%". Marque FALSE se: um número claramente não confere com os dados; a prosa
   cita números mas os "dados" estão vazios / não os sustentam; ou o recorte/consulta não faz sentido.
-- issues (≤5, cada uma 1 linha ACIONÁVEL com a CORREÇÃO, não só o defeito): sempre diga o que
-  fazer EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo.
-  Ex.: "a meta não está 'sem dados' — use a tabela de KPIs (coluna meta) para o indicador X"; "para
-  pago × org use a dimensão escopo (ou a coluna tipo da tabela de canais)"; "temperatura conta só
-  lead pago — não compare o total dela com o total por canal". Padrões frequentes:
-  • não responde à pergunta / responde outra coisa
-  • EIXO trocado: respondeu nível (o que é maior) quando a pergunta era tendência (o que muda) ou causa, ou vice-versa
-  • CRITÉRIO inventado: cita grupos/números de um critério que não está nos "dados" (deveria ter consultado ou dito que falta)
-  • resposta ENTERRADA: o 1º widget não é um highlight respondendo à pergunta com o número decisivo
+- Classifique cada problema em DOIS baldes. Cada item: 1 linha ACIONÁVEL com a CORREÇÃO (o que fazer
+  EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo), não só o defeito.
+- "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
+  • não responde à pergunta / responde outra coisa / EIXO trocado (nível quando era tendência/causa, ou vice-versa)
+  • número "X" não confere com os dados (esperado ~Y); prosa cita números sem tabela/gráfico que os sustente
+  • CRITÉRIO/CATEGORIA inventado: cita grupos/categorias/números que não estão nos "dados"
+  • métrica trocada (nomeia "CPL" mas usa o valor de CPA; ordem de grandeza implausível); CPA tratado como independente de CPL×conversão
+  • resposta ENTERRADA: nenhum highlight no topo respondendo à pergunta com o número decisivo
   • entregou AÇÕES ("o que fazer") quando a pergunta é analítica ("o que aconteceu / qual fator pesa mais")
-  • número "X" não confere com os dados (esperado ~Y) — ou números sem tabela/gráfico que os sustente
-  • métrica trocada: o texto nomeia uma métrica (ex.: "CPL") mas usa o valor de outra (ex.: CPA), ou ordem de
-    grandeza implausível (CPL de leads em milhares); CPA tratado como fator independente de CPL e conversão
-  • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução nem definição
-  • o recorte/consulta não faz sentido para a pergunta
-  • paredão de prosa em vez de blocos; falta conclusão acionável; gráfico inadequado (1 categoria, séries demais)
-Não invente defeitos: se está bom, answersQuestion=true, numbersGrounded=true e issues=[].`;
+  • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução; gráfico ilegível (1 categoria, séries demais)
+- "suggestions" (POLIMENTO — NÃO reprova): a saída já está correta e responde, mas poderia ficar melhor.
+  Ex.: trocar bar por column/pie com poucas categorias; acrescentar o número absoluto ao lado do %; redação
+  mais enxuta; reordenar para leitura. NUNCA ponha em "blocking" algo que é só preferência de estilo/formatação.
+Não invente defeitos: se está bom e responde, answersQuestion=true, numbersGrounded=true, blocking=[]
+(suggestions pode ter 0+ itens). Na dúvida entre blocking e suggestion, é suggestion.`;
 
 /** Juízo semântico + NUMÉRICO de uma modal/seção já válida no schema: responde à
  *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
  *  binds)? o recorte faz sentido? Devolve {ok, issues} para o gate de reparo.
  *  No-op (ok) em modo mock/sem API key, para o fluxo offline seguir testável. */
-export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; usage?: ModalUsage }> {
+export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; blocking: string[]; suggestions: string[]; usage?: ModalUsage }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [] };
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [], blocking: [], suggestions: [] };
   const ws = ((modal as { widgets?: Array<Record<string, unknown>> })?.widgets) || [];
   const slim = ws.map((w) => ({ type: w.type, title: w.title, label: w.label, value: w.value, text: w.text, tag: w.tag, why: w.why, action: w.action, chartType: w.chartType, cols: w.cols }));
   const client = new Anthropic({ apiKey });
@@ -435,10 +434,14 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
     messages: [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao, widgets: slim, dados: factsheet }) }],
   }, 'critic');
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-  const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; issues?: string[] };
-  const issues = Array.isArray(out.issues) ? out.issues.filter((s) => typeof s === 'string' && s.trim()) : [];
-  const ok = out.answersQuestion !== false && out.numbersGrounded !== false && issues.length === 0;
-  return { ok, issues, usage: usageOf(msg) };
+  const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; blocking?: string[]; suggestions?: string[] };
+  const clean = (xs?: string[]): string[] => (Array.isArray(xs) ? xs.filter((s) => typeof s === 'string' && s.trim()) : []);
+  const blocking = clean(out.blocking);
+  const suggestions = clean(out.suggestions);
+  // Aprovação = responde + números batem + SEM defeito grave. Polimento (suggestions)
+  // não reprova: depois de N tentativas, nitpick de estilo não pode travar a entrega.
+  const ok = out.answersQuestion !== false && out.numbersGrounded !== false && blocking.length === 0;
+  return { ok, issues: [...blocking, ...suggestions], blocking, suggestions, usage: usageOf(msg) };
 }
 
 // --- Agente de DISPOSIÇÃO: arruma os widgets numa grade de 12 colunas --------
