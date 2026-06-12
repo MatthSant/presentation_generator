@@ -42,6 +42,10 @@ export interface ChartDef {
   dashLast?: boolean;
   /** Value formatting for axis/tooltip/labels: pct | money | x | int | num. */
   valueFormat?: string;
+  /** Bar: destaca as últimas N barras na cor primária (colors[1]); demais colors[0]. */
+  highlightLast?: number;
+  /** Linhas de meta tracejadas (referência horizontal). */
+  goalLines?: { value: number; label?: string; color?: string }[];
 }
 
 type Theme = 'light' | 'dark';
@@ -215,6 +219,17 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
         { from: 0, to: 1e12, color: green },
       ] };
       bar.columnWidth = '78%';
+    }
+    // Destaca as últimas N barras (ex.: "últimos 3 dias") na cor primária; o resto
+    // na 1ª cor (lilás) — colore cada barra via distributed.
+    if (def.type === 'bar' && def.highlightLast && def.highlightLast > 0) {
+      const n = def.categories?.length
+        ?? (Array.isArray(series) ? ((series[0] as { data?: unknown[] })?.data?.length ?? 0) : 0);
+      const light = def.colors?.[0] || '#AFA9EC';
+      const dark = def.colors?.[1] || def.colors?.[0] || defColors[0];
+      opts.colors = Array.from({ length: n }, (_, i) => (i >= n - def.highlightLast! ? dark : light));
+      bar.distributed = true;
+      opts.legend = { show: false };
     }
     opts.plotOptions = { bar };
     opts.yaxis = { ...b.yaxis, min: axisMin };
@@ -429,6 +444,19 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       };
       opts.annotations = def.type === 'bar-horizontal' ? { xaxis: [{ x: mean, ...line }] } : { yaxis: [{ y: mean, ...line }] };
     }
+  }
+  // Linhas de meta tracejadas (referência horizontal) — meta total / to-date.
+  if (def.goalLines?.length && def.type !== 'bar-horizontal') {
+    const ya = def.goalLines.map((g) => {
+      const c = g.color || '#EF9F27';
+      return {
+        y: g.value, strokeDashArray: 6, borderColor: c, opacity: 1,
+        label: { text: g.label || '', position: 'right', orientation: 'horizontal', borderWidth: 0, offsetX: -4,
+          style: { color: '#fff', background: c, fontSize: '10px', fontWeight: 700, padding: { left: 5, right: 5, top: 2, bottom: 2 } } },
+      };
+    });
+    const ann = (isObj(opts.annotations) ? opts.annotations : (opts.annotations = {})) as Record<string, unknown>;
+    ann.yaxis = [...((ann.yaxis as unknown[]) || []), ...ya];
   }
   if (def.options) mergeDeep(opts, def.options);
 

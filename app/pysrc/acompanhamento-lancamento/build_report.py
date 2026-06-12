@@ -123,41 +123,50 @@ def assemble(rows, config, content, opts=None):
                 'caption': f"Dia {B['dia_campanha']} de campanha · dados até {B['corte_label']}"})
     pg.add('pan-eb-vg', 'eyebrow', 12, 1)
 
-    # acumulado de leads + linhas de meta (inline para suportar as referências)
-    cum_series = [{'name': 'Leads acumulados', 'data': B['series']['cum']}]
+    # acumulado de leads (barras, últimas 3 destacadas) + linhas de meta + número-destaque
     mt = B['meta'].get('_leads_total')
     mtd = B['meta'].get('_leads_td')
-    n = len(B['series']['labels'])
-    if mt:
-        cum_series.append({'name': f'Meta total ({intf(mt)})', 'data': [round(mt)] * n})
-    if mtd:
-        cum_series.append({'name': f'Meta to date ({intf(mtd)})', 'data': [round(mtd)] * n})
-    pan.append({'id': 'pan-cum', 'type': 'chart', 'chartType': 'line', 'title': 'Leads captados (acumulado)',
-                'height': 300, 'colors': ['#534AB7', '#EF9F27', '#3B6D11'],
-                'categories': B['series']['labels'], 'series': cum_series})
-    pg.add('pan-cum', 'chart', 8, 4)
-
-    pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
-                'height': 300, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads',
-                'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    pg.add('pan-donut', 'chart', 4, 4)
-
-    # badges de meta (atingimento) como kpi-card com barra
     leads_tot = B['tot_sums']['leads']
+    cum_chart = {'id': 'pan-cum', 'type': 'chart', 'chartType': 'bar', 'title': 'Total de Leads Captados',
+                 'headline': {'value': intf(leads_tot), 'caption': f"acumulado até {B['corte_label']}"},
+                 'height': 320, 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
+                 'categories': B['series']['labels'], 'series': [{'name': 'Acumulado', 'data': B['series']['cum']}]}
+    goals = []
+    if mt:
+        goals.append({'value': round(mt), 'label': f'Meta total ({intf(mt)})', 'color': '#EF9F27'})
+    if mtd:
+        goals.append({'value': round(mtd), 'label': f'Meta to date ({intf(mtd)})', 'color': '#3B6D11'})
+    if goals:
+        cum_chart['goalLines'] = goals
+        cum_max = max([v for v in B['series']['cum'] if isinstance(v, (int, float))] + [g['value'] for g in goals])
+        cum_chart['axisMax'] = round(cum_max * 1.06)
+    pan.append(cum_chart)
+
+    # badges de meta (atingimento) à direita, com pill % grande (como a fonte)
+    hero_lay = [{'id': 'pan-eb-vg', 'type': 'eyebrow', 'x': 0, 'y': 0, 'w': 12, 'h': 1},
+                {'id': 'pan-cum', 'type': 'chart', 'x': 0, 'y': 1, 'w': 5, 'h': 8}]
+    ry = 1
     if mt:
         at = calc.pct(leads_tot, mt) or 0
-        pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'volume',
+        pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'feature',
                     'label': 'Atingimento · Meta Geral', 'value': f'{intf(leads_tot)} / {intf(mt)}',
-                    'sub': f'{at:.1f}% da meta total da campanha', 'icon': 'target', 'iconColor': '#534AB7',
-                    'bar': [{'pct': min(at, 100), 'color': '#534AB7'}]})
-        pg.add('pan-meta-geral', 'kpi-card', 6, 2)
+                    'sub': 'leads captados vs meta total da campanha', 'icon': 'target', 'iconColor': '#534AB7',
+                    'delta': f'{at:.1f}%', 'deltaTone': 'pos' if at >= 100 else ('neg' if at < 90 else 'neutral')})
+        hero_lay.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 2}); ry += 2
     if mtd:
         atd = calc.pct(leads_tot, mtd) or 0
-        pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'volume',
+        pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'feature',
                     'label': 'Atingimento · Meta To Date', 'value': f'{intf(leads_tot)} / {intf(mtd)}',
-                    'sub': f'{atd:.1f}% da meta esperada até hoje', 'icon': 'circle-check', 'iconColor': '#3B6D11',
-                    'bar': [{'pct': min(atd, 100), 'color': '#3B6D11'}]})
-        pg.add('pan-meta-td', 'kpi-card', 6, 2)
+                    'sub': 'leads captados vs meta esperada até hoje', 'icon': 'circle-check', 'iconColor': '#3B6D11',
+                    'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 100 else ('neg' if atd < 90 else 'neutral')})
+        hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 2}); ry += 2
+    pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
+                'height': 260, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads', 'showLabels': True,
+                'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
+    hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': max(9 - ry, 3)})
+    # prima o grid com o layout manual do hero; os KPIs fluem a partir de y=9.
+    pg.items = hero_lay
+    pg.x, pg.y, pg.rowh = 0, 9, 0
 
     pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'PRINCIPAIS KPIS', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
     pg.add('pan-eb-kpi', 'eyebrow', 12, 1)
@@ -179,16 +188,24 @@ def assemble(rows, config, content, opts=None):
     evo.append({'id': 'evo-eb', 'type': 'eyebrow', 'title': 'EVOLUÇÃO DIÁRIA', 'caption': 'séries por dia da campanha'})
     eg.add('evo-eb', 'eyebrow', 12, 1)
 
-    def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6):
-        evo.append({'id': wid, 'type': 'chart', 'chartType': ctype, 'title': title, 'height': 280,
-                    'pct': pct, 'valueFormat': vf, 'colors': [color],
-                    'bind': {'dataset': 'acom_daily', 'x': 'dia', 'y': y}})
+    def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None):
+        c = {'id': wid, 'type': 'chart', 'chartType': ctype, 'title': title, 'height': 280,
+             'pct': pct, 'valueFormat': vf, 'bind': {'dataset': 'acom_daily', 'x': 'dia', 'y': y}}
+        if ctype == 'bar':
+            c['colors'] = ['#AFA9EC', '#534AB7']; c['highlightLast'] = 3   # últimas 3 = roxo forte
+        else:
+            c['colors'] = [color]
+        if trendkey:
+            txt, tone = trend_delta(trendkey)
+            if txt and txt != 'estável':
+                c['badge'] = {'text': txt, 'tone': tone}
+        evo.append(c)
         eg.add(wid, 'chart', w, 4)
-    chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6)
-    chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6)
-    chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4)
-    chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4)
-    chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4)
+    chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6, trendkey='leads')
+    chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6, trendkey='investimento')
+    chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4, trendkey='cpl')
+    chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4, trendkey='taxa_qual')
+    chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4, trendkey='cpmql')
     sections['s02'] = {'id': 's02', 'header': {'badge': 'Evolução', 'title': 'Evolução Diária',
                        'sub': 'Leads, investimento, CPL, qualidade e CPMQL ao longo dos dias.'}, 'widgets': evo}
     layouts['s02'] = eg.items

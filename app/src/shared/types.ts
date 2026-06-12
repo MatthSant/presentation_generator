@@ -159,6 +159,15 @@ export interface ChartWidget extends WidgetBase {
   secondaryAxis?: number | number[];
   /** Suffix for secondary-axis labels (e.g. "%"). */
   secondaryAxisSuffix?: string;
+  /** Pill exibido ao lado do título (ex.: "▲ 53.5% vs início"). */
+  badge?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
+  /** Número-destaque + legenda acima do gráfico (ex.: total de leads acumulado). */
+  headline?: { value: string; caption?: string };
+  /** Bar: destaca as últimas N barras na cor primária; demais na 1ª cor (lilás).
+   *  Use colors:[claro, escuro]. */
+  highlightLast?: number;
+  /** Linhas de meta tracejadas (referência horizontal): meta total / to-date. */
+  goalLines?: { value: number; label?: string; color?: string }[];
 }
 
 export type TableCell = string | number | {

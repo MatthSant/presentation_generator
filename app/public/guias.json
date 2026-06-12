@@ -194,6 +194,7 @@
               "Vídeo (só criativos em vídeo): <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code> — viram Hook/Hold Rate.",
               "Funil e vendas: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>."
             ] },
+            { "type": "callout", "label": "Filtro de captação", "text": "Os indicadores de mídia (CPL, CPM, CPMQL, ROAS) devem considerar <strong>só as campanhas de captação</strong> — exclua campanhas de vendas e remarketing do investimento, como no debriefing. Confira o padrão de captação da conta antes de gerar." },
             { "type": "callout", "label": "Dicionário (opcional)", "text": "Um 2º CSV <code>field_ad_name → URL do post</code> habilita o <strong>preview do Reels/anúncio</strong> embutido na ficha. Sem ele, a ficha funciona, só sem o preview." }
           ]
         },
@@ -269,6 +270,7 @@
               "Volume e funil: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>, <code>leads_trafego</code>.",
               "Mídia: <code>invest_total</code> (pago = &gt; 0), <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_totais</code>, <code>views_50pc</code>."
             ] },
+            { "type": "callout", "label": "Filtro de captação", "text": "Os indicadores de mídia (CPL, CPM, CPMQL) e o funil de tráfego consideram <strong>só as campanhas de captação</strong> — exclua campanhas de vendas e remarketing do investimento, como no debriefing." },
             { "type": "callout", "label": "Metas e dicionário (opcionais)", "text": "Metas (CPL, CPMQL, taxa de resposta/qualidade, leads) habilitam o <strong>semáforo de desvio</strong> e os riscos. Um 2º CSV <code>field_ad_name,link</code> liga cada criativo ao seu post." }
           ]
         },

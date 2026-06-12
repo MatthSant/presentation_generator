@@ -96,7 +96,16 @@ function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
 /* ── chart ── */
 function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'widget-chart');
-  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
+  if (w.title || w.badge) {
+    const head = el('div', 'chart-head');
+    if (w.title) head.appendChild(el('div', 'chart-title', w.title));
+    if (w.badge) head.appendChild(el('span', `pill ${PILL_TONE[w.badge.tone || 'neutral']} chart-badge`, w.badge.text));
+    wrap.appendChild(head);
+  }
+  if (w.headline) {
+    wrap.appendChild(el('div', 'chart-headline', w.headline.value));
+    if (w.headline.caption) wrap.appendChild(el('div', 'chart-headline-cap', w.headline.caption));
+  }
 
   const height = ctx.chartHeight?.(w.id) ?? w.height;
   // First-class chart variants (scatter trend-line, donut center total, slice
@@ -104,7 +113,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const variant = {
     trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
     showLabels: w.showLabels, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
-    dashLast: w.dashLast, valueFormat: w.valueFormat,
+    dashLast: w.dashLast, valueFormat: w.valueFormat, goalLines: w.goalLines, highlightLast: w.highlightLast,
   };
   let def: ChartDef | null = null;
   if (w.bind) {
