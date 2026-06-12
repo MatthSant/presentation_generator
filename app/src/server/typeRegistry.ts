@@ -196,7 +196,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     controlsKind: 'debriefing-lancamento',
     validateConfig() { return []; },
     buildDeepenMeta() {
-      const M = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'fpl'];
+      const M = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'cpmql', 'fpl'];
       const G = genericFuncoes('grupo');
       return {
         consultar: {

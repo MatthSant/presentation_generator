@@ -18,10 +18,11 @@ sys.path.insert(0, os.path.dirname(_here))
 import calc  # noqa: E402
 import common.query_core as qc  # noqa: E402
 
-METRICS = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'fpl']
+METRICS = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'cpmql', 'fpl']
 LABELS = {'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Conversão', 'qual': 'Qualificação',
-          'fat': 'Faturamento', 'invest': 'Investimento', 'roas': 'ROAS', 'cpl': 'CPL', 'fpl': 'Fat/lead'}
-COST = {'cpl'}
+          'fat': 'Faturamento', 'invest': 'Investimento', 'roas': 'ROAS', 'cpl': 'CPL',
+          'cpmql': 'CPMQL', 'fpl': 'Fat/lead'}
+COST = {'cpl', 'cpmql'}
 
 
 def build_frame(M, a):
@@ -38,14 +39,16 @@ def build_frame(M, a):
         labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas']}
     elif dim == 'temperatura':
         rows = [{'key': t['temp'], 'm': {'leads': t['leads'], 'invest': t['inv'], 'fat': t['fat'],
-                                         'roas': t['roas'], 'vendas': t['vendas'], 'conv': t['conv'], 'qual': t['qual']}}
+                                         'roas': t['roas'], 'vendas': t['vendas'], 'conv': t['conv'],
+                                         'qual': t['qual'], 'cpl': t.get('cpl'), 'cpmql': t.get('cpmql')}}
                 for t in M['temp']]
-        labs = {k: LABELS[k] for k in ['leads', 'invest', 'fat', 'roas', 'vendas', 'conv', 'qual']}
+        labs = {k: LABELS[k] for k in ['leads', 'invest', 'fat', 'roas', 'vendas', 'conv', 'qual', 'cpl', 'cpmql']}
     elif dim == 'semana':
         rows = [{'key': f"S{w['snum']}", 'm': {'leads': w['leads'], 'vendas': w['vendas'], 'conv': w['conv'],
-                                               'qual': w['qual'], 'cpl': w['cpl'], 'fpl': w['fpl']}}
+                                               'qual': w['qual'], 'cpl': w['cpl'], 'cpmql': w.get('cpmql'),
+                                               'fat': w.get('fat'), 'invest': w.get('inv_cpt'), 'fpl': w['fpl']}}
                 for w in M['weekly']]
-        labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'cpl', 'fpl']}
+        labs = {k: LABELS[k] for k in ['leads', 'vendas', 'conv', 'qual', 'cpl', 'cpmql', 'fat', 'invest', 'fpl']}
     else:
         rows = [{'key': c['canal'], 'm': {'leads': c['leads'], 'vendas': c['vendas'], 'conv': c['conv'],
                                           'qual': c['qual'], 'fat': c['fat']}}
