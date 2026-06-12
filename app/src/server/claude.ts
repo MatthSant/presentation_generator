@@ -689,12 +689,20 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
   let usage: ModalUsage | undefined;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
+    // No ÚLTIMO turno, FORÇA o emit_modal (tool_choice fixo) + avisa que acabou o
+    // orçamento de consultas: sem isso, uma pergunta difícil esgota os turnos só
+    // consultando e o loop estoura "sem emit_modal" — pior que um detalhamento
+    // imperfeito (que ainda passa pelo gate de qualidade/reparo).
+    const lastTurn = turn === MAX_TURNS - 1;
+    if (lastTurn) {
+      messages.push({ role: 'user', content: 'Limite de consultas atingido. Emita AGORA o emit_modal com o melhor detalhamento possível a partir do que já consultou; o que faltar, reconheça num find-note — NÃO consulte mais.' });
+    }
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
       model: MODEL, max_tokens: 4096,
       system: [{ type: 'text', text: deepSystem(analysisType, deps.meta.consultar), cache_control: { type: 'ephemeral' } }],
       tools: [consultarTool(deps), emitModalTool(names)],
-      tool_choice: { type: 'any' },
+      tool_choice: lastTurn ? { type: 'tool', name: 'emit_modal' } : { type: 'any' },
       messages,
     }, 'modal-fundo');
     usage = sumUsage(usage, usageOf(msg));
@@ -702,10 +710,11 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');
 
-    // A valid emitted modal ends the loop — we don't send another request, so any
-    // sibling tool_uses left unanswered are fine.
+    // Um emit válido encerra o loop. No último turno devolve o que veio MESMO com
+    // erro de schema — o gateAndRepair (fora daqui) ainda valida e repara; um
+    // candidato imperfeito é melhor que estourar a geração inteira.
     const emitted = toolUses.find((t) => t.name === 'emit_modal');
-    if (emitted && (!deps.validate || deps.validate(emitted.input).length === 0)) {
+    if (emitted && (lastTurn || !deps.validate || deps.validate(emitted.input).length === 0)) {
       return { modal: emitted.input, mocked: false, usage };
     }
 
