@@ -158,6 +158,17 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       };
     },
   },
+  'acompanhamento-lancamento': {
+    type: 'acompanhamento-lancamento',
+    label: 'Acompanhamento de Campanha',
+    pysrcDir: 'acompanhamento-lancamento',
+    supportsInsights: false,
+    gerarPage: 'gerar-acompanhamento.html',
+    montadorPage: 'montador-acompanhamento.html',
+    controlsKind: 'acompanhamento-lancamento',
+    validateConfig() { return []; },
+    buildDeepenMeta() { return null; },   // modo raso por ora (deep mode vem depois)
+  },
 };
 
 /** Resolve o tipo a partir de uma string ou de um config ({type}). Fallback:
