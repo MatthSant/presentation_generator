@@ -154,7 +154,20 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
           const baseDir = path.join(BASE, client, slug);
           fs.mkdirSync(baseDir, { recursive: true });
           fs.copyFileSync(csvPath, path.join(baseDir, 'dump.csv'));
-          writeJson(path.join(baseDir, 'config.json'), config);
+          // Os CSVs auxiliares (metas/histórico/dicionário) vivem no scratch, que é
+          // efêmero. Sem copiá-los para a base, o config retido aponta para um caminho
+          // morto → recompute/rebuild/deep perdem metas e histórico silenciosamente.
+          // Copia cada aux para a base e reescreve o path no config persistido.
+          const baseConfig = { ...config } as Record<string, unknown>;
+          for (const aux of ['goals', 'hist', 'dict'] as const) {
+            const src = baseConfig[`${aux}_csv`];
+            if (typeof src === 'string' && fs.existsSync(src)) {
+              const dest = path.join(baseDir, `${aux}.csv`);
+              fs.copyFileSync(src, dest);
+              baseConfig[`${aux}_csv`] = dest;
+            }
+          }
+          writeJson(path.join(baseDir, 'config.json'), baseConfig);
           baseRetained = true;
         } catch { baseRetained = false; }
       }
