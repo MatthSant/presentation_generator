@@ -94,3 +94,52 @@ test('descartar depois de feita volta a pergunta para NÃO-feita', async () => {
   hist('descartar');
   assert.equal(await statusOfQ1(), undefined);
 });
+
+// Reprodução REAL do cancelamento mid-stream: sobe o servidor, dispara /seguir e
+// aborta o request HTTP no MEIO da geração (simulada lenta via DEEPEN_TEST_DELAY_MS).
+// O servidor deve detectar o disconnect (res.on('close') + !writableFinished) e NÃO
+// persistir a seção nem gravar o registro 'detalhamento' — só sobra o 'seguir'.
+test('cancelar o request HTTP no MEIO da geração não persiste nem marca feita (abort real)', async () => {
+  const dir = path.join(tmp, CLIENT, SLUG);
+  fs.mkdirSync(dir, { recursive: true });
+  // dataset bindável + seção-fonte para o /seguir rodar em modo mock (sem API)
+  fs.writeFileSync(path.join(dir, 'dataset.json'), JSON.stringify({
+    t_grp: { dims: ['grupo'], filters: [], rows: [{ grupo: 'Alta', valor: 42 }, { grupo: 'Baixa', valor: 8 }] },
+  }));
+  fs.writeFileSync(path.join(dir, 's10.json'), JSON.stringify({
+    id: 's10', header: { badge: 'X', title: 'X' },
+    widgets: [{ id: 'b1', type: 'find-block', card: true, tag: 'T', tagColor: 'g', title: 'Achado', detail: 'x' }],
+  }));
+  fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ meta: { client: CLIENT }, pages: [] }));
+  fs.writeFileSync(path.join(dir, 'perguntas.json'), JSON.stringify({
+    perguntas: [{ id: 'q1', pergunta: 'Q?', justificativa: 'x', kpis: [], deepen: { sectionId: 's10', blockId: 'b1', prompt: 'aprofunde' } }],
+  }));
+
+  const prev = { mock: process.env.CLAUDE_MOCK, key: process.env.ANTHROPIC_API_KEY, delay: process.env.DEEPEN_TEST_DELAY_MS };
+  process.env.CLAUDE_MOCK = '1';
+  delete process.env.ANTHROPIC_API_KEY;
+  process.env.DEEPEN_TEST_DELAY_MS = '400';                  // janela p/ abortar no meio
+  const server = created.app.listen(0);
+  await new Promise((r) => server.once('listening', r));
+  const port = (server.address() as import('node:net').AddressInfo).port;
+  try {
+    const ac = new AbortController();
+    const req = fetch(`http://127.0.0.1:${port}/api/${CLIENT}/${SLUG}/perguntas/q1/seguir`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}', signal: ac.signal });
+    setTimeout(() => ac.abort(), 100);                       // cancela MID-stream (geração leva 400ms)
+    await req.then(() => null, () => null);                  // abort lança — ignorado de propósito
+    await new Promise((r) => setTimeout(r, 700));            // deixa o servidor terminar pós-abort
+
+    const dets = fs.readdirSync(dir).filter((f) => f.startsWith('det-'));
+    assert.equal(dets.length, 0, 'cancelado: nenhuma seção det-*.json pode ser persistida');
+    const nDet = (db.prepare("SELECT COUNT(*) n FROM perguntas_history WHERE acao='detalhamento'").get() as { n: number }).n;
+    assert.equal(nDet, 0, "cancelado: não pode haver registro 'detalhamento'");
+    const nSeg = (db.prepare("SELECT COUNT(*) n FROM perguntas_history WHERE acao='seguir'").get() as { n: number }).n;
+    assert.equal(nSeg, 1, "a intenção 'seguir' foi registrada (mas não conta como feita)");
+  } finally {
+    server.close();
+    if (prev.mock === undefined) delete process.env.CLAUDE_MOCK; else process.env.CLAUDE_MOCK = prev.mock;
+    if (prev.key === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = prev.key;
+    if (prev.delay === undefined) delete process.env.DEEPEN_TEST_DELAY_MS; else process.env.DEEPEN_TEST_DELAY_MS = prev.delay;
+  }
+});
