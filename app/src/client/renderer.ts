@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -259,6 +259,10 @@ const ICONS: Record<string, string> = {
   star: '<path d="M12 3 L14.6 9 L21 9.5 L16.1 13.8 L17.7 20 L12 16.5 L6.3 20 L7.9 13.8 L3 9.5 L9.4 9 Z" fill="currentColor" stroke="none"/>',
   'circle-check': '<circle cx="12" cy="12" r="8.8"/><path d="M8 12 l3 3 l5 -6"/>',
   'arrows-left-right': '<path d="M8 6.5 L4 11 H20"/><path d="M16 17.5 L20 13 H4"/>',
+  flame: '<path d="M12 3 c2.5 3 4.5 5 4.5 8.5 a4.5 4.5 0 0 1 -9 0 c0 -1.4 .6 -2.6 1.4 -3.6 c.3 1 .9 1.6 1.6 1.9 c-.3 -2.4 .5 -4.8 1.5 -6.8 Z" fill="currentColor" stroke="none"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
+  'credit-card': '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 9.5h18"/>',
+  sprout: '<path d="M12 21V11"/><path d="M12 11c0-3 2-5 5-5 0 3-2 5-5 5Z" fill="currentColor" stroke="none"/><path d="M12 13c0-2.5-2-4-4.5-4 0 2.5 2 4 4.5 4Z" fill="currentColor" stroke="none"/>',
 };
 
 function iconBox(icon?: string, color?: string): HTMLElement {
@@ -847,6 +851,69 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
   return wrap;
 }
 
+/* ── bar-list ── lista de barras horizontais (rótulo + barra + valor + %), com
+ *  hierarquia (indent) e cards de stat opcionais. Origem do Tráfego / Temperatura. */
+function svgInline(icon?: string): string {
+  return icon && ICONS[icon]
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]}</svg>`
+    : '';
+}
+function renderBarList(w: BarListWidget): HTMLElement {
+  const wrap = el('div', 'bar-list');
+  if (w.title) {
+    const head = el('div', 'chart-head');
+    head.appendChild(el('div', 'chart-title', w.title));
+    wrap.appendChild(head);
+  }
+  const max = w.max ?? Math.max(1, ...w.rows.map(r => r.bar || 0));
+  const rowsEl = el('div', 'bl-rows');
+  for (const r of w.rows) {
+    const row = el('div', `bl-row${r.indent ? ' bl-row--child' : ''}`);
+    const lab = el('div', 'bl-label');
+    if (r.icon && ICONS[r.icon]) {
+      const ic = el('span', 'bl-ic'); if (r.color) ic.style.color = r.color; ic.innerHTML = svgInline(r.icon); lab.appendChild(ic);
+    } else if (!r.indent) {
+      const dot = el('span', 'bl-dot'); if (r.color) dot.style.background = r.color; lab.appendChild(dot);
+    }
+    lab.appendChild(el('span', 'bl-name', r.label));
+    row.appendChild(lab);
+    const track = el('div', 'bl-track');
+    const fill = el('div', 'bl-fill');
+    fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
+    if (r.color) fill.style.background = r.color;
+    track.appendChild(fill); row.appendChild(track);
+    row.appendChild(el('span', 'bl-val', r.value));
+    row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+    rowsEl.appendChild(row);
+  }
+  wrap.appendChild(rowsEl);
+  if (w.cards?.length) {
+    const cards = el('div', 'bl-cards');
+    for (const c of w.cards) {
+      const card = el('div', `bl-card bl-card--${c.tone || 'purple'}`);
+      const hd = el('div', 'bl-card-hd');
+      if (c.icon && ICONS[c.icon]) { const ic = el('span', 'bl-card-ic'); ic.innerHTML = svgInline(c.icon); hd.appendChild(ic); }
+      hd.appendChild(el('span', 'bl-card-t', c.label));
+      card.appendChild(hd);
+      for (const s of c.stats || []) {
+        const sr = el('div', 'bl-card-row');
+        sr.appendChild(el('span', 'bl-card-l', s.label));
+        sr.appendChild(el('span', 'bl-card-v', s.value));
+        card.appendChild(sr);
+      }
+      if (c.headline) {
+        const h = el('div', 'bl-card-hl');
+        h.appendChild(el('div', 'bl-card-hl-v', c.headline.value));
+        h.appendChild(el('div', 'bl-card-hl-l', c.headline.label));
+        card.appendChild(h);
+      }
+      cards.appendChild(card);
+    }
+    wrap.appendChild(cards);
+  }
+  return wrap;
+}
+
 /* ── strat-grid ── perguntas estratégicas: colunas de cards com linhas
  *  "pergunta · chip de achado · valor de apoio" (espelha o One Pager da fonte). */
 function renderStratGrid(w: StratGridWidget): HTMLElement {
@@ -1205,6 +1272,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'find-block':  return renderFindBlock(widget);
       case 'qa-card':     return renderQaCard(widget, ctx);
       case 'funnel':      return renderFunnel(widget);
+      case 'bar-list':    return renderBarList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);

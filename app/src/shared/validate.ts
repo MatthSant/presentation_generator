@@ -233,6 +233,9 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'strat-grid':
       if (!Array.isArray(w.cols) || w.cols.length === 0) c.err(`${path}.cols`, 'strat-grid requires a cols array');
       break;
+    case 'bar-list':
+      if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'bar-list requires a rows array');
+      break;
   }
 }
 

@@ -61,11 +61,12 @@ def assemble(rows, config, content, opts=None):
             parts.append(f"meta {vfmt(metric, meta)} · {st['dev']:+.0f}% {sym}")
         return ' · '.join(parts)
 
-    def kcard(arr, pg, metric):
+    def kcard(arr, pg, metric, prefix='k'):
+        wid = f'{prefix}-{metric}'
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
         tr = B['trend'].get(metric, {})
         flag_txt, flag_tone = trend_delta(metric)
-        card = {'id': f'k-{metric}', 'type': 'kpi-card', 'tier': 'feature',
+        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
         # valor dos últimos 3 dias (colorido pela direção-de-bom)
@@ -85,7 +86,7 @@ def assemble(rows, config, content, opts=None):
         if st and meta is not None:
             card['goal'] = {'label': f"meta {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
-        pg.add(f'k-{metric}', 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
+        pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
@@ -222,26 +223,36 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s03 — Canais & Audiência ═════════════════════════════════════════
     can, cg = [], Grid()
-    # origem (pago × orgânico) + breakdown de canais orgânicos + temperatura — 3 colunas
+    # Origem do Tráfego (bar-list hierárquico: Pago/Orgânico + canais) + Temperatura
+    # (bar-list + cards de CPL médio) — 2 colunas. Widget único 'bar-list'.
     can.append({'id': 'can-eb-orig', 'type': 'eyebrow', 'title': 'ORIGEM E TEMPERATURA', 'caption': 'distribuição dos leads'})
     cg.add('can-eb-orig', 'eyebrow', 12, 1)
-    can.append({'id': 'can-orig', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Leads por origem',
-                'height': 200, 'colors': ['#534AB7', '#AFA9EC'], 'distributed': True, 'showLabels': True, 'valueFormat': 'int',
-                'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    cg.add('can-orig', 'chart', 3, 3)
-    if B['canais_org']:
-        can.append({'id': 'can-canais', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Canais orgânicos',
-                    'height': 200, 'colors': ['#97C459'], 'showLabels': True, 'valueFormat': 'int',
-                    'caption': 'leads por utm_source (top 8)',
-                    'bind': {'dataset': 'acom_canais', 'x': 'canal', 'y': 'leads'}})
-        cg.add('can-canais', 'chart', 4, 3)
-    # temperatura (tabela) — coluna mais larga p/ caber as 4 colunas sem cortar
+    sp = B['split']; tot_leads = sp['leads_pago'] + sp['leads_org']
+    orig_rows = [
+        {'label': 'Pago', 'value': intf(sp['leads_pago']), 'pct': calc.pct(sp['leads_pago'], tot_leads) or 0,
+         'bar': sp['leads_pago'], 'icon': 'credit-card', 'color': '#7C3AED'},
+        {'label': 'Orgânico', 'value': intf(sp['leads_org']), 'pct': calc.pct(sp['leads_org'], tot_leads) or 0,
+         'bar': sp['leads_org'], 'icon': 'sprout', 'color': '#A78BFA'},
+    ]
+    for c in B['canais_org'][:6]:
+        orig_rows.append({'label': c['source'], 'value': intf(c['leads']), 'pct': c.get('pct') or 0,
+                          'bar': c['leads'], 'indent': True, 'color': '#C3A4F7'})
+    can.append({'id': 'can-orig', 'type': 'bar-list', 'title': 'Origem do Tráfego', 'rows': orig_rows})
+    cg.add('can-orig', 'bar-list', 6, 4)
+    # temperatura — bar-list (Quente/Morno) + cards de stat com CPL médio em destaque
     if B['temp']:
-        can.append({'id': 'can-temp', 'type': 'table', 'title': 'Temperatura · tráfego pago',
-                    'cols': ['Temperatura', 'Leads', 'Invest.', 'CPL'],
-                    'rows': [[t, intf(v['leads']), money(v['invest']), vfmt('cpl', v['cpl'])]
-                             for t, v in B['temp'].items()]})
-        cg.add('can-temp', 'table', 5, 3)
+        TC = {'Quente': '#DC2626', 'Morno': '#EA580C', 'Frio': '#2563EB', 'Indefinido': '#9b98a3'}
+        TI = {'Quente': 'flame', 'Morno': 'sun'}
+        TT = {'Quente': 'red', 'Morno': 'green', 'Frio': 'purple', 'Indefinido': 'purple'}
+        temp_items = [(t, v) for t, v in B['temp'].items() if v.get('leads')]
+        temp_tot = sum(v['leads'] for _, v in temp_items) or 1
+        temp_rows = [{'label': t, 'value': intf(v['leads']), 'pct': calc.pct(v['leads'], temp_tot) or 0,
+                      'bar': v['leads'], 'icon': TI.get(t), 'color': TC.get(t, '#7C3AED')} for t, v in temp_items]
+        temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
+                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])}, {'label': 'Invest', 'value': money(v['invest'])}],
+                       'headline': {'label': 'CPL médio', 'value': vfmt('cpl', v['cpl'])}} for t, v in temp_items]
+        can.append({'id': 'can-temp', 'type': 'bar-list', 'title': 'Temperatura · tráfego pago', 'rows': temp_rows, 'cards': temp_cards})
+        cg.add('can-temp', 'bar-list', 6, 4)
     # tipo de lead (6 células como kpi-cards)
     tl = B['tipo_lead']
     can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
@@ -297,7 +308,7 @@ def assemble(rows, config, content, opts=None):
     tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': '6 indicadores de mídia'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
     for m in calc.KPI_TRAF:
-        kcard(tra, tg, m)
+        kcard(tra, tg, m, 'kt')
     if B['risks_traf']:
         tra.append({'id': 'tra-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
                     'title': 'RISCOS DE TRÁFEGO', 'caption': 'KPIs de tráfego com maior desvio'})
