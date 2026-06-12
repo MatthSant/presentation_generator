@@ -301,7 +301,8 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[tone]} kc-band-pill`, w.delta));
     return card;
   }
-  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}`);
+  const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
+  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}`);
   const head = el('div', 'kc-head');
   if (feature) {
     head.appendChild(iconBox(w.icon, w.iconColor));

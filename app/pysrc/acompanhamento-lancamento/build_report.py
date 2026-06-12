@@ -104,6 +104,9 @@ def assemble(rows, config, content, opts=None):
     sp = B['split']
     add_table('acom_origem', ['origem'], [{'origem': 'Pago', 'leads': sp['leads_pago']},
                                           {'origem': 'Orgânico', 'leads': sp['leads_org']}])
+    # canais orgânicos por utm_source (top 8) — alimenta o breakdown da seção Canais
+    add_table('acom_canais', ['canal'], [{'canal': c['source'], 'leads': c['leads']}
+                                         for c in B['canais_org'][:8]])
     # agregados (não têm widget próprio; alimentam perguntas norteadoras + deep mode)
     add_table('acom_kpis', ['metric'], [
         {'metric': m, 'label': calc.LABELS[m], 'grupo': 'macro' if m in calc.KPI_MACRO else 'trafego',
@@ -129,7 +132,7 @@ def assemble(rows, config, content, opts=None):
     leads_tot = B['tot_sums']['leads']
     cum_chart = {'id': 'pan-cum', 'type': 'chart', 'chartType': 'bar', 'title': 'Total de Leads Captados',
                  'headline': {'value': intf(leads_tot), 'caption': f"acumulado até {B['corte_label']}"},
-                 'height': 320, 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
+                 'height': 230, 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
                  'categories': B['series']['labels'], 'series': [{'name': 'Acumulado', 'data': B['series']['cum']}]}
     goals = []
     if mt:
@@ -142,31 +145,38 @@ def assemble(rows, config, content, opts=None):
         cum_chart['axisMax'] = round(cum_max * 1.06)
     pan.append(cum_chart)
 
-    # badges de meta (atingimento) à direita, com pill % grande (como a fonte)
-    hero_lay = [{'id': 'pan-eb-vg', 'type': 'eyebrow', 'x': 0, 'y': 0, 'w': 12, 'h': 1},
-                {'id': 'pan-cum', 'type': 'chart', 'x': 0, 'y': 1, 'w': 5, 'h': 8}]
+    # Hero de uma tela: à direita, bandas de atingimento (% grande, 1 linha cada) +
+    # donut compacto (3 linhas); à esquerda, o gráfico de leads estica para fechar na
+    # mesma base. A altura de gráfico no read-path = cells×80 − chrome, então o span
+    # do grid é o que dimensiona — mantê-lo enxuto é o que faz a seção caber na dobra.
+    DONUT_H = 3
+    hero_lay = [{'id': 'pan-eb-vg', 'type': 'eyebrow', 'x': 0, 'y': 0, 'w': 12, 'h': 1}]
     ry = 1
     if mt:
         at = calc.pct(leads_tot, mt) or 0
-        pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'feature',
+        pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta Geral', 'value': f'{intf(leads_tot)} / {intf(mt)}',
-                    'sub': 'leads captados vs meta total da campanha', 'icon': 'target', 'iconColor': '#534AB7',
+                    'sub': 'leads captados vs meta total da campanha',
                     'delta': f'{at:.1f}%', 'deltaTone': 'pos' if at >= 100 else ('neg' if at < 90 else 'neutral')})
-        hero_lay.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 2}); ry += 2
+        hero_lay.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     if mtd:
         atd = calc.pct(leads_tot, mtd) or 0
-        pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'feature',
+        pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta To Date', 'value': f'{intf(leads_tot)} / {intf(mtd)}',
-                    'sub': 'leads captados vs meta esperada até hoje', 'icon': 'circle-check', 'iconColor': '#3B6D11',
+                    'sub': 'leads captados vs meta esperada até hoje',
                     'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 100 else ('neg' if atd < 90 else 'neutral')})
-        hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 2}); ry += 2
+        hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
-                'height': 260, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads', 'showLabels': True,
+                'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads',
+                'legendValues': True,
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': max(9 - ry, 3)})
-    # prima o grid com o layout manual do hero; os KPIs fluem a partir de y=9.
+    hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
+    bottom = ry + DONUT_H                          # base comum da coluna direita
+    cum_h = bottom - 1                             # gráfico de leads vai do topo até a base
+    hero_lay.insert(1, {'id': 'pan-cum', 'type': 'chart', 'x': 0, 'y': 1, 'w': 5, 'h': cum_h})
+    # prima o grid com o layout manual do hero; os KPIs fluem a partir do fim do hero.
     pg.items = hero_lay
-    pg.x, pg.y, pg.rowh = 0, 9, 0
+    pg.x, pg.y, pg.rowh = 0, bottom, 0
 
     pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'PRINCIPAIS KPIS', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
     pg.add('pan-eb-kpi', 'eyebrow', 12, 1)
@@ -212,34 +222,41 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s03 — Canais & Audiência ═════════════════════════════════════════
     can, cg = [], Grid()
-    # origem (pago × orgânico) — barras (tabela acom_origem criada no topo)
+    # origem (pago × orgânico) + breakdown de canais orgânicos + temperatura — 3 colunas
     can.append({'id': 'can-eb-orig', 'type': 'eyebrow', 'title': 'ORIGEM E TEMPERATURA', 'caption': 'distribuição dos leads'})
     cg.add('can-eb-orig', 'eyebrow', 12, 1)
     can.append({'id': 'can-orig', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Leads por origem',
-                'height': 200, 'colors': ['#534AB7'], 'distributed': True,
+                'height': 200, 'colors': ['#534AB7', '#AFA9EC'], 'distributed': True, 'showLabels': True, 'valueFormat': 'int',
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    cg.add('can-orig', 'chart', 6, 3)
-    # temperatura (tabela)
+    cg.add('can-orig', 'chart', 3, 3)
+    if B['canais_org']:
+        can.append({'id': 'can-canais', 'type': 'chart', 'chartType': 'bar-horizontal', 'title': 'Canais orgânicos',
+                    'height': 200, 'colors': ['#97C459'], 'showLabels': True, 'valueFormat': 'int',
+                    'caption': 'leads por utm_source (top 8)',
+                    'bind': {'dataset': 'acom_canais', 'x': 'canal', 'y': 'leads'}})
+        cg.add('can-canais', 'chart', 4, 3)
+    # temperatura (tabela) — coluna mais larga p/ caber as 4 colunas sem cortar
     if B['temp']:
         can.append({'id': 'can-temp', 'type': 'table', 'title': 'Temperatura · tráfego pago',
                     'cols': ['Temperatura', 'Leads', 'Invest.', 'CPL'],
                     'rows': [[t, intf(v['leads']), money(v['invest']), vfmt('cpl', v['cpl'])]
                              for t, v in B['temp'].items()]})
-        cg.add('can-temp', 'table', 6, 3)
+        cg.add('can-temp', 'table', 5, 3)
     # tipo de lead (6 células como kpi-cards)
     tl = B['tipo_lead']
     can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
     cg.add('can-eb-tipo', 'eyebrow', 12, 1)
+    # tom por categoria (como na fonte): roxo na base, vermelho no pago, verde no orgânico.
     tl_cells = [
-        ('Leads Novos', tl['novos'], calc.pct(tl['novos'], tl['novos'] + tl['antigos']), 'do total'),
-        ('Leads Antigos', tl['antigos'], calc.pct(tl['antigos'], tl['novos'] + tl['antigos']), 'do total'),
-        ('Antigos · Pago', tl['antigos_pago'], calc.pct(tl['antigos_pago'], tl['antigos']), 'dos antigos'),
-        ('Antigos · Orgânico', tl['antigos_org'], calc.pct(tl['antigos_org'], tl['antigos']), 'dos antigos'),
-        ('Clientes · Pago', tl['cli_pago'], calc.pct(tl['cli_pago'], tl['cli_total']), 'dos clientes'),
-        ('Clientes · Orgânico', tl['cli_org'], calc.pct(tl['cli_org'], tl['cli_total']), 'dos clientes'),
+        ('Leads Novos', tl['novos'], calc.pct(tl['novos'], tl['novos'] + tl['antigos']), 'do total', 'p'),
+        ('Leads Antigos', tl['antigos'], calc.pct(tl['antigos'], tl['novos'] + tl['antigos']), 'do total', 'p'),
+        ('Antigos · Pago', tl['antigos_pago'], calc.pct(tl['antigos_pago'], tl['antigos']), 'dos antigos', 'r'),
+        ('Antigos · Orgânico', tl['antigos_org'], calc.pct(tl['antigos_org'], tl['antigos']), 'dos antigos', 'g'),
+        ('Clientes · Pago', tl['cli_pago'], calc.pct(tl['cli_pago'], tl['cli_total']), 'dos clientes', 'p'),
+        ('Clientes · Orgânico', tl['cli_org'], calc.pct(tl['cli_org'], tl['cli_total']), 'dos clientes', 'g'),
     ]
-    for i, (lbl, val, p, suf) in enumerate(tl_cells):
-        can.append({'id': f'can-tl-{i}', 'type': 'kpi-card', 'tier': 'volume', 'label': lbl,
+    for i, (lbl, val, p, suf, tint) in enumerate(tl_cells):
+        can.append({'id': f'can-tl-{i}', 'type': 'kpi-card', 'tier': 'volume', 'label': lbl, 'tint': tint,
                     'value': intf(val), 'sub': f'{(p or 0):.1f}% {suf}', 'icon': 'users', 'iconColor': '#534AB7'})
         cg.add(f'can-tl-{i}', 'kpi-card', 4, 2)
     # criativos do último dia (best/worst)

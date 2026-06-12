@@ -32,5 +32,8 @@ temp_feedback_*.md
 app/.scratch/
 # Dado-base retido por análise (Fase 3b) — dado de cliente, nunca versionar
 app/.base/
-.claude/settings.local.json
-.claude/settings.local.json
+
+# Dev local / temporários — nunca versionar
+app/_dev_authoff.mjs
+app/_tmp_*.json
+Witly Design System-handoff.zip
