@@ -86,7 +86,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -533,6 +533,13 @@ export interface FunnelWidget extends WidgetBase {
   transitions?: { loss?: number; migrate?: number; bench?: number; gap?: number; worst?: boolean; invalid?: boolean }[];
 }
 
+/** strat-grid — perguntas estratégicas: N colunas (cards), cada uma com título e
+ *  linhas "pergunta · chip de achado · valor de apoio". Espelha o One Pager da fonte. */
+export interface StratGridWidget extends WidgetBase {
+  type: 'strat-grid';
+  cols: { title: string; items: { q: string; chip?: { text: string; tone?: 'pos' | 'neg' | 'neutral' }; val?: string }[] }[];
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
@@ -540,7 +547,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

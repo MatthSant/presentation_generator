@@ -244,25 +244,32 @@ def assemble(rows, config, content, opts=None):
         cg.add(f'can-tl-{i}', 'kpi-card', 4, 2)
     # criativos do último dia (best/worst)
     cr = B['criativos']
-    if cr['best'] or cr['worst']:
+    if cr['best'] or cr['eff']:
         can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS · ÚLTIMO DIA',
-                    'caption': f"melhores e piores por CPMQL projetado · {B['cr_dia_label']}"})
+                    'caption': f"maior volume e mais eficientes por CPMQL projetado · {B['cr_dia_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
-        def cri_rows(lst):
+        def cri_rows(lst, with_resp=False):
             def name_cell(c):
                 return {'value': c['name'], 'link': c['link']} if c.get('link') else c['name']
-            return [[name_cell(c), intf(c['leads']), money(c['invest']), vfmt('cpl', c['cpl']),
-                     pctf(c['taxa_qual']), vfmt('cpmql', c['cpmql_proj'])] for c in lst]
+            rows = []
+            for c in lst:
+                row = [name_cell(c), intf(c['leads']), money(c['invest']), vfmt('cpl', c['cpl']),
+                       pctf(c['taxa_qual']), vfmt('cpmql', c['cpmql_proj'])]
+                if with_resp:
+                    row.insert(5, intf(c['respostas']))
+                rows.append(row)
+            return rows
         cols = ['Criativo', 'Leads', 'Invest.', 'CPL', 'Tx. Qual', 'CPMQL proj.']
         if cr['best']:
             can.append({'id': 'can-cri-best', 'type': 'table', 'title': '🏆 Maior volume',
                         'cols': cols, 'rows': cri_rows(cr['best'])})
             cg.add('can-cri-best', 'table', 6, 3)
-        if cr['worst']:
-            can.append({'id': 'can-cri-worst', 'type': 'table', 'title': '⚠️ Maior CPMQL projetado',
-                        'cols': cols, 'rows': cri_rows(cr['worst'])})
-            cg.add('can-cri-worst', 'table', 6, 3)
+        if cr['eff']:
+            eff_cols = ['Criativo', 'Leads', 'Invest.', 'CPL', 'Tx. Qual', 'Resp.', 'CPMQL proj.']
+            can.append({'id': 'can-cri-eff', 'type': 'table', 'title': '🏆 Menor CPMQL projetado',
+                        'cols': eff_cols, 'rows': cri_rows(cr['eff'], with_resp=True)})
+            cg.add('can-cri-eff', 'table', 6, 3)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}
     layouts['s03'] = cg.items

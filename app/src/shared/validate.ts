@@ -225,6 +225,9 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'funnel':
       if (!Array.isArray(w.steps) || w.steps.length === 0) c.err(`${path}.steps`, 'funnel requires a steps array');
       break;
+    case 'strat-grid':
+      if (!Array.isArray(w.cols) || w.cols.length === 0) c.err(`${path}.cols`, 'strat-grid requires a cols array');
+      break;
   }
 }
 

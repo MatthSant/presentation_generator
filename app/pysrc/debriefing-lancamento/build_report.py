@@ -347,10 +347,15 @@ def assemble(rows, config, content, opts=None):
             ('op-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", '#854F0B'),
             ('op-cac', 'CAC', money(M['cac']), 'invest. cpt / vendas pago', '#A32D2D')]:
         ks(op, opg, wid, lbl, val, sub, 'target', color, w=4, h=2)
-    op.append({'id': 'op-daily', 'type': 'chart', 'chartType': 'line', 'title': 'Leads por dia', 'height': 260,
-               'colors': ['#534AB7'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'leads'}}); opg.add('op-daily', 'chart', 6, 4)
-    op.append({'id': 'op-conv-c', 'type': 'chart', 'chartType': 'line', 'title': 'Conversão por dia (%)', 'height': 260,
-               'pct': True, 'valueFormat': 'pct', 'colors': ['#3B6D11'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'conv'}}); opg.add('op-conv-c', 'chart', 6, 4)
+    op.append({'id': 'op-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 280,
+               'metrics': [{'id': 'leads', 'label': 'Leads (total)', 'fmt': 'int'},
+                           {'id': 'l_pago', 'label': 'Leads pago', 'fmt': 'int'},
+                           {'id': 'l_org', 'label': 'Leads orgânico', 'fmt': 'int'},
+                           {'id': 'vendas', 'label': 'Vendas', 'fmt': 'int'},
+                           {'id': 'conv', 'label': 'Conversão', 'fmt': 'pct'}],
+               'points': _strat_points(M), 'current': 'leads'}); opg.add('op-evo', 'evolution-picker', 12, 5)
+    eb(op, opg, 'op-eb-strat', 'PERGUNTAS ESTRATÉGICAS', 'leitura rápida do lançamento')
+    op.append({'id': 'op-strat', 'type': 'strat-grid', 'cols': _strat_questions(M, G, H)}); opg.add('op-strat', 'strat-grid', 12, 4)
     al, ga = calc_alavancas(M, G, H)
     eb(op, opg, 'op-eb-ag', 'ALAVANCAS E GARGALOS', 'gerados dos dados')
     fb(op, opg, 'op-alav', '↑ Alavancas', 'g', 'O que puxou o resultado', '<br>'.join(f'• {x}' for x in al) or '—', w=6, h=4)
@@ -398,6 +403,77 @@ def cmp_row(label, real, meta, hist, fmt, invert=False):
     else:
         delta = '—'
     return [label, cell_real, cell_meta, delta, f(hist)]
+
+
+def _strat_questions(M, G, H):
+    """3 colunas de perguntas estratégicas do One Pager (espelha a fonte)."""
+    def chip(text, tone):
+        return {'text': text, 'tone': tone}
+
+    def dev(real, meta, invert=False):
+        if not meta:
+            return None
+        d = (real - meta) / meta * 100
+        return -d if invert else d
+
+    total_meta_vendas = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
+    leads_tot = M['leads_total']
+    novos_pct = (M['l_novo'] / leads_tot * 100) if leads_tot else 0
+    recapt_pct = ((M['l_ant'] + M['l_cli']) / leads_tot * 100) if leads_tot else 0
+    vtot = M['vendas_total'] or 1
+    org_share = M['vendas_org'] / vtot * 100
+
+    # Resultado e Meta
+    df = dev(M['fat'], G.get('fat')); dl = dev(leads_tot, G.get('leads'))
+    meta_chip = (chip(f"Fat {df:+.0f}% · leads {dl:+.0f}%", 'pos' if (df or 0) >= 0 and (dl or 0) >= 0 else 'neg')
+                 if df is not None or dl is not None else chip('sem meta', 'neutral'))
+    dvh = dev(M['vendas_total'], H.get('vendas')); dfh = dev(M['fat'], H.get('fat'))
+    hist_chip = (chip(f"Vendas {dvh:+.0f}% · fat {dfh:+.0f}%", 'pos' if (dvh or 0) >= 0 else 'neg')
+                 if dvh is not None or dfh is not None else chip('sem hist.', 'neutral'))
+    dih = dev(M['invest_cpt'], H.get('invest_cpt'))
+    inv_chip = chip(f"invest {dih:+.0f}% vs hist", 'neutral') if dih is not None else chip('sem hist.', 'neutral')
+    sust_tone = 'pos' if novos_pct >= 55 else ('neutral' if novos_pct >= 45 else 'neg')
+    col1 = {'title': 'Resultado e Meta', 'items': [
+        {'q': 'Meta atingida?', 'chip': meta_chip, 'val': money(M['fat'])},
+        {'q': 'Superior ao histórico?', 'chip': hist_chip, 'val': ('—' if not H.get('vendas') else f"{intf(H.get('vendas'))} vd hist")},
+        {'q': 'Invest proporcional?', 'chip': inv_chip, 'val': money(M['invest_total'])},
+        {'q': 'Sustentável?', 'chip': chip(f"{recapt_pct:.0f}% recapt.", sust_tone), 'val': f"{novos_pct:.0f}% leads novos"}]}
+
+    # Captação e Qualidade
+    cap_chip = chip(f"{dl:+.0f}%", 'pos' if (dl or 0) >= 0 else 'neg') if dl is not None else chip('sem meta', 'neutral')
+    na_tone = 'neutral' if recapt_pct >= 45 else 'pos'
+    dq = dev(M['qual'], G.get('qual'))
+    qual_chip = (chip(f"{M['qual'] - G['qual']:+.1f}pp", 'pos' if (dq or 0) >= 0 else 'neg')
+                 if G.get('qual') else chip(f"{M['qual']:.0f}%", 'neutral'))
+    conv_tone = 'pos' if M['conv_geral'] >= 4 else ('neutral' if M['conv_geral'] >= 2.4 else 'neg')
+    col2 = {'title': 'Captação e Qualidade', 'items': [
+        {'q': 'Meta captação?', 'chip': cap_chip, 'val': f"{intf(leads_tot)} vs {intf(G.get('leads') or 0)}"},
+        {'q': 'Novos ou antigos?', 'chip': chip(f"{recapt_pct:.0f}% recapt.", na_tone), 'val': f"{novos_pct:.0f}% novos"},
+        {'q': 'Qualidade na meta?', 'chip': qual_chip, 'val': f"{M['qual']:.1f}% qualif." + (f" (meta {G['qual']:.0f}%)" if G.get('qual') else '')},
+        {'q': 'Conversão?', 'chip': chip(f"{pctf(M['conv_geral'])}", conv_tone), 'val': f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}"}]}
+
+    # Pago vs Orgânico
+    dom = 'Orgânico' if org_share >= 50 else 'Pago'
+    dcpl = dev(M['cpl'], G.get('cpl'), invert=True)
+    cpl_chip = (chip(f"{-dcpl:+.0f}% ({'melhor' if dcpl >= 0 else 'pior'})", 'pos' if dcpl >= 0 else 'neg')
+                if dcpl is not None else chip(money(M['cpl']), 'neutral'))
+    roas_tone = 'pos' if M['roas'] >= 1 else 'neg'
+    col3 = {'title': 'Pago vs Orgânico', 'items': [
+        {'q': 'Quem dominou?', 'chip': chip(f"{dom} {org_share if dom == 'Orgânico' else 100 - org_share:.0f}%", 'pos' if dom == 'Orgânico' else 'neutral'),
+         'val': f"{intf(M['vendas_org'])} vd org · conv {pctf(M['conv_org'])}"},
+        {'q': 'CPL vs meta?', 'chip': cpl_chip, 'val': money(M['cpl'])},
+        {'q': 'ROAS?', 'chip': chip(xf(M['roas']), roas_tone), 'val': f"fat pago / invest cpt"}]}
+    return [col1, col2, col3]
+
+
+def _strat_points(M):
+    """Pontos diários para o evolution-picker do One Pager (respeita a janela de captação)."""
+    pts = []
+    for d in M['daily']:
+        pts.append({'name': d['label'], 'vals': {
+            'leads': d['l_all'], 'l_pago': d['l_pago'], 'l_org': d['l_org'],
+            'vendas': d['v_all'], 'conv': d['c_all']}})
+    return pts
 
 
 def _canais_vs_meta(chan, by_canal, mvc):

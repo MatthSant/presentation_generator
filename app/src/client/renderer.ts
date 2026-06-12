@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, type ChartDef } from './charts.js';
@@ -799,6 +799,25 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
   return wrap;
 }
 
+/* ── strat-grid ── perguntas estratégicas: colunas de cards com linhas
+ *  "pergunta · chip de achado · valor de apoio" (espelha o One Pager da fonte). */
+function renderStratGrid(w: StratGridWidget): HTMLElement {
+  const grid = el('div', 'strat-grid');
+  for (const col of w.cols || []) {
+    const card = el('div', 'strat-col');
+    card.appendChild(el('div', 'strat-col-t', col.title));
+    for (const it of col.items || []) {
+      const row = el('div', 'strat-row');
+      row.appendChild(el('span', 'strat-q', it.q));
+      if (it.chip) row.appendChild(el('span', `pill ${PILL_TONE[it.chip.tone || 'neutral']} strat-chip`, it.chip.text));
+      if (it.val) row.appendChild(el('span', 'strat-val', it.val));
+      card.appendChild(row);
+    }
+    grid.appendChild(card);
+  }
+  return grid;
+}
+
 function renderFindNote(w: FindNoteWidget): HTMLElement {
   const p = el('p', 'find-note find-note-p');
   p.innerHTML = w.text || '';
@@ -1110,6 +1129,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'find-block':  return renderFindBlock(widget);
       case 'qa-card':     return renderQaCard(widget, ctx);
       case 'funnel':      return renderFunnel(widget);
+      case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);
       case 'ni':

@@ -54,6 +54,16 @@ def _dev(ctx, metric, invert=False):
     return (-d if invert else d), val, meta
 
 
+def _hdev(ctx, metric, invert=False):
+    """Δ% vs histórico (lançamento anterior). + = melhor (invert para custos)."""
+    k = ctx['kpis'].get(metric, {})
+    val, hist = _f(k.get('value')), _f(k.get('hist'))
+    if val is None or not hist:
+        return None, val, hist
+    d = (val - hist) / hist * 100
+    return (-d if invert else d), val, hist
+
+
 def q_meta_vendas(ctx):
     d, val, meta = _dev(ctx, 'vendas')
     if d is None:
@@ -130,7 +140,169 @@ def q_concentracao(ctx):
                      {'label': 'Risco', 'value': ('alto' if conc > 50 else 'ok')}]}
 
 
+def q_resultado_geral(ctx):
+    dv, vv, _ = _dev(ctx, 'vendas')
+    df, _, _ = _dev(ctx, 'fat')
+    sinais = [d for d in (dv, df) if d is not None]
+    if not sinais:
+        return {'relevancia': 20.0, 'justificativa': 'Sem metas para classificar o resultado.', 'kpis': []}
+    media = sum(sinais) / len(sinais)
+    verdito = 'sucesso' if media >= 5 else ('estável' if media >= -8 else 'deterioração')
+    rel = 70.0 if verdito != 'estável' else 45.0
+    return {'relevancia': rel,
+            'justificativa': f"Resultado geral: {verdito} (vendas {dv:+.0f}% / fat {df:+.0f}% vs meta)."
+                             if dv is not None and df is not None
+                             else f"Resultado geral: {verdito} ({media:+.0f}% vs meta).",
+            'kpis': [{'label': 'Veredito', 'value': verdito},
+                     {'label': 'Vendas vs meta', 'value': (f'{dv:+.0f}%' if dv is not None else '—')},
+                     {'label': 'Fat. vs meta', 'value': (f'{df:+.0f}%' if df is not None else '—')}]}
+
+
+def q_meta_captacao(ctx):
+    d, val, meta = _dev(ctx, 'leads')
+    if d is None:
+        return {'relevancia': 0.0, 'justificativa': 'Sem meta de leads para comparar.', 'kpis': []}
+    rel = _nz(abs(d), 20) if d < 0 else _nz(d, 30) * 0.4
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"{int(val)} leads vs meta {int(meta)} ({d:+.0f}%).",
+            'kpis': [{'label': 'Leads', 'value': str(int(val))}, {'label': 'Meta', 'value': str(int(meta))},
+                     {'label': 'vs meta', 'value': f'{d:+.0f}%'}]}
+
+
+def q_vs_historico(ctx):
+    metas = [('vendas', 'Vendas', False), ('fat', 'Faturamento', False), ('leads', 'Leads', False),
+             ('cpl', 'CPL', True), ('roas', 'ROAS', False), ('qual', 'Qualificação', False)]
+    deltas = []
+    for m, lbl, inv in metas:
+        d, val, hist = _hdev(ctx, m, invert=inv)
+        if d is not None:
+            deltas.append((lbl, d))
+    if not deltas:
+        return {'relevancia': 0.0, 'justificativa': 'Sem histórico (lançamento anterior) para comparar.', 'kpis': []}
+    deltas.sort(key=lambda x: -abs(x[1]))
+    rel = _nz(abs(deltas[0][1]), 30)
+    txt = '; '.join(f"{lbl} {d:+.0f}%" for lbl, d in deltas[:3])
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Principais diferenças vs lançamento anterior: {txt}.",
+            'kpis': [{'label': lbl, 'value': f'{d:+.0f}%'} for lbl, d in deltas[:3]]}
+
+
+def q_split_leads(ctx):
+    org = sum(_f(c.get('leads')) or 0 for c in ctx['chan'] if c.get('tipo') == 'organico')
+    pago = sum(_f(c.get('leads')) or 0 for c in ctx['chan'] if c.get('tipo') == 'pago')
+    tot = org + pago
+    if not tot:
+        return {'relevancia': 0.0, 'justificativa': 'Sem leads por escopo.', 'kpis': []}
+    po = org / tot * 100
+    rel = _nz(abs(po - 50), 45)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Composição da captação: {po:.0f}% orgânico, {100 - po:.0f}% pago.",
+            'kpis': [{'label': 'Leads orgânico', 'value': f'{po:.0f}%'},
+                     {'label': 'Leads pago', 'value': f'{100 - po:.0f}%'},
+                     {'label': 'Total leads', 'value': str(int(tot))}]}
+
+
+def q_temp_mix(ctx):
+    ts = [t for t in ctx['temp'] if (_f(t.get('leads')) or 0) > 0]
+    if len(ts) < 2:
+        return {'relevancia': 0.0, 'justificativa': 'Sem mix de temperatura suficiente.', 'kpis': []}
+    tot = sum(_f(t['leads']) or 0 for t in ts)
+    top = max(ts, key=lambda t: _f(t['leads']) or 0)
+    share = (_f(top['leads']) or 0) / tot * 100 if tot else 0
+    rel = _nz(share - 40, 50)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Temperatura dominante: {top['temperatura']} com {share:.0f}% dos leads pagos.",
+            'kpis': [{'label': 'Dominante', 'value': str(top['temperatura'])},
+                     {'label': 'Participação', 'value': f'{share:.0f}%'},
+                     {'label': 'ROAS', 'value': f"{_f(top.get('roas')) or 0:.2f}×"}]}
+
+
+def q_saturacao(ctx):
+    wk = [w for w in ctx['weekly'] if (_f(w.get('leads')) or 0) > 50]
+    if len(wk) < 3:
+        return {'relevancia': 0.0, 'justificativa': 'Histórico semanal insuficiente para avaliar esgotamento.', 'kpis': []}
+    first, last = wk[0], wk[-1]
+    cpl0, cpl1 = _f(first.get('cpl')) or 0, _f(last.get('cpl')) or 0
+    l0, l1 = _f(first.get('leads')) or 0, _f(last.get('leads')) or 0
+    cpl_up = ((cpl1 - cpl0) / cpl0 * 100) if cpl0 else 0
+    lead_dn = ((l1 - l0) / l0 * 100) if l0 else 0
+    rel = max(_nz(cpl_up, 30) if cpl_up > 0 else 0.0, _nz(-lead_dn, 40) if lead_dn < 0 else 0.0)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Da 1ª à última semana: CPL {cpl_up:+.0f}%, leads/semana {lead_dn:+.0f}% — "
+                             f"{'sinais de esgotamento' if (cpl_up > 15 or lead_dn < -25) else 'sem esgotamento claro'}.",
+            'kpis': [{'label': 'CPL (1ª→últ.)', 'value': f'{cpl_up:+.0f}%'},
+                     {'label': 'Leads/sem.', 'value': f'{lead_dn:+.0f}%'},
+                     {'label': 'Semanas', 'value': str(len(wk))}]}
+
+
+def q_cpmql_driver(ctx):
+    dc, cpl, _ = _dev(ctx, 'cpl', invert=True)
+    dq, qual, _ = _dev(ctx, 'qual')
+    if dc is None and dq is None:
+        return {'relevancia': 0.0, 'justificativa': 'Sem metas de CPL/qualificação para decompor o CPMQL.', 'kpis': []}
+    # CPMQL = CPL / qualif. Custo alto (dc<0) e qualidade baixa (dq<0) ambos pioram.
+    driver = 'taxa de qualidade' if (dq is not None and (dc is None or abs(dq) > abs(dc))) else 'custo por lead (CPL)'
+    pior = max([x for x in (-(dc or 0), -(dq or 0))], default=0)
+    rel = _nz(pior, 25) if pior > 0 else 10.0
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"O CPMQL foi puxado principalmente pela {driver} "
+                             f"(CPL {dc:+.0f}% vs meta · qualif. {dq:+.0f}% vs meta)."
+                             if dc is not None and dq is not None
+                             else f"Driver principal do CPMQL: {driver}.",
+            'kpis': [{'label': 'Driver', 'value': driver},
+                     {'label': 'CPL vs meta', 'value': (f'{dc:+.0f}%' if dc is not None else '—')},
+                     {'label': 'Qualif. vs meta', 'value': (f'{dq:+.0f}%' if dq is not None else '—')}]}
+
+
+def q_qual_disparidade(ctx):
+    chans = [c for c in ctx['chan'] if (_f(c.get('leads')) or 0) >= 100 and _f(c.get('qual')) is not None]
+    if len(chans) < 2:
+        return {'relevancia': 0.0, 'justificativa': 'Poucos canais com volume para comparar qualidade.', 'kpis': []}
+    best = max(chans, key=lambda c: _f(c['qual'])); worst = min(chans, key=lambda c: _f(c['qual']))
+    spread = _f(best['qual']) - _f(worst['qual'])
+    rel = _nz(spread, 30)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Disparidade de qualidade entre fontes: {best['canal']} {_f(best['qual']):.0f}% "
+                             f"vs {worst['canal']} {_f(worst['qual']):.0f}% ({spread:.0f}pp).",
+            'kpis': [{'label': 'Melhor', 'value': f"{best['canal']} {_f(best['qual']):.0f}%"},
+                     {'label': 'Pior', 'value': f"{worst['canal']} {_f(worst['qual']):.0f}%"},
+                     {'label': 'Amplitude', 'value': f'{spread:.0f}pp'}]}
+
+
 QUESTIONS = [
+    {'id': 'db-resultado-geral', 'fn': q_resultado_geral,
+     'pergunta': 'O resultado geral foi sucesso, estável ou deterioração?',
+     'prompt': ('Classifique o resultado do lançamento (sucesso / estável / deterioração) combinando vendas e '
+                'faturamento vs meta e, se houver, vs o lançamento anterior. Aponte os 2–3 fatores que mais '
+                'determinaram essa classificação.')},
+    {'id': 'db-meta-captacao', 'fn': q_meta_captacao,
+     'pergunta': 'A meta de captação (leads) foi atingida?',
+     'prompt': ('Compare os leads captados com a meta total e por canal. Mostre onde a captação superou ou ficou '
+                'abaixo da meta e o peso de cada canal no gap.')},
+    {'id': 'db-vs-historico', 'fn': q_vs_historico,
+     'pergunta': 'Quais as principais diferenças vs o lançamento anterior?',
+     'prompt': ('Compare vendas, faturamento, leads, CPL, ROAS e qualificação com o lançamento anterior (histórico). '
+                'Destaque as maiores variações — positivas e negativas — e a leitura de cada uma.')},
+    {'id': 'db-split-leads', 'fn': q_split_leads,
+     'pergunta': 'Qual a composição de leads orgânicos x pagos?',
+     'prompt': ('Mostre a divisão da captação entre orgânico e pago (leads). Avalie a dependência de cada fonte e '
+                'se a proporção é saudável para a sustentabilidade do próximo lançamento.')},
+    {'id': 'db-temp-mix', 'fn': q_temp_mix,
+     'pergunta': 'Houve mudança na participação por temperatura do lead pago?',
+     'prompt': ('Avalie o mix de temperatura (quente, frio, remarketing, advantage) no lead pago — participação, '
+                'ROAS e conversão de cada. Aponte concentração excessiva e onde rebalancear verba.')},
+    {'id': 'db-saturacao', 'fn': q_saturacao,
+     'pergunta': 'Houve sinais de esgotamento da audiência?',
+     'prompt': ('Olhe a evolução semanal de CPL e de leads captados. CPL subindo e/ou volume caindo ao longo das '
+                'semanas indicam saturação — avalie o ponto de virada e o impacto na eficiência.')},
+    {'id': 'db-cpmql-driver', 'fn': q_cpmql_driver,
+     'pergunta': 'O que mais impactou o CPMQL: a taxa de qualidade ou o CPL?',
+     'prompt': ('Decomponha o CPMQL (= CPL / taxa de qualificação). Compare CPL vs meta e qualificação vs meta para '
+                'isolar qual dos dois puxou mais o custo por lead qualificado e qual alavanca priorizar.')},
+    {'id': 'db-qual-disparidade', 'fn': q_qual_disparidade,
+     'pergunta': 'A qualidade variou muito entre fontes de tráfego?',
+     'prompt': ('Compare a qualificação (MQLs/respostas) entre os canais com volume relevante. Aponte a disparidade '
+                'entre a melhor e a pior fonte e o que isso sugere sobre segmentação e criativos.')},
     {'id': 'db-meta-vendas', 'fn': q_meta_vendas,
      'pergunta': 'A meta de vendas foi atingida? Onde ficou o gap?',
      'prompt': ('Compare as vendas realizadas com a meta total e por canal/temperatura. Identifique onde o '
