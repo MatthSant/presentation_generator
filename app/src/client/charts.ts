@@ -34,6 +34,8 @@ export interface ChartDef {
   totalLabel?: string;
   /** Enable per-slice/point value labels (e.g. donut % on slices). */
   showLabels?: boolean;
+  /** Donut/pie: legenda com valor absoluto + % por fatia (em vez de só o nome). */
+  legendValues?: boolean;
   /** Mixed only: 0-based index (or indices) of the series on a right-hand axis. */
   secondaryAxis?: number | number[];
   /** Suffix appended to secondary-axis labels (e.g. "%"). */
@@ -146,7 +148,7 @@ function moneyBr(v: number): string {
   if (a >= 1e3) return `R$ ${brNum(v / 1e3, 0)}k`;
   return `R$ ${brNum(v, 0)}`;
 }
-function valueFmt(kind?: string): (v: number) => string {
+export function valueFmt(kind?: string): (v: number) => string {
   switch (kind) {
     case 'pct': return (v) => `${autoBr(v)}%`;
     case 'money': return (v) => moneyBr(v);
@@ -195,7 +197,21 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   const axisMin = neg ? undefined : 0;
 
   if (def.type === 'donut' || def.type === 'pie') {
-    opts.legend = { position: 'bottom', labels: { colors: labelColor } };
+    const legend: Record<string, unknown> = { position: 'bottom', labels: { colors: labelColor } };
+    if (def.legendValues) {
+      // Legenda "Nome — 45.485 · 86,3%" (valor absoluto + participação), como na fonte.
+      legend.position = 'right';
+      legend.horizontalAlign = 'center';
+      legend.fontSize = '12px';
+      legend.itemMargin = { vertical: 4 };
+      legend.formatter = (name: string, o: { seriesIndex: number; w: { globals: { series: number[] } } }) => {
+        const arr = o.w.globals.series || [];
+        const v = arr[o.seriesIndex] ?? 0;
+        const tot = arr.reduce((a, b) => a + b, 0) || 1;
+        return `${name} — ${Number(v).toLocaleString('pt-BR')} · ${(v / tot * 100).toFixed(1).replace('.', ',')}%`;
+      };
+    }
+    opts.legend = legend;
     const donut: Record<string, unknown> = { size: '55%' };
     if (def.donutTotal) {
       donut.labels = {
@@ -473,14 +489,11 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   }
   // Linhas de meta tracejadas (referência horizontal) — meta total / to-date.
   if (def.goalLines?.length && def.type !== 'bar-horizontal') {
-    const ya = def.goalLines.map((g) => {
-      const c = g.color || '#EF9F27';
-      return {
-        y: g.value, strokeDashArray: 6, borderColor: c, opacity: 1,
-        label: { text: g.label || '', position: 'right', orientation: 'horizontal', borderWidth: 0, offsetX: -4,
-          style: { color: '#fff', background: c, fontSize: '10px', fontWeight: 700, padding: { left: 5, right: 5, top: 2, bottom: 2 } } },
-      };
-    });
+    // Linha tracejada sem rótulo flutuante — os nomes/valores das metas vão para a
+    // legenda inferior (renderer.goalLegend), fora da área das barras.
+    const ya = def.goalLines.map((g) => ({
+      y: g.value, strokeDashArray: 6, borderColor: g.color || '#EF9F27', opacity: 1,
+    }));
     const ann = (isObj(opts.annotations) ? opts.annotations : (opts.annotations = {})) as Record<string, unknown>;
     ann.yaxis = [...((ann.yaxis as unknown[]) || []), ...ya];
   }

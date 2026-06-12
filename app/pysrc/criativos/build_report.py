@@ -60,6 +60,13 @@ def fmtm(key, v):
 
 def assemble(rows, config, content, opts=None):
     opts = opts or {}
+    # Classificação de temperatura por ILIKE no nome da campanha (configurada na
+    # página de criação). Aplicada antes de qualquer agregação — assim os recortes
+    # por temperatura existem mesmo num CSV cru sem a coluna `temperatura_lead`.
+    cfg = config or {}
+    rules = cfg.get('temp_rules')
+    if rules:
+        rows = calc.apply_temp_rules(rows, rules, overwrite=bool(cfg.get('temp_overwrite')))
     dic = opts.get('dict') or {}
     mode = opts.get('mode') if opts.get('mode') in MODE_KPIS else 'resultado'
     B = calc.build(rows, dic, opts)   # opts: temp (filtro de temperatura) + min_invest
@@ -183,16 +190,20 @@ def assemble(rows, config, content, opts=None):
 
     eb('cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
 
-    # Evolução diária com SELETOR de métrica (evolution-picker): embute as métricas do
-    # modo e deixa o consultor escolher qual ver no tempo. Default = métrica-chave do modo.
-    default_m = 'cpl' if mode == 'captacao' else 'retorno'
+    # Evolução diária DUAL (evolution-picker): dois seletores — esquerda = volume,
+    # direita = métrica-chave do modo, no eixo secundário (escalas distintas). Embute
+    # as métricas do modo; o consultor troca qualquer um dos dois eixos. Defaults
+    # espelham o DAILY_XY original (leads × retorno | leads × cpl).
+    left_m, right_m = DAILY_XY[mode]
     evo_keys = [k for k in MODE_KPIS[mode] if any(d['m'].get(k) is not None for d in B['daily'])]
-    if default_m not in evo_keys:
-        default_m = evo_keys[0] if evo_keys else default_m
+    if left_m not in evo_keys:
+        left_m = evo_keys[0] if evo_keys else left_m
+    if right_m not in evo_keys:
+        right_m = next((k for k in evo_keys if k != left_m), left_m)
     evo_metrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in evo_keys]
     evo_points = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in evo_keys}} for d in B['daily']]
     pan.append({'id': 'cr-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 320,
-                'metrics': evo_metrics, 'points': evo_points, 'current': default_m})
+                'metrics': evo_metrics, 'points': evo_points, 'current': left_m, 'current2': right_m})
     pg.add('cr-evo', 'evolution-picker', 6, 5)
 
     # Dispersão com 2 SELETORES (dropdowns X e Y) — escolhe uma métrica por eixo.

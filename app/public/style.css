@@ -1390,6 +1390,30 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc-seg { height: 100%; }
 .kc-seg--track { background: var(--divider); }
 
+/* — kc band — faixa de atingimento horizontal e compacta (rótulo + valor à
+   esquerda, % grande à direita). Metas / meta-to-date e qualquer "X / alvo · %". */
+.kc--band { flex-direction: row; align-items: center; gap: 16px; padding: 14px 18px; }
+.kc--band .kc-band-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.kc--band .kc-lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin-bottom: 5px; }
+.kc--band .kc-val { font-size: 26px; }
+.kc--band .kc-sub { flex: none; margin-top: 5px; }
+.kc-band-pill { flex-shrink: 0; font-size: 19px; font-weight: 700; padding: 7px 14px; border-radius: 9px; line-height: 1; letter-spacing: -0.01em; }
+/* tom de status (atingiu / quase / abaixo) tinge o card inteiro — full-border + tint */
+.kc--band-pos { background: var(--green-bg); border-color: color-mix(in srgb, var(--green) 32%, var(--border)); }
+.kc--band-pos .kc-lbl { color: var(--green); }
+.kc--band-neutral { background: var(--amber-bg); border-color: color-mix(in srgb, var(--amber) 30%, var(--border)); }
+.kc--band-neutral .kc-lbl { color: var(--amber); }
+.kc--band-neutral .kc-band-pill { background: color-mix(in srgb, var(--amber) 16%, var(--bg)); color: var(--amber); }
+.kc--band-neg { background: var(--red-bg); border-color: color-mix(in srgb, var(--red) 30%, var(--border)); }
+.kc--band-neg .kc-lbl { color: var(--red); }
+
+/* legenda inferior das linhas de meta (fora da área de plotagem) */
+.chart-goal-legend { display: flex; flex-wrap: wrap; gap: 7px 18px; margin-top: 12px; }
+.cgl-item { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--gray); }
+.cgl-sw { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cgl-sw--dash { width: 16px; height: 0; border-radius: 0; border-top: 2px dashed currentColor; background: none !important; }
+.cgl-lbl { white-space: nowrap; }
+
 /* — chart-table — combined block: chart + comparison table in one card */
 .ctbl { padding: 18px 18px 12px; }
 .ctbl-title { display: flex; align-items: center; gap: 9px; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--fg); padding-bottom: 12px; border-bottom: 1px solid var(--divider); margin-bottom: 14px; }

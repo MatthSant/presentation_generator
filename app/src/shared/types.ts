@@ -150,6 +150,8 @@ export interface ChartWidget extends WidgetBase {
   totalLabel?: string;
   /** Enable per-slice/point value labels (e.g. donut % on slices). */
   showLabels?: boolean;
+  /** Donut/pie: legenda à direita com valor absoluto + % por fatia (em vez do nome só). */
+  legendValues?: boolean;
   /** Line only: render the last series dashed (a reference "Média" line). */
   dashLast?: boolean;
   /** Value formatting for axis/tooltip/labels: pct | money | x | int | num (pt-BR). */
@@ -407,6 +409,10 @@ export interface KpiStripWidget extends WidgetBase {
 export interface KpiCardWidget extends WidgetBase {
   type: 'kpi-card';
   tier?: 'feature' | 'volume';
+  /** Banda de atingimento (feature): card horizontal e compacto — rótulo + valor
+   *  grande à esquerda, `delta` como pill grande à direita. Para metas / meta-to-date
+   *  e qualquer "X / alvo · %". Recurso de plataforma, não exclusivo de um tipo. */
+  band?: boolean;
   label: string;
   value: string;
   sub?: string;
@@ -501,6 +507,9 @@ export interface EvolutionPickerWidget extends WidgetBase {
   metrics: ScatterMetric[];
   points: ScatterPoint[];
   current?: string;
+  /** Opt-in DUAL mode: quando presente, um 2º seletor escolhe uma segunda métrica
+   *  plotada no eixo da direita (escalas independentes). Sem ele, mono-métrica. */
+  current2?: string;
 }
 
 /** Gráfico embutido dentro de outro widget (qa-card) — subconjunto de ChartWidget. */
