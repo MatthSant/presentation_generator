@@ -63,12 +63,29 @@ def assemble(rows, config, content, opts=None):
 
     def kcard(arr, pg, metric):
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
-        d, tone = trend_delta(metric)
-        arr.append({'id': f'k-{metric}', 'type': 'kpi-card', 'tier': 'feature',
-                    'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
-                    'sub': kpi_sub(metric), 'icon': ic, 'iconColor': color,
-                    'delta': d, 'deltaTone': tone})
-        pg.add(f'k-{metric}', 'kpi-card', 4, 3)
+        tr = B['trend'].get(metric, {})
+        flag_txt, flag_tone = trend_delta(metric)
+        card = {'id': f'k-{metric}', 'type': 'kpi-card', 'tier': 'feature',
+                'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
+                'icon': ic, 'iconColor': color}
+        # valor dos últimos 3 dias (colorido pela direção-de-bom)
+        d3v = B['d3'].get(metric)
+        if d3v is not None:
+            d3 = {'value': vfmt(metric, d3v),
+                  'tone': 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')}
+            if tr.get('dir') in ('up', 'down'):
+                d3['dir'] = tr['dir']
+            card['d3'] = d3
+        # flag de tendência (vs início)
+        if flag_txt:
+            card['flag'] = {'text': flag_txt, 'tone': flag_tone}
+        # rodapé de meta + desvio com selo ✓/⚠/✕
+        st = B['meta_status'].get(metric)
+        meta = B['meta'].get(metric)
+        if st and meta is not None:
+            card['goal'] = {'label': f"meta {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
+        arr.append(card)
+        pg.add(f'k-{metric}', 'kpi-card', 4, 4)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):

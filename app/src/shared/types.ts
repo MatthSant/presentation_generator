@@ -405,6 +405,11 @@ export interface KpiCardWidget extends WidgetBase {
   /** Dual delta for the meta/histórico toggle: [texto, tone] por modo. Quando
    *  presente, o badge troca ao vivo com o controle `compare` (feature de plataforma). */
   cmp?: { meta: [string, string]; hist: [string, string] };
+  /** Hierarquia tática (acompanhamento): valor dos últimos 3 dias, flag de tendência
+   *  e rodapé de meta com selo ✓/⚠/✕. Quando presentes, renderizam em linhas próprias. */
+  d3?: { value: string; dir?: 'up' | 'down'; tone?: 'pos' | 'neg' | 'neutral' };
+  flag?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
+  goal?: { label: string; delta?: string; status?: 'ok' | 'warn' | 'bad' };
   /** Trend sparkline series (feature tier); nulls = gaps. */
   spark?: (number | null)[];
   /** Proportion bar segments (volume tier); remainder fills as a muted track. */

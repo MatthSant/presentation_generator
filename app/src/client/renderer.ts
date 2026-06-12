@@ -278,6 +278,26 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
     card.appendChild(row);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
+    if (w.d3) {
+      const c = w.d3.tone === 'pos' ? 'c-g' : w.d3.tone === 'neg' ? 'c-r' : 'c-a';
+      const dd = el('div', `kc-d3 ${c}`);
+      dd.appendChild(document.createTextNode(`3d ${w.d3.value} `));
+      if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? '↑3d' : '↓3d'));
+      card.appendChild(dd);
+    }
+    if (w.flag) {
+      const c = w.flag.tone === 'pos' ? 'c-g' : w.flag.tone === 'neg' ? 'c-r' : 'c-a';
+      card.appendChild(el('div', `kc-flag ${c}`, w.flag.text));
+    }
+    if (w.goal) {
+      const g = el('div', 'kc-goal');
+      g.appendChild(el('span', 'kc-goal-lbl', w.goal.label));
+      if (w.goal.delta) {
+        const sym = w.goal.status === 'ok' ? '✓' : w.goal.status === 'bad' ? '✕' : '⚠';
+        g.appendChild(el('span', `kc-goal-val kg-${w.goal.status || 'warn'}`, `${w.goal.delta} ${sym}`));
+      }
+      card.appendChild(g);
+    }
   } else {
     card.appendChild(val);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
