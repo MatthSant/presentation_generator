@@ -210,35 +210,34 @@ html, body {
 /* Page tabs — centro */
 .tn-pages {
   display: flex;
-  align-items: stretch;
-  gap: 0;
+  align-items: center;
+  gap: 3px;
   flex: 1;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 0 10px;
+  padding: 0 8px;
   height: 100%;
 }
 .tn-pages::-webkit-scrollbar { display: none; }
 .tnp-btn {
   font-family: var(--font-sans), sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 0 16px;
-  border-radius: 0;
+  padding: 7px 14px;
+  border-radius: var(--r-sm);
   border: none;
-  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--gray2);
   cursor: pointer;
   white-space: nowrap;
-  transition: color .15s, border-color .15s;
+  transition: color .15s, background .15s;
   line-height: 1;
 }
-.tnp-btn:hover { color: var(--fg); }
+.tnp-btn:hover { color: var(--fg); background: var(--surface); }
 .tnp-btn.tnp-active {
   color: var(--purple);
-  font-weight: 700;
-  border-bottom-color: var(--purple);
+  font-weight: 600;
+  background: var(--purple-bg);
 }
 
 /* Right zone */
