@@ -70,10 +70,11 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     for (const r of rows) {
       if (r.acao === 'ignorar') m.set(r.pergunta_id, { status: 'ignorada' });
       else if (r.acao === 'descartar') m.delete(r.pergunta_id);
-      else if (r.acao === 'seguir' || r.acao === 'detalhamento') {
-        const prev = m.get(r.pergunta_id);
-        const det = r.modal_id || (prev?.status === 'seguida' ? prev.det : undefined);
-        m.set(r.pergunta_id, { status: 'seguida', det });
+      // SÓ o 'detalhamento' (seção gerada com sucesso) marca como FEITA. O 'seguir'
+      // é só a INTENÇÃO, gravada antes da geração — se o detalhamento falha ou o
+      // consultor cancela, fica só o 'seguir', e a pergunta NÃO pode aparecer feita.
+      else if (r.acao === 'detalhamento' && r.modal_id) {
+        m.set(r.pergunta_id, { status: 'seguida', det: r.modal_id });
       }
     }
     return m;
