@@ -9,6 +9,13 @@
       "port": 3131
     },
     {
+      "name": "dev-authoff",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["_dev_authoff.mjs"],
+      "cwd": "app",
+      "port": 3132
+    },
+    {
       "name": "verify-authoff",
       "runtimeExecutable": "node",
       "runtimeArgs": ["C:/Users/Matheus/AppData/Local/Temp/_verify_launch.mjs"],

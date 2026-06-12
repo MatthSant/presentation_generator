@@ -1407,6 +1407,17 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--band-neg { background: var(--red-bg); border-color: color-mix(in srgb, var(--red) 30%, var(--border)); }
 .kc--band-neg .kc-lbl { color: var(--red); }
 
+/* tint de categoria (volume) — célula colorida por grupo (ex.: tipo de lead).
+   Fundo translúcido + barra inferior na cor, sem fugir do design system. */
+.kc--tint-p { background: var(--purple-bg); border-color: color-mix(in srgb, var(--purple) 22%, var(--border)); }
+.kc--tint-g { background: var(--green-bg);  border-color: color-mix(in srgb, var(--green)  22%, var(--border)); }
+.kc--tint-r { background: var(--red-bg);    border-color: color-mix(in srgb, var(--red)    22%, var(--border)); }
+.kc--tint-a { background: var(--amber-bg);  border-color: color-mix(in srgb, var(--amber)  22%, var(--border)); }
+.kc--tint-p .kc-seg--track { background: color-mix(in srgb, var(--purple) 22%, transparent); }
+.kc--tint-g .kc-seg--track { background: color-mix(in srgb, var(--green)  22%, transparent); }
+.kc--tint-r .kc-seg--track { background: color-mix(in srgb, var(--red)    22%, transparent); }
+.kc--tint-a .kc-seg--track { background: color-mix(in srgb, var(--amber)  22%, transparent); }
+
 /* legenda inferior das linhas de meta (fora da área de plotagem) */
 .chart-goal-legend { display: flex; flex-wrap: wrap; gap: 7px 18px; margin-top: 12px; }
 .cgl-item { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--gray); }
