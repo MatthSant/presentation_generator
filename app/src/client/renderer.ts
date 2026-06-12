@@ -13,7 +13,7 @@ import type {
   EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
-import { defFromResolved, buildOptions, type ChartDef } from './charts.js';
+import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
 
 export interface RenderCtx {
   /** Resolve a bind against the loaded datasets + active filters, or null if unbound/error. */
@@ -260,6 +260,22 @@ function barEl(segs: { pct: number; color: string }[]): HTMLElement {
 
 function renderKpiCard(w: KpiCardWidget): HTMLElement {
   const feature = w.tier !== 'volume';
+  // Banda de atingimento: rótulo + valor à esquerda, % grande à direita. Compacta
+  // o card numa faixa horizontal (metas / meta-to-date) sem inventar um componente novo.
+  // O tom (pos/neg/neutral) tinge o card inteiro (fundo + borda + rótulo + pill).
+  if (feature && w.band) {
+    const tone = w.deltaTone || 'neutral';
+    const bandCard = el('div', `card kc kc--feature kc--band kc--band-${tone}`);
+    const main = el('div', 'kc-band-main');
+    main.appendChild(el('div', 'kc-lbl', w.label));
+    const bv = el('div', 'kc-val');
+    bv.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
+    main.appendChild(bv);
+    if (w.sub) main.appendChild(el('div', 'kc-sub', w.sub));
+    bandCard.appendChild(main);
+    if (w.delta) bandCard.appendChild(el('span', `pill ${PILL_TONE[tone]} kc-band-pill`, w.delta));
+    return bandCard;
+  }
   const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}`);
   const head = el('div', 'kc-head');
   if (feature) {
@@ -1068,22 +1084,30 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
   return wrap;
 }
 
-/* ── evolution-picker ── linha no tempo com 1 dropdown de métrica; reconstrói a
- *  série client-side a partir das métricas embutidas (reusa o chrome do scatter-picker). */
+/* ── evolution-picker ── linha no tempo com dropdown(s) de métrica; reconstrói a
+ *  série client-side a partir das métricas embutidas (reusa o chrome do scatter-picker).
+ *  DUAL (w.current2 definido): dois seletores (M1/M2) e a 2ª métrica vai no eixo da
+ *  direita — escalas independentes (ex.: Leads × CPL R$). */
 function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
   const wrap = el('div', 'sp-wrap');
   const hd = el('div', 'sp-hd');
   if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
-  const cur = w.current || w.metrics[0]?.id || '';
-  const sel = document.createElement('select');
-  sel.className = 'sp-sel';
-  for (const m of w.metrics) {
-    const o = document.createElement('option');
-    o.value = m.id; o.textContent = m.label; if (m.id === cur) o.selected = true;
-    sel.appendChild(o);
-  }
+  const dual = w.current2 != null;
+  const mkSel = (cur: string): HTMLSelectElement => {
+    const s = document.createElement('select');
+    s.className = 'sp-sel';
+    for (const m of w.metrics) {
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.label; if (m.id === cur) o.selected = true;
+      s.appendChild(o);
+    }
+    return s;
+  };
+  const sel = mkSel(w.current || w.metrics[0]?.id || '');
+  const sel2 = dual ? mkSel(w.current2 || w.metrics[1]?.id || w.metrics[0]?.id || '') : null;
   const ctrls = el('div', 'sp-ctrls');
-  ctrls.append(el('span', 'sp-lbl', 'Métrica'), sel);
+  if (dual && sel2) ctrls.append(el('span', 'sp-lbl', 'Esq.'), sel, el('span', 'sp-lbl', 'Dir.'), sel2);
+  else ctrls.append(el('span', 'sp-lbl', 'Métrica'), sel);
   hd.appendChild(ctrls);
   wrap.appendChild(hd);
   const host = el('div', 'sp-chart');
@@ -1095,10 +1119,29 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
     const mk = sel.value;
     const m = w.metrics.find(x => x.id === mk);
     const data = (w.points || []).map(p => (p.vals[mk] ?? null));
-    const def = {
-      type: 'line', series: [{ name: m?.label || mk, data }], categories: cats,
-      height: w.height ?? 320, colors: ['#7C3AED'], valueFormat: m?.fmt,
-    } as unknown as ChartDef;
+    let def: ChartDef;
+    if (dual && sel2) {
+      const mk2 = sel2.value;
+      const m2 = w.metrics.find(x => x.id === mk2);
+      const data2 = (w.points || []).map(p => (p.vals[mk2] ?? null));
+      const f1 = valueFmt(m?.fmt), f2 = valueFmt(m2?.fmt);
+      def = {
+        type: 'line', categories: cats, height: w.height ?? 320,
+        colors: ['#7C3AED', '#059669'], secondaryAxis: [1],
+        series: [{ name: m?.label || mk, data }, { name: m2?.label || mk2, data: data2 }],
+        // Eixos de escalas distintas: cada um formata no seu próprio padrão (R$/%/int),
+        // e o tooltip usa o formato da série correspondente.
+        options: {
+          yaxis: [{ labels: { formatter: f1 } }, { opposite: true, labels: { formatter: f2 } }],
+          tooltip: { y: [{ formatter: f1 }, { formatter: f2 }] },
+        },
+      } as unknown as ChartDef;
+    } else {
+      def = {
+        type: 'line', series: [{ name: m?.label || mk, data }], categories: cats,
+        height: w.height ?? 320, colors: ['#7C3AED'], valueFormat: m?.fmt,
+      } as unknown as ChartDef;
+    }
     const opts = buildOptions(def);
     if (chart) { void chart.updateOptions(opts); return; }
     if (typeof ApexCharts === 'undefined') return;
@@ -1106,6 +1149,7 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
     void chart.render();
   };
   sel.addEventListener('change', build);
+  sel2?.addEventListener('change', build);
   requestAnimationFrame(build);
   return wrap;
 }

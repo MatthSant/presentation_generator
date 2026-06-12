@@ -501,6 +501,9 @@ export interface EvolutionPickerWidget extends WidgetBase {
   metrics: ScatterMetric[];
   points: ScatterPoint[];
   current?: string;
+  /** Opt-in DUAL mode: quando presente, um 2º seletor escolhe uma segunda métrica
+   *  plotada no eixo da direita (escalas independentes). Sem ele, mono-métrica. */
+  current2?: string;
 }
 
 /** Gráfico embutido dentro de outro widget (qa-card) — subconjunto de ChartWidget. */

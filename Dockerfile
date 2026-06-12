@@ -26,9 +26,14 @@ ENV NODE_ENV=production \
     PYSRC_DIR=/app/pysrc \
     APP_OUT=/data/output \
     APP_DB=/data/comments.db \
+    APP_BASE=/data/.base \
+    CLAUDE_LOG=/data/claude-log.jsonl \
     APP_SCRATCH=/data/.scratch
 
-# Dado das análises + DB persistem em volume; scratch (CSV bruto) é efêmero.
+# Análises + DB + registro de clientes (_clients.json) + base retida (dumps/configs)
+# persistem no volume. APP_BASE PRECISA apontar p/ /data: no default cai em /app/.base
+# (efêmero) e, quando a instância recicla (Cloud Run scale-to-zero/redeploy), o registro
+# de clientes some → o seletor de cliente fica vazio. Só o scratch (CSV bruto) é efêmero.
 VOLUME ["/data"]
 EXPOSE 3131
 
