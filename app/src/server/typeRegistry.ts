@@ -200,7 +200,10 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const G = genericFuncoes('grupo');
       return {
         consultar: {
-          funcoes: [G.ranking, G.series, G.series_long, G.correlacao, G.trend],
+          funcoes: [
+            G.tabela, G.ranking, G.series, G.series_long, G.correlacao, G.trend,
+            { id: 'atingimento', desc: 'realizado × META × gap × atingimento% por indicador GLOBAL (vendas/leads/fat/qualif/CPL/CPMQL) — use para "a meta foi atingida? onde ficou o gap?"' },
+          ],
           params: {
             dimensao: { enum: ['escopo', 'canal', 'temperatura', 'semana'], desc: 'eixo do recorte (escopo = pago × orgânico; canal; temperatura; semana)' },
             ...genericParams(M),

@@ -57,7 +57,30 @@ def build_frame(M, a):
     return {'axis': dim, 'rows': rows, 'labels': labs, 'cost': {m: (m in COST) for m in labs}}
 
 
-EXTRA = {}
+def atingimento(M, _a):
+    """Realizado × meta × gap por indicador GLOBAL. A meta mora aqui (o build_frame é
+    cross-tab e não a carrega) — serve 'a meta foi atingida? onde ficou o gap?'. As
+    métricas de custo (CPL/CPMQL) atingem a meta quando ficam ABAIXO dela."""
+    G = M.get('goals') or {}
+    spec = [('vendas', 'Vendas', M.get('vendas_total')), ('leads', 'Leads', M.get('leads_total')),
+            ('fat', 'Faturamento', M.get('fat')), ('qual', 'Qualificação', M.get('qual')),
+            ('cpl', 'CPL', M.get('cpl')), ('cpmql', 'CPMQL', M.get('cpmql'))]
+    rows = []
+    for key, lab, val in spec:
+        meta = G.get(key)
+        row = {'indicador': lab, 'Realizado': round(val, 2) if isinstance(val, (int, float)) else None}
+        if meta:
+            row['Meta'] = round(meta, 2)
+            row['Gap'] = round((val or 0) - meta, 2)
+            row['Atingimento'] = round((val or 0) / meta * 100, 1)
+        rows.append(row)
+    if not any('Meta' in r for r in rows):
+        return {'status': 'nao_disponivel', 'motivo': 'sem metas configuradas na base'}
+    return {'status': 'ok', 'table': {'dims': ['indicador'], 'filters': [], 'rows': rows},
+            'summary': 'Realizado vs meta da campanha (Gap absoluto e Atingimento %).'}
+
+
+EXTRA = {'atingimento': atingimento}
 
 
 def main():
