@@ -349,9 +349,9 @@ html, body {
 .chart-headline-cap { font-size: 12px; color: var(--gray, #6b6b8a); margin: 2px 0 6px; }
 
 /* ── kpi-card: hierarquia 3d / flag / meta (acompanhamento) ── */
-.kc-d3 { font-size: 12.5px; font-weight: 700; margin-top: 3px; }
+.kc-d3 { font-size: 12px; font-weight: 600; margin-top: 4px; color: var(--gray2); }
 .kc-d3-arr { font-size: 10.5px; font-weight: 600; opacity: .8; }
-.kc-flag { font-size: 11.5px; font-weight: 600; margin-top: 2px; }
+.kc-flag { align-self: flex-start; margin-top: 9px; }
 .kc-goal { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border, #e6e6f0); }
 .kc-goal-lbl { font-size: 11px; color: var(--gray, #6b6b8a); }
 .kc-goal-val { font-size: 11.5px; font-weight: 700; }
@@ -1438,13 +1438,14 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc { padding: 13px 15px; display: flex; flex-direction: column; height: 100%; }
 .kc--volume { padding: 12px 13px 11px; }
 .kc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.kc--feature .kc-head { align-items: center; margin-bottom: 6px; }
 .kc--volume .kc-head { margin-bottom: 5px; }
 .kc-ico { width: 31px; height: 31px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }
 .kc--volume .kc-ico { width: 27px; height: 27px; border-radius: 8px; }
 .kc-ico svg { width: 17px; height: 17px; }
 .kc--volume .kc-ico svg { width: 14px; height: 14px; }
 .kc-lbl { font-size: 11px; font-weight: 600; color: var(--fg); }
-.kc--feature .kc-lbl { margin-bottom: 3px; }
+.kc--feature .kc-lbl { margin-bottom: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gray2); }
 .kc-val { font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--fg); line-height: 1.05; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; }
 .kc-val .kpi-sep { color: var(--border-strong); font-weight: 500; margin: 0 4px; }
 .kc--volume .kc-val { font-size: 19px; margin-top: 1px; }

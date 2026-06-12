@@ -311,9 +311,14 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
   const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}`);
-  const head = el('div', 'kc-head');
+  const val = el('div', 'kc-val');
+  val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
   if (feature) {
-    head.appendChild(iconBox(w.icon, w.iconColor));
+    // Card de KPI no padrão da referência: SEM ícone — label uppercase + (opcional)
+    // pill de comparação à direita; valor; "3d: X"; pill de tendência verde/vermelha;
+    // linha de meta com ✓/✗.
+    const head = el('div', 'kc-head');
+    head.appendChild(el('div', 'kc-lbl', w.label));
     if (w.cmp) {
       const cur = w.cmp[cmpMode] || w.cmp.meta;
       const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
@@ -323,15 +328,7 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     } else if (w.delta) {
       head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
     }
-  } else {
-    head.appendChild(el('span', 'kc-lbl', w.label));
-    head.appendChild(iconBox(w.icon, w.iconColor));
-  }
-  card.appendChild(head);
-  const val = el('div', 'kc-val');
-  val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
-  if (feature) {
-    card.appendChild(el('div', 'kc-lbl', w.label));
+    card.appendChild(head);
     const row = el('div', 'kc-valrow');
     row.appendChild(val);
     if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
@@ -340,13 +337,12 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     if (w.d3) {
       const c = w.d3.tone === 'pos' ? 'c-g' : w.d3.tone === 'neg' ? 'c-r' : 'c-a';
       const dd = el('div', `kc-d3 ${c}`);
-      dd.appendChild(document.createTextNode(`3d ${w.d3.value} `));
-      if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? '↑3d' : '↓3d'));
+      dd.appendChild(document.createTextNode(`3d: ${w.d3.value}`));
+      if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? ' ↑' : ' ↓'));
       card.appendChild(dd);
     }
     if (w.flag) {
-      const c = w.flag.tone === 'pos' ? 'c-g' : w.flag.tone === 'neg' ? 'c-r' : 'c-a';
-      card.appendChild(el('div', `kc-flag ${c}`, w.flag.text));
+      card.appendChild(el('span', `pill ${PILL_TONE[w.flag.tone || 'neutral']} kc-flag`, w.flag.text));
     }
     if (w.goal) {
       const g = el('div', 'kc-goal');
@@ -358,6 +354,10 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       card.appendChild(g);
     }
   } else {
+    const head = el('div', 'kc-head');
+    head.appendChild(el('span', 'kc-lbl', w.label));
+    head.appendChild(iconBox(w.icon, w.iconColor));
+    card.appendChild(head);
     card.appendChild(val);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
     if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']} kc-vol-delta`, w.delta));
