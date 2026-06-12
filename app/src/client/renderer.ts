@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, type ChartDef } from './charts.js';
@@ -685,6 +685,78 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
   return div;
 }
 
+/* ── qa-card ── unidade "pergunta" da Análise 360°: chip + título + grade de
+ * números-chave + chips de veredito + 1 gráfico embutido (reusa renderChart). */
+function renderQaCard(w: QaCardWidget, ctx: RenderCtx): HTMLElement {
+  const color = w.qColor || 'p';
+  const card = el('div', `qa-card qa-${color}`);
+  const head = el('div', 'qa-head');
+  if (w.q) head.appendChild(el('span', `qa-chip qa-chip-${color}`, w.q));
+  head.appendChild(el('span', 'qa-title', w.title));
+  if (w.verdict) head.appendChild(el('span', `pill ${PILL_TONE[w.verdict.tone || 'neutral']} qa-verdict`, w.verdict.label));
+  card.appendChild(head);
+  if (w.stats?.length) {
+    const grid = el('div', 'qa-stats');
+    for (const s of w.stats) {
+      const tile = el('div', `qa-stat qa-stat-${s.tone || 'neutral'}`);
+      tile.appendChild(el('div', 'qa-stat-l', s.label));
+      tile.appendChild(el('div', 'qa-stat-v', s.value));
+      if (s.sub || s.delta) {
+        const sub = el('div', 'qa-stat-s');
+        if (s.sub) sub.appendChild(document.createTextNode(`${s.sub} `));
+        if (s.delta) sub.appendChild(el('span', `pill ${PILL_TONE[s.tone === 'pos' ? 'pos' : s.tone === 'neg' ? 'neg' : 'neutral']}`, s.delta));
+        tile.appendChild(sub);
+      }
+      grid.appendChild(tile);
+    }
+    card.appendChild(grid);
+  }
+  if (w.chips?.length) {
+    const row = el('div', 'qa-chips');
+    for (const ch of w.chips) row.appendChild(el('span', `qa-vchip qa-vchip-${ch.tone || 'neutral'}`, `${ch.glyph ? ch.glyph + ' ' : ''}${ch.label}`));
+    card.appendChild(row);
+  }
+  if (w.chart) {
+    const slot = el('div', 'qa-chart');
+    slot.appendChild(renderChart({ ...w.chart, type: 'chart', id: `${w.id}-chart` } as ChartWidget, ctx));
+    card.appendChild(slot);
+  }
+  return card;
+}
+
+/* ── funnel ── funil visual: barras degradê por etapa + pills perda/migram. */
+const FUNNEL_GRAD = ['#534AB7', '#6257C4', '#7265D1', '#8374DC', '#9787E5', '#AFA9EC'];
+function renderFunnel(w: FunnelWidget): HTMLElement {
+  const wrap = el('div', 'funnel-card');
+  if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
+  if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
+  const body = el('div', 'funnel-body');
+  const n = w.steps.length;
+  w.steps.forEach((s, i) => {
+    const bar = el('div', 'funnel-bar');
+    bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
+    bar.appendChild(el('span', 'funnel-bar-l', s.label));
+    bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
+    body.appendChild(bar);
+    const t = w.transitions?.[i];
+    if (t && i < n - 1) {
+      body.appendChild(el('div', 'funnel-conn'));
+      const pills = el('div', 'funnel-pills');
+      if (t.invalid) {
+        pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
+      } else {
+        if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
+          `${t.worst ? '⚠️ ' : '▼ '}${t.loss.toFixed(1)}% perda${t.worst ? ' · MAIOR FURO' : ''}`));
+        if (t.migrate != null) pills.appendChild(el('span', 'funnel-pill funnel-pill--migrate', `✓ ${t.migrate.toFixed(1)}% migram`));
+        if (t.bench != null && t.gap != null && t.gap > 0 && !t.worst) pills.appendChild(el('span', 'funnel-pill funnel-pill--bench', `esperado ${t.bench.toFixed(0)}%`));
+      }
+      body.appendChild(pills);
+    }
+  });
+  wrap.appendChild(body);
+  return wrap;
+}
+
 function renderFindNote(w: FindNoteWidget): HTMLElement {
   const p = el('p', 'find-note find-note-p');
   p.innerHTML = w.text || '';
@@ -994,6 +1066,8 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'chart-toggle': return renderChartToggle(widget, ctx);
       case 'rank-card':   return renderRankCard(widget, ctx);
       case 'find-block':  return renderFindBlock(widget);
+      case 'qa-card':     return renderQaCard(widget, ctx);
+      case 'funnel':      return renderFunnel(widget);
       case 'find-note':   return renderFindNote(widget);
       case 'highlight':   return renderHighlight(widget);
       case 'ni':

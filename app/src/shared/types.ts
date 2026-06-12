@@ -86,7 +86,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -485,13 +485,46 @@ export interface EvolutionPickerWidget extends WidgetBase {
   current?: string;
 }
 
+/** Gráfico embutido dentro de outro widget (qa-card) — subconjunto de ChartWidget. */
+export type EmbeddedChart = Omit<ChartWidget, 'type'> & { type?: 'chart' };
+
+/** qa-card — unidade "pergunta" da Análise 360°: chip + título + grade de números +
+ *  chips de veredito + 1 gráfico embutido. */
+export interface QaCardWidget extends WidgetBase {
+  type: 'qa-card';
+  /** Badge da pergunta (ex.: "Q5"). */
+  q?: string;
+  /** Cor do chip/accent: g|a|r|p|n. */
+  qColor?: 'g' | 'a' | 'r' | 'p' | 'n';
+  title: string;
+  /** Chip de veredito do card (canto direito do header). */
+  verdict?: { label: string; tone?: 'pos' | 'neg' | 'neutral' };
+  /** Grade de 2–4 números-chave (cada um vira um stat-tile colorido). */
+  stats?: { label: string; value: string; sub?: string; delta?: string; tone?: 'pos' | 'neg' | 'neutral' | 'purple' }[];
+  /** Fila de chips de veredito (ex.: temperatura por ROAS). */
+  chips?: { label: string; glyph?: string; tone?: 'pos' | 'neg' | 'neutral' }[];
+  /** Gráfico embutido (reusa renderChart + bind). */
+  chart?: EmbeddedChart;
+}
+
+/** funnel — funil visual: barras degradê por etapa + pills perda/migram por transição. */
+export interface FunnelWidget extends WidgetBase {
+  type: 'funnel';
+  title?: string;
+  sub?: string;
+  steps: { label: string; value: number }[];
+  /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido. */
+  transitions?: { loss?: number; migrate?: number; bench?: number; gap?: number; worst?: boolean; invalid?: boolean }[];
+}
+
 export type Widget =
   | KpiWidget | ChartWidget | TableWidget | HeatmapWidget | RankCardWidget
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
-  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget;
+  | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
+  | QaCardWidget | FunnelWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
