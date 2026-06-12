@@ -185,11 +185,24 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     label: 'Debriefing de Lançamento',
     pysrcDir: 'debriefing-lancamento',
     supportsInsights: false,
+    queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/ranking por canal/temperatura/semana
     gerarPage: 'gerar-debriefing.html',
     montadorPage: 'montador-debriefing.html',
     controlsKind: 'debriefing-lancamento',
     validateConfig() { return []; },
-    buildDeepenMeta() { return null; },   // modo raso por ora (deep mode vem depois)
+    buildDeepenMeta() {
+      const M = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'fpl'];
+      const G = genericFuncoes('grupo');
+      return {
+        consultar: {
+          funcoes: [G.ranking, G.series, G.correlacao, G.trend],
+          params: {
+            dimensao: { enum: ['canal', 'temperatura', 'semana'], desc: 'eixo do recorte' },
+            ...genericParams(M),
+          },
+        },
+      };
+    },
   },
 };
 

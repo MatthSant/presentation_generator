@@ -12,8 +12,9 @@ from . import conversao_perfil
 from . import historico_lancamentos
 from . import criativos
 from . import acompanhamento_lancamento
+from . import debriefing_lancamento
 
-BANKS = [conversao_perfil, historico_lancamentos, criativos, acompanhamento_lancamento]
+BANKS = [conversao_perfil, historico_lancamentos, criativos, acompanhamento_lancamento, debriefing_lancamento]
 
 
 def pick_bank(dataset):
