@@ -154,12 +154,15 @@ const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha p
 - SÉRIES (agrupado/empilhado): no máximo ~6. Com mais (ex.: uma por lançamento) o gráfico fica ilegível —
   agregue, foque nas MAIORES variações, ou use heatmap. Tabela vazia (só cabeçalho) ou gráfico que não
   comunica é DEFEITO: corte ou troque por kpi/prosa.
-- LIMITE deste detalhamento: ele NÃO tem gráfico de DISPERSÃO (correlação entre duas métricas) nem gráfico
-  de DUAS métricas em EIXOS INDEPENDENTES. Se o pedido é correlação (ex.: "CPA × conversão", "CPL × CPA")
-  ou "investimento × faturamento em eixo duplo", NÃO finja: não plote uma série só, e NÃO pivote a métrica
-  em uma-série-por-período (vira as "9 séries" ilegíveis). Em vez disso, ponha as duas métricas como COLUNAS
-  de uma TABLE — com a variação/Δ% já calculada quando os dados permitirem — e registre num find-note, em
-  uma linha, que a visualização de dispersão/eixo-duplo não está disponível aqui.`;
+- MULTI-LINHA / multi-série de MÉTRICAS de ESCALA COMPARÁVEL (ex.: leads pago × leads orgânico por dia,
+  CPL × CPMQL por semana): PODE e DEVE. Chame a consulta "series_long" (devolve formato longo com colunas
+  "serie" e "valor") e plote um line/bar com bind { x: <eixo>, y: "valor", series: "serie" } — vira 2+ linhas
+  no mesmo eixo. Só exige que as métricas dividam ordem de grandeza parecida.
+- LIMITE deste detalhamento: NÃO tem gráfico de DISPERSÃO (correlação ponto-a-ponto entre duas métricas) nem
+  EIXO DUPLO (duas métricas de escalas MUITO diferentes em eixos y independentes, ex.: investimento R$ ×
+  conversão %). Para esses casos NÃO finja eixo duplo: ponha as duas métricas como COLUNAS de uma TABLE — com
+  a variação/Δ% já calculada quando der — e registre num find-note, em uma linha, que dispersão/eixo-duplo não
+  está disponível aqui. (Métricas de MESMA escala → use series_long e plote multi-linha, acima.)`;
 
 const GUARDRAIL = `GUARDRAIL — NUNCA perca de vista a PERGUNTA ORIGINAL (campo "pergunta_original" do input): toda a
 saída existe para respondê-la. Pedidos de revisão/ajuste ("instrucao") refinam a FORMA (trocar gráfico,

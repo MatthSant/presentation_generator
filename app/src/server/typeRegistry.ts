@@ -38,9 +38,10 @@ type Params = Record<string, { enum?: string[]; desc?: string }>;
 /** Catálogo das consultas GENÉRICAS (common.query_core). Descritas UMA vez aqui;
  *  cada tipo escolhe quais expor passando o nome do seu eixo. Função genérica nova
  *  = adicionar aqui + em query_core.py — nunca por tipo. */
-function genericFuncoes(eixo: string): Record<'series' | 'correlacao' | 'trend' | 'ranking', Funcao> {
+function genericFuncoes(eixo: string): Record<'series' | 'series_long' | 'correlacao' | 'trend' | 'ranking', Funcao> {
   return {
     series: { id: 'series', desc: `VÁRIAS métricas por ${eixo} numa tabela só (metrica_x, metrica_y, opcional metrica_z) — compare indicadores/evoluções lado a lado` },
+    series_long: { id: 'series_long', desc: `VÁRIAS métricas por ${eixo} em formato LONGO (coluna "serie" + "valor") — para gráfico MULTI-LINHA / barra agrupada (bind series="serie", y="valor"); só com métricas de escala comparável (metrica_x, metrica_y, opcional metrica_z)` },
     correlacao: { id: 'correlacao', desc: `correlação de Pearson entre duas métricas ao longo dos ${eixo}s (metrica_x, metrica_y)` },
     trend: { id: 'trend', desc: `uma métrica (metrica) ao longo dos ${eixo}s` },
     ranking: { id: 'ranking', desc: `${eixo}s ordenados por uma métrica (metrica), com as colunas principais` },
@@ -86,7 +87,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             { id: 'trend', desc: 'a métrica de cada grupo ao longo dos lançamentos (criterio, metrica)' },
             { id: 'crosstab', desc: 'cruzamento de um critério com outro (criterio, cruzar_com)' },
             { id: 'association', desc: 'força de associação entre dois critérios (criterio, cruzar_com)' },
-            G.series, G.ranking,   // genéricas sobre os grupos do critério escolhido
+            G.series, G.series_long, G.ranking,   // genéricas sobre os grupos do critério escolhido
           ],
           params: {
             criterio: { enum: ids, desc: 'critério principal (define os grupos do eixo)' },
@@ -116,7 +117,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       return {
         consultar: {
           funcoes: [
-            G.correlacao, G.series, G.ranking,
+            G.correlacao, G.series, G.series_long, G.ranking,
             { id: 'por_temperatura', desc: 'uma métrica (metrica) agregada por temperatura do lead' },
             { id: 'saturacao_diaria', desc: 'ROAS e retorno por DIA (geral, ou de um criativo) para detectar saturação' },
             { id: 'benchmark_gap', desc: 'distância média de cada indicador de anúncio (hook/hold/ctr/connect/conv_pagina) frente ao benchmark' },
@@ -148,7 +149,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       return {
         consultar: {
           funcoes: [
-            G.trend, G.series, G.correlacao,
+            G.trend, G.series, G.series_long, G.correlacao,
             { id: 'decomposicao', desc: 'decompõe o CPA (= CPL ÷ conversão paga): diz se a variação do CPA foi mais de CPL ou de conversão' },
             { id: 'por_dimensao', desc: 'uma métrica (metrica) por dimensão (canal/plataforma/temperatura) ao longo dos lançamentos' },
           ],
@@ -176,7 +177,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const G = genericFuncoes('dia');
       return {
         consultar: {
-          funcoes: [G.trend, G.series, G.correlacao, G.ranking],
+          funcoes: [G.trend, G.series, G.series_long, G.correlacao, G.ranking],
           params: { ...genericParams(M) },
         },
       };
@@ -198,7 +199,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const G = genericFuncoes('grupo');
       return {
         consultar: {
-          funcoes: [G.ranking, G.series, G.correlacao, G.trend],
+          funcoes: [G.ranking, G.series, G.series_long, G.correlacao, G.trend],
           params: {
             dimensao: { enum: ['canal', 'temperatura', 'semana'], desc: 'eixo do recorte' },
             ...genericParams(M),

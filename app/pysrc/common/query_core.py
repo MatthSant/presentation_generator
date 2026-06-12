@@ -60,6 +60,28 @@ def series(frame, a):
     return ok(rows, [ax], f'{", ".join(L[m] for m in ms)} por {ax} ({len(rows)} {_plural(ax)}).')
 
 
+def series_long(frame, a):
+    """Mesmo eixo, VÁRIAS métricas como SÉRIES (formato longo) — habilita gráfico
+    multi-linha / barra agrupada (bind series='serie'). Use só quando as métricas
+    compartilham escala comparável (ex.: leads pago × leads orgânico); para escalas
+    diferentes (ex.: CPL × leads) prefira `series` em colunas."""
+    L = frame['labels']
+    ms = list(dict.fromkeys(m for m in (a.get('metrica_x'), a.get('metrica_y'), a.get('metrica_z')) if m in L))
+    if len(ms) < 2:
+        return nao_disp('informe ao menos metrica_x e metrica_y (e opcional metrica_z)')
+    ax = frame['axis']
+    rows = []
+    for e in frame['rows']:
+        for m in ms:
+            v = rnd(e['m'].get(m))
+            if v is not None:
+                rows.append({ax: e['key'], 'serie': L[m], 'valor': v})
+    if len(rows) < 2:
+        return nao_disp('sem dados suficientes')
+    return ok(rows, [ax, 'serie'],
+              f'{", ".join(L[m] for m in ms)} por {ax} (séries longas — bind series="serie", y="valor").')
+
+
 def correlacao(frame, a):
     """Correlação de Pearson entre duas métricas ao longo das entidades."""
     L = frame['labels']
@@ -105,7 +127,8 @@ def ranking(frame, a):
     return ok(rows, [ax], f'{len(rows)} {_plural(ax)} ordenados por {L[m]} ({"menor" if cost else "maior"} melhor).')
 
 
-GENERIC = {'series': series, 'correlacao': correlacao, 'trend': trend, 'ranking': ranking}
+GENERIC = {'series': series, 'series_long': series_long, 'correlacao': correlacao,
+           'trend': trend, 'ranking': ranking}
 
 
 def run(build_frame, extra, ctx, fn, a):
