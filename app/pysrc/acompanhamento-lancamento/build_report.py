@@ -247,34 +247,30 @@ def assemble(rows, config, content, opts=None):
                 'caption': 'Impressões → Cliques → Pageviews → Leads → Respostas → MQLs'})
     tg.add('tra-eb-fun', 'eyebrow', 12, 1)
 
-    def funnel_table(wid, title, stages, w=6):
-        # Tabela por TAXA de cada transição (não volume absoluto): a taxa realizada
-        # vs o benchmark esperado, com o furo relativo. Uma linha por transição.
-        rows = []
+    def funnel_widget(wid, title, sub, stages, w=6):
+        # Widget de funil visual: barras degradê por etapa + pills perda/migram por
+        # transição + MAIOR FURO (relativo ao benchmark) + dado inválido.
+        steps = [{'label': s['label'], 'value': s['value']} for s in stages]
+        trans = []
         for i in range(len(stages) - 1):
             tr = stages[i].get('trans') or {}
-            nome = f"{FUNNEL_RATE[i]} · {stages[i]['label']} → {stages[i + 1]['label']}"
             if tr.get('invalid'):
-                taxa, esp, furo = '⚠️ inválido', '—', '—'
+                trans.append({'invalid': True})
             elif 'migracao' in tr:
-                taxa = f"{tr['migracao']:.1f}%"
-                esp = f"{tr['bench']:.1f}%" if tr.get('bench') else '—'
-                gap = tr.get('gap')
-                if gap is None:
-                    furo = '—'
-                elif gap <= 0:
-                    furo = {'value': '✓ ok', 'cls': 'c-g'}
-                else:
-                    mark = ' · ⚠️ MAIOR FURO' if tr.get('maior_furo') else ''
-                    furo = {'value': f"−{gap:.1f}%{mark}", 'cls': 'c-r' if tr.get('maior_furo') else 'c-a'}
+                t = {'loss': tr['perda'], 'migrate': tr['migracao']}
+                if tr.get('bench'):
+                    t['bench'] = tr['bench']
+                if tr.get('gap') is not None:
+                    t['gap'] = tr['gap']
+                if tr.get('maior_furo'):
+                    t['worst'] = True
+                trans.append(t)
             else:
-                taxa, esp, furo = '—', '—', '—'
-            rows.append([nome, taxa, esp, furo])
-        tra.append({'id': wid, 'type': 'table', 'title': title,
-                    'cols': ['Transição', 'Taxa realizada', 'Esperado', 'Furo vs esperado'], 'rows': rows})
-        tg.add(wid, 'table', w, 4)
-    funnel_table('tra-fun-tot', f"Funil Total · {B['n_dias']} dias", B['funnel_total'])
-    funnel_table('tra-fun-3d', 'Funil · Últimos 3 dias', B['funnel_3d'])
+                trans.append({})
+        tra.append({'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, 'steps': steps, 'transitions': trans})
+        tg.add(wid, 'funnel', w, 7)
+    funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total'])
+    funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d'])
     sections['s04'] = {'id': 's04', 'header': {'badge': 'Tráfego', 'title': 'Indicadores de Tráfego Pago',
                        'sub': 'CPM, Hook, Hold, CTR, Connect, Conversão de Página e funil de conversão.'}, 'widgets': tra}
     layouts['s04'] = tg.items
