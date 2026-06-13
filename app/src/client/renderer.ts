@@ -306,7 +306,7 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     main.appendChild(val);
     if (w.sub) main.appendChild(el('div', 'kc-sub', w.sub));
     card.appendChild(main);
-    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[tone]} kc-band-pill`, w.delta));
+    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[tone] || ''} kc-band-pill`, w.delta));
     return card;
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';

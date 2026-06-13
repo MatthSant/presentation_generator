@@ -423,7 +423,7 @@ export interface KpiCardWidget extends WidgetBase {
   iconColor?: string;
   /** Variation badge (feature tier), e.g. "↑ +3.0pp vs anterior". */
   delta?: string;
-  deltaTone?: 'pos' | 'neg' | 'neutral';
+  deltaTone?: 'pos' | 'neg' | 'neutral' | 'emph';
   /** Dual delta for the meta/histórico toggle: [texto, tone] por modo. Quando
    *  presente, o badge troca ao vivo com o controle `compare` (feature de plataforma). */
   cmp?: { meta: [string, string]; hist: [string, string] };

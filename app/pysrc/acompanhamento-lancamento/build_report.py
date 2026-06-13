@@ -155,17 +155,21 @@ def assemble(rows, config, content, opts=None):
     ry = 1
     if mt:
         at = calc.pct(leads_tot, mt) or 0
+        # Meta Geral = progresso vs a meta TOTAL (naturalmente abaixo no meio da campanha),
+        # então é o card de DESTAQUE (roxo escuro), não um semáforo de performance.
         pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta Geral', 'value': f'{intf(leads_tot)} / {intf(mt)}',
                     'sub': 'leads captados vs meta total da campanha',
-                    'delta': f'{at:.1f}%', 'deltaTone': 'pos' if at >= 100 else ('neg' if at < 90 else 'neutral')})
+                    'delta': f'{at:.1f}%', 'deltaTone': 'emph'})
         hero_lay.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     if mtd:
         atd = calc.pct(leads_tot, mtd) or 0
+        # Meta To Date = performance vs o esperado p/ hoje → semáforo: ≥95% no rumo (verde),
+        # 80–95% atenção (âmbar), <80% abaixo (vermelho). 98,4% deixa de ser âmbar.
         pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta To Date', 'value': f'{intf(leads_tot)} / {intf(mtd)}',
                     'sub': 'leads captados vs meta esperada até hoje',
-                    'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 100 else ('neg' if atd < 90 else 'neutral')})
+                    'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 95 else ('neg' if atd < 80 else 'neutral')})
         hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
                 'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads',
