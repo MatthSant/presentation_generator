@@ -365,14 +365,11 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s04 — Tráfego Pago ═══════════════════════════════════════════════
     tra, tg = [], Grid()
-    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia: alcance, vídeo e cliques'})
+    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia + custo e qualidade do lead pago'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
-    for m in calc.KPI_TRAF:
+    for m in calc.KPI_TRAF:                                   # linha 1: mídia
         kcard(tra, tg, m, 'kt')
-    # conversão do lead pago — custo e qualidade (CPMQL em destaque)
-    tra.append({'id': 'tra-eb-conv', 'type': 'eyebrow', 'title': 'CONVERSÃO DO LEAD PAGO', 'caption': 'custo, resposta e qualidade'})
-    tg.add('tra-eb-conv', 'eyebrow', 12, 1)
-    for m in ['cpl', 'taxa_resp', 'taxa_qual', 'cpmql']:
+    for m in ['cpl', 'taxa_resp', 'taxa_qual', 'cpmql']:      # linha 2: conversão (CPMQL em destaque)
         kcard(tra, tg, m, 'kt', w=3)
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas
