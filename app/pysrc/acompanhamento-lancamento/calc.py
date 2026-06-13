@@ -80,14 +80,26 @@ def is_paid(r):
     return fnum(r.get('invest_total')) > 0
 
 
-def infer_temp(name):
+# Regra de temperatura: categoria → palavras-chave buscadas no nome da campanha.
+# Default; pode ser sobrescrita por config['temperatura'] (setada na criação do dash).
+DEFAULT_TEMP = {
+    'Quente': ['hot', 'quente'],
+    'Morno': ['warm', 'morno'],
+    'Frio': ['cold', 'frio', 'gelad'],
+}
+
+
+def temp_rules(config):
+    """Normaliza a regra de temperatura do config (keywords em minúsculas)."""
+    raw = (config or {}).get('temperatura') or DEFAULT_TEMP
+    return {cat: [str(k).lower() for k in (kws or [])] for cat, kws in raw.items()}
+
+
+def infer_temp(name, rules=None):
     n = str(name or '').lower()
-    if 'hot' in n:
-        return 'Quente'
-    if 'warm' in n:
-        return 'Morno'
-    if 'cold' in n or 'frio' in n:
-        return 'Frio'
+    for cat, kws in (rules or DEFAULT_TEMP).items():
+        if any(k and k in n for k in kws):
+            return cat
     return 'Indefinido'
 
 
@@ -292,10 +304,11 @@ def build(rows, config=None):
     split = {'leads_pago': round(lp), 'leads_org': round(lo),
              'pct_pago': pct(lp, lp + lo), 'pct_org': pct(lo, lp + lo)}
 
-    # temperatura (só pago)
+    # temperatura (só pago) — regra de classificação vem do config (ou default)
+    trules = temp_rules(config)
     temp = {}
-    for t in ['Quente', 'Morno', 'Frio', 'Indefinido']:
-        sub = [r for r in rows_corte if is_paid(r) and infer_temp(r.get('field_campaign_name')) == t]
+    for t in list(trules.keys()) + ['Indefinido']:
+        sub = [r for r in rows_corte if is_paid(r) and infer_temp(r.get('field_campaign_name'), trules) == t]
         if not sub:
             continue
         ss = _sum(sub)

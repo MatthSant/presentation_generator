@@ -4,7 +4,8 @@
 `build(csv, config, content, out_dir)` carrega o CSV, chama assemble e grava.
 
 config: { client, title, slug, field_conversion?, data_corte?, data_report?,
-          nome_campanha?, metas?{cpl,cpmql,...}, goals_csv?, dict_links? }
+          nome_campanha?, metas?{cpl,cpmql,...}, goals_csv?, dict_links?,
+          temperatura?{Quente:[kw],Morno:[kw],Frio:[kw]} (regra p/ field_campaign_name) }
 
 Descritivo/determinístico — o número nasce no calc.py; a IA (Insights) entra via
 `content`. Mapeia o one-pager tático (Visão Geral · Evolução · Canais · Tráfego) para
