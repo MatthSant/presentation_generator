@@ -59,7 +59,7 @@ def assemble(rows, config, content, opts=None):
             tone = 'neutral'
         else:
             tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
-        return f"{arrow} {tr['pct']:.0f}% · 3d", tone
+        return f"{arrow} {tr['pct']:.0f}%", tone
 
     def kpi_sub(metric):
         parts = [f"3d {vfmt(metric, B['d3'].get(metric))}"]
