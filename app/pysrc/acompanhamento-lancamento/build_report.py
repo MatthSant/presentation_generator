@@ -309,19 +309,22 @@ def assemble(rows, config, content, opts=None):
     tl = B['tipo_lead']
     can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
     cg.add('can-eb-tipo', 'eyebrow', 12, 1)
-    # tom por categoria (como na fonte): roxo na base, vermelho no pago, verde no orgânico.
-    tl_cells = [
-        ('Leads Novos', tl['novos'], calc.pct(tl['novos'], tl['novos'] + tl['antigos']), 'do total', 'p'),
-        ('Leads Antigos', tl['antigos'], calc.pct(tl['antigos'], tl['novos'] + tl['antigos']), 'do total', 'p'),
-        ('Antigos · Pago', tl['antigos_pago'], calc.pct(tl['antigos_pago'], tl['antigos']), 'dos antigos', 'r'),
-        ('Antigos · Orgânico', tl['antigos_org'], calc.pct(tl['antigos_org'], tl['antigos']), 'dos antigos', 'g'),
-        ('Clientes · Pago', tl['cli_pago'], calc.pct(tl['cli_pago'], tl['cli_total']), 'dos clientes', 'p'),
-        ('Clientes · Orgânico', tl['cli_org'], calc.pct(tl['cli_org'], tl['cli_total']), 'dos clientes', 'g'),
+    # matriz: colunas Novos / Antigos / Clientes × linhas Geral / Pago / Orgânico
+    leads_tl = tl['novos'] + tl['antigos']
+
+    def tl_cell(v, base, suf=''):
+        p = calc.pct(v, base)
+        return {'value': intf(v), 'rel': (f'{p:.1f}%{suf}' if p is not None else '—')}
+    tl_rows = [
+        ['Geral', tl_cell(tl['novos'], leads_tl, ' do total'),
+         tl_cell(tl['antigos'], leads_tl, ' do total'), tl_cell(tl['cli_total'], leads_tl, ' dos leads')],
+        ['Pago', tl_cell(tl['novos_pago'], tl['novos']),
+         tl_cell(tl['antigos_pago'], tl['antigos']), tl_cell(tl['cli_pago'], tl['cli_total'])],
+        ['Orgânico', tl_cell(tl['novos_org'], tl['novos']),
+         tl_cell(tl['antigos_org'], tl['antigos']), tl_cell(tl['cli_org'], tl['cli_total'])],
     ]
-    for i, (lbl, val, p, suf, tint) in enumerate(tl_cells):
-        can.append({'id': f'can-tl-{i}', 'type': 'kpi-card', 'tier': 'volume', 'label': lbl, 'tint': tint,
-                    'value': intf(val), 'sub': f'{(p or 0):.1f}% {suf}', 'icon': 'users', 'iconColor': '#534AB7'})
-        cg.add(f'can-tl-{i}', 'kpi-card', 4, 2)
+    can.append({'id': 'can-tl', 'type': 'table', 'cols': ['', 'Leads Novos', 'Leads Antigos', 'Clientes'], 'rows': tl_rows})
+    cg.add('can-tl', 'table', 12, 3)
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:

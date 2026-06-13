@@ -325,6 +325,7 @@ def build(rows, config=None):
     org_rows = [r for r in rows_corte if not is_paid(r)]
     tipo_lead = {
         'novos': round(tot_sums['novos']), 'antigos': round(tot_sums['antigos']),
+        'novos_pago': ssum(paid_rows, 'novos'), 'novos_org': ssum(org_rows, 'novos'),
         'antigos_pago': ssum(paid_rows, 'antigos'), 'antigos_org': ssum(org_rows, 'antigos'),
         'cli_pago': ssum(paid_rows, 'cli'), 'cli_org': ssum(org_rows, 'cli'),
         'cli_total': round(tot_sums['cli']),
