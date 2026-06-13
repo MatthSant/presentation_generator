@@ -311,22 +311,20 @@ def assemble(rows, config, content, opts=None):
     tl = B['tipo_lead']
     can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
     cg.add('can-eb-tipo', 'eyebrow', 12, 1)
-    # matriz: colunas Novos / Antigos / Clientes × linhas Geral / Pago / Orgânico
-    leads_tl = tl['novos'] + tl['antigos']
-
-    def tl_cell(v, base, suf=''):
-        p = calc.pct(v, base)
-        return {'value': intf(v), 'rel': (f'{p:.1f}%{suf}' if p is not None else '—')}
+    # barras 100% por categoria, divididas Pago / Orgânico — mostra quem domina cada
+    # categoria de lead (novos = pago, clientes = orgânico, etc.)
+    def tl_seg(pago, org, tot):
+        pp, po = calc.pct(pago, tot) or 0, calc.pct(org, tot) or 0
+        return [{'pct': pp, 'color': '#7C3AED', 'label': f'{pp:.0f}%'},
+                {'pct': po, 'color': '#639922', 'label': f'{po:.0f}%'}]
     tl_rows = [
-        ['Geral', tl_cell(tl['novos'], leads_tl, ' do total'),
-         tl_cell(tl['antigos'], leads_tl, ' do total'), tl_cell(tl['cli_total'], leads_tl, ' dos leads')],
-        ['Pago', tl_cell(tl['novos_pago'], tl['novos']),
-         tl_cell(tl['antigos_pago'], tl['antigos']), tl_cell(tl['cli_pago'], tl['cli_total'])],
-        ['Orgânico', tl_cell(tl['novos_org'], tl['novos']),
-         tl_cell(tl['antigos_org'], tl['antigos']), tl_cell(tl['cli_org'], tl['cli_total'])],
+        {'label': 'Leads Novos', 'value': intf(tl['novos']), 'seg': tl_seg(tl['novos_pago'], tl['novos_org'], tl['novos'])},
+        {'label': 'Leads Antigos', 'value': intf(tl['antigos']), 'seg': tl_seg(tl['antigos_pago'], tl['antigos_org'], tl['antigos'])},
+        {'label': 'Clientes', 'value': intf(tl['cli_total']), 'seg': tl_seg(tl['cli_pago'], tl['cli_org'], tl['cli_total'])},
     ]
-    can.append({'id': 'can-tl', 'type': 'table', 'cols': ['', 'Leads Novos', 'Leads Antigos', 'Clientes'], 'rows': tl_rows})
-    cg.add('can-tl', 'table', 12, 3)
+    can.append({'id': 'can-tl', 'type': 'bar-list', 'rows': tl_rows,
+                'legend': [{'label': 'Pago', 'color': '#7C3AED'}, {'label': 'Orgânico', 'color': '#639922'}]})
+    cg.add('can-tl', 'bar-list', 12, 3)
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:

@@ -879,6 +879,15 @@ function renderBarList(w: BarListWidget): HTMLElement {
     head.appendChild(el('div', 'chart-title', w.title));
     wrap.appendChild(head);
   }
+  if (w.legend?.length) {
+    const lg = el('div', 'bl-legend');
+    for (const s of w.legend) {
+      const item = el('span', 'bl-legend-i');
+      const sw = el('span', 'bl-legend-sw'); sw.style.background = s.color; item.appendChild(sw);
+      item.appendChild(document.createTextNode(s.label)); lg.appendChild(item);
+    }
+    wrap.appendChild(lg);
+  }
   const max = w.max ?? Math.max(1, ...w.rows.map(r => r.bar || 0));
   const rowsEl = el('div', 'bl-rows');
   for (const r of w.rows) {
@@ -891,13 +900,25 @@ function renderBarList(w: BarListWidget): HTMLElement {
     }
     lab.appendChild(el('span', 'bl-name', r.label));
     row.appendChild(lab);
-    const track = el('div', 'bl-track');
-    const fill = el('div', 'bl-fill');
-    fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
-    if (r.color) fill.style.background = r.color;
-    track.appendChild(fill); row.appendChild(track);
-    row.appendChild(el('span', 'bl-val', r.value));
-    row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+    if (r.seg?.length) {
+      const track = el('div', 'bl-track bl-track--seg');
+      for (const s of r.seg) {
+        const seg = el('div', 'bl-seg', s.label || '');
+        seg.style.width = `${Math.max(0, s.pct)}%`; seg.style.background = s.color;
+        track.appendChild(seg);
+      }
+      row.appendChild(track);
+      row.appendChild(el('span', 'bl-val', r.value));
+      row.appendChild(el('span', 'bl-pct', ''));
+    } else {
+      const track = el('div', 'bl-track');
+      const fill = el('div', 'bl-fill');
+      fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
+      if (r.color) fill.style.background = r.color;
+      track.appendChild(fill); row.appendChild(track);
+      row.appendChild(el('span', 'bl-val', r.value));
+      row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+    }
     rowsEl.appendChild(row);
   }
   wrap.appendChild(rowsEl);

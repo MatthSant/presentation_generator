@@ -570,9 +570,14 @@ export interface BarListWidget extends WidgetBase {
   type: 'bar-list';
   title?: string;
   caption?: string;
-  rows: { label: string; value: string; pct?: number; bar: number; indent?: boolean; icon?: string; color?: string }[];
+  rows: { label: string; value: string; pct?: number; bar?: number; indent?: boolean; icon?: string; color?: string;
+          /** Barra dividida (100% empilhada) em vez de barra única — ex.: split Pago/Orgânico
+           *  por categoria. Cada segmento: largura % + cor + rótulo interno. */
+          seg?: { pct: number; color: string; label?: string }[] }[];
   /** escala máxima das barras (default = maior `bar`). */
   max?: number;
+  /** Legenda das séries no topo (ex.: Pago / Orgânico) — usada com linhas `seg`. */
+  legend?: { label: string; color: string }[];
   /** cards de stat no rodapé (ex.: Quente/Morno com CPL médio em destaque). */
   cards?: { label: string; tone?: 'red' | 'amber' | 'orange' | 'green' | 'blue' | 'purple'; icon?: string;
             stats?: { label: string; value: string }[]; headline?: { label: string; value: string } }[];
