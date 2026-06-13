@@ -95,18 +95,16 @@ def assemble(rows, config, content, opts=None):
             impact = RISK_IMPACT.get(r['metric'], '')
             if r['reason'] == 'trend':
                 # dentro da meta, mas piorando rápido
-                arrow = '▲' if r['trend_dir'] == 'up' else '▼'
-                stat = {'value': vfmt(r['metric'], r['value']),
-                        'delta': f"{arrow} {r['trend_pct']:.0f}% em 3d", 'tone': 'warn'}
+                txt = 'Em alta nos últimos 3 dias' if r['trend_dir'] == 'up' else 'Em queda nos últimos 3 dias'
+                stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt, 'tone': 'warn'}
                 if mv is not None:
                     stat['meta'] = f"meta {vfmt(r['metric'], mv)} (ok)"
                 tag, tagColor = f"↗ {r['label']}", 'a'
                 detail = f"Dentro da meta, mas piorando rápido nos últimos dias. {impact}"
             else:
                 sym = '⚠' if r['cls'] == 'warn' else '✕'
-                arrow = '▼' if r['meta_dev'] < 0 else '▲'   # abaixo da meta (KPI) / acima (custo)
-                stat = {'value': vfmt(r['metric'], r['value']),
-                        'delta': f"{arrow} {abs(r['meta_dev']):.0f}%",
+                txt = 'Abaixo da meta' if r['meta_dev'] < 0 else 'Acima da meta'   # KPI / custo
+                stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt,
                         'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
                 if mv is not None:
                     stat['meta'] = f"meta {vfmt(r['metric'], mv)}"
