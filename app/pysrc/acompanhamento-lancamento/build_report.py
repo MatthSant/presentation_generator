@@ -22,6 +22,8 @@ from common.preserve import preserve, preserve_dataset
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
 INT = {'leads'}  # contagem — nem % nem dinheiro
+# Métricas de funil/mídia cujo alvo é um BENCHMARK (não uma meta da campanha).
+BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag'}
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
 FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).
@@ -100,7 +102,7 @@ def assemble(rows, config, content, opts=None):
         st = B['meta_status'].get(metric)
         meta = B['meta'].get(metric)
         if st and meta is not None:
-            glabel = 'Meta (proj.)' if metric == 'investimento' else 'Meta'
+            glabel = 'Meta (proj.)' if metric == 'investimento' else ('Bench' if metric in BENCH_METRICS else 'Meta')
             card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
         pg.add(wid, 'kpi-card', w, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
@@ -108,15 +110,15 @@ def assemble(rows, config, content, opts=None):
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
             impact = RISK_IMPACT.get(r['metric'], '')
+            art = 'do benchmark' if r['metric'] in BENCH_METRICS else 'da meta'
             if r['reason'] == 'trend':
-                # dentro da meta, mas piorando rápido
                 txt = 'Em alta nos últimos 3 dias' if r['trend_dir'] == 'up' else 'Em queda nos últimos 3 dias'
                 stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt, 'tone': 'warn'}
                 tag, tagColor = f"↗ {r['label']}", 'a'
-                detail = f"Dentro da meta, mas piorando rápido nos últimos dias. {impact}"
+                detail = f"Dentro {art}, mas piorando rápido nos últimos dias. {impact}"
             else:
                 sym = '⚠' if r['cls'] == 'warn' else '✕'
-                txt = 'Abaixo da meta' if r['meta_dev'] < 0 else 'Acima da meta'   # KPI / custo
+                txt = f'Abaixo {art}' if r['meta_dev'] < 0 else f'Acima {art}'   # KPI / custo
                 stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt,
                         'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
                 tag, tagColor = f"{sym} {r['label']}", ('r' if r['cls'] == 'bad' else 'a')
