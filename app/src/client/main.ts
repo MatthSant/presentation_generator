@@ -74,7 +74,6 @@ class App {
     document.documentElement.dataset.theme = 'light';   // dark mode removido no redesign
     const brand = document.getElementById('tn-client');
     if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
-    this.renderCover();
     this.setupHistorico();
     // Cards clicáveis (link-card) → navegam para uma seção (ficha).
     document.addEventListener('goto-section', (e) => {
@@ -131,16 +130,13 @@ class App {
     main.insertBefore(hint, ROOT);
   }
 
-  /** Report-level cover block, rendered once above the section content. Lives in
-   *  #main (not #export-root), so it persists as sections navigate. */
-  private renderCover(): void {
+  /** Capa do relatório (eyebrow + título + meta). NÃO aparece no app — o título já
+   *  vive no topnav/header da seção; só entra na EXPORTAÇÃO HTML standalone, como
+   *  masthead do documento. Retorna '' quando não há meta.cover. */
+  private coverHtml(): string {
     const meta = this.store.data?.meta;
     const cover = meta?.cover;
-    if (!cover) return;
-    const main = document.getElementById('main');
-    if (!main || document.getElementById('report-header')) return;
-    const h = document.createElement('header');
-    h.id = 'report-header';
+    if (!cover) return '';
     const parts: string[] = [];
     if (cover.eyebrow) parts.push(`<div class="badge badge-p">${esc(cover.eyebrow)}</div>`);
     parts.push(`<h1 class="sec-title">${esc(meta?.title || '')}</h1>`);
@@ -148,8 +144,7 @@ class App {
       parts.push(`<div class="cover-meta">${cover.meta.map(esc).join('<span class="cm-dot">◆</span>')}</div>`);
     }
     parts.push('<div class="cover-rule"></div>');
-    h.innerHTML = parts.join('');
-    main.insertBefore(h, ROOT);
+    return `<header id="report-header">${parts.join('')}</header>`;
   }
 
   private async go(pageId: string, sectionId: string, keepScroll = false): Promise<void> {
@@ -157,11 +152,6 @@ class App {
     this.store.currentPageId = pageId;
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
-
-    // Capa = título do relatório, só na 1ª página (Panorama); nas demais, o título da
-    // própria seção é o título do topo — evita repetir o título do relatório em toda página.
-    const coverEl = document.getElementById('report-header');
-    if (coverEl) coverEl.style.display = pageId === this.store.data?.pages?.[0]?.id ? '' : 'none';
 
     this.hist?.setPage(pageId);
     this.criativos?.setPage(pageId);
@@ -532,8 +522,8 @@ class App {
   // highlight, find-note, ni, eyebrow, label-sec).
   private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card',
     'heatmap-toggle', 'chart-toggle', 'chart-table', 'kpi', 'kpi-card', 'kpi-strip', 'qa-card',
-    'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle']);
-  private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>';
+    'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list']);
+  private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 6.5 17h11z"/><path d="M4.5 17h15"/><path d="M12 8l.55 1.45 1.45.1-1.1 1 .35 1.45L12 12.2l-1.7.8.35-1.45-1.1-1 1.45-.1z" fill="currentColor" stroke="none"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
    *  is attached. Works across all pages/blocks, not just insight cards. */
@@ -996,7 +986,9 @@ class App {
       const theme = document.documentElement.dataset.theme || 'light';
       const meta = this.store.data?.meta || {};
       const title = meta.title || meta.client || 'Relatório';
-      const defCanal = fdef ? String(fdef.default ?? fdef.options[0] ?? '') : '';
+      // Sem filtro, variants = [null] → as panes ficam com data-canal="null"; o canal
+      // padrão precisa casar com isso (senão apply() esconde tudo → export em branco).
+      const defCanal = String(fdef ? (fdef.default ?? fdef.options[0] ?? '') : variants[0]);
       const firstPage = pages[0]?.id || '';
 
       const navTabs = pages.map(p => `<button class="exp-tab" data-page="${esc(p.id)}">${esc(p.label)}</button>`).join('');
@@ -1037,6 +1029,8 @@ body{margin:0}
 .exp-cbtn.on{color:#fff;background:var(--purple)}
 .exp-canal-pane[hidden],.exp-page[hidden]{display:none}
 .exp-root{width:1180px;max-width:100%;margin:0 auto;padding:22px 72px 72px}
+.exp-cover{width:1180px;max-width:100%;margin:0 auto;padding:8px 72px 0}
+.exp-cover #report-header{padding:36px 24px 18px}
 .export-section{margin-bottom:48px}
 .export-section .dash-tile{overflow:hidden}
 .export-section .apexcharts-canvas,.export-section .apexcharts-canvas svg{max-width:100%}
@@ -1049,6 +1043,7 @@ body{margin:0}
   <div class="exp-tabs">${navTabs}</div>
   ${navCanal}
 </nav>
+<div class="exp-cover">${this.coverHtml()}</div>
 ${body}
 <script>${runtime}</script>
 </body>

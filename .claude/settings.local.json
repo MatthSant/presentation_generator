@@ -263,7 +263,24 @@
       "Bash(mv \"inde-conversao-perfil \\(4\\).html\" backup/)",
       "Bash(mv novas-analises *)",
       "Bash(mv novo-logo.png backup/)",
-      "PowerShell($ports = 3131,3141; foreach \\($p in $ports\\) { $conns = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if \\($conns\\) { $conns | Select-Object -Expand OwningProcess -Unique | ForEach-Object { $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue; if \\($proc\\) { Write-Output \\(\"porta {0} -> PID {1} \\({2}\\) — encerrando\" -f $p, $proc.Id, $proc.ProcessName\\); Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } } } else { Write-Output \\(\"porta {0} -> livre\" -f $p\\) } })"
+      "PowerShell($ports = 3131,3141; foreach \\($p in $ports\\) { $conns = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if \\($conns\\) { $conns | Select-Object -Expand OwningProcess -Unique | ForEach-Object { $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue; if \\($proc\\) { Write-Output \\(\"porta {0} -> PID {1} \\({2}\\) — encerrando\" -f $p, $proc.Id, $proc.ProcessName\\); Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } } } else { Write-Output \\(\"porta {0} -> livre\" -f $p\\) } })",
+      "Bash(git rev-list *)",
+      "Bash(gh pr *)",
+      "PowerShell($gh = Get-Command gh -ErrorAction SilentlyContinue; if \\($gh\\) { Write-Output \\(\"gh em: \" + $gh.Source\\); gh --version | Select-Object -First 1; Write-Output \"--- PR existente? ---\"; gh pr list --head feat/hosted-generation --state open } else { Write-Output \"gh NAO encontrado no PATH\" })",
+      "Bash(curl -s -X POST http://localhost:3141/api/clients -H \"Content-Type: application/json\" -d '{\"name\":\"INDÊ\",\"context\":\"Educação, lançamentos mensais\"}')",
+      "Bash(curl -s http://localhost:3141/api/clients)",
+      "Bash(curl -s -X POST http://localhost:3141/api/inde/_new/generate -F \"csv=@backup/skill-criativos/base_criativos.csv\" -F 'config={\"type\":\"criativos\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('report:', d.get\\('report'\\), '| ok:', d.get\\('ok'\\), '| err:', d.get\\('error'\\)\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\('app/../output/inde/criativos/data.json',encoding='utf-8'\\)\\); print\\('client\\(meta\\):', d['meta'].get\\('client'\\), '| title:', d['meta'].get\\('title'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('report:', d.get\\('report'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); v=d.get\\('validation',{}\\); print\\('ok:',d.get\\('ok'\\)\\); print\\('errors:', json.dumps\\(v.get\\('errors',[]\\)[:5], ensure_ascii=False\\)\\)\")",
+      "Bash(curl -s -X POST http://localhost:3141/api/inde/_new/generate -F \"csv=@backup/skill-criativos/base_criativos.csv\" -F \"dict=@backup/skill-criativos/dicionario_criativos.csv\" -F 'config={\"type\":\"criativos\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('report:',d.get\\('report'\\),'| ok:',d.get\\('ok'\\)\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\('output/inde/criativos/data.json',encoding='utf-8'\\)\\); print\\('meta.client:', repr\\(d['meta'].get\\('client'\\)\\), '| title:', repr\\(d['meta'].get\\('title'\\)\\)\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('output/inde/criativos/data.json',encoding='utf-8'\\)\\); print\\('client bytes ok:', d['meta']['client'] == 'Indê', '| value:', d['meta']['client'].encode\\('utf-8'\\)\\)\")",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(curl -s http://localhost:3141/api/inde/debriefing/perguntas)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(p['id'],'| rel',round\\(p['relevancia']\\),'|',p['pergunta']\\) for p in d['perguntas'][:8]]\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Matheus\\Documents\\GitHub\\presentation_generator\\.claude\\skills\\build-slides"

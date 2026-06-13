@@ -177,7 +177,7 @@ function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
 
 /* ── eyebrow ── numbered zone separator (badge + title + caption + rule) */
 function renderEyebrow(w: EyebrowWidget): HTMLElement {
-  const wrap = el('div', `grp-eyebrow${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
+  const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
   if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
@@ -263,6 +263,7 @@ const ICONS: Record<string, string> = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
   'credit-card': '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 9.5h18"/>',
   sprout: '<path d="M12 21V11"/><path d="M12 11c0-3 2-5 5-5 0 3-2 5-5 5Z" fill="currentColor" stroke="none"/><path d="M12 13c0-2.5-2-4-4.5-4 0 2.5 2 4 4.5 4Z" fill="currentColor" stroke="none"/>',
+  snowflake: '<path d="M12 2.5v19M3.85 7.25l16.3 9.5M20.15 7.25l-16.3 9.5M9.5 4.3 12 6.8l2.5-2.5M9.5 19.7 12 17.2l2.5 2.5M4.6 11l3.4.9.9-3.4M19.4 13l-3.4-.9-.9 3.4M19.4 11l-3.4.9-.9-3.4M4.6 13l3.4-.9.9 3.4"/>',
 };
 
 function iconBox(icon?: string, color?: string): HTMLElement {
@@ -306,11 +307,12 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     main.appendChild(val);
     if (w.sub) main.appendChild(el('div', 'kc-sub', w.sub));
     card.appendChild(main);
-    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[tone]} kc-band-pill`, w.delta));
+    if (w.delta) card.appendChild(el('span', `pill ${PILL_TONE[tone] || ''} kc-band-pill`, w.delta));
     return card;
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
-  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}`);
+  const emphCls = (feature && w.emph) ? ' kc--emph' : '';
+  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}${emphCls}`);
   const val = el('div', 'kc-val');
   val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
   if (feature) {
@@ -331,6 +333,8 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     card.appendChild(head);
     const row = el('div', 'kc-valrow');
     row.appendChild(val);
+    // tendência (3d vs início) inline ao lado do valor
+    if (w.flag) row.appendChild(el('span', `pill ${PILL_TONE[w.flag.tone || 'neutral']} kc-trend`, w.flag.text));
     if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
     card.appendChild(row);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
@@ -341,15 +345,13 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? ' ↑' : ' ↓'));
       card.appendChild(dd);
     }
-    if (w.flag) {
-      card.appendChild(el('span', `pill ${PILL_TONE[w.flag.tone || 'neutral']} kc-flag`, w.flag.text));
-    }
     if (w.goal) {
       const g = el('div', 'kc-goal');
       g.appendChild(el('span', 'kc-goal-lbl', w.goal.label));
       if (w.goal.delta) {
-        const sym = w.goal.status === 'ok' ? '✓' : w.goal.status === 'bad' ? '✕' : '⚠';
-        g.appendChild(el('span', `kc-goal-val kg-${w.goal.status || 'warn'}`, `${w.goal.delta} ${sym}`));
+        const st = w.goal.status || 'warn';
+        const sym = st === 'ok' ? '✓' : st === 'bad' ? '✕' : st === 'warn' ? '⚠' : '';
+        g.appendChild(el('span', `kc-goal-val kg-${st}`, sym ? `${w.goal.delta} ${sym}` : w.goal.delta));
       }
       card.appendChild(g);
     }
@@ -530,6 +532,10 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
         td.appendChild(el('span', 'tm-val', formatValue(value)));
         td.appendChild(el('span', `pill ${PILL_TONE[obj.tone || 'neutral']} tm-pill`, obj.delta));
         if (obj.rel) td.appendChild(el('span', 'tm-rel', obj.rel));
+      } else if (obj && obj.rel) {
+        td.classList.add('td-metric');
+        td.appendChild(el('span', 'tm-val', formatValue(value)));
+        td.appendChild(el('span', 'tm-rel', obj.rel));
       } else if (obj && obj.link) {
         const a = el('a', 'td-link') as HTMLAnchorElement;
         a.href = obj.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
@@ -755,7 +761,15 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
   const div = el('div', `find-block${w.card ? ' find-block--card' : ''} fb-${color}`);
   if (w.modal) { div.dataset.modal = w.modal; }
   div.appendChild(el('span', `find-tag find-tag-${color}`, w.tag || ''));
-  div.appendChild(el('div', 'find-title', w.title || ''));
+  if (w.stat) {
+    const s = el('div', 'find-stat');
+    s.appendChild(el('span', 'fs-val', w.stat.value));
+    s.appendChild(el('span', `fs-delta sd-${w.stat.tone || 'warn'}`, w.stat.delta));
+    if (w.stat.meta) s.appendChild(el('span', 'fs-meta', w.stat.meta));
+    div.appendChild(s);
+  } else {
+    div.appendChild(el('div', 'find-title', w.title || ''));
+  }
   if (w.detail) {
     const { body, impl } = splitImplication(w.detail);
     if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = w.card ? highlightFigures(body) : body; div.appendChild(p); }
@@ -865,6 +879,15 @@ function renderBarList(w: BarListWidget): HTMLElement {
     head.appendChild(el('div', 'chart-title', w.title));
     wrap.appendChild(head);
   }
+  if (w.legend?.length) {
+    const lg = el('div', 'bl-legend');
+    for (const s of w.legend) {
+      const item = el('span', 'bl-legend-i');
+      const sw = el('span', 'bl-legend-sw'); sw.style.background = s.color; item.appendChild(sw);
+      item.appendChild(document.createTextNode(s.label)); lg.appendChild(item);
+    }
+    wrap.appendChild(lg);
+  }
   const max = w.max ?? Math.max(1, ...w.rows.map(r => r.bar || 0));
   const rowsEl = el('div', 'bl-rows');
   for (const r of w.rows) {
@@ -877,13 +900,27 @@ function renderBarList(w: BarListWidget): HTMLElement {
     }
     lab.appendChild(el('span', 'bl-name', r.label));
     row.appendChild(lab);
-    const track = el('div', 'bl-track');
-    const fill = el('div', 'bl-fill');
-    fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
-    if (r.color) fill.style.background = r.color;
-    track.appendChild(fill); row.appendChild(track);
-    row.appendChild(el('span', 'bl-val', r.value));
-    row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+    if (r.seg?.length) {
+      const track = el('div', 'bl-track bl-track--seg');
+      for (const s of r.seg) {
+        const seg = el('div', 'bl-seg', s.label || '');
+        seg.style.width = `${Math.max(0, s.pct)}%`; seg.style.background = s.color;
+        track.appendChild(seg);
+      }
+      row.appendChild(track);
+      const tot = el('div', 'bl-total');
+      tot.appendChild(el('span', 'bl-val', r.value));
+      if (r.pct != null) tot.appendChild(el('span', 'bl-totpct', `${r.pct.toFixed(1)}% do total`));
+      row.appendChild(tot);
+    } else {
+      const track = el('div', 'bl-track');
+      const fill = el('div', 'bl-fill');
+      fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
+      if (r.color) fill.style.background = r.color;
+      track.appendChild(fill); row.appendChild(track);
+      row.appendChild(el('span', 'bl-val', r.value));
+      row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+    }
     rowsEl.appendChild(row);
   }
   wrap.appendChild(rowsEl);
@@ -923,7 +960,6 @@ function renderCriList(w: CriListWidget): HTMLElement {
     head.appendChild(el('div', 'chart-title', w.title));
     wrap.appendChild(head);
   }
-  if (w.caption) wrap.appendChild(el('div', 'cri-cap', w.caption));
   for (const r of w.rows) {
     const row = el('div', 'cri-row');
     const thumb = el('div', 'cri-thumb');
@@ -947,6 +983,7 @@ function renderCriList(w: CriListWidget): HTMLElement {
     row.appendChild(stat);
     wrap.appendChild(row);
   }
+  if (w.caption) wrap.appendChild(el('div', 'cri-cap', w.caption));
   return wrap;
 }
 

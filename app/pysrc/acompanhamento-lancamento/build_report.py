@@ -4,7 +4,8 @@
 `build(csv, config, content, out_dir)` carrega o CSV, chama assemble e grava.
 
 config: { client, title, slug, field_conversion?, data_corte?, data_report?,
-          nome_campanha?, metas?{cpl,cpmql,...}, goals_csv?, dict_links? }
+          nome_campanha?, metas?{cpl,cpmql,...}, goals_csv?, dict_links?,
+          temperatura?{Quente:[kw],Morno:[kw],Frio:[kw]} (regra p/ field_campaign_name) }
 
 Descritivo/determinístico — o número nasce no calc.py; a IA (Insights) entra via
 `content`. Mapeia o one-pager tático (Visão Geral · Evolução · Canais · Tráfego) para
@@ -20,10 +21,13 @@ from common.fmt import money, pctf, intf
 from common.preserve import preserve, preserve_dataset
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
+INT = {'leads'}  # contagem — nem % nem dinheiro
+# Métricas de funil/mídia cujo alvo é um BENCHMARK (não uma meta da campanha).
+BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag'}
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
 FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).
-ICON = {'investimento': ('coin', '#534AB7'), 'cpl': ('users', '#185FA5'), 'cpmql': ('star', '#854F0B'),
+ICON = {'leads': ('users', '#7C3AED'), 'investimento': ('coin', '#534AB7'), 'cpl': ('credit-card', '#185FA5'), 'cpmql': ('star', '#854F0B'),
         'taxa_resp': ('arrows-left-right', '#3B6D11'), 'taxa_qual': ('circle-check', '#534AB7'),
         'conv_pag': ('target', '#185FA5'), 'cpm': ('database', '#534AB7'), 'hook': ('bolt', '#EF9F27'),
         'hold': ('trending-up', '#854F0B'), 'ctr': ('trending-up', '#3B6D11'),
@@ -33,7 +37,11 @@ ICON = {'investimento': ('coin', '#534AB7'), 'cpl': ('users', '#185FA5'), 'cpmql
 def vfmt(metric, v):
     if v is None:
         return '—'
-    return pctf(v) if metric in PCT else money(v)
+    if metric in PCT:
+        return pctf(v)
+    if metric in INT:
+        return intf(v)
+    return money(v)
 
 
 def assemble(rows, config, content, opts=None):
@@ -47,10 +55,27 @@ def assemble(rows, config, content, opts=None):
     def trend_delta(metric):
         tr = B['trend'].get(metric)
         if not tr or tr['dir'] == 'neutro':
-            return 'estável', 'neutral'
+            return '3d estável', 'neutral'
         arrow = '▲' if tr['dir'] == 'up' else '▼'
-        tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
-        return f"{arrow} {tr['pct']:.0f}% vs início", tone
+        # investimento: variação de gasto não é boa nem ruim → tom neutro
+        if metric == 'investimento':
+            tone = 'neutral'
+        else:
+            tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
+        return f"3d {arrow}{tr['pct']:.0f}%", tone
+
+    def trend_badge(metric):
+        """Versão verbosa do chip de tendência p/ cabeçalho de gráfico (tem espaço).
+        Retorna (None, None) quando estável — gráfico não recebe badge."""
+        tr = B['trend'].get(metric)
+        if not tr or tr['dir'] == 'neutro':
+            return None, None
+        arrow = '▲' if tr['dir'] == 'up' else '▼'
+        if metric == 'investimento':
+            tone = 'neutral'
+        else:
+            tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
+        return f"{arrow} {tr['pct']:.0f}% nos últimos 3d", tone
 
     def kpi_sub(metric):
         parts = [f"3d {vfmt(metric, B['d3'].get(metric))}"]
@@ -61,41 +86,66 @@ def assemble(rows, config, content, opts=None):
             parts.append(f"meta {vfmt(metric, meta)} · {st['dev']:+.0f}% {sym}")
         return ' · '.join(parts)
 
-    def kcard(arr, pg, metric, prefix='k'):
+    def kcard(arr, pg, metric, prefix='k', w=2):
         wid = f'{prefix}-{metric}'
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
-        tr = B['trend'].get(metric, {})
         flag_txt, flag_tone = trend_delta(metric)
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
-        # valor dos últimos 3 dias (colorido pela direção-de-bom)
-        d3v = B['d3'].get(metric)
-        if d3v is not None:
-            d3 = {'value': vfmt(metric, d3v),
-                  'tone': 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')}
-            if tr.get('dir') in ('up', 'down'):
-                d3['dir'] = tr['dir']
-            card['d3'] = d3
-        # flag de tendência (vs início)
+        if metric == 'cpmql':   # métrica-chave (maior correlação c/ vendas) em destaque roxo
+            card['emph'] = True
+        # tendência 3d (vs início) — inline ao lado do valor, presente em todas as métricas
         if flag_txt:
             card['flag'] = {'text': flag_txt, 'tone': flag_tone}
-        # rodapé de meta + desvio com selo ✓/⚠/✕
+        # rodapé de meta + desvio com selo ✓/⚠/✕ (fixo no fim do card)
         st = B['meta_status'].get(metric)
         meta = B['meta'].get(metric)
         if st and meta is not None:
-            card['goal'] = {'label': f"meta {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
+            glabel = 'Meta (proj.)' if metric == 'investimento' else ('Bench' if metric in BENCH_METRICS else 'Meta')
+            card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
-        pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
+        pg.add(wid, 'kpi-card', w, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
-            sym = '⚠' if r['cls'] == 'warn' else '✕'
+            impact = RISK_IMPACT.get(r['metric'], '')
+            art = 'do benchmark' if r['metric'] in BENCH_METRICS else 'da meta'
+            if r['reason'] == 'trend':
+                txt = 'Em alta nos últimos 3 dias' if r['trend_dir'] == 'up' else 'Em queda nos últimos 3 dias'
+                stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt, 'tone': 'warn'}
+                tag, tagColor = f"↗ {r['label']}", 'a'
+                detail = f"Dentro {art}, mas piorando rápido nos últimos dias. {impact}"
+            else:
+                sym = '⚠' if r['cls'] == 'warn' else '✕'
+                txt = f'Abaixo {art}' if r['meta_dev'] < 0 else f'Acima {art}'   # KPI / custo
+                stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt,
+                        'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
+                tag, tagColor = f"{sym} {r['label']}", ('r' if r['cls'] == 'bad' else 'a')
+                detail = impact
             arr.append({'id': f'{prefix}-risk-{i}', 'type': 'find-block', 'card': True,
-                        'tag': f"{sym} {r['label']}", 'tagColor': 'r' if r['cls'] == 'bad' else 'a',
-                        'title': f"{vfmt(r['metric'], r['value'])} · {r['meta_dev']:+.0f}% vs meta",
-                        'detail': RISK_IMPACT.get(r['metric'], '')})
+                        'tag': tag, 'tagColor': tagColor,
+                        'title': f"{vfmt(r['metric'], r['value'])}",
+                        'stat': stat, 'detail': detail})
             pg.add(f'{prefix}-risk-{i}', 'find-block', 6, 2)
+
+    def risk_section(arr, pg, risks, prefix, title):
+        # eyebrow + cards de risco; quando não há risco, mostra um card de "tudo em
+        # linha" em vez de seção vazia.
+        if risks:
+            arr.append({'id': f'{prefix}-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
+                        'title': title, 'caption': 'KPIs furando a meta ou em piora acelerada'})
+            pg.add(f'{prefix}-eb-risk', 'eyebrow', 12, 1)
+            risk_blocks(arr, pg, risks, prefix)
+        else:
+            arr.append({'id': f'{prefix}-eb-risk', 'type': 'eyebrow', 'n': '✓', 'color': 'green',
+                        'title': title, 'caption': 'sem alertas no momento'})
+            pg.add(f'{prefix}-eb-risk', 'eyebrow', 12, 1)
+            arr.append({'id': f'{prefix}-risk-ok', 'type': 'find-block', 'card': True,
+                        'tag': '✓ Tudo em linha', 'tagColor': 'g',
+                        'title': 'Indicadores em linha ou acima do planejado',
+                        'detail': 'Nenhum KPI furando a meta nem em piora acelerada nos últimos 3 dias. Manter o ritmo e seguir monitorando.'})
+            pg.add(f'{prefix}-risk-ok', 'find-block', 12, 2)
 
     # ── dataset diário (charts) ──────────────────────────────────────────────
     add_table('acom_daily', ['dia'], [
@@ -155,17 +205,21 @@ def assemble(rows, config, content, opts=None):
     ry = 1
     if mt:
         at = calc.pct(leads_tot, mt) or 0
+        # Meta Geral = progresso vs a meta TOTAL (naturalmente abaixo no meio da campanha),
+        # então é o card de DESTAQUE (roxo escuro), não um semáforo de performance.
         pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta Geral', 'value': f'{intf(leads_tot)} / {intf(mt)}',
                     'sub': 'leads captados vs meta total da campanha',
-                    'delta': f'{at:.1f}%', 'deltaTone': 'pos' if at >= 100 else ('neg' if at < 90 else 'neutral')})
+                    'delta': f'{at:.1f}%', 'deltaTone': 'emph'})
         hero_lay.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     if mtd:
         atd = calc.pct(leads_tot, mtd) or 0
+        # Meta To Date = performance vs o esperado p/ hoje → semáforo: ≥95% no rumo (verde),
+        # 80–95% atenção (âmbar), <80% abaixo (vermelho). 98,4% deixa de ser âmbar.
         pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta To Date', 'value': f'{intf(leads_tot)} / {intf(mtd)}',
-                    'sub': 'leads captados vs meta esperada até hoje',
-                    'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 100 else ('neg' if atd < 90 else 'neutral')})
+                    'sub': f'leads captados vs meta esperada até {B["corte_label"]}',
+                    'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 95 else ('neg' if atd < 80 else 'neutral')})
         hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
                 'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads',
@@ -184,11 +238,7 @@ def assemble(rows, config, content, opts=None):
     for m in calc.KPI_MACRO:
         kcard(pan, pg, m)
 
-    if B['risks_macro']:
-        pan.append({'id': 'pan-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
-                    'title': 'PRINCIPAIS RISCOS', 'caption': 'KPIs com maior desvio negativo vs meta'})
-        pg.add('pan-eb-risk', 'eyebrow', 12, 1)
-        risk_blocks(pan, pg, B['risks_macro'], 'pan')
+    risk_section(pan, pg, B['risks_macro'], 'pan', 'PRINCIPAIS RISCOS')
 
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Visão Geral', 'title': B['nome'],
                        'sub': f"Acompanhamento tático · dia {B['dia_campanha']} · emitido {B['report_date'] or '—'}"}, 'widgets': pan}
@@ -206,8 +256,8 @@ def assemble(rows, config, content, opts=None):
         else:
             c['colors'] = [color]
         if trendkey:
-            txt, tone = trend_delta(trendkey)
-            if txt and txt != 'estável':
+            txt, tone = trend_badge(trendkey)
+            if txt:
                 c['badge'] = {'text': txt, 'tone': tone}
         evo.append(c)
         eg.add(wid, 'chart', w, 4)
@@ -233,66 +283,82 @@ def assemble(rows, config, content, opts=None):
         {'label': 'Orgânico', 'value': intf(sp['leads_org']), 'pct': calc.pct(sp['leads_org'], tot_leads) or 0,
          'bar': sp['leads_org'], 'icon': 'sprout', 'color': '#A78BFA'},
     ]
-    for c in B['canais_org'][:6]:
+    co = B['canais_org']
+    for c in co[:5]:
         orig_rows.append({'label': c['source'], 'value': intf(c['leads']), 'pct': c.get('pct') or 0,
                           'bar': c['leads'], 'indent': True, 'color': '#C3A4F7'})
+    if co[5:]:   # agrupa os canais além do top 5 num "Outros" final
+        ro = sum(c['leads'] for c in co[5:])
+        orig_rows.append({'label': 'Outros', 'value': intf(ro), 'pct': calc.pct(ro, sp['leads_org']) or 0,
+                          'bar': ro, 'indent': True, 'color': '#C3A4F7'})
     can.append({'id': 'can-orig', 'type': 'bar-list', 'title': 'Origem do Tráfego', 'rows': orig_rows})
     cg.add('can-orig', 'bar-list', 6, 4)
     # temperatura — bar-list (Quente/Morno) + cards de stat com CPL médio em destaque
     if B['temp']:
         TC = {'Quente': '#DC2626', 'Morno': '#EA580C', 'Frio': '#2563EB', 'Indefinido': '#9b98a3'}
-        TI = {'Quente': 'flame', 'Morno': 'sun'}
-        TT = {'Quente': 'red', 'Morno': 'green', 'Frio': 'purple', 'Indefinido': 'purple'}
+        TI = {'Quente': 'flame', 'Morno': 'sun', 'Frio': 'snowflake'}
+        TT = {'Quente': 'red', 'Morno': 'orange', 'Frio': 'blue', 'Indefinido': 'purple'}
         temp_items = [(t, v) for t, v in B['temp'].items() if v.get('leads')]
         temp_tot = sum(v['leads'] for _, v in temp_items) or 1
         temp_rows = [{'label': t, 'value': intf(v['leads']), 'pct': calc.pct(v['leads'], temp_tot) or 0,
                       'bar': v['leads'], 'icon': TI.get(t), 'color': TC.get(t, '#7C3AED')} for t, v in temp_items]
         temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
-                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])}, {'label': 'Invest', 'value': money(v['invest'])}],
-                       'headline': {'label': 'CPL médio', 'value': vfmt('cpl', v['cpl'])}} for t, v in temp_items]
+                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])},
+                                 {'label': 'Invest', 'value': money(v['invest'])},
+                                 {'label': 'CPL', 'value': vfmt('cpl', v['cpl'])}],
+                       'headline': {'label': 'CPMQL médio', 'value': vfmt('cpmql', v['cpmql'])}} for t, v in temp_items]
         can.append({'id': 'can-temp', 'type': 'bar-list', 'title': 'Temperatura · tráfego pago', 'rows': temp_rows, 'cards': temp_cards})
         cg.add('can-temp', 'bar-list', 6, 4)
     # tipo de lead (6 células como kpi-cards)
     tl = B['tipo_lead']
     can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
     cg.add('can-eb-tipo', 'eyebrow', 12, 1)
-    # tom por categoria (como na fonte): roxo na base, vermelho no pago, verde no orgânico.
-    tl_cells = [
-        ('Leads Novos', tl['novos'], calc.pct(tl['novos'], tl['novos'] + tl['antigos']), 'do total', 'p'),
-        ('Leads Antigos', tl['antigos'], calc.pct(tl['antigos'], tl['novos'] + tl['antigos']), 'do total', 'p'),
-        ('Antigos · Pago', tl['antigos_pago'], calc.pct(tl['antigos_pago'], tl['antigos']), 'dos antigos', 'r'),
-        ('Antigos · Orgânico', tl['antigos_org'], calc.pct(tl['antigos_org'], tl['antigos']), 'dos antigos', 'g'),
-        ('Clientes · Pago', tl['cli_pago'], calc.pct(tl['cli_pago'], tl['cli_total']), 'dos clientes', 'p'),
-        ('Clientes · Orgânico', tl['cli_org'], calc.pct(tl['cli_org'], tl['cli_total']), 'dos clientes', 'g'),
+    # barras 100% por categoria, divididas Pago / Orgânico — mostra quem domina cada
+    # categoria de lead (novos = pago, clientes = orgânico, etc.)
+    leads_base = tl['novos'] + tl['antigos']
+
+    def tl_seg(pago, org, tot):
+        pp, po = calc.pct(pago, tot) or 0, calc.pct(org, tot) or 0
+        return [{'pct': pp, 'color': '#7C3AED', 'label': f'{pp:.0f}%'},
+                {'pct': po, 'color': '#639922', 'label': f'{po:.0f}%'}]
+    tl_rows = [
+        {'label': 'Leads Novos', 'value': intf(tl['novos']), 'pct': calc.pct(tl['novos'], leads_base),
+         'seg': tl_seg(tl['novos_pago'], tl['novos_org'], tl['novos'])},
+        {'label': 'Leads Antigos', 'value': intf(tl['antigos']), 'pct': calc.pct(tl['antigos'], leads_base),
+         'seg': tl_seg(tl['antigos_pago'], tl['antigos_org'], tl['antigos'])},
+        {'label': 'Clientes', 'value': intf(tl['cli_total']), 'pct': calc.pct(tl['cli_total'], leads_base),
+         'seg': tl_seg(tl['cli_pago'], tl['cli_org'], tl['cli_total'])},
     ]
-    for i, (lbl, val, p, suf, tint) in enumerate(tl_cells):
-        can.append({'id': f'can-tl-{i}', 'type': 'kpi-card', 'tier': 'volume', 'label': lbl, 'tint': tint,
-                    'value': intf(val), 'sub': f'{(p or 0):.1f}% {suf}', 'icon': 'users', 'iconColor': '#534AB7'})
-        cg.add(f'can-tl-{i}', 'kpi-card', 4, 2)
+    can.append({'id': 'can-tl', 'type': 'bar-list', 'rows': tl_rows,
+                'legend': [{'label': 'Pago', 'color': '#7C3AED'}, {'label': 'Orgânico', 'color': '#639922'}]})
+    cg.add('can-tl', 'bar-list', 12, 3)
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:
         can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS',
-                    'caption': f"maior volume e mais eficientes por CPMQL projetado · campanha até {B['corte_label']}"})
+                    'caption': f"maior volume e maior qualificação · campanha até {B['corte_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
         def cri_list_rows(lst, eff=False):
             rows = []
             for c in lst:
-                meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
                 if eff:
-                    meta += f" · {intf(c['respostas'])} resp."
+                    meta = (f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · "
+                            f"CPMQL {vfmt('cpmql', c['cpmql_proj'])} · {intf(c['respostas'])} resp.")
+                    stat2 = {'value': pctf(c['taxa_qual']), 'label': 'qualificação', 'tone': 'pos'}
+                else:
+                    meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
+                    stat2 = {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}
                 rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
-                             'stats': [{'value': intf(c['leads']), 'label': 'leads'},
-                                       {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}]})
+                             'stats': [{'value': intf(c['leads']), 'label': 'leads'}, stat2]})
             return rows
         if cr['best']:
             can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
                         'rows': cri_list_rows(cr['best'])})
             cg.add('can-cri-best', 'cri-list', 6, 4)
         if cr['eff']:
-            can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Menor CPMQL projetado',
-                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para o CPMQL projetado ser confiável.',
+            can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
+                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
                         'rows': cri_list_rows(cr['eff'], eff=True)})
             cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
@@ -301,15 +367,13 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s04 — Tráfego Pago ═══════════════════════════════════════════════
     tra, tg = [], Grid()
-    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': '6 indicadores de mídia'})
+    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia + custo e qualidade do lead pago'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
-    for m in calc.KPI_TRAF:
+    for m in calc.KPI_TRAF:                                   # linha 1: mídia
         kcard(tra, tg, m, 'kt')
-    if B['risks_traf']:
-        tra.append({'id': 'tra-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
-                    'title': 'RISCOS DE TRÁFEGO', 'caption': 'KPIs de tráfego com maior desvio'})
-        tg.add('tra-eb-risk', 'eyebrow', 12, 1)
-        risk_blocks(tra, tg, B['risks_traf'], 'tra')
+    for m in ['cpl', 'taxa_resp', 'taxa_qual', 'cpmql']:      # linha 2: conversão (CPMQL em destaque)
+        kcard(tra, tg, m, 'kt', w=3)
+    risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas
     tra.append({'id': 'tra-eb-fun', 'type': 'eyebrow', 'title': 'FUNIL DE TRÁFEGO PAGO',
                 'caption': 'Impressões → Cliques → Pageviews → Leads → Respostas → MQLs'})
@@ -353,7 +417,7 @@ def assemble(rows, config, content, opts=None):
     for sid, divider, dcap in groups:
         if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
             did = f'div-{sid}'
-            dw = {'id': did, 'type': 'eyebrow', 'title': divider}
+            dw = {'id': did, 'type': 'eyebrow', 'title': divider, 'divider': True}
             if dcap:
                 dw['caption'] = dcap
             merged_w.append(dw)
@@ -383,6 +447,9 @@ def assemble(rows, config, content, opts=None):
 
 
 RISK_IMPACT = {
+    'investimento': 'Pressiona o ROI e aumenta o risco: o resultado passa a depender mais de a conversão vir em linha com o planejado.',
+    'leads': 'Entrada de leads desacelerando frente à meta — risco de não formar base suficiente até o fim da captação.',
+    'cpm': 'Mídia mais cara para entregar impressões — reduz o alcance possível com o mesmo budget.',
     'cpl': 'Custo de entrada do lead acima do planejado — dificulta atingir as metas de volume com o budget disponível.',
     'cpmql': 'Indicador com maior correlação com vendas — a projeção de retorno está pressionada e a probabilidade de ROI positivo reduzindo.',
     'taxa_resp': 'Amostra insuficiente para o nível de mapeamento da base — dificulta a qualificação e a projeção de conversão.',

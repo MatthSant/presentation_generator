@@ -22,6 +22,7 @@ import { registerPerguntas } from './routes/perguntas.js';
 import { registerHistorico } from './routes/historico.js';
 import { registerQuery } from './routes/query.js';
 import { registerClients } from './routes/clients.js';
+import { registerBenchmarks } from './routes/benchmarks.js';
 import { registerDeepenReview } from './routes/deepenReview.js';
 import { registerClaudeLog } from './routes/claudeLog.js';
 import { installAuth } from './routes/authRoutes.js';
@@ -72,6 +73,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerHistorico(app, ctx);
   registerQuery(app, ctx);
   registerClients(app);
+  registerBenchmarks(app);
   registerDeepenReview(app, ctx);
   registerClaudeLog(app, ctx);
   const closeWatch = registerWatch(app, ctx);

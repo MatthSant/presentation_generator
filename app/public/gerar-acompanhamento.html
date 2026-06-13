@@ -58,10 +58,25 @@
       </div>
 
       <p class="g-h">Benchmarks de tráfego (taxas esperadas — usadas no funil, nos KPIs e nas perguntas)</p>
+      <div class="g-field full">
+        <label>Tipo de funil <small>(prefill dos benchmarks — gerencie em <a href="/benchmarks.html">Benchmarks</a>)</small></label>
+        <select id="b-tipo"></select>
+      </div>
       <div class="g-row">
-        <div class="g-field"><label>CTR (%)</label><input id="b-ctr" type="number" step="0.1" value="1" /></div>
+        <div class="g-field"><label>Hook Rate (%)</label><input id="b-hook" type="number" step="1" value="30" /></div>
+        <div class="g-field"><label>Hold Rate (%)</label><input id="b-hold" type="number" step="1" value="30" /></div>
+        <div class="g-field"><label>CTR (%)</label><input id="b-ctr" type="number" step="0.1" value="1.5" /></div>
+      </div>
+      <div class="g-row">
         <div class="g-field"><label>Connect Rate (%)</label><input id="b-connect" type="number" step="1" value="80" /></div>
         <div class="g-field"><label>Conv. de Página (%)</label><input id="b-conv" type="number" step="1" value="40" /></div>
+      </div>
+
+      <p class="g-h">Temperatura — palavras-chave buscadas no nome da campanha (<code>field_campaign_name</code>)</p>
+      <div class="g-row">
+        <div class="g-field"><label>Quente contém</label><input id="t-quente" placeholder="hot, quente" value="hot, quente" /></div>
+        <div class="g-field"><label>Morno contém</label><input id="t-morno" placeholder="warm, morno" value="warm, morno" /></div>
+        <div class="g-field"><label>Frio contém</label><input id="t-frio" placeholder="cold, frio" value="cold, frio, gelad" /></div>
       </div>
 
       <p class="g-h">Metas da campanha (opcional — habilitam o semáforo de desvio)</p>
@@ -104,6 +119,21 @@
 
     window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
 
+    // Tipo de funil → prefill dos benchmarks a partir do registro central (/benchmarks.html)
+    let BENCH = [];
+    const prefillBench = () => {
+      const b = BENCH.find((x) => x.tipo === $('b-tipo').value);
+      if (!b) return;
+      $('b-hook').value = b.hook; $('b-hold').value = b.hold; $('b-ctr').value = b.ctr;
+      $('b-connect').value = b.connect; $('b-conv').value = b.conv_pag;
+    };
+    fetch('/api/benchmarks').then((r) => r.json()).then((d) => {
+      BENCH = d.benchmarks || [];
+      $('b-tipo').innerHTML = BENCH.map((b) => `<option value="${b.tipo}">${b.label}</option>`).join('');
+      prefillBench();
+    }).catch(() => {});
+    $('b-tipo').addEventListener('change', prefillBench);
+
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
 
@@ -117,17 +147,23 @@
       add('cpl', 'm-cpl'); add('cpmql', 'm-cpmql');
       add('taxa_resp', 'm-resp'); add('taxa_qual', 'm-qual');
       add('_leads_total', 'm-leads'); add('_leads_td', 'm-leads-td');
-      // Benchmarks de tráfego: fonte única do funil E do semáforo dos KPIs (ctr/connect/conv_pag).
+      // Benchmarks de tráfego: fonte única do funil E do semáforo dos KPIs.
       const funnel_bench = {};
       const addb = (k, id) => { const v = numv(id); if (v !== null) funnel_bench[k] = v; };
-      addb('ctr', 'b-ctr'); addb('connect', 'b-connect'); addb('conv_pag', 'b-conv');
+      addb('hook', 'b-hook'); addb('hold', 'b-hold'); addb('ctr', 'b-ctr');
+      addb('connect', 'b-connect'); addb('conv_pag', 'b-conv');
+
+      // Regra de temperatura: categoria → palavras-chave no nome da campanha.
+      const kws = (id) => $(id).value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      const temperatura = { Quente: kws('t-quente'), Morno: kws('t-morno'), Frio: kws('t-frio') };
 
       const cfg = { type: 'acompanhamento-lancamento',
         nome_campanha: $('f-nome').value.trim() || undefined,
         field_conversion: $('f-fc').value.trim() || undefined,
         data_corte: $('f-corte').value || undefined,
         data_report: ddmm($('f-report').value) || undefined,
-        metas, funnel_bench };
+        tipo_funil: $('b-tipo').value || undefined,
+        metas, funnel_bench, temperatura };
       $('go').disabled = true;
       show('work', 'Gerando o acompanhamento no servidor (pode levar alguns segundos)…');
       try {

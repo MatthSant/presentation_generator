@@ -13,7 +13,7 @@ import re
 
 # Métricas de custo (menor é melhor) — direção da tendência e do desvio vs meta.
 COST = {'cpl', 'cpmql', 'cpm'}
-KPI_MACRO = ['investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual', 'conv_pag']
+KPI_MACRO = ['investimento', 'leads', 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql']
 KPI_TRAF = ['cpm', 'hook', 'hold', 'ctr', 'connect', 'conv_pag']
 LABELS = {
     'investimento': 'Investimento', 'cpl': 'CPL', 'cpmql': 'CPMQL',
@@ -28,7 +28,7 @@ FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pagevi
 # absoluta (senão Impressões→Cliques, com CTR ~1-2%, venceria sempre).
 #   0 imp→clicks  = CTR · 1 clicks→pageviews = Connect · 2 pageviews→leads = Conv. página
 #   3 leads→respostas = Taxa de Resposta (meta/histórico) · 4 respostas→mqls = Qualidade (meta/histórico)
-FUNNEL_BENCH = {'ctr': 1.0, 'connect': 80.0, 'conv_pag': 40.0}
+FUNNEL_BENCH = {'hook': 30.0, 'hold': 30.0, 'ctr': 1.5, 'connect': 80.0, 'conv_pag': 40.0}
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 
@@ -80,14 +80,26 @@ def is_paid(r):
     return fnum(r.get('invest_total')) > 0
 
 
-def infer_temp(name):
+# Regra de temperatura: categoria → palavras-chave buscadas no nome da campanha.
+# Default; pode ser sobrescrita por config['temperatura'] (setada na criação do dash).
+DEFAULT_TEMP = {
+    'Quente': ['hot', 'quente'],
+    'Morno': ['warm', 'morno'],
+    'Frio': ['cold', 'frio', 'gelad'],
+}
+
+
+def temp_rules(config):
+    """Normaliza a regra de temperatura do config (keywords em minúsculas)."""
+    raw = (config or {}).get('temperatura') or DEFAULT_TEMP
+    return {cat: [str(k).lower() for k in (kws or [])] for cat, kws in raw.items()}
+
+
+def infer_temp(name, rules=None):
     n = str(name or '').lower()
-    if 'hot' in n:
-        return 'Quente'
-    if 'warm' in n:
-        return 'Morno'
-    if 'cold' in n or 'frio' in n:
-        return 'Frio'
+    for cat, kws in (rules or DEFAULT_TEMP).items():
+        if any(k and k in n for k in kws):
+            return cat
     return 'Indefinido'
 
 
@@ -119,6 +131,7 @@ def derive(s):
     cpl = div(s['invest'], s['leads_pago'])
     tq = pct(s['mqls'], s['respostas'])
     return {
+        'leads': round(s['leads']),
         'investimento': round(s['invest'], 2),
         'cpl': cpl,
         'cpmql': (round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None),
@@ -155,8 +168,11 @@ def meta_status(val, meta, cost=False):
     if meta is None or val is None or meta == 0:
         return None
     dev = (val - meta) / meta * 100
-    ok = (dev <= 0) if cost else (dev >= 0)
-    cls = 'ok' if ok else ('warn' if dev > -5 else 'bad')
+    # "gap" = quanto está pior que a meta (abaixo p/ KPI normal, acima p/ custo).
+    # gap <= 0: bateu/superou → ok (verde). 0–5%: tolerado, mas não bateu → neutral
+    # (cinza). 5–15%: warn. >15%: bad. Alerta só a partir de 5%.
+    gap = dev if cost else -dev
+    cls = 'ok' if gap <= 0 else ('neutral' if gap <= 5 else ('warn' if gap <= 15 else 'bad'))
     return {'dev': round(dev, 1), 'cls': cls}
 
 
@@ -265,29 +281,43 @@ def build(rows, config=None):
         metas.setdefault('_leads_total', g.get('leads_total'))
         metas.setdefault('_leads_td', g.get('leads_td'))
         metas.setdefault('_invest_total', g.get('invest_total'))
-    # benchmarks de tráfego (CTR/Connect/Conv. página) também viram a meta-padrão dos
-    # KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
+    # benchmarks de tráfego (hook/hold/ctr/connect/conv. página) também viram a
+    # meta-padrão dos KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
+    # config['funnel_bench'] sobrescreve; senão cai no FUNNEL_BENCH (fallback).
     fb = dict(FUNNEL_BENCH)
     fb.update(config.get('funnel_bench') or {})
-    metas.setdefault('ctr', fb['ctr'])
-    metas.setdefault('connect', fb['connect'])
-    metas.setdefault('conv_pag', fb['conv_pag'])
+    for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag'):
+        if fb.get(k) is not None:
+            metas.setdefault(k, fb[k])
+    # leads (KPI macro) usa a meta to-date como referência do semáforo
+    metas.setdefault('leads', metas.get('_leads_td'))
+    # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos
+    mc = metas.get('cpl')
+    if mc is not None and tot_sums['leads_pago']:
+        metas.setdefault('investimento', round(mc * tot_sums['leads_pago'], 2))
     mstatus = {m: meta_status(tot.get(m), metas.get(m), m in COST) for m in set(KPI_MACRO + KPI_TRAF)}
+    # investimento: gastar abaixo do projetado é bom → semáforo de custo
+    if metas.get('investimento') is not None:
+        mstatus['investimento'] = meta_status(tot.get('investimento'), metas['investimento'], cost=True)
 
     # split pago/orgânico
     lp, lo = tot_sums['leads_pago'], tot_sums['leads'] - tot_sums['leads_pago']
     split = {'leads_pago': round(lp), 'leads_org': round(lo),
              'pct_pago': pct(lp, lp + lo), 'pct_org': pct(lo, lp + lo)}
 
-    # temperatura (só pago)
+    # temperatura (só pago) — regra de classificação vem do config (ou default)
+    trules = temp_rules(config)
     temp = {}
-    for t in ['Quente', 'Morno', 'Frio', 'Indefinido']:
-        sub = [r for r in rows_corte if is_paid(r) and infer_temp(r.get('field_campaign_name')) == t]
+    for t in list(trules.keys()) + ['Indefinido']:
+        sub = [r for r in rows_corte if is_paid(r) and infer_temp(r.get('field_campaign_name'), trules) == t]
         if not sub:
             continue
         ss = _sum(sub)
+        cpl = div(ss['invest'], ss['leads_pago'])
+        tq = pct(ss['mqls'], ss['respostas'])
+        cpmql = round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None
         temp[t] = {'leads': round(ss['leads']), 'invest': round(ss['invest'], 2),
-                   'cpl': div(ss['invest'], ss['leads_pago'])}
+                   'cpl': cpl, 'cpmql': cpmql}
 
     # tipo de lead
     def ssum(sub, k):
@@ -296,16 +326,20 @@ def build(rows, config=None):
     org_rows = [r for r in rows_corte if not is_paid(r)]
     tipo_lead = {
         'novos': round(tot_sums['novos']), 'antigos': round(tot_sums['antigos']),
+        'novos_pago': ssum(paid_rows, 'novos'), 'novos_org': ssum(org_rows, 'novos'),
         'antigos_pago': ssum(paid_rows, 'antigos'), 'antigos_org': ssum(org_rows, 'antigos'),
         'cli_pago': ssum(paid_rows, 'cli'), 'cli_org': ssum(org_rows, 'cli'),
         'cli_total': round(tot_sums['cli']),
     }
 
-    # canais orgânicos (por utm_source)
+    # canais orgânicos (por utm_source) — vazios/null/'-' viram "Não trackeado"
+    def _src(v):
+        s = str(v if v is not None else '').strip()
+        return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
     org_by = {}
     for r in org_rows:
-        src = (r.get('utm_source') or '(direto)').strip() or '(direto)'
-        org_by[src] = org_by.get(src, 0) + fnum(r.get('leads'))
+        org_by.setdefault(_src(r.get('utm_source')), 0.0)
+        org_by[_src(r.get('utm_source'))] += fnum(r.get('leads'))
     canais_org = sorted(({'source': k, 'leads': round(v), 'pct': pct(v, lo)} for k, v in org_by.items() if v > 0),
                         key=lambda x: -x['leads'])
 
@@ -320,8 +354,8 @@ def build(rows, config=None):
     funnel_total = _funnel(rows_corte, bench)
     funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench)
 
-    risks_macro = _risks(KPI_MACRO, tot, mstatus)
-    risks_traf = _risks(KPI_TRAF, tot, mstatus)
+    risks_macro = _risks(KPI_MACRO, tot, mstatus, trends)
+    risks_traf = _risks(KPI_TRAF, tot, mstatus, trends)
 
     return {
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
@@ -364,10 +398,10 @@ def _creatives(day_rows, links):
                     'respostas': round(a['respostas']), 'cpl': cpl, 'taxa_qual': tq,
                     'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None)})
     best = sorted(out, key=lambda c: -c['leads'])[:3]
-    # mais eficientes por CPMQL projetado — só com base estatística mínima (≥20 respostas),
-    # senão um criativo com pouquíssima pesquisa "ganha" por ruído.
-    eff = sorted([c for c in out if c['cpmql_proj'] is not None and c['respostas'] >= 20],
-                 key=lambda c: c['cpmql_proj'])[:3]
+    # maior qualificação (taxa de qualidade) — só com base estatística mínima (≥20
+    # respostas), senão um criativo com pouquíssima pesquisa "ganha" por ruído.
+    eff = sorted([c for c in out if c['taxa_qual'] is not None and c['respostas'] >= 20],
+                 key=lambda c: -c['taxa_qual'])[:3]
     return {'best': best, 'eff': eff}
 
 
@@ -405,11 +439,25 @@ def _funnel(rows, bench=None):
     return stages
 
 
-def _risks(metrics, tot, mstatus, top=2):
+TREND_RISK_PCT = 15   # piora mínima (em 3d, na direção ruim) p/ virar risco de tendência
+
+
+def _risks(metrics, tot, mstatus, trends, top=2):
     cand = []
     for m in metrics:
         st = mstatus.get(m)
+        tr = trends.get(m) or {}
         if st and st['cls'] in ('bad', 'warn'):
+            # risco de nível: já está furando a meta
             cand.append({'metric': m, 'label': LABELS[m], 'value': tot.get(m),
-                         'meta_dev': st['dev'], 'cls': st['cls']})
-    return sorted(cand, key=lambda r: r['meta_dev'])[:top]
+                         'meta_dev': st['dev'], 'cls': st['cls'], 'reason': 'meta',
+                         'trend_pct': tr.get('pct'), 'trend_dir': tr.get('dir')})
+        elif m != 'investimento' and tr.get('good') is False and (tr.get('pct') or 0) >= TREND_RISK_PCT:
+            # risco de tendência: dentro da meta, mas piorando rápido
+            cand.append({'metric': m, 'label': LABELS[m], 'value': tot.get(m),
+                         'meta_dev': st['dev'] if st else None, 'cls': 'warn', 'reason': 'trend',
+                         'trend_pct': tr.get('pct'), 'trend_dir': tr.get('dir')})
+    # meta primeiro (pior desvio), depois tendência (maior piora)
+    cand.sort(key=lambda r: (0 if r['reason'] == 'meta' else 1,
+                             r['meta_dev'] if r['reason'] == 'meta' else -(r['trend_pct'] or 0)))
+    return cand[:top]

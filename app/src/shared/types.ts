@@ -293,6 +293,9 @@ export interface FindBlockWidget extends WidgetBase {
   tag?: string;
   tagColor?: ColorToken;
   title: string;
+  /** Linha de métrica estruturada (ex.: risco): valor-destaque + chip de desvio
+   *  colorido + meta de referência. Quando presente, substitui o `title` no topo. */
+  stat?: { value: string; delta: string; meta?: string; tone?: 'warn' | 'bad' };
   detail?: string;
   /** Id of a modal in the section's `modals`. Adds the "↗ ver detalhamento" link. */
   modal?: string;
@@ -390,6 +393,9 @@ export interface EyebrowWidget extends WidgetBase {
   color?: 'purple' | 'green' | 'amber' | 'red';
   title: string;
   caption?: string;
+  /** Divisor de grupo (cabeçalho de seção): estilo mais forte que um eyebrow comum,
+   *  para abrir um bloco que contém sub-seções (que usam eyebrows normais). */
+  divider?: boolean;
 }
 export interface KpiStripItem {
   value: string; label: string; sub?: string; small?: boolean;
@@ -413,6 +419,9 @@ export interface KpiCardWidget extends WidgetBase {
    *  grande à esquerda, `delta` como pill grande à direita. Para metas / meta-to-date
    *  e qualquer "X / alvo · %". Recurso de plataforma, não exclusivo de um tipo. */
   band?: boolean;
+  /** Destaque (feature): fundo roxo em degradê + texto claro — p/ a métrica-chave
+   *  da seção (ex.: CPMQL nos KPIs macro). */
+  emph?: boolean;
   /** Tom de fundo (tint) do card por categoria — p/g/a/r/n. Para grades de células
    *  categóricas (ex.: tipo de lead: roxo base, vermelho pago, verde orgânico). */
   tint?: ColorToken;
@@ -423,7 +432,7 @@ export interface KpiCardWidget extends WidgetBase {
   iconColor?: string;
   /** Variation badge (feature tier), e.g. "↑ +3.0pp vs anterior". */
   delta?: string;
-  deltaTone?: 'pos' | 'neg' | 'neutral';
+  deltaTone?: 'pos' | 'neg' | 'neutral' | 'emph';
   /** Dual delta for the meta/histórico toggle: [texto, tone] por modo. Quando
    *  presente, o badge troca ao vivo com o controle `compare` (feature de plataforma). */
   cmp?: { meta: [string, string]; hist: [string, string] };
@@ -431,7 +440,7 @@ export interface KpiCardWidget extends WidgetBase {
    *  e rodapé de meta com selo ✓/⚠/✕. Quando presentes, renderizam em linhas próprias. */
   d3?: { value: string; dir?: 'up' | 'down'; tone?: 'pos' | 'neg' | 'neutral' };
   flag?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
-  goal?: { label: string; delta?: string; status?: 'ok' | 'warn' | 'bad' };
+  goal?: { label: string; delta?: string; status?: 'ok' | 'neutral' | 'warn' | 'bad' };
   /** Trend sparkline series (feature tier); nulls = gaps. */
   spark?: (number | null)[];
   /** Proportion bar segments (volume tier); remainder fills as a muted track. */
@@ -561,11 +570,16 @@ export interface BarListWidget extends WidgetBase {
   type: 'bar-list';
   title?: string;
   caption?: string;
-  rows: { label: string; value: string; pct?: number; bar: number; indent?: boolean; icon?: string; color?: string }[];
+  rows: { label: string; value: string; pct?: number; bar?: number; indent?: boolean; icon?: string; color?: string;
+          /** Barra dividida (100% empilhada) em vez de barra única — ex.: split Pago/Orgânico
+           *  por categoria. Cada segmento: largura % + cor + rótulo interno. */
+          seg?: { pct: number; color: string; label?: string }[] }[];
   /** escala máxima das barras (default = maior `bar`). */
   max?: number;
+  /** Legenda das séries no topo (ex.: Pago / Orgânico) — usada com linhas `seg`. */
+  legend?: { label: string; color: string }[];
   /** cards de stat no rodapé (ex.: Quente/Morno com CPL médio em destaque). */
-  cards?: { label: string; tone?: 'red' | 'amber' | 'green' | 'purple'; icon?: string;
+  cards?: { label: string; tone?: 'red' | 'amber' | 'orange' | 'green' | 'blue' | 'purple'; icon?: string;
             stats?: { label: string; value: string }[]; headline?: { label: string; value: string } }[];
 }
 
