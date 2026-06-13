@@ -394,7 +394,8 @@ def _creatives(day_rows, links):
         tq = pct(a['mqls'], a['respostas'])
         out.append({'name': a['name'], 'link': a['link'] or links.get(a['name']),
                     'invest': round(a['invest'], 2), 'leads': round(a['leads_traf']),
-                    'respostas': round(a['respostas']), 'cpl': cpl, 'taxa_qual': tq,
+                    'respostas': round(a['respostas']), 'cpl': cpl,
+                    'taxa_resp': pct(a['respostas'], a['leads_traf']), 'taxa_qual': tq,
                     'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None)})
     best = sorted(out, key=lambda c: -c['leads'])[:3]
     # maior qualificação (taxa de qualidade) — só com base estatística mínima (≥20

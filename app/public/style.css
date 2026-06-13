@@ -1177,6 +1177,12 @@ body.edit-mode .tile-filter-badge { display:none; }
 .cri-info { flex:1; min-width:0; }
 .cri-name { font-size:12.5px; font-weight:700; color:var(--purple-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cri-meta { font-size:11px; color:var(--gray2); margin-top:2px; }
+.cri-metrics { display:flex; flex-wrap:wrap; gap:12px; margin-top:6px; }
+.cri-m { display:flex; flex-direction:column; line-height:1.18; }
+.cri-m-v { font-size:12.5px; font-weight:700; color:var(--fg); font-variant-numeric:tabular-nums; }
+.cri-m-l { font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--gray2); }
+.cri-m--emph { background:var(--purple-bg); border-radius:5px; padding:1px 7px; }
+.cri-m--emph .cri-m-v, .cri-m--emph .cri-m-l { color:var(--purple); }
 .cri-link { display:inline-block; font-size:11px; color:var(--purple); font-weight:600; text-decoration:none; margin-top:3px; }
 .cri-link:hover { text-decoration:underline; }
 .cri-stat { text-align:right; flex-shrink:0; display:grid; grid-template-columns:auto; gap:0; }

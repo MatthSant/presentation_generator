@@ -337,18 +337,17 @@ def assemble(rows, config, content, opts=None):
                     'caption': f"maior volume e maior qualificação · campanha até {B['corte_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
-        def cri_list_rows(lst, eff=False):
+        def cri_list_rows(lst):
             rows = []
             for c in lst:
-                if eff:
-                    meta = (f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · "
-                            f"CPMQL {vfmt('cpmql', c['cpmql_proj'])} · {intf(c['respostas'])} resp.")
-                    stat2 = {'value': pctf(c['taxa_qual']), 'label': 'qualificação', 'tone': 'pos'}
-                else:
-                    meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
-                    stat2 = {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}
-                rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
-                             'stats': [{'value': intf(c['leads']), 'label': 'leads'}, stat2]})
+                metrics = [
+                    {'label': 'CPL', 'value': vfmt('cpl', c['cpl'])},
+                    {'label': 'Tx. Resp.', 'value': pctf(c['taxa_resp'])},
+                    {'label': 'Qualif.', 'value': pctf(c['taxa_qual'])},
+                    {'label': 'CPMQL', 'value': vfmt('cpmql', c['cpmql_proj']), 'emph': True},
+                ]
+                rows.append({'name': c['name'], 'link': c.get('link') or None, 'metrics': metrics,
+                             'stats': [{'value': intf(c['leads']), 'label': 'leads'}]})
             return rows
         if cr['best']:
             can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
@@ -357,7 +356,7 @@ def assemble(rows, config, content, opts=None):
         if cr['eff']:
             can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
                         'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
-                        'rows': cri_list_rows(cr['eff'], eff=True)})
+                        'rows': cri_list_rows(cr['eff'])})
             cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}

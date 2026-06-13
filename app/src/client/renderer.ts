@@ -968,6 +968,16 @@ function renderCriList(w: CriListWidget): HTMLElement {
     const info = el('div', 'cri-info');
     info.appendChild(el('div', 'cri-name', r.name));
     if (r.meta) info.appendChild(el('div', 'cri-meta', r.meta));
+    if (r.metrics?.length) {
+      const mr = el('div', 'cri-metrics');
+      for (const m of r.metrics) {
+        const item = el('div', `cri-m${m.emph ? ' cri-m--emph' : ''}`);
+        item.appendChild(el('span', 'cri-m-v', m.value));
+        item.appendChild(el('span', 'cri-m-l', m.label));
+        mr.appendChild(item);
+      }
+      info.appendChild(mr);
+    }
     if (r.link) {
       const a = el('a', 'cri-link', 'Ver criativo ↗') as HTMLAnchorElement;
       a.href = r.link; a.target = '_blank'; a.rel = 'noopener';
