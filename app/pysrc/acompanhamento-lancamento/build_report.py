@@ -91,19 +91,31 @@ def assemble(rows, config, content, opts=None):
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
-            sym = '⚠' if r['cls'] == 'warn' else '✕'
             mv = B['meta'].get(r['metric'])
-            arrow = '▼' if r['meta_dev'] < 0 else '▲'   # abaixo da meta (KPI) / acima (custo)
-            stat = {'value': vfmt(r['metric'], r['value']),
-                    'delta': f"{arrow} {abs(r['meta_dev']):.0f}%",
-                    'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
-            if mv is not None:
-                stat['meta'] = f"meta {vfmt(r['metric'], mv)}"
+            impact = RISK_IMPACT.get(r['metric'], '')
+            if r['reason'] == 'trend':
+                # dentro da meta, mas piorando rápido
+                arrow = '▲' if r['trend_dir'] == 'up' else '▼'
+                stat = {'value': vfmt(r['metric'], r['value']),
+                        'delta': f"{arrow} {r['trend_pct']:.0f}% em 3d", 'tone': 'warn'}
+                if mv is not None:
+                    stat['meta'] = f"meta {vfmt(r['metric'], mv)} (ok)"
+                tag, tagColor = f"↗ {r['label']}", 'a'
+                detail = f"Dentro da meta, mas piorando rápido nos últimos dias. {impact}"
+            else:
+                sym = '⚠' if r['cls'] == 'warn' else '✕'
+                arrow = '▼' if r['meta_dev'] < 0 else '▲'   # abaixo da meta (KPI) / acima (custo)
+                stat = {'value': vfmt(r['metric'], r['value']),
+                        'delta': f"{arrow} {abs(r['meta_dev']):.0f}%",
+                        'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
+                if mv is not None:
+                    stat['meta'] = f"meta {vfmt(r['metric'], mv)}"
+                tag, tagColor = f"{sym} {r['label']}", ('r' if r['cls'] == 'bad' else 'a')
+                detail = impact
             arr.append({'id': f'{prefix}-risk-{i}', 'type': 'find-block', 'card': True,
-                        'tag': f"{sym} {r['label']}", 'tagColor': 'r' if r['cls'] == 'bad' else 'a',
-                        'title': f"{vfmt(r['metric'], r['value'])} · {r['meta_dev']:+.0f}% vs meta",
-                        'stat': stat,
-                        'detail': RISK_IMPACT.get(r['metric'], '')})
+                        'tag': tag, 'tagColor': tagColor,
+                        'title': f"{vfmt(r['metric'], r['value'])}",
+                        'stat': stat, 'detail': detail})
             pg.add(f'{prefix}-risk-{i}', 'find-block', 6, 2)
 
     # ── dataset diário (charts) ──────────────────────────────────────────────
@@ -396,6 +408,9 @@ def assemble(rows, config, content, opts=None):
 
 
 RISK_IMPACT = {
+    'investimento': 'Pressiona o ROI e aumenta o risco: o resultado passa a depender mais de a conversão vir em linha com o planejado.',
+    'leads': 'Entrada de leads desacelerando frente à meta — risco de não formar base suficiente até o fim da captação.',
+    'cpm': 'Mídia mais cara para entregar impressões — reduz o alcance possível com o mesmo budget.',
     'cpl': 'Custo de entrada do lead acima do planejado — dificulta atingir as metas de volume com o budget disponível.',
     'cpmql': 'Indicador com maior correlação com vendas — a projeção de retorno está pressionada e a probabilidade de ROI positivo reduzindo.',
     'taxa_resp': 'Amostra insuficiente para o nível de mapeamento da base — dificulta a qualificação e a projeção de conversão.',

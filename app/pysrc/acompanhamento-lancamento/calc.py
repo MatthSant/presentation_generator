@@ -333,8 +333,8 @@ def build(rows, config=None):
     funnel_total = _funnel(rows_corte, bench)
     funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench)
 
-    risks_macro = _risks(KPI_MACRO, tot, mstatus)
-    risks_traf = _risks(KPI_TRAF, tot, mstatus)
+    risks_macro = _risks(KPI_MACRO, tot, mstatus, trends)
+    risks_traf = _risks(KPI_TRAF, tot, mstatus, trends)
 
     return {
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
@@ -418,11 +418,25 @@ def _funnel(rows, bench=None):
     return stages
 
 
-def _risks(metrics, tot, mstatus, top=2):
+TREND_RISK_PCT = 15   # piora mínima (em 3d, na direção ruim) p/ virar risco de tendência
+
+
+def _risks(metrics, tot, mstatus, trends, top=2):
     cand = []
     for m in metrics:
         st = mstatus.get(m)
+        tr = trends.get(m) or {}
         if st and st['cls'] in ('bad', 'warn'):
+            # risco de nível: já está furando a meta
             cand.append({'metric': m, 'label': LABELS[m], 'value': tot.get(m),
-                         'meta_dev': st['dev'], 'cls': st['cls']})
-    return sorted(cand, key=lambda r: r['meta_dev'])[:top]
+                         'meta_dev': st['dev'], 'cls': st['cls'], 'reason': 'meta',
+                         'trend_pct': tr.get('pct'), 'trend_dir': tr.get('dir')})
+        elif m != 'investimento' and tr.get('good') is False and (tr.get('pct') or 0) >= TREND_RISK_PCT:
+            # risco de tendência: dentro da meta, mas piorando rápido
+            cand.append({'metric': m, 'label': LABELS[m], 'value': tot.get(m),
+                         'meta_dev': st['dev'] if st else None, 'cls': 'warn', 'reason': 'trend',
+                         'trend_pct': tr.get('pct'), 'trend_dir': tr.get('dir')})
+    # meta primeiro (pior desvio), depois tendência (maior piora)
+    cand.sort(key=lambda r: (0 if r['reason'] == 'meta' else 1,
+                             r['meta_dev'] if r['reason'] == 'meta' else -(r['trend_pct'] or 0)))
+    return cand[:top]
