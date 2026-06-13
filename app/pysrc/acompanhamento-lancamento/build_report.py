@@ -91,14 +91,11 @@ def assemble(rows, config, content, opts=None):
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
-            mv = B['meta'].get(r['metric'])
             impact = RISK_IMPACT.get(r['metric'], '')
             if r['reason'] == 'trend':
                 # dentro da meta, mas piorando rápido
                 txt = 'Em alta nos últimos 3 dias' if r['trend_dir'] == 'up' else 'Em queda nos últimos 3 dias'
                 stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt, 'tone': 'warn'}
-                if mv is not None:
-                    stat['meta'] = f"meta {vfmt(r['metric'], mv)} (ok)"
                 tag, tagColor = f"↗ {r['label']}", 'a'
                 detail = f"Dentro da meta, mas piorando rápido nos últimos dias. {impact}"
             else:
@@ -106,8 +103,6 @@ def assemble(rows, config, content, opts=None):
                 txt = 'Abaixo da meta' if r['meta_dev'] < 0 else 'Acima da meta'   # KPI / custo
                 stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt,
                         'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
-                if mv is not None:
-                    stat['meta'] = f"meta {vfmt(r['metric'], mv)}"
                 tag, tagColor = f"{sym} {r['label']}", ('r' if r['cls'] == 'bad' else 'a')
                 detail = impact
             arr.append({'id': f'{prefix}-risk-{i}', 'type': 'find-block', 'card': True,
