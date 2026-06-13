@@ -124,6 +124,24 @@ def assemble(rows, config, content, opts=None):
                         'stat': stat, 'detail': detail})
             pg.add(f'{prefix}-risk-{i}', 'find-block', 6, 2)
 
+    def risk_section(arr, pg, risks, prefix, title):
+        # eyebrow + cards de risco; quando não há risco, mostra um card de "tudo em
+        # linha" em vez de seção vazia.
+        if risks:
+            arr.append({'id': f'{prefix}-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
+                        'title': title, 'caption': 'KPIs furando a meta ou em piora acelerada'})
+            pg.add(f'{prefix}-eb-risk', 'eyebrow', 12, 1)
+            risk_blocks(arr, pg, risks, prefix)
+        else:
+            arr.append({'id': f'{prefix}-eb-risk', 'type': 'eyebrow', 'n': '✓', 'color': 'green',
+                        'title': title, 'caption': 'sem alertas no momento'})
+            pg.add(f'{prefix}-eb-risk', 'eyebrow', 12, 1)
+            arr.append({'id': f'{prefix}-risk-ok', 'type': 'find-block', 'card': True,
+                        'tag': '✓ Tudo em linha', 'tagColor': 'g',
+                        'title': 'Indicadores em linha ou acima do planejado',
+                        'detail': 'Nenhum KPI furando a meta nem em piora acelerada nos últimos 3 dias. Manter o ritmo e seguir monitorando.'})
+            pg.add(f'{prefix}-risk-ok', 'find-block', 12, 2)
+
     # ── dataset diário (charts) ──────────────────────────────────────────────
     add_table('acom_daily', ['dia'], [
         {'dia': d['label'], 'cum': d['cum'], 'leads': d['leads'], 'invest': round(d['sums']['invest'], 2),
@@ -215,11 +233,7 @@ def assemble(rows, config, content, opts=None):
     for m in calc.KPI_MACRO:
         kcard(pan, pg, m)
 
-    if B['risks_macro']:
-        pan.append({'id': 'pan-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
-                    'title': 'PRINCIPAIS RISCOS', 'caption': 'KPIs com maior desvio negativo vs meta'})
-        pg.add('pan-eb-risk', 'eyebrow', 12, 1)
-        risk_blocks(pan, pg, B['risks_macro'], 'pan')
+    risk_section(pan, pg, B['risks_macro'], 'pan', 'PRINCIPAIS RISCOS')
 
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Visão Geral', 'title': B['nome'],
                        'sub': f"Acompanhamento tático · dia {B['dia_campanha']} · emitido {B['report_date'] or '—'}"}, 'widgets': pan}
@@ -336,11 +350,7 @@ def assemble(rows, config, content, opts=None):
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
     for m in calc.KPI_TRAF:
         kcard(tra, tg, m, 'kt')
-    if B['risks_traf']:
-        tra.append({'id': 'tra-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
-                    'title': 'RISCOS DE TRÁFEGO', 'caption': 'KPIs de tráfego com maior desvio'})
-        tg.add('tra-eb-risk', 'eyebrow', 12, 1)
-        risk_blocks(tra, tg, B['risks_traf'], 'tra')
+    risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas
     tra.append({'id': 'tra-eb-fun', 'type': 'eyebrow', 'title': 'FUNIL DE TRÁFEGO PAGO',
                 'caption': 'Impressões → Cliques → Pageviews → Leads → Respostas → MQLs'})
