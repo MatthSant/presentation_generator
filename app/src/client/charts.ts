@@ -199,11 +199,11 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   if (def.type === 'donut' || def.type === 'pie') {
     const legend: Record<string, unknown> = { position: 'bottom', labels: { colors: labelColor } };
     if (def.legendValues) {
-      // Legenda "Nome — 45.485 · 86,3%" (valor absoluto + participação), como na fonte.
-      legend.position = 'right';
+      // Legenda "Nome — 45.485 · 86,3%" (valor absoluto + participação), EMBAIXO do donut
+      // (alinha com a legenda dos gráficos de barra ao lado, em vez de jogar p/ a direita).
       legend.horizontalAlign = 'center';
       legend.fontSize = '12px';
-      legend.itemMargin = { vertical: 4 };
+      legend.itemMargin = { horizontal: 10, vertical: 3 };
       legend.formatter = (name: string, o: { seriesIndex: number; w: { globals: { series: number[] } } }) => {
         const arr = o.w.globals.series || [];
         const v = arr[o.seriesIndex] ?? 0;

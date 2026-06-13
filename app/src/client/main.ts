@@ -74,7 +74,6 @@ class App {
     document.documentElement.dataset.theme = 'light';   // dark mode removido no redesign
     const brand = document.getElementById('tn-client');
     if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
-    this.renderCover();
     this.setupHistorico();
     // Cards clicáveis (link-card) → navegam para uma seção (ficha).
     document.addEventListener('goto-section', (e) => {
@@ -131,16 +130,13 @@ class App {
     main.insertBefore(hint, ROOT);
   }
 
-  /** Report-level cover block, rendered once above the section content. Lives in
-   *  #main (not #export-root), so it persists as sections navigate. */
-  private renderCover(): void {
+  /** Capa do relatório (eyebrow + título + meta). NÃO aparece no app — o título já
+   *  vive no topnav/header da seção; só entra na EXPORTAÇÃO HTML standalone, como
+   *  masthead do documento. Retorna '' quando não há meta.cover. */
+  private coverHtml(): string {
     const meta = this.store.data?.meta;
     const cover = meta?.cover;
-    if (!cover) return;
-    const main = document.getElementById('main');
-    if (!main || document.getElementById('report-header')) return;
-    const h = document.createElement('header');
-    h.id = 'report-header';
+    if (!cover) return '';
     const parts: string[] = [];
     if (cover.eyebrow) parts.push(`<div class="badge badge-p">${esc(cover.eyebrow)}</div>`);
     parts.push(`<h1 class="sec-title">${esc(meta?.title || '')}</h1>`);
@@ -148,8 +144,7 @@ class App {
       parts.push(`<div class="cover-meta">${cover.meta.map(esc).join('<span class="cm-dot">◆</span>')}</div>`);
     }
     parts.push('<div class="cover-rule"></div>');
-    h.innerHTML = parts.join('');
-    main.insertBefore(h, ROOT);
+    return `<header id="report-header">${parts.join('')}</header>`;
   }
 
   private async go(pageId: string, sectionId: string, keepScroll = false): Promise<void> {
@@ -157,11 +152,6 @@ class App {
     this.store.currentPageId = pageId;
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
-
-    // Capa = título do relatório, só na 1ª página (Panorama); nas demais, o título da
-    // própria seção é o título do topo — evita repetir o título do relatório em toda página.
-    const coverEl = document.getElementById('report-header');
-    if (coverEl) coverEl.style.display = pageId === this.store.data?.pages?.[0]?.id ? '' : 'none';
 
     this.hist?.setPage(pageId);
     this.criativos?.setPage(pageId);
@@ -1037,6 +1027,8 @@ body{margin:0}
 .exp-cbtn.on{color:#fff;background:var(--purple)}
 .exp-canal-pane[hidden],.exp-page[hidden]{display:none}
 .exp-root{width:1180px;max-width:100%;margin:0 auto;padding:22px 72px 72px}
+.exp-cover{width:1180px;max-width:100%;margin:0 auto;padding:8px 72px 0}
+.exp-cover #report-header{padding:36px 24px 18px}
 .export-section{margin-bottom:48px}
 .export-section .dash-tile{overflow:hidden}
 .export-section .apexcharts-canvas,.export-section .apexcharts-canvas svg{max-width:100%}
@@ -1049,6 +1041,7 @@ body{margin:0}
   <div class="exp-tabs">${navTabs}</div>
   ${navCanal}
 </nav>
+<div class="exp-cover">${this.coverHtml()}</div>
 ${body}
 <script>${runtime}</script>
 </body>
