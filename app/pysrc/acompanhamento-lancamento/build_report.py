@@ -52,14 +52,14 @@ def assemble(rows, config, content, opts=None):
     def trend_delta(metric):
         tr = B['trend'].get(metric)
         if not tr or tr['dir'] == 'neutro':
-            return '◦ estável', 'neutral'
+            return '3d estável', 'neutral'
         arrow = '▲' if tr['dir'] == 'up' else '▼'
         # investimento: variação de gasto não é boa nem ruim → tom neutro
         if metric == 'investimento':
             tone = 'neutral'
         else:
             tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
-        return f"{arrow} {tr['pct']:.0f}%", tone
+        return f"3d {arrow}{tr['pct']:.0f}%", tone
 
     def kpi_sub(metric):
         parts = [f"3d {vfmt(metric, B['d3'].get(metric))}"]
