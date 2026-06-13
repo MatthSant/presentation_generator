@@ -299,8 +299,11 @@ def build(rows, config=None):
         if not sub:
             continue
         ss = _sum(sub)
+        cpl = div(ss['invest'], ss['leads_pago'])
+        tq = pct(ss['mqls'], ss['respostas'])
+        cpmql = round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None
         temp[t] = {'leads': round(ss['leads']), 'invest': round(ss['invest'], 2),
-                   'cpl': div(ss['invest'], ss['leads_pago'])}
+                   'cpl': cpl, 'cpmql': cpmql}
 
     # tipo de lead
     def ssum(sub, k):

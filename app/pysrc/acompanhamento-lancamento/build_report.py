@@ -286,15 +286,17 @@ def assemble(rows, config, content, opts=None):
     # temperatura — bar-list (Quente/Morno) + cards de stat com CPL médio em destaque
     if B['temp']:
         TC = {'Quente': '#DC2626', 'Morno': '#EA580C', 'Frio': '#2563EB', 'Indefinido': '#9b98a3'}
-        TI = {'Quente': 'flame', 'Morno': 'sun'}
-        TT = {'Quente': 'red', 'Morno': 'green', 'Frio': 'purple', 'Indefinido': 'purple'}
+        TI = {'Quente': 'flame', 'Morno': 'sun', 'Frio': 'snowflake'}
+        TT = {'Quente': 'red', 'Morno': 'orange', 'Frio': 'blue', 'Indefinido': 'purple'}
         temp_items = [(t, v) for t, v in B['temp'].items() if v.get('leads')]
         temp_tot = sum(v['leads'] for _, v in temp_items) or 1
         temp_rows = [{'label': t, 'value': intf(v['leads']), 'pct': calc.pct(v['leads'], temp_tot) or 0,
                       'bar': v['leads'], 'icon': TI.get(t), 'color': TC.get(t, '#7C3AED')} for t, v in temp_items]
         temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
-                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])}, {'label': 'Invest', 'value': money(v['invest'])}],
-                       'headline': {'label': 'CPL médio', 'value': vfmt('cpl', v['cpl'])}} for t, v in temp_items]
+                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])},
+                                 {'label': 'Invest', 'value': money(v['invest'])},
+                                 {'label': 'CPL', 'value': vfmt('cpl', v['cpl'])}],
+                       'headline': {'label': 'CPMQL médio', 'value': vfmt('cpmql', v['cpmql'])}} for t, v in temp_items]
         can.append({'id': 'can-temp', 'type': 'bar-list', 'title': 'Temperatura · tráfego pago', 'rows': temp_rows, 'cards': temp_cards})
         cg.add('can-temp', 'bar-list', 6, 4)
     # tipo de lead (6 células como kpi-cards)

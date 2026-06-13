@@ -571,7 +571,7 @@ export interface BarListWidget extends WidgetBase {
   /** escala máxima das barras (default = maior `bar`). */
   max?: number;
   /** cards de stat no rodapé (ex.: Quente/Morno com CPL médio em destaque). */
-  cards?: { label: string; tone?: 'red' | 'amber' | 'green' | 'purple'; icon?: string;
+  cards?: { label: string; tone?: 'red' | 'amber' | 'orange' | 'green' | 'blue' | 'purple'; icon?: string;
             stats?: { label: string; value: string }[]; headline?: { label: string; value: string } }[];
 }
 

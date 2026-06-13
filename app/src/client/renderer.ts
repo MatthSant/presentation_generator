@@ -263,6 +263,7 @@ const ICONS: Record<string, string> = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
   'credit-card': '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 9.5h18"/>',
   sprout: '<path d="M12 21V11"/><path d="M12 11c0-3 2-5 5-5 0 3-2 5-5 5Z" fill="currentColor" stroke="none"/><path d="M12 13c0-2.5-2-4-4.5-4 0 2.5 2 4 4.5 4Z" fill="currentColor" stroke="none"/>',
+  snowflake: '<path d="M12 2.5v19M3.85 7.25l16.3 9.5M20.15 7.25l-16.3 9.5M9.5 4.3 12 6.8l2.5-2.5M9.5 19.7 12 17.2l2.5 2.5M4.6 11l3.4.9.9-3.4M19.4 13l-3.4-.9-.9 3.4M19.4 11l-3.4.9-.9-3.4M4.6 13l3.4-.9.9 3.4"/>',
 };
 
 function iconBox(icon?: string, color?: string): HTMLElement {
