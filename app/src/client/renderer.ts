@@ -755,7 +755,15 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
   const div = el('div', `find-block${w.card ? ' find-block--card' : ''} fb-${color}`);
   if (w.modal) { div.dataset.modal = w.modal; }
   div.appendChild(el('span', `find-tag find-tag-${color}`, w.tag || ''));
-  div.appendChild(el('div', 'find-title', w.title || ''));
+  if (w.stat) {
+    const s = el('div', 'find-stat');
+    s.appendChild(el('span', 'fs-val', w.stat.value));
+    s.appendChild(el('span', `fs-delta sd-${w.stat.tone || 'warn'}`, w.stat.delta));
+    if (w.stat.meta) s.appendChild(el('span', 'fs-meta', w.stat.meta));
+    div.appendChild(s);
+  } else {
+    div.appendChild(el('div', 'find-title', w.title || ''));
+  }
   if (w.detail) {
     const { body, impl } = splitImplication(w.detail);
     if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = w.card ? highlightFigures(body) : body; div.appendChild(p); }

@@ -293,6 +293,9 @@ export interface FindBlockWidget extends WidgetBase {
   tag?: string;
   tagColor?: ColorToken;
   title: string;
+  /** Linha de métrica estruturada (ex.: risco): valor-destaque + chip de desvio
+   *  colorido + meta de referência. Quando presente, substitui o `title` no topo. */
+  stat?: { value: string; delta: string; meta?: string; tone?: 'warn' | 'bad' };
   detail?: string;
   /** Id of a modal in the section's `modals`. Adds the "↗ ver detalhamento" link. */
   modal?: string;

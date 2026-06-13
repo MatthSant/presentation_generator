@@ -92,9 +92,17 @@ def assemble(rows, config, content, opts=None):
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
             sym = '⚠' if r['cls'] == 'warn' else '✕'
+            mv = B['meta'].get(r['metric'])
+            arrow = '▼' if r['meta_dev'] < 0 else '▲'   # abaixo da meta (KPI) / acima (custo)
+            stat = {'value': vfmt(r['metric'], r['value']),
+                    'delta': f"{arrow} {abs(r['meta_dev']):.0f}%",
+                    'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
+            if mv is not None:
+                stat['meta'] = f"meta {vfmt(r['metric'], mv)}"
             arr.append({'id': f'{prefix}-risk-{i}', 'type': 'find-block', 'card': True,
                         'tag': f"{sym} {r['label']}", 'tagColor': 'r' if r['cls'] == 'bad' else 'a',
                         'title': f"{vfmt(r['metric'], r['value'])} · {r['meta_dev']:+.0f}% vs meta",
+                        'stat': stat,
                         'detail': RISK_IMPACT.get(r['metric'], '')})
             pg.add(f'{prefix}-risk-{i}', 'find-block', 6, 2)
 
