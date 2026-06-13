@@ -91,6 +91,8 @@ def assemble(rows, config, content, opts=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
+        if metric == 'cpmql':   # métrica-chave (maior correlação c/ vendas) em destaque roxo
+            card['emph'] = True
         # tendência 3d (vs início) — inline ao lado do valor, presente em todas as métricas
         if flag_txt:
             card['flag'] = {'text': flag_txt, 'tone': flag_tone}

@@ -311,7 +311,8 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     return card;
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
-  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}`);
+  const emphCls = (feature && w.emph) ? ' kc--emph' : '';
+  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}${emphCls}`);
   const val = el('div', 'kc-val');
   val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
   if (feature) {

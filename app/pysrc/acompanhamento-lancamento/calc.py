@@ -13,7 +13,7 @@ import re
 
 # Métricas de custo (menor é melhor) — direção da tendência e do desvio vs meta.
 COST = {'cpl', 'cpmql', 'cpm'}
-KPI_MACRO = ['investimento', 'leads', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual']
+KPI_MACRO = ['investimento', 'leads', 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql']
 KPI_TRAF = ['cpm', 'hook', 'hold', 'ctr', 'connect', 'conv_pag']
 LABELS = {
     'investimento': 'Investimento', 'cpl': 'CPL', 'cpmql': 'CPMQL',

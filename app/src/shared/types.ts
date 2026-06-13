@@ -419,6 +419,9 @@ export interface KpiCardWidget extends WidgetBase {
    *  grande à esquerda, `delta` como pill grande à direita. Para metas / meta-to-date
    *  e qualquer "X / alvo · %". Recurso de plataforma, não exclusivo de um tipo. */
   band?: boolean;
+  /** Destaque (feature): fundo roxo em degradê + texto claro — p/ a métrica-chave
+   *  da seção (ex.: CPMQL nos KPIs macro). */
+  emph?: boolean;
   /** Tom de fundo (tint) do card por categoria — p/g/a/r/n. Para grades de células
    *  categóricas (ex.: tipo de lead: roxo base, vermelho pago, verde orgânico). */
   tint?: ColorToken;
