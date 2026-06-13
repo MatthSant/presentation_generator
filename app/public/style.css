@@ -1112,6 +1112,7 @@ body.edit-mode .tile-filter-badge { display:none; }
 .dash-grid--coords:not(.grid-active) .dash-tile { align-self: stretch; }
 .dash-grid--coords:not(.grid-active) .dash-tile > .widget-chart,
 .dash-grid--coords:not(.grid-active) .dash-tile > .bar-list,
+.dash-grid--coords:not(.grid-active) .dash-tile > .find-block,
 .dash-grid--coords:not(.grid-active) .dash-tile > .hm-wrap { height: 100%; }
 /* gráficos: centraliza o canvas verticalmente quando o card estica além do gráfico */
 .dash-grid--coords:not(.grid-active) .dash-tile > .widget-chart { display: flex; flex-direction: column; }
