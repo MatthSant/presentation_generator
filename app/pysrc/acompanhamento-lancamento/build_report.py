@@ -84,7 +84,7 @@ def assemble(rows, config, content, opts=None):
         st = B['meta_status'].get(metric)
         meta = B['meta'].get(metric)
         if st and meta is not None:
-            glabel = 'meta (proj.)' if metric == 'investimento' else 'meta'
+            glabel = 'Meta (proj.)' if metric == 'investimento' else 'Meta'
             card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
         pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
