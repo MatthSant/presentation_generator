@@ -590,9 +590,6 @@ export interface CriListWidget extends WidgetBase {
   title?: string;
   caption?: string;
   rows: { name: string; link?: string; meta?: string;
-          /** Linha de indicadores do criativo (ex.: CPL · Tx.Resp · Qualif · CPMQL),
-           *  `emph` destaca um deles (ex.: CPMQL). */
-          metrics?: { label: string; value: string; emph?: boolean }[];
           stats: { value: string; label: string; tone?: 'pos' | 'neg' | 'neutral' }[] }[];
 }
 

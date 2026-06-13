@@ -84,7 +84,7 @@ def assemble(rows, config, content, opts=None):
             parts.append(f"meta {vfmt(metric, meta)} · {st['dev']:+.0f}% {sym}")
         return ' · '.join(parts)
 
-    def kcard(arr, pg, metric, prefix='k'):
+    def kcard(arr, pg, metric, prefix='k', w=2):
         wid = f'{prefix}-{metric}'
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
         flag_txt, flag_tone = trend_delta(metric)
@@ -103,7 +103,7 @@ def assemble(rows, config, content, opts=None):
             glabel = 'Meta (proj.)' if metric == 'investimento' else 'Meta'
             card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
-        pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
+        pg.add(wid, 'kpi-card', w, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
@@ -337,17 +337,18 @@ def assemble(rows, config, content, opts=None):
                     'caption': f"maior volume e maior qualificação · campanha até {B['corte_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
-        def cri_list_rows(lst):
+        def cri_list_rows(lst, eff=False):
             rows = []
             for c in lst:
-                metrics = [
-                    {'label': 'CPL', 'value': vfmt('cpl', c['cpl'])},
-                    {'label': 'Tx. Resp.', 'value': pctf(c['taxa_resp'])},
-                    {'label': 'Qualif.', 'value': pctf(c['taxa_qual'])},
-                    {'label': 'CPMQL', 'value': vfmt('cpmql', c['cpmql_proj']), 'emph': True},
-                ]
-                rows.append({'name': c['name'], 'link': c.get('link') or None, 'metrics': metrics,
-                             'stats': [{'value': intf(c['leads']), 'label': 'leads'}]})
+                if eff:
+                    meta = (f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · "
+                            f"CPMQL {vfmt('cpmql', c['cpmql_proj'])} · {intf(c['respostas'])} resp.")
+                    stat2 = {'value': pctf(c['taxa_qual']), 'label': 'qualificação', 'tone': 'pos'}
+                else:
+                    meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
+                    stat2 = {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}
+                rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
+                             'stats': [{'value': intf(c['leads']), 'label': 'leads'}, stat2]})
             return rows
         if cr['best']:
             can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
@@ -356,7 +357,7 @@ def assemble(rows, config, content, opts=None):
         if cr['eff']:
             can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
                         'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
-                        'rows': cri_list_rows(cr['eff'])})
+                        'rows': cri_list_rows(cr['eff'], eff=True)})
             cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}
@@ -364,10 +365,15 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s04 — Tráfego Pago ═══════════════════════════════════════════════
     tra, tg = [], Grid()
-    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': '6 indicadores de mídia'})
+    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia: alcance, vídeo e cliques'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
     for m in calc.KPI_TRAF:
         kcard(tra, tg, m, 'kt')
+    # conversão do lead pago — custo e qualidade (CPMQL em destaque)
+    tra.append({'id': 'tra-eb-conv', 'type': 'eyebrow', 'title': 'CONVERSÃO DO LEAD PAGO', 'caption': 'custo, resposta e qualidade'})
+    tg.add('tra-eb-conv', 'eyebrow', 12, 1)
+    for m in ['cpl', 'taxa_resp', 'taxa_qual', 'cpmql']:
+        kcard(tra, tg, m, 'kt', w=3)
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas
     tra.append({'id': 'tra-eb-fun', 'type': 'eyebrow', 'title': 'FUNIL DE TRÁFEGO PAGO',
