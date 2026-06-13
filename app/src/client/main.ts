@@ -986,7 +986,9 @@ class App {
       const theme = document.documentElement.dataset.theme || 'light';
       const meta = this.store.data?.meta || {};
       const title = meta.title || meta.client || 'Relatório';
-      const defCanal = fdef ? String(fdef.default ?? fdef.options[0] ?? '') : '';
+      // Sem filtro, variants = [null] → as panes ficam com data-canal="null"; o canal
+      // padrão precisa casar com isso (senão apply() esconde tudo → export em branco).
+      const defCanal = String(fdef ? (fdef.default ?? fdef.options[0] ?? '') : variants[0]);
       const firstPage = pages[0]?.id || '';
 
       const navTabs = pages.map(p => `<button class="exp-tab" data-page="${esc(p.id)}">${esc(p.label)}</button>`).join('');
