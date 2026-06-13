@@ -28,7 +28,7 @@ FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pagevi
 # absoluta (senão Impressões→Cliques, com CTR ~1-2%, venceria sempre).
 #   0 imp→clicks  = CTR · 1 clicks→pageviews = Connect · 2 pageviews→leads = Conv. página
 #   3 leads→respostas = Taxa de Resposta (meta/histórico) · 4 respostas→mqls = Qualidade (meta/histórico)
-FUNNEL_BENCH = {'ctr': 1.0, 'connect': 80.0, 'conv_pag': 40.0}
+FUNNEL_BENCH = {'hook': 30.0, 'hold': 30.0, 'ctr': 1.5, 'connect': 80.0, 'conv_pag': 40.0}
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 
@@ -281,13 +281,14 @@ def build(rows, config=None):
         metas.setdefault('_leads_total', g.get('leads_total'))
         metas.setdefault('_leads_td', g.get('leads_td'))
         metas.setdefault('_invest_total', g.get('invest_total'))
-    # benchmarks de tráfego (CTR/Connect/Conv. página) também viram a meta-padrão dos
-    # KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
+    # benchmarks de tráfego (hook/hold/ctr/connect/conv. página) também viram a
+    # meta-padrão dos KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
+    # config['funnel_bench'] sobrescreve; senão cai no FUNNEL_BENCH (fallback).
     fb = dict(FUNNEL_BENCH)
     fb.update(config.get('funnel_bench') or {})
-    metas.setdefault('ctr', fb['ctr'])
-    metas.setdefault('connect', fb['connect'])
-    metas.setdefault('conv_pag', fb['conv_pag'])
+    for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag'):
+        if fb.get(k) is not None:
+            metas.setdefault(k, fb[k])
     # leads (KPI macro) usa a meta to-date como referência do semáforo
     metas.setdefault('leads', metas.get('_leads_td'))
     # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos
