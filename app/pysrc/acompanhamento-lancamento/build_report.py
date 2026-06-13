@@ -313,14 +313,19 @@ def assemble(rows, config, content, opts=None):
     cg.add('can-eb-tipo', 'eyebrow', 12, 1)
     # barras 100% por categoria, divididas Pago / Orgânico — mostra quem domina cada
     # categoria de lead (novos = pago, clientes = orgânico, etc.)
+    leads_base = tl['novos'] + tl['antigos']
+
     def tl_seg(pago, org, tot):
         pp, po = calc.pct(pago, tot) or 0, calc.pct(org, tot) or 0
         return [{'pct': pp, 'color': '#7C3AED', 'label': f'{pp:.0f}%'},
                 {'pct': po, 'color': '#639922', 'label': f'{po:.0f}%'}]
     tl_rows = [
-        {'label': 'Leads Novos', 'value': intf(tl['novos']), 'seg': tl_seg(tl['novos_pago'], tl['novos_org'], tl['novos'])},
-        {'label': 'Leads Antigos', 'value': intf(tl['antigos']), 'seg': tl_seg(tl['antigos_pago'], tl['antigos_org'], tl['antigos'])},
-        {'label': 'Clientes', 'value': intf(tl['cli_total']), 'seg': tl_seg(tl['cli_pago'], tl['cli_org'], tl['cli_total'])},
+        {'label': 'Leads Novos', 'value': intf(tl['novos']), 'pct': calc.pct(tl['novos'], leads_base),
+         'seg': tl_seg(tl['novos_pago'], tl['novos_org'], tl['novos'])},
+        {'label': 'Leads Antigos', 'value': intf(tl['antigos']), 'pct': calc.pct(tl['antigos'], leads_base),
+         'seg': tl_seg(tl['antigos_pago'], tl['antigos_org'], tl['antigos'])},
+        {'label': 'Clientes', 'value': intf(tl['cli_total']), 'pct': calc.pct(tl['cli_total'], leads_base),
+         'seg': tl_seg(tl['cli_pago'], tl['cli_org'], tl['cli_total'])},
     ]
     can.append({'id': 'can-tl', 'type': 'bar-list', 'rows': tl_rows,
                 'legend': [{'label': 'Pago', 'color': '#7C3AED'}, {'label': 'Orgânico', 'color': '#639922'}]})

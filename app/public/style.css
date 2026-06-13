@@ -328,6 +328,8 @@ html, body {
 .bl-fill { height: 100%; border-radius: var(--r-pill); background: var(--purple); min-width: 4px; }
 .bl-track--seg { height: 24px; display: flex; border-radius: 6px; }
 .bl-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; }
+.bl-total { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.bl-totpct { font-size: 11px; font-weight: 600; color: var(--gray2); white-space: nowrap; }
 .bl-legend { display: flex; gap: 16px; font-size: 12px; color: var(--gray2); margin-bottom: 13px; }
 .bl-legend-i { display: flex; align-items: center; gap: 6px; }
 .bl-legend-sw { width: 10px; height: 10px; border-radius: 3px; }

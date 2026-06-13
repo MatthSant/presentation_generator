@@ -908,8 +908,10 @@ function renderBarList(w: BarListWidget): HTMLElement {
         track.appendChild(seg);
       }
       row.appendChild(track);
-      row.appendChild(el('span', 'bl-val', r.value));
-      row.appendChild(el('span', 'bl-pct', ''));
+      const tot = el('div', 'bl-total');
+      tot.appendChild(el('span', 'bl-val', r.value));
+      if (r.pct != null) tot.appendChild(el('span', 'bl-totpct', `${r.pct.toFixed(1)}% do total`));
+      row.appendChild(tot);
     } else {
       const track = el('div', 'bl-track');
       const fill = el('div', 'bl-fill');
