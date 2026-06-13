@@ -55,7 +55,7 @@
     <p class="u-sub">Custo e tokens das gerações de insights e aprofundamentos. Os valores usam o preço configurado do modelo; ajuste em <code>app/.env</code> se necessário.</p>
     <div class="seg" style="margin-top:18px">
       <button type="button" class="seg-opt active" data-tab="uso">Uso da API</button>
-      <button type="button" class="seg-opt" data-tab="deepen">Detalhamentos</button>
+      <button type="button" class="seg-opt" data-tab="deepen">Aprofundamentos</button>
     </div>
     <div id="body"><p class="u-empty">Carregando…</p></div>
     <div id="deepen-body" hidden><p class="u-empty">Carregando…</p></div>
@@ -76,7 +76,7 @@
     try {
       const d = await (await fetch('/api/claude-log?limit=100')).json();
       const body = document.getElementById('body');
-      if (!d.total) { body.innerHTML = '<p class="u-empty">Nenhuma chamada à API ainda. Gere uma análise com insights ou um detalhamento.</p>'; }
+      if (!d.total) { body.innerHTML = '<p class="u-empty">Nenhuma chamada à API ainda. Gere uma análise com insights ou um aprofundamento.</p>'; }
       else {
         const t = d.totals;
         const kinds = Object.entries(d.byKind).sort((a, b) => b[1].usd - a[1].usd);
@@ -117,7 +117,7 @@
       document.getElementById('body').innerHTML = '<p class="u-empty">Erro ao carregar o uso: ' + esc(err.message) + '</p>';
     }
 
-    // ── aba Detalhamentos (deepen_history: prompt, rating, custo, replay) ──
+    // ── aba Aprofundamentos (deepen_history: prompt, rating, custo, replay) ──
     const dBody = document.getElementById('deepen-body');
     let deepenLoaded = false;
 

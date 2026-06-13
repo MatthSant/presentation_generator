@@ -88,7 +88,7 @@ export async function runGeneration(key: string, args: BuildReportArgs): Promise
   }
 }
 
-// --- Perguntas norteadoras: cálculo fixo de relevância ----------------------
+// --- Perguntas de aprofundamento: cálculo fixo de relevância ----------------------
 
 const PERGUNTAS_SCRIPT = path.join(PYSRC, 'perguntas', 'perguntas_calc.py');
 

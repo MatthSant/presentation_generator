@@ -2,7 +2,7 @@
 
 Regenerar uma análise reescreve data.json e as seções sXX.json. O que é MUTÁVEL
 pós-geração e precisa sobreviver:
-  • seções det-*.json (detalhamentos seguidos) + a página "Detalhamentos" na nav;
+  • seções det-*.json (aprofundamentos seguidos) + a página "Aprofundamentos" (id detalhamentos) na nav;
   • a página "Perguntas norteadoras" (kind: perguntas) já criada;
   • as MODAIS de deepen anexadas dentro de cada sXX.json (section.modals +
     a ref `modal` no bloco de origem).
@@ -40,7 +40,7 @@ def preserve_dataset(out_dir, dataset):
 def preserve(out_dir, data, sections):
     pages = data.setdefault('pages', [])
 
-    # 1) Página "Detalhamentos" reconstruída a partir dos det-*.json no disco —
+    # 1) Página "Aprofundamentos" (id detalhamentos) reconstruída a partir dos det-*.json no disco —
     #    labels limpos (título da pergunta) e sem órfãos.
     dets = sorted(f[:-5] for f in os.listdir(out_dir)
                   if f.startswith('det-') and f.endswith('.json')) if os.path.isdir(out_dir) else []
