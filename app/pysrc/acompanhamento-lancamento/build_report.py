@@ -20,10 +20,11 @@ from common.fmt import money, pctf, intf
 from common.preserve import preserve, preserve_dataset
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
+INT = {'leads'}  # contagem — nem % nem dinheiro
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
 FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).
-ICON = {'investimento': ('coin', '#534AB7'), 'cpl': ('users', '#185FA5'), 'cpmql': ('star', '#854F0B'),
+ICON = {'leads': ('users', '#7C3AED'), 'investimento': ('coin', '#534AB7'), 'cpl': ('credit-card', '#185FA5'), 'cpmql': ('star', '#854F0B'),
         'taxa_resp': ('arrows-left-right', '#3B6D11'), 'taxa_qual': ('circle-check', '#534AB7'),
         'conv_pag': ('target', '#185FA5'), 'cpm': ('database', '#534AB7'), 'hook': ('bolt', '#EF9F27'),
         'hold': ('trending-up', '#854F0B'), 'ctr': ('trending-up', '#3B6D11'),
@@ -33,7 +34,11 @@ ICON = {'investimento': ('coin', '#534AB7'), 'cpl': ('users', '#185FA5'), 'cpmql
 def vfmt(metric, v):
     if v is None:
         return '—'
-    return pctf(v) if metric in PCT else money(v)
+    if metric in PCT:
+        return pctf(v)
+    if metric in INT:
+        return intf(v)
+    return money(v)
 
 
 def assemble(rows, config, content, opts=None):
@@ -84,7 +89,8 @@ def assemble(rows, config, content, opts=None):
         st = B['meta_status'].get(metric)
         meta = B['meta'].get(metric)
         if st and meta is not None:
-            card['goal'] = {'label': f"meta {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
+            glabel = 'proj.' if metric == 'investimento' else 'meta'
+            card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
         pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 

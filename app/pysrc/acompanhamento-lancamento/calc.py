@@ -13,7 +13,7 @@ import re
 
 # Métricas de custo (menor é melhor) — direção da tendência e do desvio vs meta.
 COST = {'cpl', 'cpmql', 'cpm'}
-KPI_MACRO = ['investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual', 'conv_pag']
+KPI_MACRO = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual']
 KPI_TRAF = ['cpm', 'hook', 'hold', 'ctr', 'connect', 'conv_pag']
 LABELS = {
     'investimento': 'Investimento', 'cpl': 'CPL', 'cpmql': 'CPMQL',
@@ -119,6 +119,7 @@ def derive(s):
     cpl = div(s['invest'], s['leads_pago'])
     tq = pct(s['mqls'], s['respostas'])
     return {
+        'leads': round(s['leads']),
         'investimento': round(s['invest'], 2),
         'cpl': cpl,
         'cpmql': (round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None),
@@ -272,7 +273,16 @@ def build(rows, config=None):
     metas.setdefault('ctr', fb['ctr'])
     metas.setdefault('connect', fb['connect'])
     metas.setdefault('conv_pag', fb['conv_pag'])
+    # leads (KPI macro) usa a meta to-date como referência do semáforo
+    metas.setdefault('leads', metas.get('_leads_td'))
+    # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos
+    mc = metas.get('cpl')
+    if mc is not None and tot_sums['leads_pago']:
+        metas.setdefault('investimento', round(mc * tot_sums['leads_pago'], 2))
     mstatus = {m: meta_status(tot.get(m), metas.get(m), m in COST) for m in set(KPI_MACRO + KPI_TRAF)}
+    # investimento: gastar abaixo do projetado é bom → semáforo de custo
+    if metas.get('investimento') is not None:
+        mstatus['investimento'] = meta_status(tot.get('investimento'), metas['investimento'], cost=True)
 
     # split pago/orgânico
     lp, lo = tot_sums['leads_pago'], tot_sums['leads'] - tot_sums['leads_pago']
