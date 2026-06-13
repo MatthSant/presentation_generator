@@ -523,7 +523,7 @@ class App {
   private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card',
     'heatmap-toggle', 'chart-toggle', 'chart-table', 'kpi', 'kpi-card', 'kpi-strip', 'qa-card',
     'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list']);
-  private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z"/></svg>';
+  private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 6.5 17h11z"/><path d="M4.5 17h15"/><path d="M12 8l.55 1.45 1.45.1-1.1 1 .35 1.45L12 12.2l-1.7.8.35-1.45-1.1-1 1.45-.1z" fill="currentColor" stroke="none"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
    *  is attached. Works across all pages/blocks, not just insight cards. */
