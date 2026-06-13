@@ -1097,6 +1097,17 @@ body.edit-mode .tile-filter-badge { display:none; }
 .dash-grid--coords:not(.grid-active) .dash-tile {
   padding-bottom:16px;
 }
+/* Colunas adjacentes alinham na borda da linha: os tiles esticam à altura da linha
+   (definida pelo mais alto), e o card preenche — assim o donut termina junto do
+   gráfico ao lado em vez de ficar curto. */
+.dash-grid--coords:not(.grid-active) .dash-tile { align-self: stretch; }
+.dash-grid--coords:not(.grid-active) .dash-tile > .widget-chart,
+.dash-grid--coords:not(.grid-active) .dash-tile > .bar-list,
+.dash-grid--coords:not(.grid-active) .dash-tile > .hm-wrap { height: 100%; }
+/* gráficos: centraliza o canvas verticalmente quando o card estica além do gráfico */
+.dash-grid--coords:not(.grid-active) .dash-tile > .widget-chart { display: flex; flex-direction: column; }
+.dash-grid--coords:not(.grid-active) .dash-tile > .widget-chart > .chart-wrap,
+.dash-grid--coords:not(.grid-active) .dash-tile > .widget-chart > div:last-child { margin-top: auto; margin-bottom: auto; }
 
 /* ══════════════════════════════════════════
    READ-PATH "COLLAGE" REDESIGN
