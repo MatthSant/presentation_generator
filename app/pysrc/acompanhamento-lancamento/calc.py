@@ -157,9 +157,10 @@ def meta_status(val, meta, cost=False):
         return None
     dev = (val - meta) / meta * 100
     # "gap" = quanto está pior que a meta (abaixo p/ KPI normal, acima p/ custo).
-    # Tolerância de 5%: dentro disso é ok; alerta só aparece com gap > 5%.
+    # gap <= 0: bateu/superou → ok (verde). 0–5%: tolerado, mas não bateu → neutral
+    # (cinza). 5–15%: warn. >15%: bad. Alerta só a partir de 5%.
     gap = dev if cost else -dev
-    cls = 'ok' if gap <= 5 else ('warn' if gap <= 15 else 'bad')
+    cls = 'ok' if gap <= 0 else ('neutral' if gap <= 5 else ('warn' if gap <= 15 else 'bad'))
     return {'dev': round(dev, 1), 'cls': cls}
 
 

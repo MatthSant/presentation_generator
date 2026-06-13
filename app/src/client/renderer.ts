@@ -347,8 +347,9 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       const g = el('div', 'kc-goal');
       g.appendChild(el('span', 'kc-goal-lbl', w.goal.label));
       if (w.goal.delta) {
-        const sym = w.goal.status === 'ok' ? '✓' : w.goal.status === 'bad' ? '✕' : '⚠';
-        g.appendChild(el('span', `kc-goal-val kg-${w.goal.status || 'warn'}`, `${w.goal.delta} ${sym}`));
+        const st = w.goal.status || 'warn';
+        const sym = st === 'ok' ? '✓' : st === 'bad' ? '✕' : st === 'warn' ? '⚠' : '';
+        g.appendChild(el('span', `kc-goal-val kg-${st}`, sym ? `${w.goal.delta} ${sym}` : w.goal.delta));
       }
       card.appendChild(g);
     }

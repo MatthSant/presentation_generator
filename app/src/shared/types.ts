@@ -431,7 +431,7 @@ export interface KpiCardWidget extends WidgetBase {
    *  e rodapé de meta com selo ✓/⚠/✕. Quando presentes, renderizam em linhas próprias. */
   d3?: { value: string; dir?: 'up' | 'down'; tone?: 'pos' | 'neg' | 'neutral' };
   flag?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
-  goal?: { label: string; delta?: string; status?: 'ok' | 'warn' | 'bad' };
+  goal?: { label: string; delta?: string; status?: 'ok' | 'neutral' | 'warn' | 'bad' };
   /** Trend sparkline series (feature tier); nulls = gaps. */
   spark?: (number | null)[];
   /** Proportion bar segments (volume tier); remainder fills as a muted track. */
