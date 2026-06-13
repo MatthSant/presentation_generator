@@ -61,6 +61,19 @@ def assemble(rows, config, content, opts=None):
             tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
         return f"3d {arrow}{tr['pct']:.0f}%", tone
 
+    def trend_badge(metric):
+        """Versão verbosa do chip de tendência p/ cabeçalho de gráfico (tem espaço).
+        Retorna (None, None) quando estável — gráfico não recebe badge."""
+        tr = B['trend'].get(metric)
+        if not tr or tr['dir'] == 'neutro':
+            return None, None
+        arrow = '▲' if tr['dir'] == 'up' else '▼'
+        if metric == 'investimento':
+            tone = 'neutral'
+        else:
+            tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
+        return f"{arrow} {tr['pct']:.0f}% nos últimos 3d", tone
+
     def kpi_sub(metric):
         parts = [f"3d {vfmt(metric, B['d3'].get(metric))}"]
         st = B['meta_status'].get(metric)
@@ -224,8 +237,8 @@ def assemble(rows, config, content, opts=None):
         else:
             c['colors'] = [color]
         if trendkey:
-            txt, tone = trend_delta(trendkey)
-            if txt and txt != 'estável':
+            txt, tone = trend_badge(trendkey)
+            if txt:
                 c['badge'] = {'text': txt, 'tone': tone}
         evo.append(c)
         eg.add(wid, 'chart', w, 4)
