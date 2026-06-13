@@ -52,10 +52,14 @@ def assemble(rows, config, content, opts=None):
     def trend_delta(metric):
         tr = B['trend'].get(metric)
         if not tr or tr['dir'] == 'neutro':
-            return 'estável', 'neutral'
+            return '◦ estável', 'neutral'
         arrow = '▲' if tr['dir'] == 'up' else '▼'
-        tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
-        return f"{arrow} {tr['pct']:.0f}% vs início", tone
+        # investimento: variação de gasto não é boa nem ruim → tom neutro
+        if metric == 'investimento':
+            tone = 'neutral'
+        else:
+            tone = 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')
+        return f"{arrow} {tr['pct']:.0f}% · 3d", tone
 
     def kpi_sub(metric):
         parts = [f"3d {vfmt(metric, B['d3'].get(metric))}"]
@@ -69,27 +73,18 @@ def assemble(rows, config, content, opts=None):
     def kcard(arr, pg, metric, prefix='k'):
         wid = f'{prefix}-{metric}'
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
-        tr = B['trend'].get(metric, {})
         flag_txt, flag_tone = trend_delta(metric)
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
-        # valor dos últimos 3 dias (colorido pela direção-de-bom)
-        d3v = B['d3'].get(metric)
-        if d3v is not None:
-            d3 = {'value': vfmt(metric, d3v),
-                  'tone': 'pos' if tr.get('good') else ('neg' if tr.get('good') is False else 'neutral')}
-            if tr.get('dir') in ('up', 'down'):
-                d3['dir'] = tr['dir']
-            card['d3'] = d3
-        # flag de tendência (vs início)
+        # tendência 3d (vs início) — inline ao lado do valor, presente em todas as métricas
         if flag_txt:
             card['flag'] = {'text': flag_txt, 'tone': flag_tone}
-        # rodapé de meta + desvio com selo ✓/⚠/✕
+        # rodapé de meta + desvio com selo ✓/⚠/✕ (fixo no fim do card)
         st = B['meta_status'].get(metric)
         meta = B['meta'].get(metric)
         if st and meta is not None:
-            glabel = 'proj.' if metric == 'investimento' else 'meta'
+            glabel = 'meta (proj.)' if metric == 'investimento' else 'meta'
             card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
         pg.add(wid, 'kpi-card', 2, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)

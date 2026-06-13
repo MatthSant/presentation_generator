@@ -331,6 +331,8 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     card.appendChild(head);
     const row = el('div', 'kc-valrow');
     row.appendChild(val);
+    // tendência (3d vs início) inline ao lado do valor
+    if (w.flag) row.appendChild(el('span', `pill ${PILL_TONE[w.flag.tone || 'neutral']} kc-trend`, w.flag.text));
     if (w.spark && w.spark.length > 1) { const s = sparkSvg(w.spark); if (s) row.appendChild(s); }
     card.appendChild(row);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));
@@ -340,9 +342,6 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       dd.appendChild(document.createTextNode(`3d: ${w.d3.value}`));
       if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? ' ↑' : ' ↓'));
       card.appendChild(dd);
-    }
-    if (w.flag) {
-      card.appendChild(el('span', `pill ${PILL_TONE[w.flag.tone || 'neutral']} kc-flag`, w.flag.text));
     }
     if (w.goal) {
       const g = el('div', 'kc-goal');
