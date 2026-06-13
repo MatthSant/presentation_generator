@@ -1478,9 +1478,9 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--volume .kc-ico svg { width: 14px; height: 14px; }
 .kc-lbl { font-size: 11px; font-weight: 600; color: var(--fg); }
 .kc--feature .kc-lbl { margin-bottom: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gray2); }
-.kc-val { font-family: var(--font-mono); font-size: 22px; font-weight: 800; color: var(--fg); line-height: 1.05; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; white-space: nowrap; flex-shrink: 0; }
+.kc-val { font-family: var(--font-sans); font-size: 22px; font-weight: 800; color: var(--fg); line-height: 1.05; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; white-space: nowrap; flex-shrink: 0; }
 .kc--feature .kc-val { font-size: 20px; }
-.kc--feature .kc-val { word-spacing: -0.3em; }
+.kc--feature .kc-val { word-spacing: -0.12em; }
 .kc-val .kpi-sep { color: var(--border-strong); font-weight: 500; margin: 0 4px; }
 .kc--volume .kc-val { font-size: 19px; margin-top: 1px; }
 .kc-sub { font-size: 10.5px; color: var(--gray2); line-height: 1.4; margin-top: 4px; flex: 1; }
