@@ -1,4 +1,4 @@
-/* perguntas.ts — the "Perguntas norteadoras" board.
+/* perguntas.ts — the "Perguntas de aprofundamento" board.
  *
  * A page (not a section grid): a ranked list of guiding questions whose
  * relevance is computed in Python. The consultant picks which to deepen
@@ -46,7 +46,7 @@ export class PerguntasView {
 
     const head = `
       <header class="pg-head">
-        <div class="pg-eyebrow">Perguntas norteadoras</div>
+        <div class="pg-eyebrow">Perguntas de aprofundamento</div>
         <div class="pg-head-row">
           <h1 class="pg-title">O que vale aprofundar primeiro?</h1>
           <button type="button" class="pg-add" title="Adicionar uma pergunta sua e gerar o detalhamento">+ Adicionar pergunta</button>

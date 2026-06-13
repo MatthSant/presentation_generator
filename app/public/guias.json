@@ -62,7 +62,7 @@
             ] },
             { "type": "sub", "text": "Insights" },
             { "type": "p", "text": "Leitura interpretativa em três zonas: conclusões claras (✓), aprofundamento recomendado (↗) e pontos de atenção (!)." },
-            { "type": "sub", "text": "Detalhamentos" },
+            { "type": "sub", "text": "Aprofundamentos" },
             { "type": "p", "text": "Cruzamentos entre critérios e a análise de <strong>relevância × codependência</strong>: quanto cada fator move a conversão (amplitude) e se o sinal é próprio (<em>qualificador</em>) ou apenas proxy de outro (<em>qualificante</em>). Associação ≠ causalidade." },
             { "type": "callout", "label": "Marcador de filtro", "text": "Quando o canal está em Pago/Orgânico, um <strong>badge roxo</strong> marca os blocos que refletem o filtro. Blocos sem badge mostram o número geral (não filtram)." }
           ]
@@ -124,7 +124,7 @@
               "Extraia o consolidado (uma linha por evento × tráfego × plataforma × temperatura) com a query padrão da fonte.",
               "Antes de gerar, confira a classificação de temperatura/canal e o volume de N/C (UTM quebrado).",
               "Clique em <strong>Criar esta análise</strong>, informe cliente/título e envie o CSV.",
-              "O relatório abre em <code>/report/[cliente]/[slug]</code>; a aba Perguntas norteadoras aparece sozinha."
+              "O relatório abre em <code>/report/[cliente]/[slug]</code>; a aba Perguntas de aprofundamento aparece sozinha."
             ] }
           ]
         },
@@ -135,8 +135,8 @@
             { "type": "p", "text": "KPIs principais (Conversão, ROAS, ROI, Retorno) com sparkline + cards de volume (investimento, leads, vendas, reembolsos, recapturados, qualidade, conv. MQL, split). O <strong>seletor de indicador</strong> troca os blocos de quebra (geral, pago × orgânico, plataforma, temperatura, perfil MQL) — cada um com gráfico + tabela comparativa entre lançamentos e linha de média." },
             { "type": "sub", "text": "Investimentos" },
             { "type": "p", "text": "Mídia paga: CPM, CTR, CPC, CPL, conversão paga, CPA e ROAS pago, por evento e por temperatura, com variação vs. anterior. Outliers (Tukey/IQR) já vêm removidos onde existem — com botão para mostrar." },
-            { "type": "sub", "text": "Perguntas e Detalhamentos" },
-            { "type": "p", "text": "Banco de perguntas norteadoras ranqueadas por relevância; ao seguir uma, a IA gera um detalhamento como nova seção na página Detalhamentos." }
+            { "type": "sub", "text": "Perguntas e Aprofundamentos" },
+            { "type": "p", "text": "Banco de perguntas de aprofundamento ranqueadas por relevância; ao seguir uma, a IA gera um aprofundamento como nova seção na página Aprofundamentos." }
           ]
         },
         {
@@ -216,8 +216,8 @@
             { "type": "p", "text": "KPIs macro do modo ativo + bloco de qualidade de captação (Hook/Hold/CTR/Connect/Conv. Página comparados ao benchmark), gráfico de evolução diária e dispersão (métricas por eixo selecionáveis), e a grade de criativos por desempenho — cada card abre a ficha." },
             { "type": "sub", "text": "Fichas por criativo (sidebar)" },
             { "type": "p", "text": "Uma seção por criativo: preview do anúncio, resultado macro, quebra por campanha/público/temperatura e evolução diária. A sidebar permite buscar e ordenar (A–Z, investimento, ROAS)." },
-            { "type": "sub", "text": "Perguntas e Detalhamentos" },
-            { "type": "p", "text": "Perguntas norteadoras ranqueadas por relevância; ao seguir uma, a IA gera um detalhamento como nova seção." }
+            { "type": "sub", "text": "Perguntas e Aprofundamentos" },
+            { "type": "p", "text": "Perguntas de aprofundamento ranqueadas por relevância; ao seguir uma, a IA gera um aprofundamento como nova seção." }
           ]
         },
         {
@@ -292,8 +292,8 @@
             { "type": "p", "text": "Leads acumulados vs linhas de meta (total e to-date), split Pago × Orgânico, atingimento, e 6 KPIs macro — cada um com valor geral, dos <strong>últimos 3 dias</strong>, tendência (vs início) e desvio vs meta com semáforo. Mais os 2 maiores riscos com texto de impacto." },
             { "type": "sub", "text": "Evolução · Canais · Tráfego" },
             { "type": "p", "text": "Séries diárias (leads, investimento, CPL, qualidade, CPMQL); origem, temperatura, tipo de lead e criativos do último dia; e os indicadores de mídia (CPM, Hook, Hold, CTR, Connect, Conv. Página) com o <strong>funil de tráfego por taxa vs benchmark</strong>." },
-            { "type": "sub", "text": "Perguntas e Detalhamentos" },
-            { "type": "p", "text": "Perguntas norteadoras ranqueadas (maior furo, KPI fora da meta, qualidade caindo, custo subindo); ao seguir uma, a IA gera um detalhamento aprofundando os dados por dia." }
+            { "type": "sub", "text": "Perguntas e Aprofundamentos" },
+            { "type": "p", "text": "Perguntas de aprofundamento ranqueadas (maior furo, KPI fora da meta, qualidade caindo, custo subindo); ao seguir uma, a IA gera um aprofundamento aprofundando os dados por dia." }
           ]
         },
         {
@@ -356,7 +356,7 @@
             { "type": "ul", "items": [
               "Extraia o CSV do lançamento (use o <strong>montador</strong> com o <code>field_conversion</code>).",
               "Clique em <strong>Criar esta análise</strong>: ajuste os padrões de classificação e envie o CSV (+ goals e histórico, se houver).",
-              "O relatório abre em <code>/report/[cliente]/[slug]</code> com as 7 abas e a aba Perguntas norteadoras."
+              "O relatório abre em <code>/report/[cliente]/[slug]</code> com as 7 abas e a aba Perguntas de aprofundamento."
             ] }
           ]
         },
@@ -367,8 +367,8 @@
             { "type": "p", "text": "Atingimento de leads/vendas, resultado macro (Fat, Retorno, ROI, ROAS) e comparativo vs meta; performance por canal e por escopo (pago × orgânico); indicadores de mídia (só captação) por temperatura e campanha; e os canais orgânicos." },
             { "type": "sub", "text": "Temporal · Análise 360° · One Pager" },
             { "type": "p", "text": "Semana a semana por data de inscrição (First Click); 13 perguntas estratégicas com veredito e gráficos; e o resumo executivo de 1 tela com alavancas/gargalos automáticos." },
-            { "type": "sub", "text": "Perguntas e Detalhamentos" },
-            { "type": "p", "text": "Perguntas norteadoras ranqueadas (meta de vendas, temperatura, pago×orgânico, qualidade, custo); ao seguir uma, a IA aprofunda por canal/temperatura/semana." }
+            { "type": "sub", "text": "Perguntas e Aprofundamentos" },
+            { "type": "p", "text": "Perguntas de aprofundamento ranqueadas (meta de vendas, temperatura, pago×orgânico, qualidade, custo); ao seguir uma, a IA aprofunda por canal/temperatura/semana." }
           ]
         },
         {

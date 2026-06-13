@@ -47,7 +47,7 @@ def preserve(out_dir, data, sections):
     if dets:
         detp = next((p for p in pages if p.get('id') == 'detalhamentos'), None)
         if detp is None:
-            detp = {'id': 'detalhamentos', 'label': 'Detalhamentos', 'sections': []}
+            detp = {'id': 'detalhamentos', 'label': 'Aprofundamentos', 'sections': []}
             idx = next((i for i, p in enumerate(pages) if p.get('kind') == 'perguntas'), len(pages))
             pages.insert(idx, detp)
         detp['sections'] = []

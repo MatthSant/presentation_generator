@@ -344,7 +344,7 @@ def build(csv_path, config, content, out_dir):
     # passa a ser povoada sob demanda pelos detalhamentos das perguntas norteadoras.
     has_det = len(det) > 0
     if has_det:
-        sections['s11'] = {'id': 's11', 'header': dcfg.get('header', {'badge': 'Detalhamentos', 'title': 'Detalhamentos'}), 'widgets': det}
+        sections['s11'] = {'id': 's11', 'header': dcfg.get('header', {'badge': 'Aprofundamentos', 'title': 'Aprofundamentos'}), 'widgets': det}
         layouts['s11'] = dg.items
 
     cod_w = [
@@ -375,7 +375,7 @@ def build(csv_path, config, content, out_dir):
     all_pages = [{'id': 'panorama', 'label': 'Panorama', 'sections': [{'id': 's01', 'label': 'Panorama Geral'}]},
                  {'id': 'insights', 'label': 'Insights', 'sections': [{'id': 's10', 'label': content['insights']['header']['title']}]}]
     if has_det:
-        all_pages.append({'id': 'detalhamentos', 'label': 'Detalhamentos', 'sections': [{'id': 's11', 'label': sections['s11']['header'].get('title', 'Detalhamentos')}]})
+        all_pages.append({'id': 'detalhamentos', 'label': 'Aprofundamentos', 'sections': [{'id': 's11', 'label': sections['s11']['header'].get('title', 'Aprofundamentos')}]})
     all_pages.append({'id': 'codependencia', 'label': 'Codependência', 'sections': [{'id': 's12', 'label': 'Relevância × Codependência'}]})
     for ci, c in enumerate(CRIT):
         all_pages.append({'id': c['id'], 'label': c['tab'], 'sections': [{'id': f's{ci + 2:02d}', 'label': c['label']}]})

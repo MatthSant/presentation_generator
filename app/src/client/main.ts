@@ -101,8 +101,8 @@ class App {
       const r = await this.api.getPerguntas();
       if (!(r.perguntas || []).length) return;
       if (this.store.pages.some(p => p.kind === 'perguntas')) return;
-      this.store.data.pages.push({ id: 'perguntas', label: 'Perguntas norteadoras', kind: 'perguntas',
-        sections: [{ id: 'perguntas', label: 'Perguntas norteadoras' }] });
+      this.store.data.pages.push({ id: 'perguntas', label: 'Perguntas de aprofundamento', kind: 'perguntas',
+        sections: [{ id: 'perguntas', label: 'Perguntas de aprofundamento' }] });
       this.nav.build();
       this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
     } catch { /* sem perguntas para este tipo — ok */ }
@@ -351,7 +351,7 @@ class App {
     }
   }
 
-  /* ───────────────────────────  Perguntas norteadoras  ─────────────────────────── */
+  /* ───────────────────────────  Perguntas de aprofundamento  ─────────────────────────── */
 
   /** Render the guiding-questions board (a special page, not a section grid). */
   private async renderPerguntas(): Promise<void> {
@@ -444,7 +444,7 @@ class App {
   /** Follow a question: the server generates its detalhamento as a new section on
    *  the Detalhamentos page; we refresh the nav and jump straight to it. */
   private async seguirPergunta(p: Pergunta): Promise<void> {
-    this.setBusy(true, 'Gerando detalhamento…');
+    this.setBusy(true, 'Gerando aprofundamento…');
     try {
       const r = await this.api.seguirPergunta(p.id);
       // The nav map changed (new section, maybe a new page) → reload + rebuild.
@@ -452,7 +452,7 @@ class App {
       this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
       this.nav.build();
       await this.go(r.pageId, r.sectionId);
-      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
+      this.toast(r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado');
       this.setBusy(false);
     } catch (e) {
       // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
@@ -502,14 +502,14 @@ class App {
   }
 
   private async criarPerguntaCustom(text: string): Promise<void> {
-    this.setBusy(true, 'Criando detalhamento…');
+    this.setBusy(true, 'Criando aprofundamento…');
     try {
       const r = await this.api.addCustomPergunta(text);
       this.store.data = await this.api.getData();
       this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
       this.nav.build();
       await this.go(r.pageId, r.sectionId);
-      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
+      this.toast(r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado');
     } catch (e) {
       this.toast(`Falha ao adicionar pergunta: ${(e as Error).message}`);
     } finally {

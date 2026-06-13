@@ -87,8 +87,8 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     if (!data) return;
     const pages = (data.pages ||= []);
     if (pages.some((p) => p.kind === 'perguntas')) return;
-    pages.push({ id: 'perguntas', label: 'Perguntas norteadoras', kind: 'perguntas',
-      sections: [{ id: 'perguntas', label: 'Perguntas norteadoras' }] } as PageRef);
+    pages.push({ id: 'perguntas', label: 'Perguntas de aprofundamento', kind: 'perguntas',
+      sections: [{ id: 'perguntas', label: 'Perguntas de aprofundamento' }] } as PageRef);
     ctx.skipNextSSE.add('data.json');
     writeJson(dataFile, data);
   }
@@ -140,7 +140,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const pages = (data.pages ||= []);
     let page = pages.find((p) => p.id === DET_PAGE_ID);
     if (!page) {
-      page = { id: DET_PAGE_ID, label: 'Detalhamentos', sections: [] } as PageRef;
+      page = { id: DET_PAGE_ID, label: 'Aprofundamentos', sections: [] } as PageRef;
       const pi = pages.findIndex((p) => p.kind === 'perguntas');
       if (pi >= 0) pages.splice(pi, 0, page); else pages.push(page);
     }
@@ -245,7 +245,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     let clientGone = false;
     res.on('close', () => { if (!res.writableFinished) clientGone = true; });
     try {
-      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento', shortLabel(p.pergunta), 'pergunta', () => clientGone);
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento', shortLabel(p.pergunta), 'pergunta', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, historyId });
     } catch (e) {
       if (!res.writableEnded) res.status(500).json({ error: (e as Error).message });
@@ -281,7 +281,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     let clientGone = false;
     res.on('close', () => { if (!res.writableFinished) clientGone = true; });
     try {
-      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Detalhamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone);
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p, historyId });
     } catch (e) {
       if (!res.writableEnded) res.status(500).json({ error: (e as Error).message });

@@ -154,7 +154,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
         writeJson(path.join(dir, 'dataset.json'), r.dataset);
       }
       const title = prompt.length > 80 ? `${prompt.slice(0, 78)}…` : prompt;
-      const section: Section = { id: sectionId, header: { badge: 'Detalhamento · Replay', title }, widgets: r.widgets };
+      const section: Section = { id: sectionId, header: { badge: 'Aprofundamento · Replay', title }, widgets: r.widgets };
       const newId = recordDeepen(ctx.db, {
         client, slug, analysisType: r.analysisType,
         origem: (entry.origem as 'card' | 'pergunta' | 'custom' | 'iteracao') || 'card',
@@ -183,7 +183,7 @@ function attachToDetalhamentos(dir: string, ctx: Ctx, ref: { id: string; label: 
   const pages = (data.pages ||= []);
   let page = pages.find((p) => p.id === 'detalhamentos');
   if (!page) {
-    page = { id: 'detalhamentos', label: 'Detalhamentos', sections: [] } as PageRef;
+    page = { id: 'detalhamentos', label: 'Aprofundamentos', sections: [] } as PageRef;
     const pi = pages.findIndex((p) => p.kind === 'perguntas');
     if (pi >= 0) pages.splice(pi, 0, page); else pages.push(page);
   }
