@@ -1456,6 +1456,10 @@ body.edit-mode .tile-filter-badge { display:none; }
 .grp-eyebrow .ge-t { font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--fg); white-space: nowrap; }
 .grp-eyebrow .ge-c { font-size: 11.5px; font-weight: 600; color: var(--gray2); }
 .grp-eyebrow .ge-rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+/* divisor de grupo — cabeçalho de seção (mais forte que um eyebrow de sub-seção) */
+.grp-eyebrow.ge-divider { margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--border); }
+.grp-eyebrow.ge-divider .ge-t { font-size: 14px; letter-spacing: 1.6px; color: var(--purple); }
+.grp-eyebrow.ge-divider .ge-rule { background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 32%, transparent), transparent); }
 
 /* — KPI strip — */
 .kpi-strip {

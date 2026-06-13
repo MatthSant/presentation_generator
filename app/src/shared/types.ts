@@ -393,6 +393,9 @@ export interface EyebrowWidget extends WidgetBase {
   color?: 'purple' | 'green' | 'amber' | 'red';
   title: string;
   caption?: string;
+  /** Divisor de grupo (cabeçalho de seção): estilo mais forte que um eyebrow comum,
+   *  para abrir um bloco que contém sub-seções (que usam eyebrows normais). */
+  divider?: boolean;
 }
 export interface KpiStripItem {
   value: string; label: string; sub?: string; small?: boolean;

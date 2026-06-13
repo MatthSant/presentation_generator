@@ -384,7 +384,7 @@ def assemble(rows, config, content, opts=None):
     for sid, divider, dcap in groups:
         if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
             did = f'div-{sid}'
-            dw = {'id': did, 'type': 'eyebrow', 'title': divider}
+            dw = {'id': did, 'type': 'eyebrow', 'title': divider, 'divider': True}
             if dcap:
                 dw['caption'] = dcap
             merged_w.append(dw)

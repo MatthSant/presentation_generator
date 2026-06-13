@@ -177,7 +177,7 @@ function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
 
 /* ── eyebrow ── numbered zone separator (badge + title + caption + rule) */
 function renderEyebrow(w: EyebrowWidget): HTMLElement {
-  const wrap = el('div', `grp-eyebrow${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
+  const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
   if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
