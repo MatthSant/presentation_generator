@@ -397,10 +397,10 @@ def _creatives(day_rows, links):
                     'respostas': round(a['respostas']), 'cpl': cpl, 'taxa_qual': tq,
                     'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None)})
     best = sorted(out, key=lambda c: -c['leads'])[:3]
-    # mais eficientes por CPMQL projetado — só com base estatística mínima (≥20 respostas),
-    # senão um criativo com pouquíssima pesquisa "ganha" por ruído.
-    eff = sorted([c for c in out if c['cpmql_proj'] is not None and c['respostas'] >= 20],
-                 key=lambda c: c['cpmql_proj'])[:3]
+    # maior qualificação (taxa de qualidade) — só com base estatística mínima (≥20
+    # respostas), senão um criativo com pouquíssima pesquisa "ganha" por ruído.
+    eff = sorted([c for c in out if c['taxa_qual'] is not None and c['respostas'] >= 20],
+                 key=lambda c: -c['taxa_qual'])[:3]
     return {'best': best, 'eff': eff}
 
 

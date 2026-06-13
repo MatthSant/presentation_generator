@@ -1169,8 +1169,8 @@ body.edit-mode .tile-filter-badge { display:none; }
 .dash-grid:not(.grid-active) .cri-list { border-radius:var(--r-lg); padding:18px 20px; }
 
 /* ── cri-list — lista de criativos ranqueados (thumb + nome/link + stats) ── */
-.cri-cap { font-size:11.5px; color:var(--gray2); line-height:1.5; margin:2px 0 8px; }
-.cri-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--divider); }
+.cri-cap { font-size:11.5px; color:var(--gray2); line-height:1.5; margin-top:10px; padding-top:9px; border-top:1px solid var(--divider); }
+.cri-row { display:flex; align-items:center; gap:12px; min-height:64px; padding:10px 0; border-bottom:1px solid var(--divider); }
 .cri-row:last-child { border-bottom:none; }
 .cri-thumb { width:38px; height:38px; border-radius:var(--r-sm); background:var(--surface); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--purple); }
 .cri-thumb svg { width:19px; height:19px; }

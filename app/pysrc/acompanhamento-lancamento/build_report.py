@@ -334,26 +334,29 @@ def assemble(rows, config, content, opts=None):
     cr = B['criativos']
     if cr['best'] or cr['eff']:
         can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS',
-                    'caption': f"maior volume e mais eficientes por CPMQL projetado · campanha até {B['corte_label']}"})
+                    'caption': f"maior volume e maior qualificação · campanha até {B['corte_label']}"})
         cg.add('can-eb-cri', 'eyebrow', 12, 1)
 
         def cri_list_rows(lst, eff=False):
             rows = []
             for c in lst:
-                meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
                 if eff:
-                    meta += f" · {intf(c['respostas'])} resp."
+                    meta = (f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · "
+                            f"CPMQL {vfmt('cpmql', c['cpmql_proj'])} · {intf(c['respostas'])} resp.")
+                    stat2 = {'value': pctf(c['taxa_qual']), 'label': 'qualificação', 'tone': 'pos'}
+                else:
+                    meta = f"R$ {intf(c['invest'])} invest · CPL {vfmt('cpl', c['cpl'])} · TQ {pctf(c['taxa_qual'])}"
+                    stat2 = {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}
                 rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
-                             'stats': [{'value': intf(c['leads']), 'label': 'leads'},
-                                       {'value': vfmt('cpmql', c['cpmql_proj']), 'label': 'CPMQL proj.', 'tone': 'neg'}]})
+                             'stats': [{'value': intf(c['leads']), 'label': 'leads'}, stat2]})
             return rows
         if cr['best']:
             can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
                         'rows': cri_list_rows(cr['best'])})
             cg.add('can-cri-best', 'cri-list', 6, 4)
         if cr['eff']:
-            can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Menor CPMQL projetado',
-                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para o CPMQL projetado ser confiável.',
+            can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
+                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
                         'rows': cri_list_rows(cr['eff'], eff=True)})
             cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',

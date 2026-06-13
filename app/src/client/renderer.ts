@@ -960,7 +960,6 @@ function renderCriList(w: CriListWidget): HTMLElement {
     head.appendChild(el('div', 'chart-title', w.title));
     wrap.appendChild(head);
   }
-  if (w.caption) wrap.appendChild(el('div', 'cri-cap', w.caption));
   for (const r of w.rows) {
     const row = el('div', 'cri-row');
     const thumb = el('div', 'cri-thumb');
@@ -984,6 +983,7 @@ function renderCriList(w: CriListWidget): HTMLElement {
     row.appendChild(stat);
     wrap.appendChild(row);
   }
+  if (w.caption) wrap.appendChild(el('div', 'cri-cap', w.caption));
   return wrap;
 }
 
