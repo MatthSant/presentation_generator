@@ -1506,8 +1506,12 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--band-neutral .kc-band-pill { background: color-mix(in srgb, var(--amber) 16%, var(--bg)); color: var(--amber); }
 .kc--band-neg { background: var(--red-bg); border-color: color-mix(in srgb, var(--red) 30%, var(--border)); }
 .kc--band-neg .kc-lbl { color: var(--red); }
-/* emph — card de destaque (roxo escuro), p/ a métrica-hero (ex.: Meta Geral), sem semáforo */
-.kc--band-emph { background: #4c1d95; border-color: #4c1d95; }
+/* emph — card de destaque (roxo escuro c/ degradê), p/ a métrica-hero (ex.: Meta Geral), sem semáforo */
+.kc--band-emph {
+  background: linear-gradient(135deg, #3b1374 0%, #4c1d95 52%, #6d28d9 100%);
+  border-color: transparent;
+  box-shadow: 0 6px 22px -8px rgba(76, 29, 149, .5);
+}
 .kc--band-emph .kc-lbl { color: rgba(255,255,255,.72); }
 .kc--band-emph .kc-val { color: #fff; }
 .kc--band-emph .kc-sub { color: rgba(255,255,255,.66); }
