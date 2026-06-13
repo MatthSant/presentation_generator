@@ -317,11 +317,14 @@ def build(rows, config=None):
         'cli_total': round(tot_sums['cli']),
     }
 
-    # canais orgânicos (por utm_source)
+    # canais orgânicos (por utm_source) — vazios/null/'-' viram "Não trackeado"
+    def _src(v):
+        s = str(v if v is not None else '').strip()
+        return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
     org_by = {}
     for r in org_rows:
-        src = (r.get('utm_source') or '(direto)').strip() or '(direto)'
-        org_by[src] = org_by.get(src, 0) + fnum(r.get('leads'))
+        org_by.setdefault(_src(r.get('utm_source')), 0.0)
+        org_by[_src(r.get('utm_source'))] += fnum(r.get('leads'))
     canais_org = sorted(({'source': k, 'leads': round(v), 'pct': pct(v, lo)} for k, v in org_by.items() if v > 0),
                         key=lambda x: -x['leads'])
 

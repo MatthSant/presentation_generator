@@ -278,9 +278,14 @@ def assemble(rows, config, content, opts=None):
         {'label': 'Orgânico', 'value': intf(sp['leads_org']), 'pct': calc.pct(sp['leads_org'], tot_leads) or 0,
          'bar': sp['leads_org'], 'icon': 'sprout', 'color': '#A78BFA'},
     ]
-    for c in B['canais_org'][:6]:
+    co = B['canais_org']
+    for c in co[:5]:
         orig_rows.append({'label': c['source'], 'value': intf(c['leads']), 'pct': c.get('pct') or 0,
                           'bar': c['leads'], 'indent': True, 'color': '#C3A4F7'})
+    if co[5:]:   # agrupa os canais além do top 5 num "Outros" final
+        ro = sum(c['leads'] for c in co[5:])
+        orig_rows.append({'label': 'Outros', 'value': intf(ro), 'pct': calc.pct(ro, sp['leads_org']) or 0,
+                          'bar': ro, 'indent': True, 'color': '#C3A4F7'})
     can.append({'id': 'can-orig', 'type': 'bar-list', 'title': 'Origem do Tráfego', 'rows': orig_rows})
     cg.add('can-orig', 'bar-list', 6, 4)
     # temperatura — bar-list (Quente/Morno) + cards de stat com CPL médio em destaque
