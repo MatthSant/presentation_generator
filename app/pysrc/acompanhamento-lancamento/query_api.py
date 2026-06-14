@@ -138,7 +138,94 @@ def decomposicao(B, a):
     return qc.ok(rows, ['Fator'], summary)
 
 
-EXTRA = {'cruzar_dia': cruzar_dia, 'decomposicao': decomposicao}
+def _windows(B, n=3):
+    """Janela inicial (n primeiros dias COM mídia) × final (n últimos)."""
+    days = [d for d in B['days'] if d.get('cpl') is not None]
+    if len(days) < 4:
+        return None, None
+    k = min(n, len(days) // 2)
+    ini_d = {d['date'] for d in days[:k]}
+    rec_d = {d['date'] for d in days[-k:]}
+    rows = B.get('rows_corte') or []
+    return ([r for r in rows if calc._date(r) in ini_d],
+            [r for r in rows if calc._date(r) in rec_d])
+
+
+def _concentra(ini_rows, rec_rows, dim, metric, trules, is_cost):
+    """Para uma dimensão: como cada item moveu (início→recente) e se a piora é
+    CONCENTRADA num item ou AMPLA (quase todos). Contribuição ponderada por volume."""
+    fi = {x['key']: x['m'] for x in calc.frame_rows(ini_rows, dim, None, trules)}
+    fr = {x['key']: x['m'] for x in calc.frame_rows(rec_rows, dim, None, trules)}
+    tot_leads = sum((fr[k].get('leads') or 0) for k in fr) or 1.0
+    items = []
+    for k, m in fr.items():
+        mr, mi, vol = m.get(metric), fi.get(k, {}).get(metric), (m.get('leads') or 0)
+        if not (isinstance(mr, (int, float)) and isinstance(mi, (int, float)) and mr > 0 and mi > 0):
+            continue
+        dln = math.log(mr / mi)
+        worse = (dln > 0) if is_cost else (dln < 0)
+        items.append({'item': k, 'inicio': qc.rnd(mi), 'recente': qc.rnd(mr),
+                      'var_pct': qc.rnd((mr / mi - 1) * 100, 1), 'leads': round(vol),
+                      'piorou': worse, '_contrib': (vol / tot_leads) * dln})
+    if not items:
+        return {'dim': dim, 'n': 0, 'verdict': 'sem dado'}
+    items.sort(key=lambda it: -abs(it['_contrib']))
+    sum_abs = sum(abs(it['_contrib']) for it in items) or 1e-9
+    top = items[0]
+    top_share = abs(top['_contrib']) / sum_abs
+    vol_worse = sum(it['leads'] for it in items if it['piorou']) / tot_leads
+    n = len(items)
+    # O sinal decisivo é QUANTO volume piorou: se a maioria piora, é AMPLO (sobe de
+    # nível), por maior que seja o top (ele só pesa por ser grande). CONCENTRADO = só uma
+    # MINORIA do volume piora, mas puxa o agregado (top domina entre os que pioraram).
+    if n == 1:
+        verdict = 'inconclusivo (1 item só)'
+    elif vol_worse >= 0.6:
+        verdict = 'amplo'                       # maioria do volume piora → não é este nível
+    elif vol_worse <= 0.4 and top['piorou'] and top_share >= 0.4:
+        verdict = 'concentrado'                 # poucos pioram e 1 domina → é este nível
+    else:
+        verdict = 'misto'
+    for it in items:
+        it.pop('_contrib', None)
+    return {'dim': dim, 'n': n, 'verdict': verdict, 'top_item': top['item'],
+            'top_share_%': qc.rnd(top_share * 100, 0), 'vol_pior_%': qc.rnd(vol_worse * 100, 0),
+            'itens': items[:6]}
+
+
+# ordem do drill-down (fino → grosso → ortogonais); global = uniforme em tudo
+_DRILL = ['criativo', 'publico', 'campanha', 'canal', 'temperatura']
+
+
+def onde_concentra(B, a):
+    """DRILL-DOWN de atribuição: para a métrica que piorou, acha ONDE o impacto se
+    concentra. Varre criativo → publico → campanha → canal → temperatura: se um item
+    DOMINA a piora num nível, é a causa; se a piora é AMPLA (quase todos pioram), sobe
+    de nível; se uniforme em tudo → GLOBAL (mídia/leilão/sazonalidade/estrutural). 1 item
+    num nível é inconclusivo (testa o próximo). A IA reporta o veredito e ARGUMENTA."""
+    metric = a.get('metrica', 'cpl')
+    if metric not in METRICS:
+        return qc.nao_disp(f"métrica '{metric}' inválida")
+    ini_rows, rec_rows = _windows(B)
+    if ini_rows is None:
+        return qc.nao_disp('série de mídia curta demais p/ atribuir (mín. ~4 dias)')
+    is_cost = metric in COST
+    trules = B.get('trules')
+    niveis = [_concentra(ini_rows, rec_rows, d, metric, trules, is_cost) for d in _DRILL]
+    causa = next((lv for lv in niveis if lv['verdict'] == 'concentrado'), None)
+    if causa:
+        conclusao = f"Concentra em {causa['dim']} = '{causa['top_item']}' ({causa['top_share_%']:.0f}% da piora)."
+    else:
+        conclusao = 'Piora AMPLA/uniforme em todos os níveis → causa GLOBAL (mídia/leilão/sazonalidade/estrutural), não um recorte específico.'
+    rows = [{'nível': lv['dim'], 'veredito': lv['verdict'],
+             'item que mais pesa': lv.get('top_item'), 'peso do top %': lv.get('top_share_%'),
+             '% volume que piorou': lv.get('vol_pior_%'), 'itens': lv['n']} for lv in niveis]
+    return {'status': 'ok', 'table': {'dims': ['nível'], 'filters': [], 'rows': rows},
+            'summary': f'Atribuição de {calc.LABELS.get(metric, metric)} (início→recente). {conclusao}',
+            'detalhe': {lv['dim']: lv.get('itens') for lv in niveis}}
+
+
+EXTRA = {'cruzar_dia': cruzar_dia, 'decomposicao': decomposicao, 'onde_concentra': onde_concentra}
 
 
 def main():

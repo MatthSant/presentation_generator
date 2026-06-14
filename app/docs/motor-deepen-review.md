@@ -181,6 +181,27 @@ o critic validar no run real.
 
 ---
 
+### M6 — função `onde_concentra` (drill-down de atribuição)
+**Por quê:** "qual criativo/público/campanha/canal/temperatura puxa a métrica, ou é geral?"
+exigia a IA varrer dimensões e julgar concentração na mão — errado (confunde o maior item
+com a causa). **O motor faz o drill-down e dá o veredito.**
+**O que faz:** `consultar onde_concentra(metrica)` varre criativo → publico → campanha →
+canal → temperatura (início→recente) e classifica cada nível: **AMPLO** (maioria do volume
+piora → sobe de nível), **CONCENTRADO** (minoria piora, 1 item domina → é a causa),
+inconclusivo (1 item). Se AMPLO/uniforme em tudo → **GLOBAL** (mídia/leilão/saturação).
+**Heurística:** o sinal decisivo é `vol_pior_%` (quanto do volume piorou), NÃO o peso do top
+(o maior item pesa por ser grande, não por degradar mais — armadilha de atribuição).
+**Verificado:** CPL do enxoval → AMPLO em todos (criativo 98%, público/campanha/temp 100%)
+→ veredito GLOBAL. Bate com a decomposição (CTR -62,6% global).
+**Validação por agente:** a IA concluiu GLOBAL e ARGUMENTOU; explicitou que o veredito do
+motor a impediu de culpar erradamente o maior criativo (55% = artefato de volume).
+**Limites honestos (do DADO, não da lógica):** canal cego (1 só: meta-ads) → "global na
+conta" pode ser "global no Meta"; sem frequency/reach no dump, saturação é hipótese não
+medição; confiança menor onde a dimensão tem poucos itens (2 públicos/campanhas).
+**Arquivos:** `query_api.py`, `typeRegistry.ts`, `claude.ts`.
+
+---
+
 ## Status final (acompanhamento)
 - **6 perguntas revisadas 1 a 1** (2 simulações ricas via agent: ac-qualidade, ac-custo;
   4 em revisão combinada). Todas **engine-ready**.
