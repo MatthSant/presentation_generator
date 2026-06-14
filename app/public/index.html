@@ -7,242 +7,181 @@
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
   <style>
-    body { background: var(--bg-page); }
-
-    /* ── app bar (ações próprias da home; chrome base vem do style.css) ── */
-    .home-uso { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray); text-decoration: none; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .home-uso:hover { color: var(--fg); border-color: var(--border-strong); }
-    .home-uso svg { width: 15px; height: 15px; }
-    .home-new { margin-left: 10px; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #fff; background: var(--purple); text-decoration: none; padding: 7px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(124, 58, 237, .28); }
-    .home-new:hover { opacity: .92; }
-    .home-new svg { width: 15px; height: 15px; }
-    .home-new { border: none; cursor: pointer; font-family: inherit; }
-    .home-new-wrap { position: relative; margin-left: 10px; }
-    .home-new-wrap .home-new { margin-left: 0; }
-    .home-new-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 260px; background: var(--bg); border: 1px solid var(--border); border-radius: 11px; box-shadow: var(--shadow-md); padding: 6px; }
-    .home-new-menu[hidden] { display: none; }
-    .hnm-item { display: flex; gap: 11px; align-items: flex-start; text-decoration: none; color: inherit; padding: 10px 11px; border-radius: 8px; }
-    .hnm-item:hover { background: var(--purple-bg); }
-    .hnm-ic { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--purple); background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); }
-    .hnm-ic svg { width: 16px; height: 16px; }
-    .hnm-t { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; }
-    .hnm-s { display: block; font-size: 11.5px; color: var(--gray); line-height: 1.45; margin-top: 2px; }
-    .home-bar-count { margin-left: 14px; font-size: 12.5px; color: var(--gray); }
-    .home-bar-count b { color: var(--fg); font-weight: 700; }
-    .bar-logout { margin-left: 14px; display: none; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--gray); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 11px; cursor: pointer; }
-    .bar-logout:hover { color: var(--fg); border-color: var(--border-strong); }
-    .bar-logout b { color: var(--fg); font-weight: 700; }
-
-    /* ── page ── */
-    .home-wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 96px; }
-    .home-head { margin-bottom: 34px; }
-    .home-title { font-size: 30px; font-weight: 700; letter-spacing: -.025em; }
-    .home-sub { color: var(--gray); margin-top: 5px; font-size: 14.5px; }
-
-    /* ── guias ── */
-    .guia-sec { margin-bottom: 36px; }
-    .guia-eyebrow { display:block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--gray2); margin-bottom: 13px; }
-    .guia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
-    .guia-card { display:flex; gap:13px; text-decoration:none; color:inherit; padding: 16px 18px; transition: transform .14s cubic-bezier(.2,.7,.3,1), box-shadow .14s, border-color .14s; }
-    .guia-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--purple) 50%, var(--border)); }
-    .guia-ic { flex-shrink:0; width: 38px; height: 38px; border-radius: 10px; display:grid; place-items:center; color: var(--purple); background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); }
-    .guia-ic svg { width: 19px; height: 19px; }
-    .guia-card-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.25; }
-    .guia-card-sum { display:block; font-size: 12.5px; color: var(--gray); line-height: 1.5; margin-top: 4px; }
-    /* ── client cards (browse by client) ── */
-    .clic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 13px; }
-    .clic-card { display:flex; align-items:center; gap: 12px; text-decoration:none; color:inherit; padding: 14px 16px; transition: transform .14s, box-shadow .14s, border-color .14s; }
-    .clic-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--purple) 50%, var(--border)); }
-    .clic-info { display:flex; flex-direction:column; min-width:0; flex:1; }
-    .clic-count { font-size: 11.5px; }
-    .clic-go { color: var(--gray2); flex-shrink:0; }
-    .clic-go svg { width: 17px; height: 17px; }
-
-    /* ── client group ── */
-    .cli-group { margin-bottom: 30px; }
-    .cli-head { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
-    .cli-mono {
-      width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-      display: grid; place-items: center; font-size: 14px; font-weight: 700;
-      color: var(--purple); background: var(--purple-bg);
-      border: 1px solid color-mix(in srgb, var(--purple) 22%, transparent);
-    }
-    .cli-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-    .cli-slug { font-size: 11.5px; color: var(--gray2); font-family: 'JetBrains Mono', ui-monospace, monospace; margin-top: 1px; }
-    .cli-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--gray); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; }
-
-    .home-empty {
-      border: 1px dashed var(--border-strong); border-radius: 13px;
-      padding: 52px 24px; text-align: center; color: var(--gray); line-height: 1.7;
-    }
-    .home-empty code {
-      font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
-      background: var(--surface); border: 1px solid var(--border);
-      padding: 2px 6px; border-radius: 5px; color: var(--fg);
-    }
+    /* Home — design Witly (escopado em .hm p/ não colidir com globais .btn/.badge) */
+    .hm { background: var(--canvas, #fbfbfd); }
+    /* navbar */
+    .hm .navbar { height: 64px; display: flex; align-items: center; gap: 14px; padding: 0 28px; background: var(--card, #fff); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    .hm .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: inherit; }
+    .hm .brand .mark { width: 38px; height: 38px; border-radius: 10px; background: #fff; border: 1px solid var(--border); display: grid; place-items: center; box-shadow: var(--shadow-sm); flex-shrink: 0; }
+    .hm .brand .mark img { height: 24px; width: auto; display: block; }
+    .hm .brand .tx b { display: block; font-size: 16px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+    .hm .brand .tx small { font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gray2); }
+    .hm .navbar .spacer { flex: 1; }
+    .hm .meta-count { font-size: 13px; font-weight: 600; color: var(--gray2); white-space: nowrap; }
+    .hm .meta-count b { color: var(--fg); font-weight: 800; }
+    .hm .vsep { width: 1px; height: 26px; background: var(--divider); }
+    .hm .nbtn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--r-pill); font-size: 13.5px; font-weight: 700; border: 1px solid var(--border-strong); background: var(--card, #fff); color: var(--fg); text-decoration: none; cursor: pointer; transition: background .15s, border-color .15s, transform .12s, box-shadow .15s; font-family: inherit; }
+    .hm .nbtn svg { width: 16px; height: 16px; }
+    .hm .nbtn:hover { background: var(--surface); }
+    .hm .nbtn:active { transform: scale(.97); }
+    .hm .nbtn.primary { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
+    .hm .nbtn.primary:hover { background: var(--purple-600); border-color: var(--purple-600); }
+    .hm .nbtn.ghost { border-color: transparent; color: var(--gray); }
+    .hm .nbtn.ghost:hover { background: var(--surface); color: var(--fg); }
+    /* page */
+    .hm .page { max-width: 1180px; margin: 0 auto; padding: 44px 28px 80px; }
+    .hm .page h1 { font-size: 38px; font-weight: 800; letter-spacing: -.035em; }
+    .hm .lead { font-size: 16px; color: var(--gray2); font-weight: 500; margin-top: 8px; }
+    .hm .sec-label { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); display: flex; align-items: center; gap: 13px; margin: 38px 0 18px; }
+    .hm .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--divider); }
+    /* guide cards */
+    .hm .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .hm .guide { text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 22px 20px; display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); }
+    .hm .guide:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); border-color: var(--purple-300, #c3a4f7); }
+    .hm .guide .ic { width: 44px; height: 44px; border-radius: 12px; background: var(--purple-bg); color: var(--purple); display: grid; place-items: center; margin-bottom: 16px; transition: background .2s, color .2s; }
+    .hm .guide .ic svg { width: 22px; height: 22px; }
+    .hm .guide:hover .ic { background: var(--purple); color: #fff; }
+    .hm .guide h3 { font-size: 17px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; }
+    .hm .guide p { font-size: 13.5px; color: var(--gray); line-height: 1.55; margin-top: 9px; flex: 1; }
+    .hm .guide .go { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--purple); margin-top: 16px; opacity: 0; transform: translateX(-4px); transition: opacity .2s, transform .2s; }
+    .hm .guide .go svg { width: 15px; height: 15px; }
+    .hm .guide:hover .go { opacity: 1; transform: none; }
+    /* recent cards */
+    .hm .rcard { text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 24px; display: flex; flex-direction: column; min-height: 172px; text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); }
+    .hm .rcard:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); border-color: var(--purple-300, #c3a4f7); }
+    .hm .rbadge { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; padding: 5px 11px; border-radius: var(--r-pill); background: var(--purple-bg); color: var(--purple); }
+    .hm .rbadge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+    .hm .rcard h3 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; margin-top: 14px; flex: 1; }
+    .hm .rcard .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--divider); }
+    .hm .rcard .slug { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; color: var(--gray2); font-weight: 500; }
+    .hm .rcard .date { font-size: 12.5px; color: var(--gray2); font-weight: 600; }
+    /* client cards */
+    .hm .ccard { display: flex; align-items: center; gap: 15px; text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 18px 20px; text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); }
+    .hm .ccard:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); border-color: var(--purple-300, #c3a4f7); }
+    .hm .ccard .av { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-size: 17px; font-weight: 800; color: #fff; flex-shrink: 0; background: linear-gradient(135deg, var(--purple), #9a63f5); }
+    .hm .ccard .av.c2 { background: linear-gradient(135deg, var(--plum), var(--purple-600)); }
+    .hm .ccard .info { flex: 1; min-width: 0; }
+    .hm .ccard .info b { display: block; font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; }
+    .hm .ccard .info .slug { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; color: var(--gray2); font-weight: 500; }
+    .hm .ccard .count { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--gray); background: var(--surface); border: 1px solid var(--border); padding: 5px 11px; border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; }
+    .hm .ccard .count b { color: var(--purple); font-weight: 800; }
+    .hm .ccard.add { justify-content: center; gap: 10px; border-style: dashed; border-color: var(--border-strong); box-shadow: none; color: var(--gray2); font-size: 14px; font-weight: 700; cursor: pointer; }
+    .hm .ccard.add:hover { color: var(--purple); border-color: var(--purple-300, #c3a4f7); background: var(--purple-bg); transform: translateY(-3px); }
+    .hm .ccard.add svg { width: 18px; height: 18px; }
+    /* new-analysis dropdown */
+    .hm .new-wrap { position: relative; }
+    .hm .new-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; min-width: 320px; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-lift); padding: 7px; }
+    .hm .new-menu[hidden] { display: none; }
+    .hm .hnm-item { display: flex; gap: 12px; align-items: flex-start; text-decoration: none; color: inherit; padding: 11px 12px; border-radius: var(--r-md); transition: background .14s; }
+    .hm .hnm-item:hover { background: var(--purple-bg); }
+    .hm .hnm-ic { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--purple); background: var(--purple-bg); }
+    .hm .hnm-ic svg { width: 17px; height: 17px; }
+    .hm .hnm-t { font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+    .hm .hnm-s { display: block; font-size: 12px; color: var(--gray); line-height: 1.45; margin-top: 2px; }
+    .hm .home-empty { border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: 52px 24px; text-align: center; color: var(--gray); line-height: 1.7; }
+    .hm .home-empty code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; background: var(--surface); border: 1px solid var(--border); padding: 2px 6px; border-radius: 5px; color: var(--fg); }
+    @media (max-width: 980px) { .hm .grid3 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .hm .grid3 { grid-template-columns: 1fr; } .hm .navbar { padding: 0 16px; } .hm .page { padding: 28px 16px 70px; } }
   </style>
 </head>
-<body>
-  <header class="home-bar" data-sub="Analytics">
-    <a class="home-uso" href="/config.html" title="Clientes, uso, benchmarks e manutenção"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
-    <div class="home-new-wrap">
-      <button class="home-new" id="new-btn" type="button" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nova análise</button>
-      <div class="home-new-menu" id="new-menu" hidden>
-        <a class="hnm-item" href="/gerar.html">
-          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></span>
-          <span><span class="hnm-t">Conversão por Perfil</span><span class="hnm-s">Quais perfis de lead convertem ao longo dos lançamentos.</span></span>
-        </a>
-        <a class="hnm-item" href="/gerar-historico.html">
-          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg></span>
-          <span><span class="hnm-t">Histórico de Lançamentos</span><span class="hnm-s">Evolução de conversão, mídia e reembolso entre eventos.</span></span>
-        </a>
-        <a class="hnm-item" href="/gerar-criativos.html">
-          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7l4-4h12l4 4M2 7v13a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7M2 7h20M10 11a2 2 0 0 0 4 0"/></svg></span>
-          <span><span class="hnm-t">Análise de Criativos</span><span class="hnm-s">Desempenho anúncio a anúncio: ROAS, captação e qualidade.</span></span>
-        </a>
-        <a class="hnm-item" href="/gerar-acompanhamento.html">
-          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l3-3 2 2 5-6"/><circle cx="17" cy="9" r="1.4"/></svg></span>
-          <span><span class="hnm-t">Acompanhamento de Campanha</span><span class="hnm-s">Report tático diário: metas, tendência 3 dias, riscos e funil.</span></span>
-        </a>
-        <a class="hnm-item" href="/gerar-debriefing.html">
-          <span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="2.5" height="7"/><rect x="12" y="7" width="2.5" height="11"/><rect x="17" y="14" width="2.5" height="4"/></svg></span>
-          <span><span class="hnm-t">Debriefing de Lançamento</span><span class="hnm-s">Dashboard pós-campanha de 7 abas: resultado, canais, mídia e Análise 360°.</span></span>
-        </a>
+<body class="hm">
+  <nav class="navbar">
+    <a class="brand" href="/" title="Início">
+      <span class="mark"><img src="/assets/witly-logo.png" alt="Witly" /></span>
+      <span class="tx"><b>Witly Grimório</b><small>Analytics</small></span>
+    </a>
+    <span class="spacer"></span>
+    <span class="meta-count" id="bar-count"></span>
+    <span class="vsep"></span>
+    <a class="nbtn ghost" href="/config.html" title="Clientes, uso, benchmarks e manutenção"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+    <div class="new-wrap">
+      <button class="nbtn primary" id="new-btn" type="button" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Nova análise</button>
+      <div class="new-menu" id="new-menu" hidden>
+        <a class="hnm-item" href="/gerar-acompanhamento.html"><span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l3-3 2 2 5-6"/><circle cx="17" cy="9" r="1.4"/></svg></span><span><span class="hnm-t">Acompanhamento de Campanha</span><span class="hnm-s">Report tático diário: metas, tendência 3 dias, riscos e funil.</span></span></a>
+        <a class="hnm-item" href="/gerar-debriefing.html"><span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="2.5" height="7"/><rect x="12" y="7" width="2.5" height="11"/><rect x="17" y="14" width="2.5" height="4"/></svg></span><span><span class="hnm-t">Debriefing de Lançamento</span><span class="hnm-s">Dashboard pós-campanha: resultado, canais, mídia e Análise 360°.</span></span></a>
+        <a class="hnm-item" href="/gerar-criativos.html"><span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7l4-4h12l4 4M2 7v13a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7M2 7h20M10 11a2 2 0 0 0 4 0"/></svg></span><span><span class="hnm-t">Análise de Criativos</span><span class="hnm-s">Desempenho anúncio a anúncio: ROAS, captação e qualidade.</span></span></a>
+        <a class="hnm-item" href="/gerar.html"><span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></span><span><span class="hnm-t">Conversão por Perfil</span><span class="hnm-s">Quais perfis de lead convertem ao longo dos lançamentos.</span></span></a>
+        <a class="hnm-item" href="/gerar-historico.html"><span class="hnm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg></span><span><span class="hnm-t">Histórico de Lançamentos</span><span class="hnm-s">Evolução de conversão, mídia e reembolso entre eventos.</span></span></a>
       </div>
     </div>
-    <span class="home-bar-count" id="bar-count"></span>
-    <button class="bar-logout" id="logout" type="button" title="Sair">Sair</button>
-  </header>
-  <script src="/js/page-chrome.js" defer></script>
+    <button class="nbtn ghost" id="logout" type="button" title="Sair" style="display:none"></button>
+  </nav>
 
-  <div class="home-wrap">
-    <header class="home-head">
-      <h1 class="home-title">Análises</h1>
-      <p class="home-sub">Selecione um relatório para abrir o dashboard.</p>
-    </header>
-    <section id="home-guias" class="guia-sec" hidden>
-      <span class="guia-eyebrow">Guias das análises</span>
-      <div class="guia-grid" id="guia-grid"></div>
+  <div class="page">
+    <h1>Análises</h1>
+    <p class="lead">Selecione um relatório para abrir o dashboard, ou crie uma nova análise.</p>
+    <section id="sec-guias" hidden>
+      <div class="sec-label">Guias</div>
+      <div class="grid3" id="guia-grid"></div>
     </section>
     <main id="home-list"></main>
   </div>
 
   <script type="module">
-    const list = document.getElementById('home-list');
-    const barCount = document.getElementById('bar-count');
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const fmtDate = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }); };
+    const initials = (name) => String(name || '?').split(/[-\s_]+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase() || '?';
+    const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"/></svg>';
+    const TYPE_LABEL = { 'acompanhamento-lancamento': 'Acompanhamento', 'debriefing-lancamento': 'Debriefing', 'historico-lancamentos': 'Histórico', 'conversao-perfil': 'Conversão', 'criativos': 'Criativos', dashboard: 'Dashboard', ltv: 'LTV' };
 
-    // Nova análise → menu de escolha do tipo
-    const newBtn = document.getElementById('new-btn');
-    const newMenu = document.getElementById('new-menu');
-    if (newBtn && newMenu) {
-      newBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const open = newMenu.hidden;
-        newMenu.hidden = !open;
-        newBtn.setAttribute('aria-expanded', String(open));
-      });
-      document.addEventListener('click', (e) => {
-        if (!newMenu.hidden && !newMenu.contains(e.target) && e.target !== newBtn) {
-          newMenu.hidden = true; newBtn.setAttribute('aria-expanded', 'false');
-        }
-      });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { newMenu.hidden = true; newBtn.setAttribute('aria-expanded', 'false'); }
-      });
-    }
+    // Nova análise → menu
+    const newBtn = document.getElementById('new-btn'), newMenu = document.getElementById('new-menu');
+    newBtn?.addEventListener('click', (e) => { e.stopPropagation(); const open = newMenu.hidden; newMenu.hidden = !open; newBtn.setAttribute('aria-expanded', String(open)); });
+    document.addEventListener('click', (e) => { if (!newMenu.hidden && !newMenu.contains(e.target) && e.target !== newBtn) { newMenu.hidden = true; newBtn.setAttribute('aria-expanded', 'false'); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') newMenu.hidden = true; });
 
-    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const fmtDate = (iso) => {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-    };
-    const mono = (name) => esc(String(name || '?').trim().charAt(0).toUpperCase() || '?');
-
-    // type → accent color + label
-    const TYPE = {
-      dashboard: { label: 'Dashboard', ac: 'var(--purple)', acb: 'var(--purple-bg)' },
-      ltv:       { label: 'LTV',       ac: 'var(--green)',  acb: 'var(--green-bg)' },
-    };
-    const ICON = {
-      sec:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg>',
-      cmt:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7 7 0 0 1-9.6 6.5L5 20l1.5-4A7 7 0 1 1 20 11.5Z"/></svg>',
-      arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"/></svg>',
-    };
-
-    // ── Guias (seção no corpo da home) ──
+    // Guias
     try {
       const guias = ((await (await fetch('/guias.json')).json()).guias) || [];
       if (guias.length) {
         const BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>';
-        document.getElementById('home-guias').hidden = false;
+        document.getElementById('sec-guias').hidden = false;
         document.getElementById('guia-grid').innerHTML = guias.map(g => `
-          <a class="card guia-card" href="/guia/${encodeURIComponent(g.slug)}">
-            <span class="guia-ic">${BOOK}</span>
-            <span><span class="guia-card-title">${esc(g.title)}</span><span class="guia-card-sum">${esc(g.summary || '')}</span></span>
+          <a class="guide" href="/guia/${encodeURIComponent(g.slug)}">
+            <span class="ic">${BOOK}</span>
+            <h3>${esc(g.title)}</h3>
+            <p>${esc(g.summary || '')}</p>
+            <span class="go">Abrir guia ${ARROW}</span>
           </a>`).join('');
       }
-    } catch { /* guias.json ausente → seção fica oculta */ }
+    } catch { /* guias.json ausente */ }
 
+    const list = document.getElementById('home-list');
     try {
       const res = await fetch('/api/analyses');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
-
       if (!rows.length) {
-        list.innerHTML = `<div class="home-empty">
-          Nenhuma análise encontrada em <code>output/</code>.<br>
-          Rode <code>/ltv-analysis</code> ou <code>/conversao-perfil</code>, ou adicione uma pasta <code>output/&lt;cliente&gt;/&lt;slug&gt;/</code>.
-        </div>`;
+        list.innerHTML = `<div class="home-empty">Nenhuma análise encontrada em <code>output/</code>.<br>Crie uma em <b>Nova análise</b>.</div>`;
       } else {
         const groups = new Map();
-        for (const r of rows) {
-          if (!groups.has(r.client)) groups.set(r.client, { name: r.clientName || r.client, slug: r.client, items: [] });
-          groups.get(r.client).items.push(r);
-        }
+        for (const r of rows) { if (!groups.has(r.client)) groups.set(r.client, { name: r.clientName || r.client, slug: r.client, items: [] }); groups.get(r.client).items.push(r); }
         const ordered = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-        const nClients = ordered.length, nAn = rows.length;
-        barCount.innerHTML = `<b>${nAn}</b> ${nAn === 1 ? 'análise' : 'análises'} · <b>${nClients}</b> ${nClients === 1 ? 'cliente' : 'clientes'}`;
+        const nAn = rows.length, nCli = ordered.length;
+        document.getElementById('bar-count').innerHTML = `<b>${nAn}</b> ${nAn === 1 ? 'análise' : 'análises'} · <b>${nCli}</b> ${nCli === 1 ? 'cliente' : 'clientes'}`;
 
-        const card = (r) => {
-          const t = TYPE[r.type] || { label: r.type || '', ac: 'var(--gray)', acb: 'var(--surface)' };
-          return `
-          <a class="card an-card" style="--ac:${t.ac};--acb:${t.acb}" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
-            <span class="an-go">${ICON.arrow}</span>
-            ${t.label ? `<span class="an-type">${esc(t.label)}</span>` : ''}
-            <div class="an-title">${esc(r.title || r.slug)}</div>
-            <div class="an-meta">
-              <span class="cli-slug">${esc(r.client)}</span>
-              <span class="an-date">${esc(fmtDate(r.created_at))}</span>
-            </div>
+        const rcard = (r) => `
+          <a class="rcard" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
+            <span class="rbadge"><span class="dot"></span>${esc(TYPE_LABEL[r.type] || r.type || 'Relatório')}</span>
+            <h3>${esc(r.title || r.slug)}</h3>
+            <div class="foot"><span class="slug">${esc(r.client)}</span><span class="date">${esc(fmtDate(r.created_at))}</span></div>
           </a>`;
-        };
-        const cliCard = (g) => `
-          <a class="card clic-card" href="/cliente/${encodeURIComponent(g.slug)}">
-            <span class="cli-mono">${mono(g.name)}</span>
-            <span class="clic-info"><span class="cli-name">${esc(g.name)}</span><span class="cli-slug">${esc(g.slug)}</span></span>
-            <span class="pill pill--accent clic-count">${g.items.length} ${g.items.length === 1 ? 'análise' : 'análises'}</span>
-            <span class="clic-go">${ICON.arrow}</span>
+        const ccard = (g, i) => `
+          <a class="ccard" href="/cliente/${encodeURIComponent(g.slug)}">
+            <span class="av ${i % 2 ? 'c2' : ''}">${esc(initials(g.name))}</span>
+            <span class="info"><b>${esc(g.name)}</b><span class="slug">${esc(g.slug)}</span></span>
+            <span class="count"><b>${g.items.length}</b> ${g.items.length === 1 ? 'análise' : 'análises'}</span>
           </a>`;
-
         const recent = [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).slice(0, 6);
         list.innerHTML = `
-          <section class="guia-sec">
-            <span class="guia-eyebrow">Análises recentes</span>
-            <div class="home-grid">${recent.map(card).join('')}</div>
-          </section>
-          <section class="guia-sec">
-            <span class="guia-eyebrow">Clientes</span>
-            <div class="clic-grid">${ordered.map(cliCard).join('')}</div>
-          </section>`;
+          <section><div class="sec-label">Recentes</div><div class="grid3">${recent.map(rcard).join('')}</div></section>
+          <section><div class="sec-label">Clientes</div><div class="grid3">${ordered.map(ccard).join('')}
+            <button class="ccard add" type="button" onclick="document.getElementById('new-btn').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Nova análise</button>
+          </div></section>`;
       }
-    } catch (err) {
-      list.innerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`;
-    }
+    } catch (err) { list.innerHTML = `<div class="home-empty">Erro ao carregar análises: ${esc(err.message)}</div>`; }
   </script>
   <script>
-    // Show "Sair" only when auth is on and the consultant is logged in.
     fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
       if (!me) return;
       const b = document.getElementById('logout');
