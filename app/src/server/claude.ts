@@ -279,10 +279,14 @@ ${ANSWER_RULES}
   • highlight {text,label?,color?} — a ALEGAÇÃO central (1 linha) e a IMPLICAÇÃO ("e daí?").
   • kpi {label,value,color?,format?} — um número-chave isolado (chip), ex.: label "CPA", value "+35%".
   • table — a COMPARAÇÃO por segmento (uma linha por grupo, deltas por coluna): é o lugar
-    do comparativo — NÃO descreva 3+ grupos em prosa. NUNCA inclua linha de "total"/"geral"
-    que SOME uma coluna de TAXA/percentual (taxa de resposta/qualidade/conversão, %): somar %
-    não faz sentido — para um agregado de taxa use a média ponderada por leads ou simplesmente
-    NÃO ponha total nessa coluna.
+    do comparativo — NÃO descreva 3+ grupos em prosa. TOTAL/GERAL — cuidado com o que é
+    ADITIVO: contagens (leads, investimento, vendas, impressões, cliques) e %-de-COMPOSIÇÃO
+    (participação que soma 100%, ex.: "% dos leads" por origem) PODEM ter linha de total
+    (a soma faz sentido). Já TAXA/RAZÃO (taxa de resposta/qualidade/conversão, CPL, CPMQL,
+    CPM, CTR, hook/hold/connect) NÃO é aditiva: NUNCA some os grupos num total (64% + 49% =
+    113% é absurdo). O "geral" de uma taxa é o VALOR GLOBAL (recálculo ponderado = total do
+    numerador ÷ total do denominador), que você pega da tabela de KPIs global (ex.: acom_kpis)
+    ou consultando o overall sem recorte — nunca a soma. Na dúvida, omita o total dessa coluna.
   • chart — UM gráfico que conte a MESMA história do texto (achado sobre conversão → gráfico
     de conversão; não troque o eixo).
   • ni / ni-vertical {n,title,why,action} — cada AÇÃO recomendada como card (porquê + acionável),
@@ -448,7 +452,7 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   • resposta ENTERRADA: nenhum highlight no topo respondendo à pergunta com o número decisivo
   • entregou AÇÕES ("o que fazer") quando a pergunta é analítica ("o que aconteceu / qual fator pesa mais")
   • RÓTULO cru: série/eixo/coluna mostra código do dataset (ex.: "cls", "cup") sem tradução; gráfico ilegível (1 categoria, séries demais)
-  • TOTAL ABSURDO: linha de "total"/"geral" que SOMA uma coluna de TAXA/percentual (ex.: total de "Taxa de Resposta" = 64% + 49% = 113%) — somar % não tem sentido; o certo é média ponderada ou omitir o total dessa coluna
+  • TOTAL ABSURDO: linha de "total"/"geral" que SOMA uma coluna de TAXA/RAZÃO (taxa de resposta/qualidade/conversão, CPL, CPMQL, CPM, CTR — num/den), ex.: total de "Taxa de Resposta" = 64% + 49% = 113% — somar taxa não tem sentido (o certo é o valor global ponderado ou omitir o total dessa coluna). NÃO confunda com o que É somável: contagens (leads, investimento) e %-de-COMPOSIÇÃO/participação que soma ~100% — total nessas é correto, não acuse
 - "suggestions" (POLIMENTO — NÃO reprova, NUNCA vai em blocking): a saída já está correta e responde, mas poderia
   ficar melhor. Ex.: trocar bar por column/pie; acrescentar o número absoluto ao lado do %; redação mais enxuta;
   reordenar. SÃO SEMPRE SUGESTÃO (jamais blocking): PRECISÃO de arredondamento (ex.: "+17%" vs "+17,4%" — arredondar
