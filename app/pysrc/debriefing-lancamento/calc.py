@@ -585,6 +585,7 @@ def build(rows, config=None):
     if config.get('goals_csv'):
         goals = load_goals(config['goals_csv'], fc, config.get('meta_vendas_canal'), config.get('meta_vendas_temperatura'))
     hist = None
+    hist_rows = []
     if config.get('hist_csv'):
         hrows = load_rows(config['hist_csv'])
         # o histórico nunca pode incluir o próprio lançamento atual: senão a coluna
@@ -594,6 +595,7 @@ def build(rows, config=None):
         if hrows:
             classify(hrows, config)
             hist = _hist_meta(hrows)
+            hist_rows = hrows
     M = metrics(rows, config, goals, hist)
     M['field_conversion'] = fc
     M['nome'] = config.get('client_name') or config.get('nome_campanha') or fc
@@ -601,6 +603,7 @@ def build(rows, config=None):
     # linhas classificadas do lançamento — só p/ o modo-fundo (query_api). build_report
     # lê campos nomeados de M, nunca serializa M inteiro, então não vaza p/ o dataset.
     M['_rows'] = rows
+    M['_hist_rows'] = hist_rows   # linhas do lançamento anterior (vazio se sem hist_csv)
     return M
 
 

@@ -280,8 +280,60 @@ def onde_concentra(B, a):
             'detalhe': {lv['dim']: lv.get('itens') for lv in niveis}}
 
 
-EXTRA = {'atingimento': atingimento, 'cruzar_dia': cruzar_dia,
-         'decomposicao': decomposicao, 'onde_concentra': onde_concentra}
+_HIST_KPIS = [('vendas', 'Vendas'), ('leads', 'Leads'), ('fat', 'Faturamento'),
+              ('qual', 'Qualificação'), ('cpl', 'CPL'), ('cpmql', 'CPMQL'),
+              ('roas', 'ROAS'), ('invest', 'Investimento')]
+
+
+def variacao_hist(B, a):
+    """Compara o lançamento ATUAL com o ANTERIOR (hist_csv). Sem `dimensao`: Δ% dos
+    KPIs globais (atual × anterior). Com `dimensao` (canal/temperatura/escopo recorrem
+    entre lançamentos; criativo/campanha geralmente NÃO — itens novos a cada lançamento):
+    atual × anterior × Δ% de UMA métrica por grupo. Para CUSTOS (cpl/cpmql/cpm), Δ%
+    POSITIVO = piora. Requer hist_csv configurado; senão, o histórico só existe no nível
+    de KPI global (deb_kpis.hist via bind)."""
+    hrows = B.get('_hist_rows') or []
+    if not hrows:
+        return qc.nao_disp('sem lançamento anterior carregado (configure hist_csv); '
+                           'histórico de KPI global está em deb_kpis.hist (via bind)')
+    cur = B.get('_rows') or []
+    dim = a.get('dimensao')
+
+    def _delta(v0, v1):
+        if not (isinstance(v0, (int, float)) and isinstance(v1, (int, float)) and v0):
+            return None
+        return round((v1 - v0) / abs(v0) * 100, 1)
+
+    if not dim:
+        a0, a1 = calc._derive(hrows), calc._derive(cur)
+        rows = [{'indicador': lab, 'Anterior': qc.rnd(a0.get(k)), 'Atual': qc.rnd(a1.get(k)),
+                 'Δ%': _delta(a0.get(k), a1.get(k))} for k, lab in _HIST_KPIS]
+        return qc.ok(rows, ['indicador'],
+                     'Atual × lançamento anterior, KPIs globais (Δ% — em custos CPL/CPMQL, + = piora).')
+
+    metric = a.get('metrica', 'vendas')
+    if metric not in calc.FRAME_METRICS:
+        return qc.nao_disp(f"métrica '{metric}' inválida")
+    fa = {x['key']: x['m'] for x in calc.frame_rows(hrows, dim)}
+    fcur = {x['key']: x['m'] for x in calc.frame_rows(cur, dim)}
+    keys = sorted(set(fa) | set(fcur), key=lambda k: -((fcur.get(k, {}).get('leads') or 0)))[:15]
+    lab = calc.LABELS.get(metric, metric)
+    rows = []
+    for k in keys:
+        v0, v1 = fa.get(k, {}).get(metric), fcur.get(k, {}).get(metric)
+        rows.append({dim: k, f'{lab} anterior': qc.rnd(v0), f'{lab} atual': qc.rnd(v1), 'Δ%': _delta(v0, v1)})
+    if not rows:
+        return qc.nao_disp(f'sem dados de {metric} por {dim} nos dois lançamentos')
+    novos = [k for k in fcur if k not in fa and (fcur[k].get('leads') or 0) > 0]
+    sumiram = [k for k in fa if k not in fcur and (fa[k].get('leads') or 0) > 0]
+    extra = (f' Novos neste lançamento: {len(novos)}; sumiram: {len(sumiram)}.'
+             if (dim in ('criativo', 'campanha', 'publico')) else '')
+    cost = ' Em custos, Δ% + = piora.' if metric in calc.COST else ''
+    return qc.ok(rows, [dim], f'{lab} atual × anterior por {dim} ({len(rows)} grupos).{cost}{extra}')
+
+
+EXTRA = {'atingimento': atingimento, 'cruzar_dia': cruzar_dia, 'decomposicao': decomposicao,
+         'onde_concentra': onde_concentra, 'variacao_hist': variacao_hist}
 
 
 def main():

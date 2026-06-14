@@ -309,11 +309,24 @@ Achados acionáveis da simulação → **3 ajustes aplicados**:
    às vezes passa `dimensao=canal` esperando meta por canal; antes era descartado em
    silêncio).
 
-Achado NÃO implementado (escopo maior, documentado): o `query_api` não cruza **histórico
-por dimensão** — o `hist` vive só em `deb_kpis` (KPI global, via bind), não na `consultar`.
-Nenhuma das 17 perguntas exige cruzamento histórico desagregado (as 3 históricas são todas
-de KPI global), mas uma função `variacao_hist`/dimensão "lançamento" seria o próximo passo
-se surgir a necessidade.
+### Histórico no modo-fundo — `variacao_hist` (implementado)
+
+O gap de cruzamento histórico foi fechado. `calc.build` agora mantém `M['_hist_rows']`
+(linhas classificadas do lançamento anterior, quando `hist_csv` configurado) e a
+`consultar` ganhou **`variacao_hist`**:
+- **sem `dimensao`** → Δ% dos KPIs globais (vendas/leads/fat/qualif/CPL/CPMQL/ROAS/invest),
+  atual × anterior, com a direção de custo anotada (+ = piora em CPL/CPMQL);
+- **com `dimensao`=canal/temperatura/escopo** (que recorrem entre lançamentos) → atual ×
+  anterior × Δ% de uma métrica por grupo, + contagem de novos/sumiram (criativo/campanha
+  geralmente não recorrem). Itens sem base (ex.: ROAS/CPL no orgânico) vêm `null`.
+- sem `hist_csv` → `nao_disponivel` com mensagem apontando o `deb_kpis.hist` (bind global).
+
+Validado sem crédito com um lançamento anterior sintético (atual = anterior × 1,25):
+`variacao_hist {}` deu volumes +25% e **taxas Δ0%** (prova o recálculo ponderado — escalar
+leads/invest/fat junto não move CPL/ROAS); por temperatura/canal idem; orgânico `null`.
+Simulação via Agent das 3 históricas: usou `variacao_hist` (global + dimensão)
+corretamente, respeitou direção de custo e `null`, classificou honestamente como
+"crescimento de escala, não de eficiência", sem inventar histórico nem somar taxa.
 
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
