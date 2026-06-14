@@ -97,6 +97,29 @@ function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
   });
 }
 
+/** Nome de série legível p/ o tooltip/legenda. O bind guarda a coluna crua
+ *  (ex.: "taxa_qual"); sem `bind.name` isso vazava sem tratamento. Série única →
+ *  usa o título do gráfico (sem a unidade entre parênteses); chave crua
+ *  (snake_case / camelCase) → humaniza. Nomes já legíveis passam intactos. */
+function stripUnit(t: string): string { return t.replace(/\s*\([^)]*\)\s*$/, '').trim(); }
+function humanizeKey(k: string): string {
+  return k.replace(/[_-]+/g, ' ').replace(/([a-z\d])([A-Z])/g, '$1 $2').trim()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+function labelSeriesNames(series: ResolvedSeries[], w: ChartWidget): ResolvedSeries[] {
+  const yRaw = typeof w.bind?.y === 'string' ? w.bind.y : undefined;
+  return series.map(s => {
+    const name = String(s.name ?? '');
+    let label = name;
+    if (series.length === 1 && w.bind && !w.bind.name && yRaw && name === yRaw && w.title) {
+      label = stripUnit(w.title);
+    } else if (name && !name.includes(' ') && /[_-]|[a-z][A-Z]/.test(name)) {
+      label = humanizeKey(name);
+    }
+    return label === name ? s : { ...s, name: label };
+  });
+}
+
 /* ── chart ── */
 function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div', 'widget-chart');
@@ -126,7 +149,8 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
       wrap.appendChild(empty());
       return wrap;
     }
-    const series = (w as { outliers?: boolean }).outliers ? dropOutliers(resolved.series) : resolved.series;
+    const cleaned = (w as { outliers?: boolean }).outliers ? dropOutliers(resolved.series) : resolved.series;
+    const series = labelSeriesNames(cleaned, w);
     def = defFromResolved(w.chartType, { categories: resolved.categories, series }, {
       height, colors: w.colors, distributed: w.distributed, diverging: w.diverging, pct: w.pct,
       axisMin: w.axisMin, axisMax: w.axisMax, meanLine: w.meanLine,
