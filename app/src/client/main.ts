@@ -894,9 +894,10 @@ class App {
 
     try {
       // Pin the live render to the export document's content width so charts mount
-      // at the width they'll occupy in the snapshot (1180 − 144 padding = 1036).
+      // at the width they'll occupy in the snapshot (1920 − 144 padding = 1776) —
+      // mesma largura máxima da análise ao vivo.
       const savedActive = { ...this.store.active };
-      ROOT.style.width = '1180px';
+      ROOT.style.width = '1920px';
       ROOT.style.maxWidth = 'none';
       ROOT.style.margin = '0 auto';
 
@@ -1041,8 +1042,8 @@ body{margin:0}
 .exp-cbtn{font-size:12px;font-weight:600;color:var(--gray);background:none;border:none;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit}
 .exp-cbtn.on{color:#fff;background:var(--purple)}
 .exp-canal-pane[hidden],.exp-page[hidden]{display:none}
-.exp-root{width:1180px;max-width:100%;margin:0 auto;padding:22px 72px 72px}
-.exp-cover{width:1180px;max-width:100%;margin:0 auto;padding:8px 72px 0}
+.exp-root{width:1920px;max-width:100%;margin:0 auto;padding:22px 72px 72px}
+.exp-cover{width:1920px;max-width:100%;margin:0 auto;padding:8px 72px 0}
 .exp-cover #report-header{padding:36px 24px 18px}
 .export-section{margin-bottom:48px}
 .export-section .dash-tile{overflow:hidden}
