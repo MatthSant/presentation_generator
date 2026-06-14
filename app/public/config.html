@@ -16,8 +16,9 @@
     .cfg-ic { width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
       background: var(--purple-bg); color: var(--purple); }
     .cfg-ic svg { width: 19px; height: 19px; }
-    .cfg-card b { display: block; font-size: 15px; font-weight: 700; color: var(--fg); }
-    .cfg-card span { display: block; font-size: 12.5px; color: var(--gray2); margin-top: 3px; line-height: 1.45; }
+    .cfg-txt { min-width: 0; }
+    .cfg-txt b { display: block; font-size: 15px; font-weight: 700; color: var(--fg); }
+    .cfg-d { display: block; font-size: 12.5px; color: var(--gray2); margin-top: 3px; line-height: 1.45; }
     .cfg-sec-label { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); margin: 30px 0 0; }
     .cfg-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
     .cfg-note { font-size: 12.5px; color: var(--gray2); margin-top: 10px; line-height: 1.5; }
@@ -36,15 +37,15 @@
     <div class="cfg-grid">
       <a class="cfg-card" href="/clientes.html">
         <span class="cfg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-        <span><b>Clientes</b><span>Cadastro de clientes e atribuição de análises.</span></span>
+        <span class="cfg-txt"><b>Clientes</b><span class="cfg-d">Cadastro de clientes e atribuição de análises.</span></span>
       </a>
       <a class="cfg-card" href="/uso.html">
         <span class="cfg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg></span>
-        <span><b>Uso da API</b><span>Custo e tokens das gerações de insights e aprofundamentos.</span></span>
+        <span class="cfg-txt"><b>Uso da API</b><span class="cfg-d">Custo e tokens das gerações de insights e aprofundamentos.</span></span>
       </a>
       <a class="cfg-card" href="/benchmarks.html">
         <span class="cfg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></span>
-        <span><b>Benchmarks</b><span>Benchmarks de funil por tipo de lançamento.</span></span>
+        <span class="cfg-txt"><b>Benchmarks</b><span class="cfg-d">Benchmarks de funil por tipo de lançamento.</span></span>
       </a>
     </div>
 
