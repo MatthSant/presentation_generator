@@ -97,6 +97,9 @@ Regra dura: **toda feature nova entra como recurso reutilizável**, nunca `if ti
 - **Controles interativos:** `meta.controls.{kind, …}` → FAB no client + `render_view.py` no motor.
 - **Deepen / Detalhamentos:** fluxo de aprofundamento com gate de validação (máx 3 tentativas),
   telemetria em `deepen_history`. Ver `src/server/{deepenLoop,deepenQuality,deepenHistory}.ts`.
+  O **motor de deep mode** por tipo (`pysrc/<tipo>/query_api.py` + `common/query_core.py`):
+  para auditar/melhorar (cobertura, funções, relevância, simulação sem crédito) use a skill
+  **`/verificar-motor`**; o acumulado vive em [docs/motor-deepen-review.md](docs/motor-deepen-review.md).
 - **Perguntas norteadoras:** banco por tipo em `pysrc/perguntas/banks/<tipo>.py`
   (`TYPE`/`detect`/`evaluate_all`) registrado em `banks/__init__.py`.
 
