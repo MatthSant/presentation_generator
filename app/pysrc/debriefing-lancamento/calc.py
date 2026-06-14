@@ -254,7 +254,8 @@ def frame_rows(rows, dim, filtro=None, incluir_geral=False):
     out = []
     for k in keys:
         d = _derive(groups[k])
-        out.append({'key': str(k), 'm': {m: d.get(m) for m in FRAME_METRICS}})
+        label = (k[8:10] + '/' + k[5:7]) if dim == 'dia' and len(str(k)) >= 10 else str(k)
+        out.append({'key': label, 'm': {m: d.get(m) for m in FRAME_METRICS}})
     if incluir_geral and dim != 'dia' and sub:
         g = _derive(sub)
         out.append({'key': 'Geral', 'm': {m: g.get(m) for m in FRAME_METRICS}})
