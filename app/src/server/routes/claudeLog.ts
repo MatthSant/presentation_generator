@@ -13,7 +13,32 @@ interface LogEntry {
   request?: unknown; response?: unknown;
 }
 
-export function registerClaudeLog(app: Express, _ctx: Ctx): void {
+export function registerClaudeLog(app: Express, ctx: Ctx): void {
+  // Export completo p/ revisão offline: log bruto de cada chamada (request+response)
+  // + telemetria estruturada (deepen_history/perguntas_history). Um único JSON que o
+  // consultor baixa e manda para análise (a produção roda numa máquina sem acesso).
+  app.get('/api/claude-log/export', (_req, res) => {
+    const day = new Date().toISOString().slice(0, 10);
+    let log: unknown[] = [];
+    if (fs.existsSync(CLAUDE_LOG)) {
+      log = fs.readFileSync(CLAUDE_LOG, 'utf8').trim().split('\n').filter(Boolean)
+        .map((l) => { try { return JSON.parse(l) as unknown; } catch { return { _unparsed: l }; } });
+    }
+    const all = (sql: string): unknown[] => {
+      try { return ctx.db.prepare(sql).all(); } catch { return []; }
+    };
+    const deepen = all('SELECT * FROM deepen_history ORDER BY created_at');
+    const perguntas = all('SELECT * FROM perguntas_history ORDER BY created_at');
+    const bundle = {
+      exported_at: new Date().toISOString(),
+      counts: { claude_log: log.length, deepen_history: deepen.length, perguntas_history: perguntas.length },
+      claude_log: log, deepen_history: deepen, perguntas_history: perguntas,
+    };
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="witly-ia-historico-${day}.json"`);
+    res.send(JSON.stringify(bundle, null, 2));
+  });
+
   app.get('/api/claude-log', (req, res) => {
     const empty = { total: 0, errors: 0, totals: { usd: 0, input_tokens: 0, output_tokens: 0 }, byKind: {}, entries: [] };
     if (!fs.existsSync(CLAUDE_LOG)) { res.json(empty); return; }
