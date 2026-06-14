@@ -43,6 +43,9 @@ def build_frame(B, a):
         'rows': rows,
         'labels': {m: calc.LABELS.get(m, m) for m in METRICS},
         'cost': {m: (m in COST) for m in METRICS},
+        # ranking sempre mostra o VOLUME ao lado → a IA não cita taxa de criativo/grupo
+        # com amostra mínima (ex.: 100% de qualidade com 1 lead) como se fosse relevante.
+        'rank_extra': ['leads', 'investimento'],
     }
 
 

@@ -108,6 +108,43 @@ expostas. Tipo de lead corretamente tratado como métrica. UTMs redundantes deix
 
 ---
 
+### M4 — `rank_extra=['leads','investimento']` (volume sempre no ranking)
+**Por quê:** `ranking(criativo/publico, taxa)` mostrava extremos com amostra mínima
+(ex.: criativo 100% de qualidade com 1 lead) sem o volume ao lado → a IA citaria ruído
+como sinal. **Princípio: taxa sempre viaja com o volume.**
+**O que mudou:** `query_api.build_frame` adiciona `rank_extra:['leads','investimento']` ao
+frame → todo ranking traz Leads/Investimento ao lado da métrica. Verificado.
+**Arquivo:** `query_api.py`.
+
+---
+
+## Simulação via Agent (sem crédito) — pergunta ac-qualidade
+
+Rodei a pergunta "A qualidade está caindo?" num subagente Claude (billing à parte),
+alimentado com os dados REAIS do `query_api`. Resultado: modal correta (conclusão SIM
+no topo; atribuiu a queda ao **mix de pago** — Pago 27,2% × Orgânico 42,2%, Geral 31,2%
+ponderado; **descartou o ranking de criativo como ruído** por ver o volume — M4 funcionando).
+
+**Achados (viram requisitos do motor):**
+- ✅ Confirmado: taxa não somada (usou o Geral ponderado), criativo de baixo volume
+  reconhecido como ruído (graças ao volume no ranking).
+- ⚠️ **Rate sempre com volume** vale também para a série diária e para o cruzamento:
+  `cruzar_dia` devolve só `valor` (sem o N por dia/série) — a IA não enxerga o volume de
+  cada ponto. Mitigação atual: `acom_daily` tem `leads` (série única) e `cruzar_dia(leads,
+  grupo)` dá o volume por grupo (2ª consulta). Requisito: avaliar incluir o N no
+  `cruzar_dia`.
+- ⚠️ **"Perfil diferente do recente"** → no acompanhamento, "perfil" = temperatura/origem
+  ao longo do tempo (não há demografia; isso é domínio do conversao-perfil). Respondível via
+  `cruzar_dia(taxa_qual, temperatura|origem)` início-vs-recente — o prompt deve direcionar.
+- ⚠️ **Criativo útil = alto volume / ativo nos últimos dias**, não os extremos do ranking.
+  M4 dá o volume; um filtro de volume mínimo ou "top por volume" refinaria.
+
+**Conclusão:** motor pronto para responder as 6 perguntas; refinamentos acima são
+incrementais. A revisão da SAÍDA real (com o loop tool-calling/gate/critic) precisa de
+crédito — a simulação valida o prompt + suficiência de dados, não substitui o run real.
+
+---
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.
