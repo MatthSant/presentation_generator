@@ -530,7 +530,7 @@ html, body {
   background: var(--bg-page);
   min-height: calc(100vh - 100px);
 }
-#export-root { padding: 36px 72px 80px; }
+#export-root { max-width: 1920px; margin: 0 auto; padding: 36px 72px 80px; }
 [data-report-section] { scroll-margin-top: 32px; position: relative; }
 [data-report-section].card { border-radius: 8px; margin-bottom: 12px; }
 
