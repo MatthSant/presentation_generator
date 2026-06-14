@@ -171,7 +171,7 @@ def assemble(rows, config, content, opts=None):
          'value': B['tot'].get(m), 'd3': B['d3'].get(m), 'meta': B['meta'].get(m),
          'dev': (B['meta_status'].get(m) or {}).get('dev'), 'cls': (B['meta_status'].get(m) or {}).get('cls'),
          'trend_dir': B['trend'].get(m, {}).get('dir'), 'trend_pct': B['trend'].get(m, {}).get('pct')}
-        for m in dict.fromkeys(calc.KPI_MACRO + calc.KPI_TRAF)])
+        for m in dict.fromkeys(calc.KPI_MACRO + B['traf_metrics'])])
     add_table('acom_funnel', ['etapa'], [
         {'etapa': s['label'], 'value': s['value'],
          'migracao': (s.get('trans') or {}).get('migracao'), 'bench': (s.get('trans') or {}).get('bench'),
@@ -376,14 +376,15 @@ def assemble(rows, config, content, opts=None):
     tra, tg = [], Grid()
     tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia + custo e qualidade do lead pago'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
-    for m in calc.KPI_TRAF:                                   # linha 1: mídia
+    for m in B['traf_metrics']:                              # linha 1: mídia (omite hook/hold/connect sem dado)
         kcard(tra, tg, m, 'kt')
     for m in ['cpl', 'taxa_resp', 'taxa_qual', 'cpmql']:      # linha 2: conversão (CPMQL em destaque)
         kcard(tra, tg, m, 'kt', w=3)
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
-    # funis (total + últimos 3 dias) como tabelas
+    # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais
+    # (sem Pageviews quando a base não tem o dado)
     tra.append({'id': 'tra-eb-fun', 'type': 'eyebrow', 'title': 'FUNIL DE TRÁFEGO PAGO',
-                'caption': 'Impressões → Cliques → Pageviews → Leads → Respostas → MQLs'})
+                'caption': ' → '.join(s['label'] for s in B['funnel_total'])})
     tg.add('tra-eb-fun', 'eyebrow', 12, 1)
 
     def funnel_widget(wid, title, sub, stages, w=6):
@@ -411,7 +412,7 @@ def assemble(rows, config, content, opts=None):
     funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total'])
     funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d'])
     sections['s04'] = {'id': 's04', 'header': {'badge': 'Tráfego', 'title': 'Indicadores de Tráfego Pago',
-                       'sub': 'CPM, Hook, Hold, CTR, Connect, Conversão de Página e funil de conversão.'}, 'widgets': tra}
+                       'sub': f"{', '.join(calc.LABELS[m] for m in B['traf_metrics'])} e funil de conversão."}, 'widgets': tra}
     layouts['s04'] = tg.items
 
     # ── merge: dashboard de leitura rápida numa ÚNICA página ──────────────────

@@ -139,10 +139,13 @@ def derive(s):
         'taxa_qual': tq,
         'cpm': div(s['invest'] * 1000, s['imp']),
         'ctr': pct(s['clicks'], s['imp']),
-        'hook': pct(s['views_tot'], s['imp']),
+        # sem dados de vídeo (views) → hook/hold ficam None (blocos omitidos no build)
+        'hook': pct(s['views_tot'], s['imp']) if s['views_tot'] else None,
         'hold': pct(s['views_50'], s['views_tot']),
-        'connect': pct(s['pageviews'], s['clicks']),
-        'conv_pag': pct(s['leads_traf'], s['pageviews']),
+        # sem pageviews → connect fica None e a conv. de página vira leads/clicks
+        # (≡ connect × conv_página); com pageviews, conv_página = leads/pageviews
+        'connect': pct(s['pageviews'], s['clicks']) if s['pageviews'] else None,
+        'conv_pag': pct(s['leads_traf'], s['pageviews']) if s['pageviews'] else pct(s['leads_traf'], s['clicks']),
     }
 
 
@@ -254,6 +257,13 @@ def build(rows, config=None):
     rows_corte = [r for d in dates for r in by_date[d]]
     tot_sums = _sum(rows_corte)
     tot = derive(tot_sums)
+    # disponibilidade de dados de mídia/página na base. Sem vídeo (views) → omite
+    # hook/hold; sem pageviews → omite connect e a conv. de página vira leads/clicks.
+    has_views = tot_sums['views_tot'] > 0
+    has_pageviews = tot_sums['pageviews'] > 0
+    traf_metrics = [m for m in KPI_TRAF
+                    if not (m in ('hook', 'hold') and not has_views)
+                    and not (m == 'connect' and not has_pageviews)]
     last3 = days[-3:]
     d3_sums = _sum([r for d in last3 for r in by_date[d['date']]])
     d3 = derive(d3_sums)
@@ -286,9 +296,15 @@ def build(rows, config=None):
     # config['funnel_bench'] sobrescreve; senão cai no FUNNEL_BENCH (fallback).
     fb = dict(FUNNEL_BENCH)
     fb.update(config.get('funnel_bench') or {})
+    # sem pageviews, conv. de página = leads/clicks ≡ connect × conv_página → o
+    # benchmark é o produto dos dois (ex.: 80% × 40% = 32%).
+    if not has_pageviews:
+        fb['conv_pag'] = round(fb['connect'] * fb['conv_pag'] / 100, 1)
     for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag'):
         if fb.get(k) is not None:
             metas.setdefault(k, fb[k])
+    if not has_pageviews:
+        metas['conv_pag'] = fb['conv_pag']   # leads/clicks usa o bench combinado, não a meta de página
     # leads (KPI macro) usa a meta to-date como referência do semáforo
     metas.setdefault('leads', metas.get('_leads_td'))
     # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos
@@ -349,19 +365,26 @@ def build(rows, config=None):
     creatives = _creatives(paid_rows, config.get('dict_links') or {})
 
     # benchmark de migração por transição (fb já montado acima) — os dois últimos
-    # saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver).
-    bench = [fb['ctr'], fb['connect'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
-    funnel_total = _funnel(rows_corte, bench)
-    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench)
+    # saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver). Sem pageviews,
+    # a etapa Pageviews sai do funil e Cliques→Leads usa o bench combinado (fb['conv_pag']).
+    if has_pageviews:
+        fstages = FUNNEL_STAGES
+        bench = [fb['ctr'], fb['connect'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
+    else:
+        fstages = [st for st in FUNNEL_STAGES if st[0] != 'pageviews']
+        bench = [fb['ctr'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
+    funnel_total = _funnel(rows_corte, bench, fstages)
+    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages)
 
     risks_macro = _risks(KPI_MACRO, tot, mstatus, trends)
-    risks_traf = _risks(KPI_TRAF, tot, mstatus, trends)
+    risks_traf = _risks(traf_metrics, tot, mstatus, trends)
 
     return {
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
         'corte': corte, 'corte_label': _day_label(corte),
         'report_date': config.get('data_report') or '', 'dia_campanha': dia_campanha, 'n_dias': n_dias,
         'days': days, 'series': series, 'tot': tot, 'd3': d3, 'tot_sums': tot_sums,
+        'traf_metrics': traf_metrics, 'has_pageviews': has_pageviews, 'has_views': has_views,
         'trend': trends, 'meta': metas, 'meta_status': mstatus,
         'split': split, 'temp': temp, 'tipo_lead': tipo_lead, 'canais_org': canais_org,
         'criativos': creatives, 'cr_dia': crdia, 'cr_dia_label': _day_label(crdia),
@@ -405,17 +428,19 @@ def _creatives(day_rows, links):
     return {'best': best, 'eff': eff}
 
 
-def _funnel(rows, bench=None):
+def _funnel(rows, bench=None, stages=None):
     """Funil de tráfego pago. `bench` = lista de migração esperada por transição
     (i→i+1). O maior furo é a transição com maior queda RELATIVA ao seu benchmark
-    (`gap = (bench − migração)/bench`), não a maior perda absoluta."""
-    bench = bench or [None] * (len(FUNNEL_STAGES) - 1)
+    (`gap = (bench − migração)/bench`), não a maior perda absoluta. `stages` permite
+    omitir etapas sem dado (ex.: Pageviews ausente)."""
+    stage_defs = stages or FUNNEL_STAGES
+    bench = bench or [None] * (len(stage_defs) - 1)
     s = _sum(rows)
     leads_total = s['leads'] or 0
     resp_pond = s['respostas'] * (s['leads_pago'] / leads_total) if leads_total else 0
     vals = {'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
             'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls']}
-    stages = [{'key': k, 'label': lbl, 'value': round(vals[k])} for k, lbl in FUNNEL_STAGES]
+    stages = [{'key': k, 'label': lbl, 'value': round(vals[k])} for k, lbl in stage_defs]
     gaps = []
     for i in range(len(stages) - 1):
         cur, nxt = stages[i]['value'], stages[i + 1]['value']
