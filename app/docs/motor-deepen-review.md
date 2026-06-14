@@ -145,6 +145,25 @@ crédito — a simulação valida o prompt + suficiência de dados, não substit
 
 ---
 
+### M5 — função `decomposicao` (CPL/CPMQL → contribuição por fator)
+**Por quê:** a 2ª simulação (pergunta ac-custo) mostrou que a IA decompõe o CPL (CPM ÷
+CTR ÷ Connect ÷ Conv.Página) "na unha" — frágil, pode apontar a alavanca errada. **Atribuição
+deve ser do motor, pronta e auditável** (não álgebra do LLM).
+**O que mudou:** nova `consultar decomposicao` (metrica=cpl|cpmql) — log-decomposição entre a
+janela inicial e a final (3 dias), devolve a CONTRIBUIÇÃO % de cada fator. Verificado:
+- CPL +231%: **CTR 62,6%** (alavanca), Connect 28,9%, CPM 12,3%, Conv.Página −3,8%.
+- CPMQL +249%: **CPL 95,7%**, Taxa de Qualidade 4,3% → o salto é custo de mídia, não qualificação.
+Robustez: `query_api` força stdout UTF-8 (summaries têm →/×/acentos).
+**Arquivos:** `query_api.py`, `typeRegistry.ts`, `claude.ts`.
+
+### 2ª simulação (ac-custo) — conclusão
+Modal correta (atribuiu a alta ao CTR/criativo, não ao leilão; CPMQL ← CPL). A crítica do
+agente motivou a M5 e confirmou: dados diários (CPM/CTR/conv/qualidade) suficientes; o que
+faltava era a **atribuição pronta** (agora M5). Demais pontos (N diário, volume por série no
+cruzar_dia) já mitigados por `acom_daily.leads` + ranking com volume (M4).
+
+---
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.

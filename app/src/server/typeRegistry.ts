@@ -180,7 +180,8 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       return {
         consultar: {
           funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking,
-            { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' }],
+            { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' },
+            { id: 'decomposicao', desc: 'decompõe a VARIAÇÃO de cpl ou cpmql (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade). Use p/ "o custo subiu por mídia ou por qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' }],
           params: {
             ...genericParams(M),
             dimensao: { enum: ['dia', 'temperatura', 'canal', 'origem', 'criativo', 'publico', 'campanha'], desc: 'eixo do recorte (o que QUEBRA as métricas em linhas): dia = série temporal; temperatura = Quente/Morno/Frio (pago); canal = utm_source; origem = pago × orgânico; criativo = anúncio (field_ad_name, pago); publico = conjunto/adset (field_adset_name, pago); campanha = field_campaign_name (pago). P/ muitas linhas (criativo/publico/campanha) use ranking/tabela (default: dia)' },
