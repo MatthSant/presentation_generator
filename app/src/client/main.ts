@@ -523,24 +523,26 @@ class App {
   private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card',
     'heatmap-toggle', 'chart-toggle', 'chart-table', 'kpi', 'kpi-card', 'kpi-strip', 'qa-card',
     'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list']);
-  private static WAND = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 14.5 9.5"/><path d="M16.8 4.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" fill="currentColor" stroke="none"/><path d="M7 6.4l.35 1 1 .35-1 .35-.35 1-.35-1-1-.35 1-.35z" fill="currentColor" stroke="none"/></svg>';
+  private static WAND = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
    *  is attached. Works across all pages/blocks, not just insight cards. */
   private markDeepen(section: Section): void {
     for (const w of section.widgets) {
       if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
-      // band kpi-card (atingimento de meta) é resumo — não recebe varinha (o % grande
-      // ocupa o canto e detalhar uma meta não faz sentido; detalha-se o KPI granular).
-      if (w.type === 'kpi-card' && (w as { band?: boolean }).band) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
       if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link')) continue;
+      // band kpi-card (atingimento de meta) é uma faixa horizontal com o % grande à
+      // direita → a varinha vai centralizada à direita (classe --band) em vez do
+      // topo-direito, e o CSS reserva espaço empurrando o % para a esquerda.
+      const isBand = w.type === 'kpi-card' && (w as { band?: boolean }).band;
+      const mod = isBand ? ' tile-deepen--band' : '';
       const existing = (w as { modal?: string }).modal;
       const title = (w as { title?: string }).title || '';
       if (existing) {
-        // já tem detalhamento → varinha roxa cheia no topo-direito (abre o modal)
+        // já tem detalhamento → varinha roxa cheia (abre o modal)
         const a = document.createElement('a');
-        a.className = 'tile-detail-link';
+        a.className = `tile-detail-link${mod}`;
         a.dataset.modal = existing;   // opened by wireModals
         a.title = 'Ver detalhamento';
         a.setAttribute('aria-label', 'Ver detalhamento');
@@ -550,7 +552,7 @@ class App {
         // ainda sem detalhamento → varinha contorno (aparece no hover) p/ "detalhar"
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'tile-deepen';
+        btn.className = `tile-deepen${mod}`;
         btn.title = 'Detalhar com IA';
         btn.setAttribute('aria-label', 'Detalhar com IA');
         btn.innerHTML = App.WAND;

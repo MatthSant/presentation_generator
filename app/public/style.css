@@ -1076,6 +1076,12 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
 /* reserva espaço no cabeçalho pra varinha não cobrir o badge/título/rótulo */
 .chart-head { padding-right:30px; }
 .kc--feature .kc-head { padding-right:30px; }
+/* band kpi-card (faixa de atingimento) — varinha centralizada à direita; o card
+ * reserva espaço (padding-right) p/ o % grande não encostar nela */
+.tile-deepen--band, .tile-detail-link--band { top:50%; right:13px; transform:translateY(-50%); }
+.dash-tile:has(.kc--band) .kc--band { padding-right:46px; }
+/* em card-banda escuro (emph/roxo) o círculo cheio some no fundo → vira contorno claro */
+.dash-tile:has(.kc--band-emph) .tile-detail-link { background:rgba(255,255,255,.18); color:#fff; }
 body.edit-mode .tile-deepen { display:none; }
 @media print { .tile-detail-link, .tile-deepen { display:none !important; } }
 
