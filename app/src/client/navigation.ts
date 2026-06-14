@@ -85,19 +85,23 @@ export class Navigation {
     const logo = document.createElement('img');
     logo.className = 'sn-logo';
     logo.src = '/assets/witly-logo.png';
-    logo.alt = 'Witly';
-    brand.appendChild(logo);
+    logo.alt = 'Witly Grimório';
+    const name = document.createElement('span');
+    name.className = 'sn-brand-name';
+    name.textContent = 'Grimório';
+    brand.append(logo, name);
     this.sideHost.appendChild(brand);
 
     // Switcher (visual): avatar com iniciais do cliente + título do relatório.
-    const meta = (this.store.data?.meta || {}) as { client?: string; title?: string };
-    const initials = (meta.client || 'W').split(/[-\s_]+/).map((s) => s[0] || '').join('').slice(0, 2).toUpperCase();
+    const meta = (this.store.data?.meta || {}) as { client?: string; client_name?: string; title?: string };
+    const clientName = meta.client_name || meta.client || '';
+    const initials = clientName.split(/[-\s_]+/).map((s) => s[0] || '').join('').slice(0, 2).toUpperCase() || 'W';
     const sw = document.createElement('a');
     sw.className = 'sn-switcher'; sw.href = '/'; sw.title = 'Trocar análise';
     const pj = document.createElement('span'); pj.className = 'sn-pj'; pj.textContent = initials;
     const swm = document.createElement('span'); swm.className = 'sn-sw-meta';
-    const swl = document.createElement('small'); swl.textContent = 'Relatório';
-    const swb = document.createElement('b'); swb.textContent = meta.title || meta.client || '';
+    const swl = document.createElement('small'); swl.textContent = 'Cliente';
+    const swb = document.createElement('b'); swb.textContent = clientName;
     swm.append(swl, swb);
     const chev = document.createElement('span'); chev.className = 'sn-chev'; chev.textContent = '▾';
     sw.append(pj, swm, chev);

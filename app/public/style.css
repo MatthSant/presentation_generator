@@ -542,9 +542,10 @@ body[data-nav="sidebar"] #sidenav {
   background: var(--plum); color: #fff;
   overflow-y: auto; padding: 16px 14px;
 }
-/* brand — nosso logo num quadrado branco compacto (hug content, não full-width) */
-.sn-brand { align-self: flex-start; display: inline-flex; align-items: center; background: #fff; border-radius: var(--r-md); padding: 7px 12px; margin: 2px 2px 12px; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); }
+/* brand — nosso logo (ícone) + nome do app num box branco compacto */
+.sn-brand { align-self: flex-start; display: inline-flex; align-items: center; gap: 9px; background: #fff; border-radius: var(--r-md); padding: 7px 13px 7px 11px; margin: 2px 2px 12px; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); text-decoration: none; }
 .sn-logo { height: 26px; width: auto; display: block; }
+.sn-brand-name { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: var(--plum); }
 /* switcher de análise — card escuro com avatar + título */
 .sn-switcher { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--r-md); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); text-decoration: none; transition: background .15s; margin-bottom: 10px; }
 .sn-switcher:hover { background: rgba(255,255,255,.11); }
