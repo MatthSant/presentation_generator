@@ -164,6 +164,33 @@ cruzar_dia) já mitigados por `acom_daily.leads` + ranking com volume (M4).
 
 ---
 
+### Revisão combinada das 4 perguntas restantes (funil-furo, pior-kpi, resposta, pago-org)
+Todas **respondíveis** com catálogo + deep mode. Meta-insight do revisor (vira boa prática):
+o motor entrega bem o **diagnóstico (o quê)** pelo catálogo, mas o **porquê/ação** depende de
+chamadas do deep mode — o prompt precisa direcionar a IA a chamá-las:
+- **pior-kpi**: cpmql `bad` → o "como recuperar" exige `decomposicao(cpmql)` (M5) p/ saber se é
+  CPL ou qualificação. Prompt direciona.
+- **pago-org**: leads por origem dão o diagnóstico; o RISCO exige qualidade/CPL por origem →
+  `tabela(dimensao=origem)` / `frame_rows`. Disponível; prompt direciona.
+- **funil-furo**: `acom_funnel.value` já traz o volume absoluto por etapa (perda absoluta p/
+  contexto) — disponível no catálogo.
+- **resposta**: 59,4% acima da meta (40%); risco baixo. Cruzamento resposta×qualificação via
+  `cruzar_dia`/`tabela` se preciso.
+Nenhum gap de DADO — os dados existem; é questão de a IA CHAMAR a consulta certa (prompt) +
+o critic validar no run real.
+
+---
+
+## Status final (acompanhamento)
+- **6 perguntas revisadas 1 a 1** (2 simulações ricas via agent: ac-qualidade, ac-custo;
+  4 em revisão combinada). Todas **engine-ready**.
+- **Motor ajustado (M1–M5):** taxas diárias no acom_daily; dimensões criativo/publico/campanha;
+  volume no ranking; `incluir_geral`; `cruzar_dia`; `decomposicao`. Tudo verificado via query_api.
+- **Pendente (precisa de crédito):** rodar os 6 deepens REAIS e revisar a SAÍDA (loop
+  tool-calling/gate/critic) — a simulação valida prompt+dados, não substitui o run real.
+
+---
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.
