@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Configurações</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .cfg-wrap { max-width: 920px; margin: 0 auto; padding: 30px 28px 80px; }
+    .cfg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 18px; }
+    .cfg-card { display: flex; gap: 13px; align-items: flex-start; text-align: left; text-decoration: none;
+      background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px;
+      box-shadow: var(--shadow-card); transition: border-color .14s, box-shadow .14s, transform .14s var(--ease); cursor: pointer; }
+    .cfg-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .cfg-ic { width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
+      background: var(--purple-bg); color: var(--purple); }
+    .cfg-ic svg { width: 19px; height: 19px; }
+    .cfg-card b { display: block; font-size: 15px; font-weight: 700; color: var(--fg); }
+    .cfg-card span { display: block; font-size: 12.5px; color: var(--gray2); margin-top: 3px; line-height: 1.45; }
+    .cfg-sec-label { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--gray2); margin: 30px 0 0; }
+    .cfg-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .cfg-note { font-size: 12.5px; color: var(--gray2); margin-top: 10px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header class="home-bar" data-sub="Configurações" data-back="/"></header>
+  <script src="/js/page-chrome.js" defer></script>
+
+  <div class="cfg-wrap">
+    <span class="page-eyebrow">Configurações</span>
+    <h1 class="page-title">Configurações</h1>
+    <p class="page-sub">Cadastros, consumo de IA, benchmarks e manutenção da base.</p>
+
+    <p class="cfg-sec-label">Geral</p>
+    <div class="cfg-grid">
+      <a class="cfg-card" href="/clientes.html">
+        <span class="cfg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <span><b>Clientes</b><span>Cadastro de clientes e atribuição de análises.</span></span>
+      </a>
+      <a class="cfg-card" href="/uso.html">
+        <span class="cfg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg></span>
+        <span><b>Uso da API</b><span>Custo e tokens das gerações de insights e aprofundamentos.</span></span>
+      </a>
+      <a class="cfg-card" href="/benchmarks.html">
+        <span class="cfg-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></span>
+        <span><b>Benchmarks</b><span>Benchmarks de funil por tipo de lançamento.</span></span>
+      </a>
+    </div>
+
+    <p class="cfg-sec-label">Manutenção</p>
+    <div class="cfg-actions">
+      <button class="btn btn--sm" id="archive-tests" type="button" title="Arquivar todas as análises de teste — mantém só as de demo (reversível)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+        Arquivar testes
+      </button>
+      <button class="btn btn--sm" id="restore-arch" type="button" hidden title="Restaurar análises arquivadas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        Restaurar <span id="arch-n"></span>
+      </button>
+    </div>
+    <p class="cfg-note">Arquivar remove as análises e clientes da home (exceto os de demo) sem apagar — você pode restaurar a qualquer momento.</p>
+  </div>
+
+  <script>
+    // ── Arquivar testes / restaurar (some da home, não deleta; reversível) ──
+    const archiveBtn = document.getElementById('archive-tests');
+    const restoreBtn = document.getElementById('restore-arch');
+    const archN = document.getElementById('arch-n');
+    async function refreshArchived() {
+      try {
+        const arch = await (await fetch('/api/archived')).json();
+        const n = Array.isArray(arch) ? arch.length : 0;
+        restoreBtn.hidden = n === 0;
+        if (n) archN.textContent = `(${n})`;
+      } catch { /* sem arquivadas */ }
+    }
+    archiveBtn?.addEventListener('click', async () => {
+      if (!confirm('Arquivar todas as análises e clientes, exceto os de demo?\n\nElas somem da home (não são apagadas) e você pode restaurar a qualquer momento.')) return;
+      archiveBtn.disabled = true;
+      try {
+        const r = await (await fetch('/api/archive-tests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+        if (r.ok) location.href = '/'; else throw new Error(r.error || 'falha');
+      } catch (e) { alert('Erro ao arquivar: ' + e.message); archiveBtn.disabled = false; }
+    });
+    restoreBtn?.addEventListener('click', async () => {
+      if (!confirm('Restaurar todas as análises arquivadas para a home?')) return;
+      restoreBtn.disabled = true;
+      try {
+        const r = await (await fetch('/api/unarchive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })).json();
+        if (r.ok) location.href = '/'; else throw new Error(r.error || 'falha');
+      } catch (e) { alert('Erro ao restaurar: ' + e.message); restoreBtn.disabled = false; }
+    });
+    refreshArchived();
+  </script>
+</body>
+</html>
