@@ -74,12 +74,24 @@ class App {
     document.documentElement.dataset.theme = 'light';   // dark mode removido no redesign
     const brand = document.getElementById('tn-client');
     if (brand) {
-      const client = data.meta?.client || '';
-      const title = data.meta?.title || '';
-      // breadcrumb: cliente / título (DS Witly navbar) — no modo topnav vira só o cliente via CSS
-      brand.innerHTML = (title && title !== client)
-        ? `<span class="tn-crumb">${esc(client)}</span><span class="tn-sep">/</span><b class="tn-cur">${esc(title)}</b>`
-        : esc(client || title);
+      // breadcrumb DS Witly: Cliente / Tipo de análise / Campanha (3 níveis).
+      const m = (data.meta || {}) as { client?: string; client_name?: string; campaign_label?: string; title?: string; controls?: { kind?: string } };
+      const TYPE_LABELS: Record<string, string> = {
+        'acompanhamento-lancamento': 'Acompanhamento de Campanha',
+        'debriefing-lancamento': 'Debriefing de Lançamento',
+        'historico-lancamentos': 'Histórico de Lançamentos',
+        'conversao-perfil': 'Conversão por Perfil',
+        'criativos': 'Análise de Criativos',
+      };
+      const cliente = m.client_name || m.client || '';
+      const tipo = TYPE_LABELS[m.controls?.kind || ''] || '';
+      const campanha = m.campaign_label || this.slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
+      const crumbs = [cliente, tipo, campanha].filter(Boolean);
+      brand.innerHTML = crumbs.length > 1
+        ? crumbs.map((c, i) => i === crumbs.length - 1
+            ? `<b class="tn-cur">${esc(c)}</b>`
+            : `<span class="tn-crumb">${esc(c)}</span><span class="tn-sep">/</span>`).join('')
+        : esc(crumbs[0] || '');
     }
     this.setupHistorico();
     // Cards clicáveis (link-card) → navegam para uma seção (ficha).

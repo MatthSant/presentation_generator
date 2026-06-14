@@ -385,7 +385,9 @@ def build(csv_path, config, content, out_dir):
     # declara allValue: senão o app trataria o default como "não filtrar" e mostraria
     # as 3 fatias (Geral/Pago/Orgânico) somadas/duplicadas em toda tabela e gráfico.
     _wl = {'lcto': '60d', '6m': '6m', '12m': '12m'}
-    data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard', 'theme': 'light',
+    data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
+                          'campaign_label': config.get('campaign_label') or '',
+                          'title': config['title'], 'type': 'dashboard', 'theme': 'light',
                           'created_at': created, 'filters': [{'id': 'canal', 'label': 'Canal', 'options': CANAIS, 'default': CANAIS[0]}],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório",
                                     'title': config['title'],

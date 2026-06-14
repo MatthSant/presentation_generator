@@ -468,7 +468,9 @@ def assemble(rows, config, content, opts=None):
               'sections': [{'id': 's01', 'label': 'Acompanhamento'}]}]
 
     created = config.get('created_at') or datetime.date.today().isoformat()
-    data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
+    data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
+                          'campaign_label': config.get('campaign_label') or '',
+                          'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
                                     'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},

@@ -562,8 +562,9 @@ body[data-nav="sidebar"] #sidenav {
 /* rótulo de grupo (RELATÓRIO / APROFUNDAMENTOS) */
 .sn-label { font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: rgba(255,255,255,.4); padding: 14px 12px 6px; }
 .sn-group { display: flex; flex-direction: column; }
-/* nav-item (página ou detalhamento); ativo = roxo com sombra */
-.sn-page, .sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: rgba(255,255,255,.74); padding: 10px 12px; border-radius: var(--r-md); transition: background .15s, color .15s; }
+/* nav-item (página ou detalhamento); ativo = roxo com sombra. nowrap p/ não quebrar
+   em 2 linhas (Poppins é mais larga que a fonte do mock — fonte um pouco menor). */
+.sn-page, .sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.74); padding: 9px 12px; border-radius: var(--r-md); transition: background .15s, color .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sn-page:hover, .sn-sec:hover { background: rgba(255,255,255,.08); color: #fff; }
 .sn-page-active, .sn-sec-active { background: var(--purple); color: #fff; box-shadow: 0 8px 18px -8px rgba(124,58,237,.9); }
 .sn-sec-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -405,7 +405,9 @@ def assemble(rows, config, content, opts=None):
                          'sections': [{'id': 's10', 'label': insights.get('header', {}).get('title', 'Insights')}]})
 
     created = (config or {}).get('created_at') or datetime.date.today().isoformat()
-    data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
+    data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
+                          'campaign_label': config.get('campaign_label') or '',
+                          'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
                                     'meta': [f"{len(S['all_labels'])} lançamentos"]},
