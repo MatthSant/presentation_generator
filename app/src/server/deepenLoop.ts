@@ -87,6 +87,13 @@ function repairMessage(objetivo: string | undefined, issues: string[]): string {
   return `${alvo}A saída anterior foi rejeitada por:\n- ${issues.join('\n- ')}\nCorrija TODOS esses pontos e reemita a saída final completa.`;
 }
 
+/** Reparo de POLIMENTO: a saída já passou (sem erro); só refina a FORMA. Tom suave
+ *  p/ a IA não destruir o que já está bom nem trocar o conteúdo correto. */
+function polishMessage(objetivo: string | undefined, issues: string[]): string {
+  const alvo = objetivo ? `A pergunta original é: "${objetivo}". Mantenha a resposta a ela.\n` : '';
+  return `${alvo}A saída está APROVADA, mas dá p/ melhorar a FORMA nestes pontos (opcionais — não reprovam):\n- ${issues.join('\n- ')}\nReemita aplicando o que fizer sentido, SEM perder o que já está bom nem trocar o conteúdo correto.`;
+}
+
 export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   const max = inp.maxAttempts ?? 5;
   const runCritic = inp.runCritic ?? true;
@@ -95,6 +102,11 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   let mocked = false;
   let lastValid: Modal | null = null;
   let issues: string[] = [];
+  // melhor versão SEM erro já obtida (e suas sugestões de forma pendentes). Protege a
+  // entrega: se uma passada de polimento introduzir erro, devolvemos esta.
+  let accepted: Modal | null = null;
+  let acceptedResidual: string[] = [];
+  let polishing = false;   // a tentativa atual é só polimento (saída anterior já passou)?
   const seen = new Set<string>();
   const issuesLog: string[] = [];
   const log = (xs: string[]): void => { for (const x of xs) if (!seen.has(x)) { seen.add(x); issuesLog.push(x); } };
@@ -102,8 +114,13 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   for (let attempt = 0; attempt < max; attempt++) {
     inp.onProgress?.(attempt === 0
       ? 'Analisando os dados e escrevendo o detalhamento…'
-      : `Revisando o detalhamento (tentativa ${attempt + 1} de ${max})…`);
-    const repair = attempt === 0 ? undefined : repairMessage(inp.objetivo, issues);
+      : polishing
+        ? `Refinando o detalhamento (tentativa ${attempt + 1} de ${max})…`
+        : `Revisando o detalhamento (tentativa ${attempt + 1} de ${max})…`);
+    const repair = attempt === 0 ? undefined
+      : polishing ? polishMessage(inp.objetivo, issues)
+      : repairMessage(inp.objetivo, issues);
+    polishing = false;
     const r = await inp.generate(repair, prev);
     mocked = r.mocked;
     if (r.usage) usage = sumUsage(usage, r.usage);
@@ -133,9 +150,26 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     }
     issues = [...blocking, ...suggestions];   // próximo reparo tenta corrigir ambos
     log(issues);
-    if (blocking.length === 0) return { modal: cand, mocked, usage, residualIssues: [], issuesLog, attempts: attempt + 1 };
+    if (blocking.length === 0) {
+      // passou (sem erro). Guarda como entregável. Se sobraram só SUGESTÕES de forma e
+      // ainda há tentativa, faz UMA passada extra de polimento (nunca reprova por isso).
+      accepted = cand; acceptedResidual = suggestions;
+      if (suggestions.length === 0 || mocked || attempt >= max - 1) {
+        return { modal: cand, mocked, usage, residualIssues: suggestions, issuesLog, attempts: attempt + 1 };
+      }
+      polishing = true;
+      continue;
+    }
+    // houve ERRO. Se já temos uma versão limpa aceita (um polimento piorou a saída),
+    // entrega a limpa em vez de arriscar — polimento não pode degradar a entrega.
+    if (accepted) {
+      return { modal: accepted, mocked, usage, residualIssues: acceptedResidual, issuesLog, attempts: attempt + 1 };
+    }
     if (mocked) break;
   }
 
-  return { modal: lastValid, mocked, usage, residualIssues: issues, issuesLog, attempts: max };
+  // esgotou as tentativas: prefere a melhor versão SEM erro (se houve), senão a última válida.
+  return accepted
+    ? { modal: accepted, mocked, usage, residualIssues: acceptedResidual, issuesLog, attempts: max }
+    : { modal: lastValid, mocked, usage, residualIssues: issues, issuesLog, attempts: max };
 }
