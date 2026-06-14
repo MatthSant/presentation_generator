@@ -533,16 +533,14 @@ class App {
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
       if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link')) continue;
       // band kpi-card (atingimento de meta) é uma faixa horizontal com o % grande à
-      // direita → a varinha vai centralizada à direita (classe --band) em vez do
-      // topo-direito, e o CSS reserva espaço empurrando o % para a esquerda.
-      const isBand = w.type === 'kpi-card' && (w as { band?: boolean }).band;
-      const mod = isBand ? ' tile-deepen--band' : '';
+      // direita → a varinha fica no topo-direito como nos outros blocos; o CSS dá um
+      // pequeno espaçamento p/ baixo no card (padding-top) p/ o % não colidir.
       const existing = (w as { modal?: string }).modal;
       const title = (w as { title?: string }).title || '';
       if (existing) {
         // já tem detalhamento → varinha roxa cheia (abre o modal)
         const a = document.createElement('a');
-        a.className = `tile-detail-link${mod}`;
+        a.className = 'tile-detail-link';
         a.dataset.modal = existing;   // opened by wireModals
         a.title = 'Ver detalhamento';
         a.setAttribute('aria-label', 'Ver detalhamento');
@@ -552,7 +550,7 @@ class App {
         // ainda sem detalhamento → varinha contorno (aparece no hover) p/ "detalhar"
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = `tile-deepen${mod}`;
+        btn.className = 'tile-deepen';
         btn.title = 'Detalhar com IA';
         btn.setAttribute('aria-label', 'Detalhar com IA');
         btn.innerHTML = App.WAND;

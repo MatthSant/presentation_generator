@@ -1076,12 +1076,19 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
 /* reserva espaço no cabeçalho pra varinha não cobrir o badge/título/rótulo */
 .chart-head { padding-right:30px; }
 .kc--feature .kc-head { padding-right:30px; }
-/* band kpi-card (faixa de atingimento) — varinha centralizada à direita; o card
- * reserva espaço (padding-right) p/ o % grande não encostar nela */
-.tile-deepen--band, .tile-detail-link--band { top:50%; right:13px; transform:translateY(-50%); }
-.dash-tile:has(.kc--band) .kc--band { padding-right:46px; }
-/* em card-banda escuro (emph/roxo) o círculo cheio some no fundo → vira contorno claro */
-.dash-tile:has(.kc--band-emph) .tile-detail-link { background:rgba(255,255,255,.18); color:#fff; }
+/* band kpi-card (faixa de atingimento) — varinha no topo-direito como nos demais.
+ * O título/valor ficam no topo; o % grande desce pro rodapé do card (sai do centro
+ * vertical) p/ liberar o canto superior-direito pra varinha, sem mover o título. */
+.dash-tile:has(.kc--band) .kc--band { align-items:flex-start; }
+.dash-tile:has(.kc--band) .kc-band-pill { align-self:flex-end; }
+/* em card de fundo roxo (CPMQL emph / Meta Geral band-emph) o círculo roxo cheio
+ * some no fundo → inverte p/ círculo branco sólido + ícone roxo + sombra */
+.dash-tile:has(.kc--emph) .tile-detail-link,
+.dash-tile:has(.kc--band-emph) .tile-detail-link {
+  background:#fff; color:var(--purple); box-shadow:0 2px 9px rgba(0,0,0,.28);
+}
+.dash-tile:has(.kc--emph) .tile-detail-link:hover,
+.dash-tile:has(.kc--band-emph) .tile-detail-link:hover { box-shadow:0 0 0 4px rgba(255,255,255,.32); }
 body.edit-mode .tile-deepen { display:none; }
 @media print { .tile-detail-link, .tile-deepen { display:none !important; } }
 
