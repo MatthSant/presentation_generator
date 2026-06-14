@@ -147,11 +147,21 @@ def assemble(rows, config, content, opts=None):
                         'detail': 'Nenhum KPI furando a meta nem em piora acelerada nos últimos 3 dias. Manter o ritmo e seguir monitorando.'})
             pg.add(f'{prefix}-risk-ok', 'find-block', 12, 2)
 
-    # ── dataset diário (charts) ──────────────────────────────────────────────
-    add_table('acom_daily', ['dia'], [
-        {'dia': d['label'], 'cum': d['cum'], 'leads': d['leads'], 'invest': round(d['sums']['invest'], 2),
-         'cpl': d['cpl'], 'cpmql': d['cpmql'], 'taxa_qual': d['taxa_qual'], 'cpm': d['cpm']}
-        for d in B['days']])
+    # ── dataset diário (charts + bind direto no deep mode) ───────────────────
+    # inclui TODAS as taxas diárias deriváveis (taxa_resp/conv_pag/ctr) p/ a IA poder
+    # plotar a tendência por bind direto, sem precisar de uma consulta; hook/hold/connect
+    # só entram quando a base tem vídeo/página (senão ficariam só null).
+    _daily = []
+    for d in B['days']:
+        row = {'dia': d['label'], 'cum': d['cum'], 'leads': d['leads'], 'invest': round(d['sums']['invest'], 2),
+               'cpl': d['cpl'], 'cpmql': d['cpmql'], 'taxa_qual': d['taxa_qual'], 'taxa_resp': d['taxa_resp'],
+               'conv_pag': d['conv_pag'], 'cpm': d['cpm'], 'ctr': d['ctr']}
+        if B['has_views']:
+            row['hook'] = d['hook']; row['hold'] = d['hold']
+        if B['has_pageviews']:
+            row['connect'] = d['connect']
+        _daily.append(row)
+    add_table('acom_daily', ['dia'], _daily)
     sp = B['split']
     add_table('acom_origem', ['origem'], [{'origem': 'Pago', 'leads': sp['leads_pago']},
                                           {'origem': 'Orgânico', 'leads': sp['leads_org']}])
