@@ -21,6 +21,11 @@ function isPublic(p: string): boolean {
   return p.startsWith('/auth/') || p === '/login.html' || ASSET.test(p) || /^\/(js|assets|fonts)\//.test(p);
 }
 
+// Rotas globais (não escopadas por cliente) com 2+ segmentos — o gate de tenant
+// abaixo casa /api/:client/:slug e confundiria "claude-log" com um cliente (→ 404).
+// Exigem sessão, mas não passam pela checagem de posse de cliente.
+const GLOBAL_API = /^\/api\/claude-log(?:\/|$)/;
+
 export function installAuth(app: Express, ctx: Ctx): void {
   app.post('/auth/login', (req, res) => {
     const { email, password } = (req.body || {}) as { email?: string; password?: string };
@@ -54,7 +59,7 @@ export function installAuth(app: Express, ctx: Ctx): void {
     }
     req.user = user;
 
-    const m = p.match(/^\/(?:api|report)\/([^/]+)\/[^/]+/);
+    const m = GLOBAL_API.test(p) ? null : p.match(/^\/(?:api|report)\/([^/]+)\/[^/]+/);
     if (m) {
       const client = decodeURIComponent(m[1]);
       const owner = clientOwner(ctx.db, client);
