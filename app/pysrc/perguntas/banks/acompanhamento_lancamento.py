@@ -77,10 +77,20 @@ def q_maior_furo(ctx):
                      {'label': 'vs esperado', 'value': f'-{gap:.0f}%'}]}
 
 
+# Custos: dev>0 = acima da meta = PIOR. Métricas normais: dev<0 = abaixo = pior.
+# `_gap` normaliza por direção (>0 = quanto está pior que a meta) p/ comparar os dois.
+_COST = {'cpl', 'cpmql', 'cpm'}
+
+
+def _gap(r):
+    dev = _f(r.get('dev')) or 0.0
+    return dev if r.get('metric') in _COST else -dev
+
+
 def _worst_kpi(ctx, grupo):
     cand = [r for r in ctx['kpis'].values() if r.get('grupo') == grupo and r.get('cls') in ('bad', 'warn')
             and _f(r.get('dev')) is not None]
-    return min(cand, key=lambda r: _f(r.get('dev')), default=None)
+    return max(cand, key=_gap, default=None)   # maior gap direction-aware = pior (custo OU normal)
 
 
 def q_pior_kpi_macro(ctx):
@@ -88,9 +98,9 @@ def q_pior_kpi_macro(ctx):
     if not w:
         return {'relevancia': 0.0, 'justificativa': 'Todos os KPIs macro dentro ou acima da meta.', 'kpis': []}
     dev = _f(w.get('dev')) or 0
-    rel = _nz(abs(dev), 25) * (1.0 if w.get('cls') == 'bad' else 0.7)
+    rel = _nz(_gap(w), 25) * (1.0 if w.get('cls') == 'bad' else 0.7)
     return {'relevancia': round(rel, 1),
-            'justificativa': f"{w.get('label')} está {dev:+.0f}% vs meta ({w.get('cls')}). Maior desvio negativo entre os KPIs macro.",
+            'justificativa': f"{w.get('label')} está {dev:+.0f}% vs meta ({w.get('cls')}) — maior desvio (pior que a meta) entre os KPIs macro.",
             'kpis': [{'label': 'KPI', 'value': str(w.get('label'))},
                      {'label': 'Desvio vs meta', 'value': f'{dev:+.0f}%'},
                      {'label': 'Tendência', 'value': f"{w.get('trend_dir')} {_f(w.get('trend_pct')) or 0:.0f}%"}]}

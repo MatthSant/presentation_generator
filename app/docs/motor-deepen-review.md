@@ -386,6 +386,55 @@ simulação via Agent da 1ª versão (5 fatores) é o que EXPÔS o erro de méto
 ficou. Próximo passo possível (não bloqueante): um `por:dimensao` p/ ver a conversão por
 segmento (hoje a IA encadeia com `ranking`/`variacao_hist`).
 
+## Perguntas norteadoras do acompanhamento — +4 e revisão de relevância
+
+O banco do acompanhamento estava pobre (6 perguntas, só KPI/funil) e não usava o motor
+novo. Adicionadas 4, pontuadas por dados REAIS do dataset:
+- **ac-temperatura** (escalar/frear por CPL/CPMQL — `acom_temp`, que não tinha nenhuma
+  pergunta apesar de estar no dataset);
+- **ac-concentra** (a piora do CPL é de um criativo/público ou geral → `onde_concentra`);
+- **ac-saturacao** (custo subindo COM volume não crescendo → `acom_daily`);
+- **ac-canal-org** (concentração de leads orgânicos num canal → `acom_canais`).
+Métricas secundárias seguem como deepen (#22), não viram pergunta.
+
+Simulação via Agent das 4 (base real enxoval): todas acionáveis; `ac-saturacao` foi a
+melhor (forçou "escala ≠ saturação" — CPL +313% mas leads/dia estáveis, correlação
+invest×CPL +0,82 → escala, não esgotamento).
+
+### Revisão das regras de relevância (acompanhamento + debriefing)
+
+Auditoria das funções de scoring. **2 bugs de sinal encontrados e corrigidos** (ambos no
+acompanhamento, expostos pela simulação):
+
+1. **`ac-saturacao` (OR cego):** disparava "saturação" só com CPL subindo, mesmo com
+   leads/dia SUBINDO (= escala). Corrigido: se o volume cresce (>+10%), não é saturação
+   (rel=0, leitura "escalando"); saturação exige custo↑ com volume não crescendo.
+2. **`q_pior_kpi_macro` (sinal de custo):** `meta_status.dev` é BRUTO (não normalizado por
+   direção); a seleção usava `min(dev)`, que para CUSTOS está invertido — um CPL/CPMQL
+   muito ACIMA da meta (dev>0) nunca era escolhido como "pior", perdendo para uma métrica
+   normal abaixo da meta (dev<0). Corrigido com `_gap` direction-aware (dev p/ custo, −dev
+   p/ normal; pega o MAIOR gap). Efeito real: na base, passou a apontar **CPMQL +28% vs
+   meta** (o pior de fato) em vez de "taxa_qual −22%".
+
+**Debriefing: sem bug de sinal** — usa `_dev(metric, invert=True)` para custos, então a
+direção já entra normalizada na origem; as funções (`_dev`/`_hdev`/`_nz`) tratam custo×
+normal corretamente. Scores baixos observados (db-temp-mix 0, db-concentracao ~2) são
+LEGÍTIMOS (não há concentração nessa base), não erro. `q_onde_perdemos` usa
+`deb_temp.meta_vendas` que vem 0 quando o config não traz meta por temperatura → degrada
+para o gap global (ok, sem inventar).
+
+**Nuances documentadas (não-bug):**
+- `is_paid(r) = invest_total>0` (por LINHA): uma linha de canal pago com 0 invest num dia
+  cai em "Orgânico" → um canal pago pode aparecer no recorte Orgânico (ex.: 5 linhas
+  meta-ads sem gasto). Definição consistente ("Pago = custou dinheiro"), mas a IA deve
+  ler share, não nome isolado.
+- `onde_concentra` ignora `recorte_*` de propósito (é drill-down de TODOS os níveis).
+- Refs do `_nz` são pequenas → sinais fortes saturam em 100 (vários no topo). É desejado
+  (sinal forte = relevância máxima); o desempate fino fica para a ordenação secundária.
+
+**Possível próximo passo (não-bloqueante):** função `concentracao{dimensao,metrica,recorte_*}`
+(share do top-1/top-N/HHI) p/ servir "depende demais de X" sem cálculo manual de share.
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.
