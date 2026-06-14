@@ -1120,7 +1120,9 @@ body.edit-mode .tile-deepen { display:none; }
 @media print { .tile-detail-link, .tile-deepen { display:none !important; } }
 
 /* Deepen composer dialog */
-.deepen-dlg { border:none; border-radius:14px; padding:0; max-width:460px; width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.3); background:var(--bg); color:var(--fg); }
+/* inset:0 + margin:auto centraliza o dialog modal (um reset global zera o margin:auto
+ * que o navegador aplicaria, jogando o dialog p/ o canto). */
+.deepen-dlg { border:none; border-radius:14px; padding:0; max-width:460px; width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.3); background:var(--bg); color:var(--fg); inset:0; margin:auto; }
 .deepen-dlg::backdrop { background:rgba(0,0,0,.4); }
 .deepen-form { padding:20px 22px; display:flex; flex-direction:column; gap:10px; }
 .deepen-form h3 { margin:0; font-size:15px; font-weight:750; }
