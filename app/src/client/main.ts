@@ -540,7 +540,9 @@ class App {
         const a = document.createElement('a');
         a.className = 'tile-detail-link';
         a.dataset.modal = existing;   // opened by wireModals
-        a.textContent = '↗ ver detalhamento';
+        const tx = document.createElement('span'); tx.className = 'vd-tx'; tx.textContent = 'Ver detalhamento';
+        const ic = document.createElement('span'); ic.className = 'vd-ic'; ic.textContent = '↗';
+        a.append(tx, ic);
         tile.appendChild(a);
       } else {
         const btn = document.createElement('button');
