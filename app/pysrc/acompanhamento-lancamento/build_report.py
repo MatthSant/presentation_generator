@@ -386,10 +386,26 @@ def assemble(rows, config, content, opts=None):
     tra, tg = [], Grid()
     tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia + custo e qualidade do lead pago'})
     tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
-    for m in B['traf_metrics']:                              # linha 1: mídia (omite hook/hold/connect sem dado)
-        kcard(tra, tg, m, 'kt')
-    for m in ['cpl', 'taxa_resp', 'taxa_qual', 'cpmql']:      # linha 2: conversão (CPMQL em destaque)
-        kcard(tra, tg, m, 'kt', w=3)
+    # mídia (omite hook/hold/connect sem dado) + conversão, em LINHAS UNIFORMES:
+    # 12÷(nº da linha) → larguras iguais por linha. Ex.: no fallback (7 cards) vira
+    # 4 em cima (w3) + 3 embaixo (w4), em vez de fluir 5+2 com larguras desiguais.
+    traf = list(dict.fromkeys([*B['traf_metrics'], 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql']))
+    n = len(traf)
+    if n <= 4:
+        counts = [n]
+    elif n <= 8:
+        top = (n + 1) // 2
+        counts = [top, n - top]
+    else:
+        a = (n + 2) // 3
+        b = (n - a + 1) // 2
+        counts = [a, b, n - a - b]
+    i = 0
+    for c in counts:
+        w = max(2, 12 // c)
+        for _ in range(c):
+            kcard(tra, tg, traf[i], 'kt', w=w)
+            i += 1
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais
     # (sem Pageviews quando a base não tem o dado)

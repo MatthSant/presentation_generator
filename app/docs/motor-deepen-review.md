@@ -459,6 +459,37 @@ critic pega), crédito esgotado (402/no_credit). **3 erros NOVOS corrigidos:**
 Também: nome do export passou a incluir HORA (`...-2026-06-14-1856.json`) → dois exports no
 mesmo dia não colidem nem viram "(1)".
 
+## Por que o gate reprova (lentidão) — análise + 1º refino
+
+Queixa: lento porque reprova muito nas regras fixas. Em vez de afrouxar o gate (preguiçoso,
+tira qualidade), medi ONDE a IA mais erra (31 deepens, 289 issues) p/ ela errar menos na 1ª:
+
+| Causa de reprovação (blocking) | ~Freq |
+|---|---|
+| **Número/cálculo citado ≠ dado** (médias, variações %, mín/máx, comparações) | **~40 (a maior)** |
+| Gráfico ilegível (cat/séries) + nº de gráficos | ~20 |
+| "Disse indisponível" mas tinha (utm_content — já tratado) | 10 |
+| Eixo/não responde | 8 |
+| Somar taxa/total | 5 |
+| (Sugestões — não reprovam) | 137 |
+
+**Causa #1 (número/cálculo) tem raiz clara: agregados calculados de cabeça — e o pior, MÉDIA
+SIMPLES de TAXA.** Ex.: "CPL médio R$7,81" (média dos CPLs diários) quando o correto é a
+PONDERADA R$5,39 (Σinvest÷Σleads). E há FALSO POSITIVO do próprio critic: a IA usa a ponderada
+(7,10, certa) e o critic recalcula a média simples (7,33) e acusa. 1º refino (mantém o gate):
+- **Gerador (ANSWER_RULES):** não calcular agregados de cabeça; média/valor de período de TAXA
+  = ponderada via `incluir_geral=sim`; média simples só p/ grandezas aditivas; comparação "X%
+  maior" = (A−B)/B exato dos binds.
+- **Critic (numbersGrounded):** ao conferir média de TAXA, a referência é a PONDERADA (não a
+  simples) — não dar falso positivo na ponderada correta.
+
+Próximos refinos candidatos (não feitos ainda): gráfico ilegível/nº de gráficos (steer p/
+`cruzar_dia` 1-linha) e eixo trocado. Iterar com novos exports.
+
+Fora do motor (mesma leva): a página **Perguntas norteadoras não vai no HTML exportado** (é
+ferramenta de trabalho, não relatório); e os **KPI cards do acompanhamento ficam uniformes por
+linha** (fallback de 7 cards = 4+3; 10 = 4+3+3) em vez de fluir 5+2 com larguras desiguais.
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.

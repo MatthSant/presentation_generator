@@ -1004,7 +1004,9 @@ class App {
       // panes with a tiny inline script — no data layer or chart lib needed.
       const fdef = this.store.filterDefs[0];
       const variants: (string | null)[] = fdef ? fdef.options.slice() : [null];
-      const pages = this.store.pages;
+      // Perguntas norteadoras são ferramenta de trabalho do app (gerar detalhamentos),
+      // não conteúdo do relatório — fora do HTML exportado (tabs e páginas).
+      const pages = this.store.pages.filter(p => p.kind !== 'perguntas');
 
       const pinHeights = (host: Element, clone: HTMLElement): void => {
         const lt = host.querySelectorAll('.dash-tile'); const ct = clone.querySelectorAll<HTMLElement>('.dash-tile');

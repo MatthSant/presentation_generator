@@ -204,6 +204,13 @@ const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
 - EIXO DA PERGUNTA: nível (qual é MAIOR / converte mais) ≠ tendência (o que está MELHORANDO/PIORANDO) ≠
   causa (qual fator EXPLICA a variação). São perguntas diferentes — responda exatamente o eixo pedido; não
   troque "o que está mudando" por "o que mais converte".
+- AGREGADOS você NÃO calcula de cabeça (fonte nº1 de erro): média, total, variação %, mín/máx vêm da TABELA
+  bindada ou do consultar (que já traz início/fim/Δ% no summary do trend). A MÉDIA/valor de PERÍODO de uma
+  TAXA/RAZÃO (CPL, CPMQL, CPM, CTR, conversão, qualificação, ROAS) é PONDERADA (Σnumerador÷Σdenominador) —
+  use o "Geral" do motor (consultar incluir_geral=sim). NUNCA tire a média SIMPLES dos dias de uma taxa
+  (somar os CPLs ÷ N dá número ERRADO; ex.: média simples R$7,81 vs ponderada R$5,39). Só grandezas ADITIVAS
+  (leads, investimento, vendas, faturamento) podem ser somadas/média simples. Idem comparação "A é X% maior
+  que B": cite (A−B)/B exato dos valores bindados, não estime.
 - AMPLIAÇÃO DE CRITÉRIO: se a instrução pede VÁRIOS critérios macro (ex.: "renda, patrimônio, idade — não só
   renda"), traga cada um a partir dos DADOS daquele critério (no modo fundo, CONSULTE-o). É proibido citar
   grupos/números de um critério que não está nos dados — sem o dado, diga em um find-note que aquele critério
@@ -442,6 +449,12 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   for grande o bastante para MUDAR A CONCLUSÃO (sinal trocado, ordem de grandeza, fator errado). NÃO
   reprove por "23,4% vs 23,5%". Marque FALSE se: um número claramente não confere com os dados; a prosa
   cita números mas os "dados" estão vazios / não os sustentam; ou o recorte/consulta não faz sentido.
+  MÉDIA/VALOR DE PERÍODO DE TAXA — não dê falso positivo: a média de período de uma TAXA/RAZÃO (CPL, CPMQL,
+  CPM, CTR, conversão, qualificação, ROAS) correta é a PONDERADA (Σnumerador÷Σdenominador ≈ o "Geral" do
+  motor), NÃO a média aritmética simples dos valores diários. Ao conferir uma "média de CPL/CPMQL/...",
+  recalcule a PONDERADA (use os totais de invest/leads dos dados) — se o valor citado bate com ela, está
+  CERTO, ainda que difira da média simples dos dias. Só marque FALSE se não bater NEM com a ponderada NEM
+  com a média simples (aí é número inventado). A média SIMPLES de uma taxa é que é incorreta.
 - Classifique cada problema em DOIS baldes. Cada item: 1 linha ACIONÁVEL com a CORREÇÃO (o que fazer
   EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo), não só o defeito.
 - "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
