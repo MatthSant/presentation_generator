@@ -33,10 +33,17 @@ def build_frame(B, a):
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
                                      ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
     geral = str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1')
+    days, src = B['days'], B['rows_corte']
+    # so_midia: poda dias sem mídia paga (investimento=0) — ex.: cauda pós-captação onde
+    # leads orgânicos residuais distorcem CPL/custo (CPL "+1714%" virando ruído).
+    if str(a.get('so_midia', '')).lower() in ('sim', 'true', '1'):
+        keep = {d['date'] for d in days if (d.get('investimento') or 0) > 0}
+        days = [d for d in days if d['date'] in keep]
+        src = [r for r in src if calc._date(r) in keep]
     if dim == 'dia' and not filtro:
-        rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in B['days']]
+        rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in days]
     else:
-        rows = calc.frame_rows(B['rows_corte'], dim, filtro, B.get('trules'), incluir_geral=geral)
+        rows = calc.frame_rows(src, dim, filtro, B.get('trules'), incluir_geral=geral)
     if not rows:
         return {'status': 'nao_disponivel', 'motivo': f'sem dados para dimensão={dim} com esse recorte'}
     return {
@@ -61,14 +68,19 @@ def cruzar_dia(B, a):
         return qc.nao_disp(f"métrica '{metric}' inválida")
     if dim not in ('temperatura', 'canal', 'origem', 'criativo', 'publico', 'campanha'):
         return qc.nao_disp("dimensao deve ser temperatura, canal, origem, criativo, publico ou campanha")
-    cells = calc.cross_dia(B['rows_corte'], dim, B.get('trules'))
+    src, days = B['rows_corte'], B['days']
+    if str(a.get('so_midia', '')).lower() in ('sim', 'true', '1'):   # poda cauda sem mídia paga
+        keep = {d['date'] for d in days if (d.get('investimento') or 0) > 0}
+        src = [r for r in src if calc._date(r) in keep]
+        days = [d for d in days if d['date'] in keep]
+    cells = calc.cross_dia(src, dim, B.get('trules'))
     rows = [{'dia': c['dia'], 'serie': c['serie'], 'valor': qc.rnd(c['m'].get(metric))}
             for c in cells if c['m'].get(metric) is not None]
     # série "Geral" opcional = valor GLOBAL por dia (do B['days'], mesmo do relatório) →
     # mantém o KPI de variação consistente com a linha geral do gráfico (sem misturar agregados).
     if str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1'):
         rows += [{'dia': d['label'], 'serie': 'Geral', 'valor': qc.rnd(d.get(metric))}
-                 for d in B['days'] if d.get(metric) is not None]
+                 for d in days if d.get(metric) is not None]
     series = sorted({r['serie'] for r in rows})
     if len(rows) < 2 or len(series) < 1:
         return qc.nao_disp(f'sem dados p/ {metric} por dia × {dim}')

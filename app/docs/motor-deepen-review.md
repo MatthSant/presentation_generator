@@ -435,6 +435,30 @@ para o gap global (ok, sem inventar).
 **Possível próximo passo (não-bloqueante):** função `concentracao{dimensao,metrica,recorte_*}`
 (share do top-1/top-N/HHI) p/ servir "depende demais de X" sem cálculo manual de share.
 
+## Revisão dos exports de chamadas IA (deepen_history) — 1 a 1
+
+Auditoria de 31 deepens reais (2 exports do /uso). A maioria dos FAILs era de runs
+ANTERIORES aos commits recentes (já tratados): "maior furo" inventado com pageviews=0
+(fallback `has_pageviews` já omite a etapa), debriefing "utm_content indisponível" (criativo
++ cruzar_dia + coalesce já adicionados), escopo 833≠835 (3-vias), somar taxa na tabela (o
+critic pega), crédito esgotado (402/no_credit). **3 erros NOVOS corrigidos:**
+
+1. **Tipo errado → fallback silencioso `conversao-perfil` (sério).** Deepens de debriefing/
+   acompanhamento rodavam com domínio+consultar de `conversao-perfil` quando `meta.type`
+   faltava ([typeRegistry.ts:250](../src/server/typeRegistry.ts) cai no default). As perguntas
+   usam `detect(dataset)` (robusto), mas o deepen usava `meta.type`. Fix: `inferType(dataset)`
+   pela ASSINATURA das tabelas (deb_kpis→debriefing, acom_kpis→acompanhamento) com prioridade
+   sobre config/meta no [deepen.ts](../src/server/routes/deepen.ts) (dataset é autoritativo).
+2. **Comparação % derivada errada passou no gate.** "Morno 61% superior (R$12,45 vs R$7,10)"
+   — é +75%. O critic tolerava por "não mudar a conclusão". Fix: regra blocking específica —
+   recalcular (A−B)/B em afirmações "X% maior/superior" e reprovar se divergir > ~2% relativo.
+3. **Cauda pós-captação distorce custo no acompanhamento.** CPL "+1714%" incluindo dias sem
+   mídia (o usuário corrigia na mão "até 07/05"). Fix: `so_midia` no acompanhamento (poda dias
+   com investimento=0), espelhando o debriefing. Validado: leads/dia 13→10 dias com o flag.
+
+Também: nome do export passou a incluir HORA (`...-2026-06-14-1856.json`) → dois exports no
+mesmo dia não colidem nem viram "(1)".
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.

@@ -34,7 +34,9 @@ export function registerClaudeLog(app: Express, ctx: Ctx): void {
     const full = req.query.all === '1';
     const wm = full ? '' : getWatermark();
     const after = (ts?: string): boolean => !wm || !ts || ts > wm;   // sem ts → inclui (não perde)
-    const day = new Date().toISOString().slice(0, 10);
+    // carimbo com data E hora (UTC, sem ':' p/ Windows) → dois exports no mesmo dia não
+    // colidem nem viram "arquivo (1)"; o nome já distingue qual é qual.
+    const day = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
     let log: { ts?: string }[] = [];
     if (fs.existsSync(CLAUDE_LOG)) {
       log = fs.readFileSync(CLAUDE_LOG, 'utf8').trim().split('\n').filter(Boolean)

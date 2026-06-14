@@ -21,7 +21,7 @@ import { generateModal, generateModalDeep, type DeepDeps } from '../claude.js';
 import { gateAndRepair } from '../deepenLoop.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
-import { typeOf } from '../typeRegistry.js';
+import { typeOf, inferType } from '../typeRegistry.js';
 import { buildCardContext } from '../cardContext.js';
 import { recordDeepen, getFewShot, methodologySmell, markRevised, findByModalId } from '../deepenHistory.js';
 import type { ModalUsage } from '../claude.js';
@@ -84,10 +84,12 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     const baseDir = path.join(BASE, client, slug);
     const hasBase = fs.existsSync(path.join(baseDir, 'dump.csv')) && fs.existsSync(path.join(baseDir, 'config.json'));
     const baseConfig = hasBase ? readJson<Record<string, unknown>>(path.join(baseDir, 'config.json')) : null;
-    const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
-
     const navMeta = readJson<{ meta?: { controls?: { kind?: string } } }>(path.join(dir, 'data.json'));
-    const analysisType = (hasBase ? typeOf(baseConfig) : typeOf(navMeta?.meta?.controls?.kind)).type;
+    // A assinatura do dataset é AUTORITATIVA (foi gerada pelo build_report do tipo) e tem
+    // prioridade sobre config/meta — evita o deepen rodar com o domínio/consultar errados
+    // (fallback conversao-perfil) quando meta.type falta num relatório de debriefing/acomp.
+    const analysisType = inferType(dataset) ?? (hasBase ? typeOf(baseConfig) : typeOf(navMeta?.meta?.controls?.kind)).type;
+    const deepenMeta = hasBase ? typeOf(analysisType).buildDeepenMeta(baseConfig) : null;
     const fewShot = getFewShot(ctx.db, analysisType, 3);
     // Os prompts dos bancos (e do consultor) são instruções por design — a
     // moldura força o modelo a EXECUTAR a análise, não a descrever o método.

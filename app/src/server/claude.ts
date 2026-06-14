@@ -447,6 +447,7 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
 - "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
   • não responde à pergunta / responde outra coisa / EIXO trocado (nível quando era tendência/causa, ou vice-versa)
   • número "X" não confere com os dados (esperado ~Y); prosa cita números sem tabela/gráfico que os sustente
+  • COMPARAÇÃO % derivada errada (mesmo que a DIREÇÃO esteja certa): "A é X% maior/superior/mais caro/mais barato que B" — recalcule (A−B)/B com os valores citados; se o X divergir ALÉM de arredondamento (> ~2% relativo), é blocking, pois o consultor cita esse número (ex.: "Morno 61% superior" com R$12,45 vs R$7,10, que é +75% — errado)
   • CRITÉRIO/CATEGORIA inventado: cita grupos/categorias/números que não estão nos "dados"
   • métrica trocada (nomeia "CPL" mas usa o valor de CPA; ordem de grandeza implausível); CPA tratado como independente de CPL×conversão
   • resposta ENTERRADA: nenhum highlight no topo respondendo à pergunta com o número decisivo

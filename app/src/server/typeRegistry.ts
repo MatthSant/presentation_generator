@@ -193,6 +193,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             recorte_publico: { desc: 'filtra a um público/adset específico (use um valor visto na dimensão publico)' },
             recorte_campanha: { desc: 'filtra a uma campanha específica (use um valor visto na dimensão campanha)' },
             incluir_geral: { enum: ['sim', 'nao'], desc: 'inclua a linha/série "Geral" com o valor GLOBAL CORRETO (o motor soma contagens e RECALCULA taxas ponderadas — num÷den). USE isto p/ um total/geral; NUNCA some os grupos você mesmo (somar taxa dá 113%).' },
+            so_midia: { enum: ['sim', 'nao'], desc: 'poda os dias SEM mídia paga (investimento=0) — ex.: cauda pós-captação onde leads orgânicos residuais distorcem CPL/custo (evita "CPL +1714%" que é ruído de fim de campanha). USE em séries de custo no tempo.' },
           },
         },
       };
@@ -248,4 +249,20 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
 export function typeOf(t: unknown): AnalysisTypeDef {
   const key = typeof t === 'string' ? t : (t as { type?: string } | null | undefined)?.type;
   return TYPES[key ?? ''] ?? TYPES['conversao-perfil'];
+}
+
+// Assinatura do dataset → tipo. O dataset é AUTORITATIVO (foi gerado pelo build_report
+// do tipo); usado p/ não cair no fallback errado quando meta.type falta (o deepen rodava
+// com domínio conversao-perfil em relatórios de debriefing/acompanhamento).
+const DATASET_SIGNATURE: ReadonlyArray<readonly [string, string]> = [
+  ['deb_kpis', 'debriefing-lancamento'],
+  ['acom_kpis', 'acompanhamento-lancamento'],
+];
+
+/** Infere o tipo pelas tabelas presentes no dataset; null se nenhuma assinatura casar
+ *  (ex.: conversao-perfil/historico/criativos → resolve pelo config). */
+export function inferType(dataset: Record<string, unknown> | null | undefined): string | null {
+  if (!dataset) return null;
+  for (const [tbl, type] of DATASET_SIGNATURE) if (tbl in dataset) return type;
+  return null;
 }
