@@ -77,10 +77,16 @@ export class Navigation {
     this.sideHost.replaceChildren();
     if (this.navMode() !== 'sidebar') return;
 
+    // Brand: nosso logo do app num quadrado branco arredondado (a sidebar é plum escuro).
     const brand = document.createElement('a');
     brand.className = 'sn-brand';
     brand.href = '/';
-    brand.textContent = (this.store.data?.meta as { client?: string } | undefined)?.client || 'Relatório';
+    brand.title = 'Início';
+    const logo = document.createElement('img');
+    logo.className = 'sn-logo';
+    logo.src = '/assets/witly-logo.png';
+    logo.alt = 'Witly';
+    brand.appendChild(logo);
     this.sideHost.appendChild(brand);
 
     // Busca — filtra os itens (criativos/seções) por nome em tempo real.
