@@ -376,7 +376,8 @@ def assemble(rows, config, content, opts=None):
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title']},
                           'controls': {'kind': 'debriefing-lancamento', 'compare': 'meta',
-                                       'pages': [p['id'] for p in pages]}}, 'pages': pages}
+                                       'pages': [p['id'] for p in pages]},
+                          'nav': 'sidebar'}, 'pages': pages}
     return {'dataset': dataset, 'data': data_json,
             'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'}, 'sections': sections}
 

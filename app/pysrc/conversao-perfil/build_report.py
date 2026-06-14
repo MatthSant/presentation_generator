@@ -390,7 +390,8 @@ def build(csv_path, config, content, out_dir):
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório",
                                     'title': config['title'],
                                     'meta': [f"{N} lançamentos", f"{len(CIDS)} critérios de perfil",
-                                             f"janelas {_wl.get(WINDOW, WINDOW)} · {_wl.get(LONG, LONG)}"]}},
+                                             f"janelas {_wl.get(WINDOW, WINDOW)} · {_wl.get(LONG, LONG)}"]},
+                          'nav': 'sidebar'},
                  'pages': all_pages}
 
     preserve(out_dir, data_json, sections)   # detalhamentos, perguntas e modais sobrevivem à regeneração

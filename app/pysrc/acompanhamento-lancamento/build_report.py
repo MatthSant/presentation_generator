@@ -473,7 +473,8 @@ def assemble(rows, config, content, opts=None):
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
                                     'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},
                           'controls': {'kind': 'acompanhamento-lancamento',
-                                       'pages': ['acompanhamento']}},
+                                       'pages': ['acompanhamento']},
+                          'nav': 'sidebar'},
                  'pages': pages}
     return {'dataset': dataset, 'data': data_json,
             'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'},

@@ -411,7 +411,8 @@ def assemble(rows, config, content, opts=None):
                                     'meta': [f"{len(S['all_labels'])} lançamentos"]},
                           'controls': {'kind': 'historico-lancamentos', 'pages': ['panorama', 'investimentos'],
                                        'launches': S['all_labels'],
-                                       'metrics': [{'id': k, 'label': BRK_INFO[k]['label']} for k in calc.METRICS]}},
+                                       'metrics': [{'id': k, 'label': BRK_INFO[k]['label']} for k in calc.METRICS]},
+                          'nav': 'sidebar'},
                  'pages': pages}
     return {'dataset': dataset, 'data': data_json,
             'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'},
