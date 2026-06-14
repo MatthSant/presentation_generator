@@ -24,11 +24,21 @@ METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
 COST = {'cpl', 'cpmql', 'cpm'}
 
 
-def build_frame(B, _a):
-    """Eixo = dia da campanha; cada dia traz os KPIs derivados pelo calc."""
+def build_frame(B, a):
+    """Eixo parametrizável: dia (default) | temperatura | canal | origem. `recorte_*`
+    (origem/temperatura/canal) filtra as linhas antes — ex.: CPL por dia só do Quente."""
+    dim = a.get('dimensao', 'dia')
+    filtro = {k: a[k2] for k, k2 in (('origem', 'recorte_origem'), ('temperatura', 'recorte_temperatura'),
+                                     ('canal', 'recorte_canal')) if a.get(k2)}
+    if dim == 'dia' and not filtro:
+        rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in B['days']]
+    else:
+        rows = calc.frame_rows(B['rows_corte'], dim, filtro, B.get('trules'))
+    if not rows:
+        return {'status': 'nao_disponivel', 'motivo': f'sem dados para dimensão={dim} com esse recorte'}
     return {
-        'axis': 'dia',
-        'rows': [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in B['days']],
+        'axis': dim,
+        'rows': rows,
         'labels': {m: calc.LABELS.get(m, m) for m in METRICS},
         'cost': {m: (m in COST) for m in METRICS},
     }

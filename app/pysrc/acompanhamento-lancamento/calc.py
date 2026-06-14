@@ -103,6 +103,12 @@ def infer_temp(name, rules=None):
     return 'Indefinido'
 
 
+def norm_source(v):
+    """utm_source normalizado: vazios/null/'-' viram 'Não trackeado'."""
+    s = str(v if v is not None else '').strip()
+    return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
+
+
 # ── agregação de um conjunto de linhas ───────────────────────────────────────
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
@@ -147,6 +153,63 @@ def derive(s):
         'connect': pct(s['pageviews'], s['clicks']) if s['pageviews'] else None,
         'conv_pag': pct(s['leads_traf'], s['pageviews']) if s['pageviews'] else pct(s['leads_traf'], s['clicks']),
     }
+
+
+# métricas expostas no modo-fundo (mesmo conjunto do derive)
+FRAME_METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
+                 'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect']
+
+
+def frame_rows(rows, dim, filtro=None, trules=None):
+    """Agrega as linhas do corte por dimensão p/ o modo-fundo da IA, devolvendo
+    [{key, m:{métrica:valor}}] com os KPIs derivados por grupo.
+
+    dim ∈ dia | temperatura | canal | origem. `filtro` (opcional) restringe as linhas
+    ANTES de agrupar — {origem, temperatura, canal} — habilitando cruzamentos como
+    'CPL por dia SÓ do tráfego Quente' (dim='dia', filtro={'temperatura':'Quente'})."""
+    trules = trules or {}
+    f = filtro or {}
+
+    def keep(r):
+        if f.get('origem') and ('Pago' if is_paid(r) else 'Orgânico') != f['origem']:
+            return False
+        if f.get('temperatura') and infer_temp(r.get('field_campaign_name'), trules) != f['temperatura']:
+            return False
+        if f.get('canal') and norm_source(r.get('utm_source')) != f['canal']:
+            return False
+        return True
+
+    sub = [r for r in rows if keep(r)]
+    if dim == 'temperatura':
+        sub = [r for r in sub if is_paid(r)]            # temperatura só existe no pago
+        keyfn = lambda r: infer_temp(r.get('field_campaign_name'), trules)
+        fixed = None
+    elif dim == 'canal':
+        keyfn = lambda r: norm_source(r.get('utm_source'))
+        fixed = None
+    elif dim == 'origem':
+        keyfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
+        fixed = ['Pago', 'Orgânico']
+    else:                                                # dia (default)
+        keyfn = _date
+        fixed = None
+
+    groups = {}
+    for r in sub:
+        groups.setdefault(keyfn(r), []).append(r)
+    if dim == 'dia':
+        keys = sorted(groups)
+    elif fixed:
+        keys = [k for k in fixed if k in groups]
+    else:                                                # temperatura/canal: mais leads primeiro
+        keys = sorted(groups, key=lambda k: -_sum(groups[k])['leads'])
+
+    out = []
+    for k in keys:
+        d = derive(_sum(groups[k]))
+        label = _day_label(k) if dim == 'dia' else str(k)
+        out.append({'key': label, 'm': {m: d.get(m) for m in FRAME_METRICS}})
+    return out
 
 
 # ── tendência / desvio vs meta ───────────────────────────────────────────────
@@ -349,13 +412,10 @@ def build(rows, config=None):
     }
 
     # canais orgânicos (por utm_source) — vazios/null/'-' viram "Não trackeado"
-    def _src(v):
-        s = str(v if v is not None else '').strip()
-        return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
     org_by = {}
     for r in org_rows:
-        org_by.setdefault(_src(r.get('utm_source')), 0.0)
-        org_by[_src(r.get('utm_source'))] += fnum(r.get('leads'))
+        org_by.setdefault(norm_source(r.get('utm_source')), 0.0)
+        org_by[norm_source(r.get('utm_source'))] += fnum(r.get('leads'))
     canais_org = sorted(({'source': k, 'leads': round(v), 'pct': pct(v, lo)} for k, v in org_by.items() if v > 0),
                         key=lambda x: -x['leads'])
 
@@ -385,6 +445,7 @@ def build(rows, config=None):
         'report_date': config.get('data_report') or '', 'dia_campanha': dia_campanha, 'n_dias': n_dias,
         'days': days, 'series': series, 'tot': tot, 'd3': d3, 'tot_sums': tot_sums,
         'traf_metrics': traf_metrics, 'has_pageviews': has_pageviews, 'has_views': has_views,
+        'rows_corte': rows_corte, 'trules': trules,   # modo-fundo: agrega por dimensão/filtro sob demanda
         'trend': trends, 'meta': metas, 'meta_status': mstatus,
         'split': split, 'temp': temp, 'tipo_lead': tipo_lead, 'canais_org': canais_org,
         'criativos': creatives, 'cr_dia': crdia, 'cr_dia_label': _day_label(crdia),

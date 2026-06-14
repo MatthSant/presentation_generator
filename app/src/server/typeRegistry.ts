@@ -176,11 +176,17 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     buildDeepenMeta() {
       const M = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
                  'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect'];
-      const G = genericFuncoes('dia');
+      const G = genericFuncoes('recorte');
       return {
         consultar: {
           funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking],
-          params: { ...genericParams(M) },
+          params: {
+            ...genericParams(M),
+            dimensao: { enum: ['dia', 'temperatura', 'canal', 'origem'], desc: 'eixo do recorte: dia = série temporal; temperatura = Quente/Morno/Frio (só pago); canal = utm_source; origem = pago × orgânico (default: dia)' },
+            recorte_origem: { enum: ['Pago', 'Orgânico'], desc: 'filtra as linhas a uma origem antes de agregar (ex.: dia só do Pago)' },
+            recorte_temperatura: { enum: ['Quente', 'Morno', 'Frio', 'Indefinido'], desc: 'filtra a uma temperatura (ex.: CPL por dia só do tráfego Quente)' },
+            recorte_canal: { desc: 'filtra a um canal/utm_source específico (use um valor visto na dimensão canal)' },
+          },
         },
       };
     },
