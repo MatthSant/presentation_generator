@@ -1113,6 +1113,9 @@ body.edit-mode .tile-deepen { display:none; }
 
 /* Iterate footer inside an open detalhamento modal: ask to adjust / deepen more. */
 .ic-deepen { display:flex; gap:8px; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+/* display:flex sobrescreve o atributo [hidden] (UA = display:none) → reforça a
+ * ocultação enquanto o detalhamento não foi aprovado. */
+.ic-deepen[hidden] { display:none; }
 .ic-deepen input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-family:var(--font-sans),sans-serif; font-size:13px; color:var(--fg); outline:none; }
 .ic-deepen input:focus { border-color:var(--purple); }
 .ic-deepen button { font-size:13px; font-weight:700; color:#fff; background:var(--purple); border:none; border-radius:8px; padding:9px 16px; cursor:pointer; flex-shrink:0; }
