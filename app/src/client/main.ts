@@ -636,31 +636,37 @@ class App {
     const ctx = this.resolveCtx();
     for (const w of modal.widgets || []) dialog.appendChild(renderWidget(w, ctx));
 
-    // Revisão: aprovar / pedir revisão (regenera via prev) / ★1–5 — tudo no histórico.
-    if (modal.historyId) {
-      dialog.appendChild(this.buildRating(modal.historyId, ownerBlockId
-        ? async (c) => { await this.runDeepen(this.store.currentSectionId, ownerBlockId, c, modal); }
-        : undefined));
-    }
-
-    // Iterate: ask the model to adjust or deepen THIS detalhamento further.
+    // Iterate: ask the model to adjust or deepen THIS detalhamento further. Só
+    // aparece DEPOIS de aprovar — antes disso, "Pedir revisão" (no bloco de
+    // avaliação) é o caminho de ajuste. Sem fluxo de aprovação (legado, sem
+    // historyId) já mostra. Construída antes do rating p/ o onApproved revelá-la.
+    let foot: HTMLFormElement | null = null;
     if (ownerBlockId) {
-      const foot = document.createElement('form');
+      foot = document.createElement('form');
       foot.className = 'ic-deepen';
+      foot.hidden = !!modal.historyId;
       foot.innerHTML = '<input type="text" placeholder="Ajustar ou aprofundar este detalhamento… (ex.: troque o gráfico, foque na faixa alta, cruze com patrimônio)" />'
         + '<button type="submit">Enviar</button>';
       foot.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const inp = foot.querySelector('input') as HTMLInputElement;
-        const btn = foot.querySelector('button') as HTMLButtonElement;
+        const inp = foot!.querySelector('input') as HTMLInputElement;
+        const btn = foot!.querySelector('button') as HTMLButtonElement;
         const q = inp.value.trim();
         if (!q) return;
         btn.disabled = true; btn.textContent = '…';
         await this.runDeepen(this.store.currentSectionId, ownerBlockId, q, modal);
         if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Enviar'; } // only on failure (success re-renders)
       });
-      dialog.appendChild(foot);
     }
+
+    // Revisão: aprovar / pedir revisão (regenera via prev) / ★1–5 — tudo no histórico.
+    if (modal.historyId) {
+      dialog.appendChild(this.buildRating(modal.historyId,
+        ownerBlockId ? async (c) => { await this.runDeepen(this.store.currentSectionId, ownerBlockId, c, modal); } : undefined,
+        undefined,
+        foot ? () => { foot!.hidden = false; } : undefined));
+    }
+    if (foot) dialog.appendChild(foot);
 
     overlay.appendChild(dialog);
     MODAL_ROOT.appendChild(overlay);
@@ -673,7 +679,7 @@ class App {
    *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
    *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
    *  itera via prev; seção det-* regenera a própria seção). */
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'rate';
     const lbl = document.createElement('span');
@@ -688,6 +694,7 @@ class App {
       approve.textContent = '✓ Aprovado';
       approve.classList.add('on');
       approve.disabled = true;
+      onApproved?.();   // revela a caixa "ajustar/aprofundar" (só após aprovar)
     };
     approve.addEventListener('click', async () => {
       try { await this.api.approveDeepen(historyId); setApproved(); this.toast('Detalhamento aprovado.'); }
