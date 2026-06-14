@@ -332,8 +332,75 @@ def variacao_hist(B, a):
     return qc.ok(rows, [dim], f'{lab} atual × anterior por {dim} ({len(rows)} grupos).{cost}{extra}')
 
 
+def impacto_receita(B, a):
+    """Ponte de faturamento (impacto na receita por ETAPA DO FUNIL): decompõe a variação
+    de faturamento — atual × baseline — na contribuição de cada etapa, em % e em R$:
+      Faturamento = Leads × TaxaResposta × Qualificação × Fechamento(MQL→venda) × Ticket.
+    Responde "quanto a queda de qualificação (ou de conversão, volume, ticket) custou de
+    RECEITA". baseline: 'meta' (default se houver metas) | 'historico' (lançamento
+    anterior) | 'janela' (início × fim do lançamento). recorte_* restringe a um segmento
+    (ex.: só o Pago). A IA reporta a etapa de maior impacto em R$ — não faz a álgebra."""
+    filtro = {k: a[k2] for k, k2 in (('escopo', 'recorte_escopo'), ('temperatura', 'recorte_temperatura'),
+                                     ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
+                                     ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
+    cur_rows = [r for r in (B.get('_rows') or []) if calc.match(r, filtro)]
+    G = B.get('goals') or {}
+    base = a.get('base') or ('meta' if G.get('fat') else ('historico' if B.get('_hist_rows') else 'janela'))
+    cur = calc.rev_factors(cur_rows)
+    if base == 'meta':
+        if not G.get('fat'):
+            return qc.nao_disp('sem metas configuradas (use base=historico ou janela)')
+        if filtro:
+            return qc.nao_disp('baseline meta só existe no nível global — sem recorte (use base=historico/janela com recorte)')
+        ml, mv, mf = G.get('leads') or 0, G.get('vendas') or 0, G.get('fat') or 0
+        tr, q = (G.get('taxa_resp') or 0) / 100, (G.get('qual') or 0) / 100
+        ticket = (mf / mv) if mv else 0
+        close = mv / (ml * tr * q) if (ml and tr and q) else 0
+        b = {'leads': ml, 'taxa_resp': tr, 'qual': q, 'close': close, 'ticket': ticket, 'fat': mf}
+        blab = 'meta'
+    elif base == 'historico':
+        hr = [r for r in (B.get('_hist_rows') or []) if calc.match(r, filtro)]
+        if not hr:
+            return qc.nao_disp('sem lançamento anterior carregado (configure hist_csv)')
+        b, blab = calc.rev_factors(hr), 'lançamento anterior'
+    else:
+        ini_rows, rec_rows = _windows(B)
+        if ini_rows is None:
+            return qc.nao_disp('série curta demais p/ janela início×fim')
+        b = calc.rev_factors([r for r in ini_rows if calc.match(r, filtro)])
+        cur = calc.rev_factors([r for r in rec_rows if calc.match(r, filtro)])
+        blab = 'início do lançamento'
+
+    if not (b['fat'] > 0 and cur['fat'] > 0):
+        return qc.nao_disp('faturamento sem base p/ decompor (atual ou baseline zerado)')
+    tot = math.log(cur['fat'] / b['fat'])
+    dfat = cur['fat'] - b['fat']
+    rows, soma_r = [], 0.0
+    for key, lab in calc.REV_FACTORS:
+        v0, v1 = b.get(key), cur.get(key)
+        if not (isinstance(v0, (int, float)) and isinstance(v1, (int, float)) and v0 > 0 and v1 > 0) or not tot:
+            rows.append({'Etapa do funil': lab, 'Base': qc.rnd(v0, 4), 'Atual': qc.rnd(v1, 4),
+                         'Δ%': None, '% do gap': None, 'Impacto R$': None})
+            continue
+        dln = math.log(v1 / v0)
+        imp = dfat * (dln / tot)
+        soma_r += imp
+        # '% do gap' = quanto a etapa explica do Δ total de receita (imp/Δfat). Pode passar
+        # de 100% ou ficar negativo quando etapas se COMPENSAM (uma piora, outra segura).
+        rows.append({'Etapa do funil': lab, 'Base': qc.rnd(v0, 4), 'Atual': qc.rnd(v1, 4),
+                     'Δ%': qc.rnd((v1 / v0 - 1) * 100, 1), '% do gap': qc.rnd(imp / dfat * 100, 1) if dfat else None,
+                     'Impacto R$': qc.rnd(imp, 0)})
+    seg = ''.join(f' [{k}={v}]' for k, v in filtro.items())
+    sinal = 'queda' if dfat < 0 else 'alta'
+    summary = (f'Ponte de faturamento atual × {blab}{seg}: R$ {qc.rnd(b["fat"], 0)} → R$ {qc.rnd(cur["fat"], 0)} '
+               f'(Δ R$ {qc.rnd(dfat, 0)}, {sinal}). Impacto de cada ETAPA DO FUNIL na receita: leia o "Impacto R$" '
+               f'(soma = Δ total; sinal correto). A etapa de maior |R$| é a alavanca; "% do gap" >100%/negativo = '
+               f'etapas que se compensam. Custos NÃO entram — receita = Volume×Resposta×Qualificação×Fechamento×Ticket.')
+    return qc.ok(rows, ['Etapa do funil'], summary)
+
+
 EXTRA = {'atingimento': atingimento, 'cruzar_dia': cruzar_dia, 'decomposicao': decomposicao,
-         'onde_concentra': onde_concentra, 'variacao_hist': variacao_hist}
+         'onde_concentra': onde_concentra, 'variacao_hist': variacao_hist, 'impacto_receita': impacto_receita}
 
 
 def main():

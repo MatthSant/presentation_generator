@@ -328,6 +328,56 @@ Simulação via Agent das 3 históricas: usou `variacao_hist` (global + dimensã
 corretamente, respeitou direção de custo e `null`, classificou honestamente como
 "crescimento de escala, não de eficiência", sem inventar histórico nem somar taxa.
 
+### Check de cobertura — todas as colunas do dump (debriefing)
+
+Varredura do dump `inde/debriefing` (1726 linhas) mapeando cada coluna → o que o
+modo-fundo entrega à IA:
+
+| Coluna(s) | Vira | Status |
+|---|---|---|
+| utm_source | dimensão `canal` | ✅ |
+| field_campaign_name (← utm_campaign) | dim `campanha` + `temperatura` | ✅ |
+| field_ad_name (← utm_content) | dim `criativo` | ✅ |
+| field_adset_name | dim `publico` | ✅ |
+| data | dim `dia`/`semana` | ✅ |
+| _tipo (utm_source) | dim `escopo` (Pago/Orgânico/Não id.) | ✅ |
+| leads, vendas, faturamento, invest_total | métricas leads/vendas/fat/invest | ✅ |
+| leads_mqls, respostas | qual, taxa_resp | ✅ |
+| impressoes, link_clicks, pageviews, leads_trafego | cpm/ctr/connect/conv_pag/cpl | ✅ (pageviews=0 aqui → connect null, tratado) |
+| **leads_novo, leads_antigos** | **métricas novos/antigos/pct_novos** | ✅ **adicionado** (frescor de audiência) |
+| utm_medium | — | não exposto (canal cobre; marginal) |
+| faturamento_sale/gen/bump/upsell, refunds | KPI de relatório (fat_sale/dsell, refunds_n) | nível-relatório, não no deep (niche; gen/bump/upsell≈0 aqui) |
+| hotleads, leads_whats, *_whatsapp, sales_tax, broker_fee | — | vazios neste dump (client-specific) |
+
+Conclusão: todas as dimensões e métricas decisórias estão expostas; a única lacuna real
+de métrica (novos/antigos) foi adicionada. Produto-mix/refunds ficam no relatório (não
+há pergunta norteadora que precise deles no deep).
+
+### Impacto na receita por etapa do funil — `impacto_receita` (implementado)
+
+Pedido-chave do debriefing: **medir o impacto na RECEITA de uma métrica de outra parte do
+funil** (ex.: "quanto a queda de qualificação custou de faturamento?"). Antes os agentes
+faziam esse contrafactual NA MÃO ("se o pago convertesse como o orgânico, +364 vendas").
+Agora há ferramenta determinística.
+
+`impacto_receita` decompõe a variação de faturamento (atual × baseline) pela identidade
+exata **Faturamento = Volume(leads) × Taxa de Resposta × Qualificação × Fechamento
+(MQL→venda) × Ticket**, via log-decomposição, e atribui a cada etapa o **Impacto em R$**
+(soma = Δ total, sinal correto) + Δ% + % do gap. `base=meta|historico|janela`; `recorte_*`
+para um segmento (ex.: só o Pago). `calc.rev_factors` + `calc.match` (filtro compartilhado
+com `frame_rows`); `load_goals` agora lê `meta_taxa_resp` p/ a baseline meta.
+
+Validação sem crédito (base real `inde/debriefing`, gap de receita vs meta −R$155,6k):
+**Qualificação −R$477k** (etapa que mais destruiu receita: 31,8%→20,1%), quase toda
+compensada por **Taxa de Resposta +R$445k** (48,7%→74,6%); Volume −R$78k, Fechamento
+−R$100k, Ticket +R$54k — os R$ somam exatamente o gap. Simulação via Agent ("qual etapa
+do funil custou os R$155 mil?"): achou `impacto_receita` de primeira (boa discoverability),
+contou a história certa (qualificação é a alavanca, mascarada pela resposta), sugeriu
+waterfall. Ajuste do feedback: a coluna foi renomeada de "Contribuição %" → **"% do gap"**
+(o sinal era contraintuitivo quando etapas se compensam; o "Impacto R$" é o número
+inequívoco). Próximo passo possível (não bloqueante): um `por:dimensao` no
+`impacto_receita` p/ drillar a etapa-alavanca (hoje a IA encadeia com ranking/variacao_hist).
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.
@@ -338,6 +388,14 @@ corretamente, respeitou direção de custo e `null`, classificou honestamente co
 4. **Só ERRO reprova** no gate; preferência de forma é sugestão (passada de polimento).
 5. **Disponibilidade variável explícita** (ex.: sem pageviews → omite hook/hold/connect; conv.
    de página vira leads/clicks) — refletida no catálogo, não inventada.
+6. **Contrafactual/atribuição é trabalho do MOTOR, não da IA na mão.** Impacto na receita por
+   etapa do funil (`impacto_receita`), atribuição de custo (`decomposicao`), onde a piora se
+   concentra (`onde_concentra`) e variação vs histórico (`variacao_hist`) entregam R$/contribuição
+   AUDITÁVEIS (log-decomposição, soma fecha com o Δ total) — a IA reporta e argumenta, nunca
+   calcula o "e se" na mão.
+7. **Check de cobertura por tipo:** varrer TODAS as colunas do dump e mapear o que vira
+   dimensão/métrica no deep — o que ficar de fora é decisão explícita (niche/vazio), não
+   esquecimento.
 
 ## Pendências (quando houver crédito)
 - Rodar os 6 deepens 1 a 1 e revisar a SAÍDA (usa a IA) — única parte bloqueada por crédito.

@@ -153,13 +153,15 @@ def campaign_name(r):
 
 
 # Conjunto de métricas expostas no modo-fundo (superset dos KPIs do relatório +
-# os fatores de mídia p/ a decomposição de CPL/CPMQL).
+# os fatores de mídia p/ a decomposição de CPL/CPMQL + frescor de audiência).
 FRAME_METRICS = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl',
-                 'cpmql', 'fpl', 'cpm', 'ctr', 'connect', 'conv_pag', 'taxa_resp']
+                 'cpmql', 'fpl', 'cpm', 'ctr', 'connect', 'conv_pag', 'taxa_resp',
+                 'novos', 'antigos', 'pct_novos']
 LABELS = {'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Conversão', 'qual': 'Qualificação',
           'fat': 'Faturamento', 'invest': 'Investimento', 'roas': 'ROAS', 'cpl': 'CPL',
           'cpmql': 'CPMQL', 'fpl': 'Fat/lead', 'cpm': 'CPM', 'ctr': 'CTR',
-          'connect': 'Connect Rate', 'conv_pag': 'Conv. de Página', 'taxa_resp': 'Taxa de Resposta'}
+          'connect': 'Connect Rate', 'conv_pag': 'Conv. de Página', 'taxa_resp': 'Taxa de Resposta',
+          'novos': 'Leads novos', 'antigos': 'Leads antigos', 'pct_novos': '% leads novos'}
 COST = {'cpl', 'cpmql', 'cpm'}
 
 
@@ -183,6 +185,7 @@ def _derive(sub):
     mqls_p, resps_p = soma(pago, 'leads_mqls'), soma(pago, 'respostas')
     qual_p = pct(mqls_p, resps_p)
     cpl = div(invest_cpt, leads_traf) if invest_cpt > 0 else None
+    novos, antigos = soma(sub, 'leads_novo'), soma(sub, 'leads_antigos')
     return {
         'leads': round(leads), 'vendas': round(vendas),
         'fat': round(fat, 2), 'invest': round(invest_cpt, 2),
@@ -196,7 +199,44 @@ def _derive(sub):
         'connect': (pct(pv, clicks) if pv else None),
         'conv_pag': (pct(leads_traf, pv) if pv else (pct(leads_traf, clicks) if clicks else None)),
         'taxa_resp': pct(resps_t, leads),
+        'novos': round(novos), 'antigos': round(antigos),
+        'pct_novos': pct(novos, novos + antigos),
     }
+
+
+# ── ponte de faturamento (impacto na receita por etapa do funil) ──────────────
+# Identidade exata: Faturamento = Leads × TaxaResposta × Qualificação × Fechamento ×
+# Ticket, onde TaxaResp=respostas/leads, Qualif=mqls/respostas, Fechamento=vendas/mqls
+# (MQL→venda), Ticket=fat/vendas. Permite decompor a VARIAÇÃO de receita (vs meta/
+# histórico/janela) e atribuir quanto cada etapa do funil pesou — em % e em R$.
+REV_FACTORS = [('leads', 'Volume (leads)'), ('taxa_resp', 'Taxa de Resposta'),
+               ('qual', 'Qualificação'), ('close', 'Fechamento (MQL→venda)'),
+               ('ticket', 'Ticket médio')]
+
+
+def rev_factors(rows):
+    leads, resp, mql = soma(rows, 'leads'), soma(rows, 'respostas'), soma(rows, 'leads_mqls')
+    vend, fat = soma(rows, 'vendas'), soma(rows, 'faturamento')
+    return {'leads': leads, 'taxa_resp': div(resp, leads, 6), 'qual': div(mql, resp, 6),
+            'close': div(vend, mql, 6), 'ticket': div(fat, vend, 2), 'fat': fat, 'vendas': vend}
+
+
+def match(r, f):
+    """True se a linha passa pelos filtros de recorte (escopo/temperatura/canal/
+    criativo/publico/campanha) — compartilhado por frame_rows e impacto_receita."""
+    if f.get('escopo') and _esc(r) != f['escopo']:
+        return False
+    if f.get('temperatura') and r.get('_temp') != f['temperatura']:
+        return False
+    if f.get('canal') and norm_source(r.get('utm_source')) != f['canal']:
+        return False
+    if f.get('criativo') and ad_name(r) != f['criativo']:
+        return False
+    if f.get('publico') and adset_name(r) != f['publico']:
+        return False
+    if f.get('campanha') and campaign_name(r) != f['campanha']:
+        return False
+    return True
 
 
 def _esc(r):
@@ -220,23 +260,7 @@ def frame_rows(rows, dim, filtro=None, incluir_geral=False):
     CORRETO — _derive(tudo): soma p/ contagens, recálculo ponderado p/ taxas/custos —
     em vez de a IA somar os grupos (taxa nunca se soma)."""
     f = filtro or {}
-
-    def keep(r):
-        if f.get('escopo') and _esc(r) != f['escopo']:
-            return False
-        if f.get('temperatura') and r.get('_temp') != f['temperatura']:
-            return False
-        if f.get('canal') and norm_source(r.get('utm_source')) != f['canal']:
-            return False
-        if f.get('criativo') and ad_name(r) != f['criativo']:
-            return False
-        if f.get('publico') and adset_name(r) != f['publico']:
-            return False
-        if f.get('campanha') and campaign_name(r) != f['campanha']:
-            return False
-        return True
-
-    sub = [r for r in rows if keep(r)]
+    sub = [r for r in rows if match(r, f)]
     if dim in ('temperatura', 'publico'):        # conceitos só do pago
         sub = [r for r in sub if r.get('_tipo') == 'pago']
     keyfn = _keyfn(dim)
@@ -324,6 +348,7 @@ def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
         'cpmql': _mean_nonzero([fnum(r.get('meta_cpmql')) for r in rows]),
         'conv': _mean_nonzero([fnum(r.get('meta_conversao')) for r in rows]) * 100,
         'qual': _mean_nonzero([fnum(r.get('meta_taxa_qual')) for r in rows]) * 100 or 40.0,
+        'taxa_resp': _mean_nonzero([fnum(r.get('meta_taxa_resp')) for r in rows]) * 100,
         'by_canal': by_canal,
         'meta_vendas_canal': mvc,
         'meta_vendas_temp': dict(meta_vendas_temp or {}),
