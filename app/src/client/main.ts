@@ -419,7 +419,19 @@ class App {
     if (!this.busyEl) return;
     this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = true;
     const err = this.busyEl.querySelector<HTMLElement>('.busy-err')!;
-    const e = error as { message?: string; blocking?: string[]; suggestions?: string[] };
+    const e = error as { message?: string; blocking?: string[]; suggestions?: string[]; code?: string };
+    // Falta de crédito na API → tela própria (não é defeito do detalhamento).
+    if (e?.code === 'no_credit') {
+      err.querySelector<HTMLElement>('.busy-err-title')!.textContent = '⚠ Sem crédito na API';
+      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar detalhamentos.';
+      err.querySelector<HTMLElement>('.busy-err-block')!.hidden = true;
+      err.querySelector<HTMLElement>('.busy-err-sug')!.hidden = true;
+      err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
+      err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
+      err.hidden = false; this.busyEl.hidden = false;
+      return;
+    }
+    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar o detalhamento';
     const msg = e?.message || String(error || '');
     // motivo (antes do '—') no topo; ERROS (blocking) e SUGESTÕES em listas separadas.
     const sep = msg.indexOf('—');

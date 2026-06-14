@@ -17,15 +17,17 @@ export class Api {
       let detail = '';
       let blocking: string[] = [];
       let suggestions: string[] = [];
+      let code = '';
       try {
-        const body = await res.json() as { error?: string; detail?: unknown; suggestions?: unknown };
+        const body = await res.json() as { error?: string; detail?: unknown; suggestions?: unknown; code?: string };
         blocking = Array.isArray(body.detail) ? body.detail.map(String) : (body.detail ? [String(body.detail)] : []);
         suggestions = Array.isArray(body.suggestions) ? body.suggestions.map(String) : [];
+        code = body.code || '';
         detail = [body.error, blocking.join('; ')].filter(Boolean).join(' — ');
       } catch { /* corpo não-JSON: fica só o status */ }
-      // anexa as listas estruturadas (erros × sugestões) p/ a tela de falha separá-las
-      const err = new Error(detail || `${init?.method || 'GET'} ${url} → ${res.status}`) as Error & { blocking?: string[]; suggestions?: string[] };
-      err.blocking = blocking; err.suggestions = suggestions;
+      // anexa as listas estruturadas (erros × sugestões) + code (ex.: 'no_credit') p/ a tela
+      const err = new Error(detail || `${init?.method || 'GET'} ${url} → ${res.status}`) as Error & { blocking?: string[]; suggestions?: string[]; code?: string };
+      err.blocking = blocking; err.suggestions = suggestions; err.code = code;
       throw err;
     }
     return res.json() as Promise<T>;

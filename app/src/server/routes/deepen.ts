@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Express } from 'express';
 import type { Ctx } from '../context.js';
+import { sendGenError } from '../creditError.js';
 import type { Section, Widget, Modal } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
@@ -190,7 +191,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     } catch (e) {
       console.error(`[deepen] ${client}/${slug}/${secId} ${blockId}:`, (e as Error).message);
       record(false, [(e as Error).message], null, undefined, false);
-      res.status(500).json({ error: (e as Error).message });
+      sendGenError(res, e);
     }
   });
 }

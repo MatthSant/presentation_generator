@@ -16,6 +16,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { Express, Request, Response } from 'express';
 import type { Ctx } from '../context.js';
+import { sendGenError } from '../creditError.js';
 import type { PerguntasDoc, Pergunta, ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
@@ -248,7 +249,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento', shortLabel(p.pergunta), 'pergunta', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, historyId });
     } catch (e) {
-      if (!res.writableEnded) res.status(500).json({ error: (e as Error).message });
+      sendGenError(res, e);
     }
   });
 
@@ -284,7 +285,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p, historyId });
     } catch (e) {
-      if (!res.writableEnded) res.status(500).json({ error: (e as Error).message });
+      sendGenError(res, e);
     }
   });
 

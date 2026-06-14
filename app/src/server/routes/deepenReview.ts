@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Express, Request, Response } from 'express';
 import type { Ctx } from '../context.js';
+import { sendGenError } from '../creditError.js';
 import type { ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { generateDetalhamento } from '../detalhamento.js';
@@ -81,7 +82,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
       writeJson(file, section);
       res.json({ ok: true, mocked: r.mocked, sectionId, historyId });
     } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
+      sendGenError(res, e);
     }
   });
 
@@ -170,7 +171,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
       attachToDetalhamentos(dir, ctx, { id: sectionId, label: title.slice(0, 42) });
       res.json({ ok: true, mocked: r.mocked, pageId: 'detalhamentos', sectionId, historyId: newId });
     } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
+      sendGenError(res, e);
     }
   });
 }
