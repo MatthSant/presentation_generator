@@ -523,33 +523,37 @@ class App {
   private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card',
     'heatmap-toggle', 'chart-toggle', 'chart-table', 'kpi', 'kpi-card', 'kpi-strip', 'qa-card',
     'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list']);
-  private static SPARKLE = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 6.5 17h11z"/><path d="M4.5 17h15"/><path d="M12 8l.55 1.45 1.45.1-1.1 1 .35 1.45L12 12.2l-1.7.8.35-1.45-1.1-1 1.45-.1z" fill="currentColor" stroke="none"/></svg>';
+  private static WAND = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 14.5 9.5"/><path d="M16.8 4.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" fill="currentColor" stroke="none"/><path d="M7 6.4l.35 1 1 .35-1 .35-.35 1-.35-1-1-.35 1-.35z" fill="currentColor" stroke="none"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
    *  is attached. Works across all pages/blocks, not just insight cards. */
   private markDeepen(section: Section): void {
     for (const w of section.widgets) {
       if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
+      // band kpi-card (atingimento de meta) é resumo — não recebe varinha (o % grande
+      // ocupa o canto e detalhar uma meta não faz sentido; detalha-se o KPI granular).
+      if (w.type === 'kpi-card' && (w as { band?: boolean }).band) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
       if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link')) continue;
       const existing = (w as { modal?: string }).modal;
       const title = (w as { title?: string }).title || '';
       if (existing) {
-        // find-blocks already render an in-card "↗ ver detalhamento" link.
-        if (w.type === 'find-block') continue;
+        // já tem detalhamento → varinha roxa cheia no topo-direito (abre o modal)
         const a = document.createElement('a');
         a.className = 'tile-detail-link';
         a.dataset.modal = existing;   // opened by wireModals
-        const tx = document.createElement('span'); tx.className = 'vd-tx'; tx.textContent = 'Ver detalhamento';
-        const ic = document.createElement('span'); ic.className = 'vd-ic'; ic.textContent = '↗';
-        a.append(tx, ic);
+        a.title = 'Ver detalhamento';
+        a.setAttribute('aria-label', 'Ver detalhamento');
+        a.innerHTML = App.WAND;
         tile.appendChild(a);
       } else {
+        // ainda sem detalhamento → varinha contorno (aparece no hover) p/ "detalhar"
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'tile-deepen';
-        btn.title = 'Detalhar este bloco com IA';
-        btn.innerHTML = App.SPARKLE + 'detalhar';
+        btn.title = 'Detalhar com IA';
+        btn.setAttribute('aria-label', 'Detalhar com IA');
+        btn.innerHTML = App.WAND;
         btn.addEventListener('click', (e) => { e.stopPropagation(); this.openDeepenComposer(section.id, w.id!, title); });
         tile.appendChild(btn);
       }

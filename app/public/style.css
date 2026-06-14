@@ -1056,43 +1056,28 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
 .dash-tile > * { min-width:0; }
 
 
-/* Deepen — "detalhar este card" affordance on find-block tiles (bottom-right). */
-.tile-deepen {
-  position:absolute; bottom:-11px; right:12px; z-index:6;
-  display:inline-flex; align-items:center; gap:4px;
-  padding:4px 10px; border-radius:999px;
-  background:var(--bg); color:var(--purple);
-  border:1px solid color-mix(in srgb, var(--purple) 32%, transparent);
-  box-shadow:0 4px 12px -4px rgba(46,8,75,.28);
-  font-size:10.5px; font-weight:800; cursor:pointer;
-  opacity:0; transition:opacity .12s;
-}
-.dash-tile:hover .tile-deepen { opacity:1; }
-.tile-deepen:hover { background:var(--purple); color:#fff; }
-.tile-deepen .svg-ic { width:12px; height:12px; }
-
-/* Hyperlink "↗ ver detalhamento" on chart/table blocks that carry a detalhamento. */
-/* ver detalhamento — pill branco + chip circular roxo com seta (find-block e tile) */
-.fn-link, .tile-detail-link {
-  display:inline-flex; align-items:center; gap:9px; text-decoration:none; cursor:pointer;
-  padding:4px 5px 4px 13px; border-radius:999px;
-  border:1px solid var(--border); background:var(--bg);
-  color:var(--fg); font-size:12px; font-weight:700; letter-spacing:.2px;
-  transition:border-color .14s, box-shadow .14s var(--ease);
-}
-.fn-link { margin-top:13px; }
-.tile-detail-link { position:absolute; bottom:8px; right:9px; z-index:6; }
-.fn-link:hover, .tile-detail-link:hover { border-color:color-mix(in srgb, var(--purple) 45%, var(--border)); box-shadow:var(--shadow-card); }
-.vd-ic {
-  width:22px; height:22px; border-radius:50%; flex-shrink:0;
+/* Detalhamento — varinha mágica no canto superior-direito de todo bloco detalhável.
+ * .tile-deepen (contorno, aparece no hover) = "detalhar"; .tile-detail-link (círculo
+ * roxo cheio, persistente) = "ver detalhamento". Mesma zona em todos os tipos. */
+.tile-deepen, .tile-detail-link {
+  position:absolute; top:11px; right:12px; z-index:6;
+  width:26px; height:26px; border-radius:50%; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center;
-  background:var(--purple); color:#fff; font-size:12px; line-height:1;
-  transition:transform .14s var(--ease);
+  transition:opacity .12s, background .14s, box-shadow .14s var(--ease);
 }
-.fn-link:hover .vd-ic, .tile-detail-link:hover .vd-ic { transform:translate(1px,-1px); }
-@media print { .tile-detail-link { display:none !important; } }
+.tile-deepen .svg-ic, .tile-detail-link .svg-ic { width:15px; height:15px; }
+/* "detalhar" — contorno, só no hover do bloco */
+.tile-deepen { background:var(--bg); color:var(--purple); border:1px solid color-mix(in srgb, var(--purple) 30%, transparent); opacity:0; }
+.dash-tile:hover .tile-deepen { opacity:1; }
+.tile-deepen:hover { background:var(--purple-bg); }
+/* "ver detalhamento" — círculo roxo cheio, sempre visível */
+.tile-detail-link { background:var(--purple); color:#fff; border:none; text-decoration:none; }
+.tile-detail-link:hover { box-shadow:0 0 0 4px color-mix(in srgb, var(--purple) 16%, transparent); }
+/* reserva espaço no cabeçalho pra varinha não cobrir o badge/título/rótulo */
+.chart-head { padding-right:30px; }
+.kc--feature .kc-head { padding-right:30px; }
 body.edit-mode .tile-deepen { display:none; }
-@media print { .tile-deepen { display:none !important; } }
+@media print { .tile-detail-link, .tile-deepen { display:none !important; } }
 
 /* Deepen composer dialog */
 .deepen-dlg { border:none; border-radius:14px; padding:0; max-width:460px; width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.3); background:var(--bg); color:var(--fg); }

@@ -780,12 +780,6 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
       div.appendChild(f);
     }
   }
-  if (w.modal) {
-    const a = el('a', 'fn-link');
-    a.appendChild(el('span', 'vd-tx', (w.linkLabel || 'Ver detalhamento').replace(/^↗\s*/, '')));
-    a.appendChild(el('span', 'vd-ic', '↗'));
-    div.appendChild(a);
-  }
   return div;
 }
 
