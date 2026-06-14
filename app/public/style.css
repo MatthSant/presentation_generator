@@ -1036,6 +1036,12 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
  * flex-shrink:1 espremia find-block/chart abaixo do conteúdo, ex.: 241px em 40px).
  * flex:none mantém a altura natural de cada bloco e o drawer rola. */
 .ic-dialog > * { flex-shrink:0; }
+/* corpo do detalhamento: grid de 12 colunas → blocos lado a lado. O span de cada
+ * bloco vem de --span (IA define `w`, senão padrão por tipo no main.ts). */
+.ic-body { display:grid; grid-template-columns:repeat(12,1fr); gap:14px; align-items:stretch; container-type:inline-size; }
+.ic-body > * { grid-column:span var(--span,12); min-width:0; }
+/* drawer estreito (metade de uma tela pequena) → tudo numa coluna p/ não espremer */
+@container (max-width:700px) { .ic-body > * { grid-column:span 12; } }
 .ic-dialog-hd { position:sticky; top:-24px; margin:-24px -30px 0; padding:22px 30px 14px; background:var(--bg); display:flex; align-items:flex-start; justify-content:space-between; gap:16px; border-bottom:1px solid var(--border); z-index:1; }
 .ic-dialog-title { font-size:15px; font-weight:700; color:var(--fg); line-height:1.35; letter-spacing:-0.01em; }
 .ic-close { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; background:var(--surface); border:1px solid var(--border); border-radius:9px; font-size:20px; line-height:1; color:var(--fg); cursor:pointer; transition:background .14s,border-color .14s,color .14s; }

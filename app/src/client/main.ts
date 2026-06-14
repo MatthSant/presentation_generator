@@ -523,6 +523,11 @@ class App {
   private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card',
     'heatmap-toggle', 'chart-toggle', 'chart-table', 'kpi', 'kpi-card', 'kpi-strip', 'qa-card',
     'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list']);
+  // Span padrão (de 12) por tipo no grid do drawer quando a IA não define `w`.
+  // kpi = 4 (3 por linha); blocos médios = 6 (2 por linha); o resto ocupa a linha.
+  private static MODAL_SPAN: Record<string, number> = {
+    kpi: 4, 'find-block': 6, ni: 6, 'ni-vertical': 6,
+  };
   private static WAND = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg>';
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
@@ -634,7 +639,18 @@ class App {
     dialog.appendChild(hd);
 
     const ctx = this.resolveCtx();
-    for (const w of modal.widgets || []) dialog.appendChild(renderWidget(w, ctx));
+    // Grid de 12 colunas no corpo do drawer → blocos lado a lado. Cada widget usa
+    // o span `w` que a IA definiu; sem ele, cai no padrão por tipo. Em drawer
+    // estreito, a container-query no CSS colapsa tudo p/ uma coluna.
+    const body = document.createElement('div');
+    body.className = 'ic-body';
+    for (const w of modal.widgets || []) {
+      const node = renderWidget(w, ctx);
+      const span = Math.max(1, Math.min(12, (w as { w?: number }).w ?? App.MODAL_SPAN[w.type] ?? 12));
+      node.style.setProperty('--span', String(span));
+      body.appendChild(node);
+    }
+    dialog.appendChild(body);
 
     // Iterate: ask the model to adjust or deepen THIS detalhamento further. Só
     // aparece DEPOIS de aprovar — antes disso, "Pedir revisão" (no bloco de

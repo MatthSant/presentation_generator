@@ -270,6 +270,10 @@ ${ANSWER_RULES}
   são TEXTO — use só em widgets de TABELA; num gráfico elas renderizam zerado. Para
   representatividade/diff/conversão num gráfico, use as tabelas numéricas (ex.: *_rank,
   *_grp).
+- LAYOUT lado a lado: o corpo da modal é um grid de 12 colunas. Defina "w" (span) p/
+  agrupar blocos na mesma linha — ex.: 3 kpi com w:4 (uma linha), 2 find-block com w:6.
+  O drawer é estreito (~960px): gráfico e tabela devem ocupar a linha CHEIA (w:12).
+  Sem "w", cai no padrão por tipo. Agrupe os kpi numa linha em vez de empilhá-los.
 - DECOMPONHA em blocos escaneáveis — não num paredão de prosa. Vocabulário disponível
   (use o que couber ao recorte; nem todos precisam aparecer):
   • highlight {text,label?,color?} — a ALEGAÇÃO central (1 linha) e a IMPLICAÇÃO ("e daí?").
@@ -331,7 +335,8 @@ function bindSchema(tableNames: string[]): unknown {
 
 function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
   const color = { type: 'string', enum: ['p', 'g', 'a', 'r', 'n'] };
-  return {
+  const span = { type: 'integer', minimum: 1, maximum: 12, description: 'largura do bloco em colunas (grid de 12 no drawer) p/ pôr blocos LADO A LADO. Default por tipo se omitido: kpi=4 (3/linha), find-block/ni=6 (2/linha), gráfico/tabela/texto=12. Ex.: 3 kpi com w:4 na mesma linha; 2 find-block com w:6.' };
+  const schema = {
     type: 'object',
     required: ['id', 'title', 'widgets'],
     properties: {
@@ -352,7 +357,12 @@ function modalSchema(tableNames: string[]): Anthropic.Tool.InputSchema {
         },
       },
     },
-  } as unknown as Anthropic.Tool.InputSchema;
+  };
+  // injeta o `w` (span do grid) opcional em todo widget — controle de layout lado a lado
+  for (const item of schema.properties.widgets.items.oneOf) {
+    (item.properties as Record<string, unknown>).w = span;
+  }
+  return schema as unknown as Anthropic.Tool.InputSchema;
 }
 
 export interface ModalUsage { tokensIn: number; tokensOut: number; costUsd: number; model: string }
