@@ -160,13 +160,16 @@ FRAME_METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qua
                  'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect']
 
 
-def frame_rows(rows, dim, filtro=None, trules=None):
+def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
     """Agrega as linhas do corte por dimensão p/ o modo-fundo da IA, devolvendo
     [{key, m:{métrica:valor}}] com os KPIs derivados por grupo.
 
     dim ∈ dia | temperatura | canal | origem. `filtro` (opcional) restringe as linhas
     ANTES de agrupar — {origem, temperatura, canal} — habilitando cruzamentos como
-    'CPL por dia SÓ do tráfego Quente' (dim='dia', filtro={'temperatura':'Quente'})."""
+    'CPL por dia SÓ do tráfego Quente' (dim='dia', filtro={'temperatura':'Quente'}).
+    `incluir_geral` (só p/ partição: temperatura/canal/origem) acrescenta a linha
+    'Geral' com o valor GLOBAL CORRETO — derive(_sum(tudo)): soma p/ contagens,
+    RECÁLCULO PONDERADO (num÷den) p/ taxas — em vez de a IA somar os grupos."""
     trules = trules or {}
     f = filtro or {}
 
@@ -209,6 +212,9 @@ def frame_rows(rows, dim, filtro=None, trules=None):
         d = derive(_sum(groups[k]))
         label = _day_label(k) if dim == 'dia' else str(k)
         out.append({'key': label, 'm': {m: d.get(m) for m in FRAME_METRICS}})
+    if incluir_geral and dim != 'dia' and sub:
+        g = derive(_sum(sub))
+        out.append({'key': 'Geral', 'm': {m: g.get(m) for m in FRAME_METRICS}})
     return out
 
 

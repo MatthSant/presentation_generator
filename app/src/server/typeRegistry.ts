@@ -187,6 +187,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             recorte_origem: { enum: ['Pago', 'Orgânico'], desc: 'filtra as linhas a uma origem antes de agregar (ex.: dia só do Pago)' },
             recorte_temperatura: { enum: ['Quente', 'Morno', 'Frio', 'Indefinido'], desc: 'filtra a uma temperatura (ex.: CPL por dia só do tráfego Quente)' },
             recorte_canal: { desc: 'filtra a um canal/utm_source específico (use um valor visto na dimensão canal)' },
+            incluir_geral: { enum: ['sim', 'nao'], desc: 'inclua a linha/série "Geral" com o valor GLOBAL CORRETO (o motor soma contagens e RECALCULA taxas ponderadas — num÷den). USE isto p/ um total/geral; NUNCA some os grupos você mesmo (somar taxa dá 113%).' },
           },
         },
       };

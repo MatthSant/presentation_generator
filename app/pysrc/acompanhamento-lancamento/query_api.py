@@ -30,10 +30,11 @@ def build_frame(B, a):
     dim = a.get('dimensao', 'dia')
     filtro = {k: a[k2] for k, k2 in (('origem', 'recorte_origem'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal')) if a.get(k2)}
+    geral = str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1')
     if dim == 'dia' and not filtro:
         rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in B['days']]
     else:
-        rows = calc.frame_rows(B['rows_corte'], dim, filtro, B.get('trules'))
+        rows = calc.frame_rows(B['rows_corte'], dim, filtro, B.get('trules'), incluir_geral=geral)
     if not rows:
         return {'status': 'nao_disponivel', 'motivo': f'sem dados para dimensão={dim} com esse recorte'}
     return {
@@ -58,6 +59,11 @@ def cruzar_dia(B, a):
     cells = calc.cross_dia(B['rows_corte'], dim, B.get('trules'))
     rows = [{'dia': c['dia'], 'serie': c['serie'], 'valor': qc.rnd(c['m'].get(metric))}
             for c in cells if c['m'].get(metric) is not None]
+    # série "Geral" opcional = valor GLOBAL por dia (do B['days'], mesmo do relatório) →
+    # mantém o KPI de variação consistente com a linha geral do gráfico (sem misturar agregados).
+    if str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1'):
+        rows += [{'dia': d['label'], 'serie': 'Geral', 'valor': qc.rnd(d.get(metric))}
+                 for d in B['days'] if d.get(metric) is not None]
     series = sorted({r['serie'] for r in rows})
     if len(rows) < 2 or len(series) < 1:
         return qc.nao_disp(f'sem dados p/ {metric} por dia × {dim}')
