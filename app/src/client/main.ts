@@ -73,7 +73,14 @@ class App {
     document.title = data.meta?.title || data.meta?.client || 'Relatório';
     document.documentElement.dataset.theme = 'light';   // dark mode removido no redesign
     const brand = document.getElementById('tn-client');
-    if (brand) brand.textContent = data.meta?.client || data.meta?.title || '';
+    if (brand) {
+      const client = data.meta?.client || '';
+      const title = data.meta?.title || '';
+      // breadcrumb: cliente / título (DS Witly navbar) — no modo topnav vira só o cliente via CSS
+      brand.innerHTML = (title && title !== client)
+        ? `<span class="tn-crumb">${esc(client)}</span><span class="tn-sep">/</span><b class="tn-cur">${esc(title)}</b>`
+        : esc(client || title);
+    }
     this.setupHistorico();
     // Cards clicáveis (link-card) → navegam para uma seção (ficha).
     document.addEventListener('goto-section', (e) => {

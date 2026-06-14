@@ -89,19 +89,39 @@ export class Navigation {
     brand.appendChild(logo);
     this.sideHost.appendChild(brand);
 
-    // Busca — filtra os itens (criativos/seções) por nome em tempo real.
+    // Switcher (visual): avatar com iniciais do cliente + título do relatório.
+    const meta = (this.store.data?.meta || {}) as { client?: string; title?: string };
+    const initials = (meta.client || 'W').split(/[-\s_]+/).map((s) => s[0] || '').join('').slice(0, 2).toUpperCase();
+    const sw = document.createElement('a');
+    sw.className = 'sn-switcher'; sw.href = '/'; sw.title = 'Trocar análise';
+    const pj = document.createElement('span'); pj.className = 'sn-pj'; pj.textContent = initials;
+    const swm = document.createElement('span'); swm.className = 'sn-sw-meta';
+    const swl = document.createElement('small'); swl.textContent = 'Relatório';
+    const swb = document.createElement('b'); swb.textContent = meta.title || meta.client || '';
+    swm.append(swl, swb);
+    const chev = document.createElement('span'); chev.className = 'sn-chev'; chev.textContent = '▾';
+    sw.append(pj, swm, chev);
+    this.sideHost.appendChild(sw);
+
+    // Busca — ícone + input + atalho ⌘K; filtra itens (nav-items/seções) em tempo real.
+    const sbox = document.createElement('div');
+    sbox.className = 'sn-searchbox';
+    sbox.innerHTML = '<svg class="sn-search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
     const search = document.createElement('input');
     search.className = 'sn-search';
     search.type = 'search';
     search.placeholder = 'Buscar…';
     search.addEventListener('input', () => {
       const q = search.value.trim().toLowerCase();
-      for (const b of this.sideHost!.querySelectorAll<HTMLElement>('.sn-sec')) {
-        const t = (b.querySelector('.sn-sec-lbl')?.textContent || '').toLowerCase();
+      for (const b of this.sideHost!.querySelectorAll<HTMLElement>('.sn-page, .sn-sec')) {
+        const t = (b.textContent || '').toLowerCase();
         b.style.display = !q || t.includes(q) ? '' : 'none';
       }
+      for (const l of this.sideHost!.querySelectorAll<HTMLElement>('.sn-label')) l.style.display = q ? 'none' : '';
     });
-    this.sideHost.appendChild(search);
+    const kbd = document.createElement('kbd'); kbd.className = 'sn-kbd'; kbd.textContent = '⌘K';
+    sbox.append(search, kbd);
+    this.sideHost.appendChild(sbox);
 
     // Ordenação dos itens (criativos): A-Z / Investimento / ROAS, com direção ↑↓.
     const sortable = this.store.pages.some((p) => p.sections.some((s) => (s as { inv?: number }).inv !== undefined));
@@ -142,10 +162,15 @@ export class Navigation {
       setTimeout(() => { paint(); sort(); }, 0);   // ordena depois que os grupos montam
     }
 
-    for (const page of this.store.pages) {
-      // No modo sidebar TODAS as páginas entram na árvore — inclusive as de plataforma:
-      // "Perguntas norteadoras" como item e "Detalhamentos" como grupo (cada detalhamento
-      // gerado vira um item). Resolve a paginação (sem tabs no topo que estouram).
+    // Árvore agrupada (DS Witly): "RELATÓRIO" = páginas do relatório + Perguntas;
+    // "APROFUNDAMENTOS" = cada detalhamento gerado como item. Resolve a paginação.
+    const label = (txt: string): void => {
+      const d = document.createElement('div');
+      d.className = 'sn-label';
+      d.textContent = txt;
+      this.sideHost!.appendChild(d);
+    };
+    const pageItem = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }): void => {
       const grp = document.createElement('div');
       grp.className = 'sn-group';
       grp.dataset.group = page.id;
@@ -153,36 +178,49 @@ export class Navigation {
       pBtn.className = 'sn-page';
       pBtn.dataset.pageId = page.id;
       pBtn.textContent = page.label;
-      pBtn.addEventListener('click', () => {
-        const first = page.sections[0];
-        if (first) this.onSelect(page.id, first.id);
-      });
+      pBtn.addEventListener('click', () => { const f = page.sections[0]; if (f) this.onSelect(page.id, f.id); });
       grp.appendChild(pBtn);
-      // Seções viram sub-itens só quando há mais de uma (página de 1 seção navega pelo
-      // próprio botão, sem item redundante — ex.: "Perguntas norteadoras").
-      if (page.sections.length > 1) for (const sec of page.sections) {
-        const s = sec as { id: string; label: string; pill?: string; tone?: string; inv?: number; roas?: number };
-        const sBtn = document.createElement('button');
-        sBtn.className = 'sn-sec';
-        sBtn.dataset.sectionId = s.id;
-        sBtn.dataset.pageId = page.id;
-        if (s.inv !== undefined) sBtn.dataset.inv = String(s.inv);
-        if (s.roas !== undefined) sBtn.dataset.roas = String(s.roas);
-        const lbl = document.createElement('span');
-        lbl.className = 'sn-sec-lbl';
-        lbl.textContent = s.label;
-        sBtn.appendChild(lbl);
-        if (s.pill) {
-          const pill = document.createElement('span');
-          pill.className = `sn-pill sn-pill-${s.tone || 'n'}`;
-          pill.textContent = s.pill;
-          sBtn.appendChild(pill);
-        }
-        sBtn.addEventListener('click', () => this.onSelect(page.id, s.id));
-        grp.appendChild(sBtn);
-      }
+      if (page.sections.length > 1) for (const sec of page.sections) this.appendSec(grp, page.id, sec);
+      this.sideHost!.appendChild(grp);
+    };
+
+    const det = this.store.pages.find((p) => p.id === 'detalhamentos');
+    const report = this.store.pages.filter((p) => p.id !== 'detalhamentos');
+
+    label('Relatório');
+    for (const page of report) pageItem(page);
+
+    if (det && det.sections.length) {
+      label('Aprofundamentos');
+      const grp = document.createElement('div');
+      grp.className = 'sn-group';
+      grp.dataset.group = det.id;
+      for (const sec of det.sections) this.appendSec(grp, det.id, sec);
       this.sideHost.appendChild(grp);
     }
+  }
+
+  /** Item de seção (sub-página / detalhamento) na árvore lateral. */
+  private appendSec(grp: HTMLElement, pageId: string, sec: { id: string; label: string }): void {
+    const s = sec as { id: string; label: string; pill?: string; tone?: string; inv?: number; roas?: number };
+    const sBtn = document.createElement('button');
+    sBtn.className = 'sn-sec';
+    sBtn.dataset.sectionId = s.id;
+    sBtn.dataset.pageId = pageId;
+    if (s.inv !== undefined) sBtn.dataset.inv = String(s.inv);
+    if (s.roas !== undefined) sBtn.dataset.roas = String(s.roas);
+    const lbl = document.createElement('span');
+    lbl.className = 'sn-sec-lbl';
+    lbl.textContent = s.label;
+    sBtn.appendChild(lbl);
+    if (s.pill) {
+      const pill = document.createElement('span');
+      pill.className = `sn-pill sn-pill-${s.tone || 'n'}`;
+      pill.textContent = s.pill;
+      sBtn.appendChild(pill);
+    }
+    sBtn.addEventListener('click', () => this.onSelect(pageId, s.id));
+    grp.appendChild(sBtn);
   }
 
   setActive(pageId: string, sectionId: string): void {
