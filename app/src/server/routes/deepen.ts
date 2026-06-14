@@ -143,21 +143,22 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
       const usage = gate.usage;
       const modal = gate.modal;
       if (!modal) {
-        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, gate.residualIssues);
-        record(false, gate.residualIssues, null, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
-        res.status(422).json({ error: 'modal inválida', detail: gate.residualIssues });
+        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: modal inválida →`, gate.residualBlocking);
+        record(false, gate.residualBlocking, null, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualBlocking });
+        res.status(422).json({ error: 'modal inválida', detail: gate.residualBlocking });
         return;
       }
-      if (gate.residualIssues.length) {
+      // Só ERRO (residualBlocking) reprova — sugestões de forma nunca falham a entrega.
+      if (gate.residualBlocking.length) {
         // Reprovado após todas as tentativas: não anexa um detalhamento pela metade —
-        // devolve as pendências para o client mostrar a tela de erro com "rerodar".
-        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: reprovado após ${gate.attempts} tentativas →`, gate.residualIssues);
-        record(false, gate.residualIssues, null, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
-        res.status(422).json({ error: `Não passou na verificação após ${gate.attempts} tentativas`, detail: gate.residualIssues });
+        // devolve os ERROS (detail) e as SUGESTÕES separados p/ a tela de erro mostrar.
+        console.warn(`[deepen] ${client}/${slug}/${secId} ${blockId}: reprovado após ${gate.attempts} tentativas →`, gate.residualBlocking);
+        record(false, gate.residualBlocking, null, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualBlocking });
+        res.status(422).json({ error: `Não passou na verificação após ${gate.attempts} tentativas`, detail: gate.residualBlocking, suggestions: gate.residualSuggestions });
         return;
       }
 
-      const historyId = record(true, [], modal, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues });
+      const historyId = record(true, [], modal, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualBlocking });
       modal.historyId = historyId;   // âncora do rating no client
       // Iteração = revisão da versão anterior: marca-a como revisada com o
       // comentário do consultor (a nova entrada já encadeia por prev_modal_id).

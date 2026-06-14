@@ -47,7 +47,7 @@ export interface DetalheResult {
    *  layout.json da seção. Vazio = cliente usa o flow padrão. */
   layout: LayoutItem[];
   /** Telemetria do gate de qualidade para o histórico. */
-  gate: { attempts: number; issues: string[]; residual: string[] };
+  gate: { attempts: number; issues: string[]; residual: string[]; suggestions: string[] };
 }
 
 const widgetsOf = (modal: unknown): Widget[] =>
@@ -119,9 +119,9 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
   // Sem modal renderável, OU renderável mas reprovado na verificação após todas as
   // tentativas: NÃO entrega um detalhamento pela metade — falha com as pendências
   // claras, para o client mostrar a tela de erro com a opção de rerodar.
-  if (!gate.modal || gate.residualIssues.length) {
-    console.warn(`[detalhamento] ${inp.client}/${inp.slug}/${inp.resultId}: reprovado após ${gate.attempts} tentativas →`, gate.residualIssues);
-    throw new Error(`Não passou na verificação de qualidade após ${gate.attempts} tentativas: ${gate.residualIssues.join('; ')}`);
+  if (!gate.modal || gate.residualBlocking.length) {
+    console.warn(`[detalhamento] ${inp.client}/${inp.slug}/${inp.resultId}: reprovado após ${gate.attempts} tentativas →`, gate.residualBlocking);
+    throw new Error(`Não passou na verificação de qualidade após ${gate.attempts} tentativas: ${gate.residualBlocking.join('; ')}`);
   }
   const widgets = ((gate.modal as { widgets: Widget[] }).widgets).map((w, i) => {
     if (!w.id) (w as { id: string }).id = `${inp.resultId}-w${i}`;
@@ -142,5 +142,5 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
   return { widgets, layout: lay.layout, mocked: gate.mocked, datasetChanged, dataset,
     usage: sumUsage(gate.usage, lay.usage ?? { tokensIn: 0, tokensOut: 0, costUsd: 0, model: '' }),
     cardContext: cardCtx, analysisType,
-    gate: { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualIssues } };
+    gate: { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualBlocking, suggestions: gate.residualSuggestions } };
 }

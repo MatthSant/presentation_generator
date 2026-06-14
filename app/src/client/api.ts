@@ -15,12 +15,18 @@ export class Api {
       // O corpo do erro carrega o motivo real (ex.: erros de validação do deepen
       // num 422) — sem lê-lo, o toast só mostraria o status.
       let detail = '';
+      let blocking: string[] = [];
+      let suggestions: string[] = [];
       try {
-        const body = await res.json() as { error?: string; detail?: unknown };
-        const d = Array.isArray(body.detail) ? body.detail.join('; ') : (body.detail ? String(body.detail) : '');
-        detail = [body.error, d].filter(Boolean).join(' — ');
+        const body = await res.json() as { error?: string; detail?: unknown; suggestions?: unknown };
+        blocking = Array.isArray(body.detail) ? body.detail.map(String) : (body.detail ? [String(body.detail)] : []);
+        suggestions = Array.isArray(body.suggestions) ? body.suggestions.map(String) : [];
+        detail = [body.error, blocking.join('; ')].filter(Boolean).join(' — ');
       } catch { /* corpo não-JSON: fica só o status */ }
-      throw new Error(detail || `${init?.method || 'GET'} ${url} → ${res.status}`);
+      // anexa as listas estruturadas (erros × sugestões) p/ a tela de falha separá-las
+      const err = new Error(detail || `${init?.method || 'GET'} ${url} → ${res.status}`) as Error & { blocking?: string[]; suggestions?: string[] };
+      err.blocking = blocking; err.suggestions = suggestions;
+      throw err;
     }
     return res.json() as Promise<T>;
   }

@@ -1840,8 +1840,14 @@ body.edit-mode .tile-filter-badge { display:none; }
 .busy-err { cursor: auto; max-width: 460px; background: var(--bg); border: 1px solid var(--border); border-top: 3px solid var(--red); border-radius: 12px; box-shadow: var(--shadow-md); padding: 22px 24px; }
 .busy-err-title { font-size: 15px; font-weight: 700; color: var(--fg); margin-bottom: 6px; }
 .busy-err-sub { font-size: 12.5px; color: var(--gray); margin: 0 0 10px; line-height: 1.5; }
-.busy-err-issues { margin: 0 0 16px; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.busy-err-issues { margin: 0 0 14px; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
 .busy-err-issues li { font-size: 12.5px; color: var(--fg); line-height: 1.45; }
+/* rótulo de cada balde: erros (vermelho) × sugestões (neutro) */
+.busy-err-lbl { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin: 0 0 6px; }
+.busy-err-lbl-err { color: var(--red); }
+.busy-err-sug { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; margin: 0 0 16px; }
+.busy-err-suglist { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.busy-err-suglist li { font-size: 12px; color: var(--gray); line-height: 1.45; }
 .busy-err-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .busy-err-retry { font-size: 13px; font-weight: 700; color: #fff; background: var(--purple); border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-family: inherit; }
 .busy-err-retry:hover { opacity: .92; }

@@ -386,7 +386,8 @@ class App {
         <div class="busy-err" hidden>
           <div class="busy-err-title">Não foi possível gerar o detalhamento</div>
           <p class="busy-err-sub"></p>
-          <ul class="busy-err-issues"></ul>
+          <div class="busy-err-block" hidden><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues"></ul></div>
+          <div class="busy-err-sug" hidden><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist"></ul></div>
           <div class="busy-err-actions">
             <button type="button" class="busy-err-retry">↻ Rerodar</button>
             <button type="button" class="busy-err-close">Fechar</button>
@@ -413,18 +414,26 @@ class App {
 
   /** Tela de erro no overlay quando o detalhamento é REPROVADO após todas as tentativas:
    *  explica em itens o que falhou e oferece "Rerodar" (re-executa a mesma geração). */
-  private busyError(detail: string, onRetry: () => void): void {
+  private busyError(error: unknown, onRetry: () => void): void {
     this.ensureBusy();
     if (!this.busyEl) return;
     this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = true;
     const err = this.busyEl.querySelector<HTMLElement>('.busy-err')!;
-    // a mensagem vem como "<motivo> — issue1; issue2…" → motivo em cima, issues em lista.
-    const sep = detail.indexOf('—');
-    const head = (sep >= 0 ? detail.slice(0, sep) : detail).trim();
-    const issues = (sep >= 0 ? detail.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+    const e = error as { message?: string; blocking?: string[]; suggestions?: string[] };
+    const msg = e?.message || String(error || '');
+    // motivo (antes do '—') no topo; ERROS (blocking) e SUGESTÕES em listas separadas.
+    const sep = msg.indexOf('—');
+    const head = (sep >= 0 ? msg.slice(0, sep) : msg).trim();
+    const blocking = (e?.blocking && e.blocking.length) ? e.blocking
+      : (sep >= 0 ? msg.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+    const suggestions = e?.suggestions || [];
     err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = head || 'Falha na geração.';
-    err.querySelector<HTMLElement>('.busy-err-issues')!.innerHTML =
-      issues.length ? issues.map(i => `<li>${esc(i)}</li>`).join('') : '';
+    const blockBox = err.querySelector<HTMLElement>('.busy-err-block')!;
+    blockBox.hidden = blocking.length === 0;
+    err.querySelector<HTMLElement>('.busy-err-issues')!.innerHTML = blocking.map(i => `<li>${esc(i)}</li>`).join('');
+    const sugBox = err.querySelector<HTMLElement>('.busy-err-sug')!;
+    sugBox.hidden = suggestions.length === 0;
+    err.querySelector<HTMLElement>('.busy-err-suglist')!.innerHTML = suggestions.map(i => `<li>${esc(i)}</li>`).join('');
     err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
     err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
     err.hidden = false;
@@ -446,7 +455,7 @@ class App {
       this.setBusy(false);
     } catch (e) {
       // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
-      this.busyError((e as Error).message, () => void this.seguirPergunta(p));
+      this.busyError(e, () => void this.seguirPergunta(p));
     }
   }
 
@@ -657,7 +666,7 @@ class App {
       this.setBusy(false);
     } catch (e) {
       // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
-      this.busyError((e as Error).message, () => void this.runDeepen(secId, blockId, prompt, prev));
+      this.busyError(e, () => void this.runDeepen(secId, blockId, prompt, prev));
     }
   }
 

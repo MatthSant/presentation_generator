@@ -46,8 +46,10 @@ export interface GateResult {
   modal: Modal | null;
   mocked: boolean;
   usage?: ModalUsage;
-  /** Pendências da versão entregue (vazio = limpa). */
-  residualIssues: string[];
+  /** ERROS que reprovaram a entrega (vazio = passou). Só isto reprova um detalhamento. */
+  residualBlocking: string[];
+  /** Sugestões de forma NÃO acatadas na versão entregue — NUNCA reprovam; só registro/UI. */
+  residualSuggestions: string[];
   /** União de TODAS as issues encontradas/reparadas ao longo das tentativas — para
    *  registrar no histórico e calibrar o motor depois. */
   issuesLog: string[];
@@ -102,6 +104,8 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   let mocked = false;
   let lastValid: Modal | null = null;
   let issues: string[] = [];
+  let lastBlocking: string[] = [];      // bloqueante/sugestão da última tentativa (p/ o residual final)
+  let lastSuggestions: string[] = [];
   // melhor versão SEM erro já obtida (e suas sugestões de forma pendentes). Protege a
   // entrega: se uma passada de polimento introduzir erro, devolvemos esta.
   let accepted: Modal | null = null;
@@ -128,7 +132,7 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     prev = cand;
 
     const schemaErrs = inp.validateSchema(cand);
-    if (schemaErrs.length) { issues = schemaErrs; log(issues); if (mocked) break; continue; }
+    if (schemaErrs.length) { issues = schemaErrs; lastBlocking = schemaErrs; lastSuggestions = []; log(issues); if (mocked) break; continue; }
     lastValid = cand; // renderável a partir daqui
 
     const widgets = (cand.widgets as Widget[]) ?? [];
@@ -149,13 +153,14 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
       suggestions = [...suggestions, ...crit.suggestions];
     }
     issues = [...blocking, ...suggestions];   // próximo reparo tenta corrigir ambos
+    lastBlocking = blocking; lastSuggestions = suggestions;
     log(issues);
     if (blocking.length === 0) {
       // passou (sem erro). Guarda como entregável. Se sobraram só SUGESTÕES de forma e
       // ainda há tentativa, faz UMA passada extra de polimento (nunca reprova por isso).
       accepted = cand; acceptedResidual = suggestions;
       if (suggestions.length === 0 || mocked || attempt >= max - 1) {
-        return { modal: cand, mocked, usage, residualIssues: suggestions, issuesLog, attempts: attempt + 1 };
+        return { modal: cand, mocked, usage, residualBlocking: [], residualSuggestions: suggestions, issuesLog, attempts: attempt + 1 };
       }
       polishing = true;
       continue;
@@ -163,13 +168,13 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     // houve ERRO. Se já temos uma versão limpa aceita (um polimento piorou a saída),
     // entrega a limpa em vez de arriscar — polimento não pode degradar a entrega.
     if (accepted) {
-      return { modal: accepted, mocked, usage, residualIssues: acceptedResidual, issuesLog, attempts: attempt + 1 };
+      return { modal: accepted, mocked, usage, residualBlocking: [], residualSuggestions: acceptedResidual, issuesLog, attempts: attempt + 1 };
     }
     if (mocked) break;
   }
 
-  // esgotou as tentativas: prefere a melhor versão SEM erro (se houve), senão a última válida.
+  // esgotou as tentativas: prefere a melhor versão SEM erro (se houve), senão a última válida (com os erros).
   return accepted
-    ? { modal: accepted, mocked, usage, residualIssues: acceptedResidual, issuesLog, attempts: max }
-    : { modal: lastValid, mocked, usage, residualIssues: issues, issuesLog, attempts: max };
+    ? { modal: accepted, mocked, usage, residualBlocking: [], residualSuggestions: acceptedResidual, issuesLog, attempts: max }
+    : { modal: lastValid, mocked, usage, residualBlocking: lastBlocking, residualSuggestions: lastSuggestions, issuesLog, attempts: max };
 }
