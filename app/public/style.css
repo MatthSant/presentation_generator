@@ -542,10 +542,11 @@ body[data-nav="sidebar"] #sidenav {
   background: var(--plum); color: #fff;
   overflow-y: auto; padding: 16px 14px;
 }
-/* brand — nosso logo (ícone) + nome do app num box branco compacto */
-.sn-brand { align-self: flex-start; display: inline-flex; align-items: center; gap: 9px; background: #fff; border-radius: var(--r-md); padding: 7px 13px 7px 11px; margin: 2px 2px 12px; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); text-decoration: none; }
-.sn-logo { height: 26px; width: auto; display: block; }
-.sn-brand-name { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: var(--plum); }
+/* brand — ícone num box branco + título "Witly Grimório" AO LADO (branco, sobre o plum) */
+.sn-brand { display: flex; align-items: center; gap: 11px; padding: 2px 4px; margin: 2px 0 12px; text-decoration: none; }
+.sn-logo-box { display: grid; place-items: center; background: #fff; border-radius: 11px; padding: 7px; flex-shrink: 0; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); }
+.sn-logo { height: 24px; width: auto; display: block; }
+.sn-brand-name { font-size: 18px; font-weight: 800; letter-spacing: -.02em; color: #fff; white-space: nowrap; }
 /* switcher de análise — card escuro com avatar + título */
 .sn-switcher { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--r-md); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); text-decoration: none; transition: background .15s; margin-bottom: 10px; }
 .sn-switcher:hover { background: rgba(255,255,255,.11); }
@@ -566,7 +567,7 @@ body[data-nav="sidebar"] #sidenav {
 /* nav-item (página ou detalhamento); ativo = roxo com sombra. nowrap p/ não quebrar
    em 2 linhas (Poppins é mais larga que a fonte do mock — fonte um pouco menor). */
 .sn-page, .sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.74); padding: 9px 12px; border-radius: var(--r-md); transition: background .15s, color .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sn-page:hover, .sn-sec:hover { background: rgba(255,255,255,.08); color: #fff; }
+.sn-page:hover, .sn-sec:hover { background: rgba(255,255,255,.16); color: #fff; }
 .sn-page-active, .sn-sec-active { background: var(--purple); color: #fff; box-shadow: 0 8px 18px -8px rgba(124,58,237,.9); }
 .sn-sec-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sn-pill { flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 20px; background: rgba(255,255,255,.16); color: #fff; }

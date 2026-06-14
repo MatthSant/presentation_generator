@@ -82,14 +82,17 @@ export class Navigation {
     brand.className = 'sn-brand';
     brand.href = '/';
     brand.title = 'Início';
+    const logoBox = document.createElement('span');
+    logoBox.className = 'sn-logo-box';
     const logo = document.createElement('img');
     logo.className = 'sn-logo';
     logo.src = '/assets/witly-logo.png';
     logo.alt = 'Witly Grimório';
+    logoBox.appendChild(logo);
     const name = document.createElement('span');
     name.className = 'sn-brand-name';
-    name.textContent = 'Grimório';
-    brand.append(logo, name);
+    name.textContent = 'Witly Grimório';
+    brand.append(logoBox, name);
     this.sideHost.appendChild(brand);
 
     // Switcher (visual): avatar com iniciais do cliente + título do relatório.
