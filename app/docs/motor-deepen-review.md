@@ -43,6 +43,14 @@ Conclusão: **todas as 6 têm as ferramentas**. Lacunas: (a) conveniência — t
 fora do `acom_daily`; (b) cruzamento por **criativo** não existe no deep mode (gap real,
 porém o prompt da pergunta de qualidade aceita origem como alternativa).
 
+**Verificação (sem API):**
+- P1/P2/P4: confirmados no `dataset.json` — `acom_funnel` tem etapa/value/migracao/bench/gap/
+  maior_furo (maior furo = Pageviews, gap 57,8%); `acom_kpis` tem value/d3/meta/dev/cls/
+  trend_dir/trend_pct por KPI (ex.: taxa_qual `bad` −21,9%, cpmql `bad`); `acom_daily` tem
+  cpl/cpmql/cpm/taxa_qual diários.
+- P3/P5/P6: confirmados via `query_api.py` — `cruzar_dia(taxa_qual, origem)` ok; `trend(dia,
+  taxa_resp)` ok; `tabela(origem, incluir_geral)` ok (linha Geral ponderada).
+
 ---
 
 ## Mudanças no motor (changelog)
