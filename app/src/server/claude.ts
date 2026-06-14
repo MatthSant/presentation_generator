@@ -162,6 +162,7 @@ export async function generateInsights(digest: Digest, opts?: { tone?: string })
 // --- B2: deepen a card into a modal -----------------------------------------
 
 const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha pelo dado, não por estética):
+- QUANTIDADE: prefira 1 gráfico (o mais informativo p/ a pergunta). Use 2 só se cada um traz informação RELEVANTE e distinta; evite 3+ (vira poluição — o excedente vira tabela, kpi ou prosa).
 - NUNCA um gráfico de valor único / 1 categoria (ex.: uma barra "Geral" sozinha): um número é um kpi, não um gráfico.
 - bar / bar-horizontal: comparar 2–12 categorias discretas. Não use com 1 categoria nem com >16.
 - line / area: evolução ao longo do tempo (≥3 pontos no eixo). Não use para categorias sem ordem temporal.

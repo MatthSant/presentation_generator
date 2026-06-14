@@ -1,10 +1,12 @@
 /* deepenQuality.ts — verificações DETERMINÍSTICAS de qualidade de um detalhamento,
  * além da validação de schema (validateSection) e do cheiro de metodologia.
  *
- * Resolve o bind de cada widget contra o dataset e pega os defeitos que tornam um
- * detalhamento confuso: tabela vazia (só cabeçalho), gráfico de valor único (1
- * categoria), gráfico com séries/categorias demais (ilegível) e mais de um gráfico.
- * Tudo sem chamar a API — o juízo semântico fica no critic (claude.critiqueModal). */
+ * Resolve o bind de cada widget contra o dataset e pega os DEFEITOS (erros) que
+ * tornam um detalhamento quebrado: tabela vazia (só cabeçalho), gráfico de valor
+ * único (1 categoria), coluna inexistente, gráfico com séries/categorias demais
+ * (ilegível). Só ERRO bloqueia. Preferências de forma (ex.: nº de gráficos) ficam em
+ * qualitySuggestions (não reprovam). Tudo sem chamar a API — o juízo semântico fica
+ * no critic (claude.critiqueModal). */
 
 import type { Bind, DataMap, Widget } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
@@ -19,12 +21,10 @@ interface ChartLike { type?: string; title?: string; bind?: Bind; rows?: unknown
  *  methodologySmell para encaixar no mesmo gate de reparo. */
 export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
   const issues: string[] = [];
-  let charts = 0;
 
   for (const raw of widgets) {
     const w = raw as ChartLike;
     if (w.type === 'chart') {
-      charts++;
       if (!w.bind) continue; // séries inline são raras no detalhamento — não checa
       const title = w.title || 'gráfico';
       let r;
@@ -70,8 +70,16 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
     }
   }
 
-  if (charts > 1) {
-    issues.push(`${charts} gráficos no detalhamento — use no máximo 1 (o mais informativo); o resto vira tabela, kpi ou prosa.`);
-  }
   return issues;
+}
+
+/** Sugestões de FORMA (não bloqueiam a entrega — o reparo tenta acatar, mas passar
+ *  destas NUNCA reprova; só erro reprova). Ex.: excesso de gráficos. */
+export function qualitySuggestions(widgets: Widget[]): string[] {
+  const out: string[] = [];
+  const charts = widgets.filter((w) => (w as ChartLike).type === 'chart').length;
+  if (charts > 2) {
+    out.push(`${charts} gráficos no detalhamento — prefira o mais informativo; use 2 só se ambos trazem informação relevante; o excedente vira tabela, kpi ou prosa.`);
+  }
+  return out;
 }

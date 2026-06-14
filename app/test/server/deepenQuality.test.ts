@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { qualityIssues } from '../../src/server/deepenQuality.js';
+import { qualityIssues, qualitySuggestions } from '../../src/server/deepenQuality.js';
 import type { DataMap, Widget } from '../../src/shared/types.js';
 
 const manyRows: Array<Record<string, unknown>> = [];
@@ -47,9 +47,16 @@ test('tabela com linhas é aceita', () => {
   assert.deepEqual(qualityIssues([table('multi')], DS), []);
 });
 
-test('mais de um gráfico é sinalizado', () => {
+test('2 gráficos NÃO bloqueiam (só erro reprova)', () => {
   const issues = qualityIssues([chart('multi'), { ...chart('multi'), id: 'c2' } as Widget], DS);
-  assert.ok(issues.some((i) => /gráfico/.test(i)));
+  assert.deepEqual(issues, []);
+});
+
+test('3+ gráficos viram SUGESTÃO (não bloqueante), 2 não', () => {
+  const two = [chart('multi'), { ...chart('multi'), id: 'c2' } as Widget];
+  assert.deepEqual(qualitySuggestions(two), []);
+  const three = [...two, { ...chart('multi'), id: 'c3' } as Widget];
+  assert.ok(qualitySuggestions(three).some((i) => /gráfico/.test(i)));
 });
 
 test('detalhamento limpo não gera pendências', () => {

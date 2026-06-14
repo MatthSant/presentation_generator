@@ -14,7 +14,7 @@
 import type { Bind, DataMap, Modal, Widget } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
 import { critiqueModal, sumUsage, type ModalUsage } from './claude.js';
-import { qualityIssues } from './deepenQuality.js';
+import { qualityIssues, qualitySuggestions } from './deepenQuality.js';
 import { methodologySmell } from './deepenHistory.js';
 
 /** Forma frouxa do dataset (dims/filters opcionais) aceita pelos dois sítios de
@@ -120,14 +120,16 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     // bloqueante × polimento. Só o bloqueante reprova; polimento entra no reparo mas
     // não trava a entrega — depois de N tentativas, nitpick de estilo não pode falhar.
     let blocking = [...qualityIssues(widgets, inp.dataset as unknown as DataMap), ...methodologySmell(cand)];
-    let suggestions: string[] = [];
+    // Preferências de forma (ex.: excesso de gráficos) entram como SUGESTÃO: o reparo
+    // tenta acatar, mas nunca reprovam — só erro bloqueia.
+    let suggestions: string[] = qualitySuggestions(widgets);
     if (blocking.length === 0 && runCritic && !mocked) {
       inp.onProgress?.('Verificando a qualidade…');
       const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
       const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet);
       if (crit.usage) usage = sumUsage(usage, crit.usage);
       if (!crit.ok) blocking = crit.blocking.length ? crit.blocking : ['o revisor concluiu que a saída não responde à pergunta original'];
-      suggestions = crit.suggestions;
+      suggestions = [...suggestions, ...crit.suggestions];
     }
     issues = [...blocking, ...suggestions];   // próximo reparo tenta corrigir ambos
     log(issues);
