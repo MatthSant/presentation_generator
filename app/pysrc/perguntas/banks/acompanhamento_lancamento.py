@@ -52,7 +52,14 @@ def build_ctx(dataset):
     funnel = dataset.get('acom_funnel', {}).get('rows', [])
     origem = {r.get('origem'): _f(r.get('leads')) for r in dataset.get('acom_origem', {}).get('rows', [])}
     return {'kpis': kpis, 'funnel': funnel, 'origem': origem,
-            'daily': dataset.get('acom_daily', {}).get('rows', [])}
+            'daily': dataset.get('acom_daily', {}).get('rows', []),
+            'temp': dataset.get('acom_temp', {}).get('rows', []),
+            'canais': dataset.get('acom_canais', {}).get('rows', [])}
+
+
+def _avg(rows, k):
+    vals = [_f(r.get(k)) for r in rows if _f(r.get(k)) is not None]
+    return sum(vals) / len(vals) if vals else None
 
 
 # ───────────────────────── perguntas ─────────────────────────
@@ -141,6 +148,76 @@ def q_pago_organico(ctx):
                      {'label': 'Total', 'value': str(int(tot))}]}
 
 
+def q_temperatura(ctx):
+    ts = [t for t in ctx['temp'] if (_f(t.get('cpl')) or 0) > 0 and (_f(t.get('leads')) or 0) >= 30]
+    if len(ts) < 2:
+        return {'na': True, 'relevancia': 0.0, 'justificativa': 'Sem temperaturas pagas com volume p/ comparar.', 'kpis': []}
+    best = min(ts, key=lambda t: _f(t['cpl']))
+    worst = max(ts, key=lambda t: _f(t['cpl']))
+    spread = (_f(worst['cpl']) - _f(best['cpl'])) / _f(best['cpl']) * 100 if _f(best['cpl']) else 0
+    rel = _nz(spread, 60)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"{best['temperatura']} tem CPL R$ {_f(best['cpl']):.2f} vs {worst['temperatura']} R$ {_f(worst['cpl']):.2f} ({spread:.0f}% mais caro) — vale realocar verba.",
+            'kpis': [{'label': 'Melhor CPL', 'value': f"{best['temperatura']} R$ {_f(best['cpl']):.2f}"},
+                     {'label': 'Pior CPL', 'value': f"{worst['temperatura']} R$ {_f(worst['cpl']):.2f}"},
+                     {'label': 'Diferença', 'value': f'{spread:.0f}%'}]}
+
+
+def q_concentracao_piora(ctx):
+    cpl = ctx['kpis'].get('cpl', {})
+    up = cpl.get('trend_dir') == 'up'
+    tp = _f(cpl.get('trend_pct')) or 0
+    dev = _f(cpl.get('dev'))
+    rel = _nz(tp, 25) if up else (_nz(dev, 30) if (dev is not None and dev > 0) else 12.0)
+    estado = f"subindo {tp:.0f}%" if up else ('acima da meta' if (dev is not None and dev > 0) else 'estável')
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"CPL {estado} — vale ver se a piora concentra num criativo/público/campanha ou é geral (leilão/sazonalidade).",
+            'kpis': [{'label': 'CPL', 'value': f"R$ {_f(cpl.get('value')) or 0:.2f}"},
+                     {'label': 'Tendência', 'value': f"{cpl.get('trend_dir')} {tp:.0f}%"},
+                     {'label': 'vs meta', 'value': (f'{dev:+.0f}%' if dev is not None else '—')}]}
+
+
+def q_saturacao(ctx):
+    d = [r for r in ctx['daily'] if _f(r.get('leads')) is not None]
+    if len(d) < 6:
+        return {'na': True, 'relevancia': 0.0, 'justificativa': 'Série diária curta p/ avaliar saturação.', 'kpis': []}
+    n = max(2, len(d) // 3)
+    l0, l1 = _avg(d[:n], 'leads'), _avg(d[-n:], 'leads')
+    c0, c1 = _avg(d[:n], 'cpl'), _avg(d[-n:], 'cpl')
+    lead_dn = ((l1 - l0) / l0 * 100) if (l0 and l1 is not None) else 0
+    cpl_up = ((c1 - c0) / c0 * 100) if (c0 and c1 is not None) else 0
+    # Saturação = custo subindo COM volume NÃO crescendo. Se os leads/dia estão subindo,
+    # CPL mais alto é diminishing return de ESCALA, não esgotamento — não é a pergunta aqui.
+    crescendo = lead_dn > 10
+    sat = (not crescendo) and (cpl_up > 15 or lead_dn < -25)
+    if crescendo:
+        rel = 0.0
+        leitura = f'escalando (leads/dia +{lead_dn:.0f}%) — alta de CPL é custo de escala, não saturação'
+    else:
+        rel = max(_nz(cpl_up, 30) if cpl_up > 0 else 0.0, _nz(-lead_dn, 40) if lead_dn < 0 else 0.0)
+        leitura = 'sinais de saturação' if sat else 'sem saturação clara'
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"Do início ao fim: CPL {cpl_up:+.0f}%, leads/dia {lead_dn:+.0f}% — {leitura}.",
+            'kpis': [{'label': 'CPL (ini→fim)', 'value': f'{cpl_up:+.0f}%'},
+                     {'label': 'Leads/dia', 'value': f'{lead_dn:+.0f}%'},
+                     {'label': 'Dias', 'value': str(len(d))}]}
+
+
+def q_canal_organico(ctx):
+    ch = [c for c in ctx['canais'] if (_f(c.get('leads')) or 0) > 0]
+    if len(ch) < 2:
+        return {'na': True, 'relevancia': 0.0, 'justificativa': 'Sem canais orgânicos suficientes p/ avaliar concentração.', 'kpis': []}
+    tot = sum(_f(c['leads']) or 0 for c in ch)
+    top = max(ch, key=lambda c: _f(c['leads']) or 0)
+    share = (_f(top['leads']) or 0) / tot * 100 if tot else 0
+    rel = _nz(share - 40, 40)
+    return {'relevancia': round(rel, 1),
+            'justificativa': f"{top['canal']} concentra {share:.0f}% dos leads orgânicos.",
+            'kpis': [{'label': 'Canal dominante', 'value': str(top['canal'])},
+                     {'label': 'Concentração', 'value': f'{share:.0f}%'},
+                     {'label': 'Risco', 'value': ('alto' if share > 50 else 'ok')}]}
+
+
 QUESTIONS = [
     {'id': 'ac-funil-furo', 'fn': q_maior_furo,
      'pergunta': 'Onde está o maior furo do funil de tráfego pago?',
@@ -171,6 +248,28 @@ QUESTIONS = [
      'pergunta': 'A captação está concentrada em pago ou orgânico?',
      'prompt': ('Compare o volume de leads de pago vs orgânico. Avalie o risco de concentração: se o pago '
                 'domina, há dependência de budget; se o orgânico domina, avalie sustentabilidade. Aponte a ação.')},
+    {'id': 'ac-temperatura', 'fn': q_temperatura,
+     'pergunta': 'Qual temperatura escalar e qual frear pelo CPL/qualidade?',
+     'prompt': ('Ordene as temperaturas do tráfego pago por CPL e CPMQL (dimensao=temperatura), olhando também '
+                'a taxa de qualidade de cada. Aponte qual escalar (CPL baixo com qualidade ok) e qual frear/revisar '
+                '(CPL alto ou qualidade ruim). Se útil, veja a evolução por dia com cruzar_dia (CPL por dia × '
+                'temperatura). Recomende a realocação de verba.')},
+    {'id': 'ac-concentra', 'fn': q_concentracao_piora,
+     'pergunta': 'A piora do CPL está concentrada num criativo/público ou é geral?',
+     'prompt': ('Use onde_concentra (metrica=cpl) para descobrir se a alta do custo se concentra num criativo, '
+                'público, campanha ou canal específico, ou se é AMPLA/uniforme (causa geral: leilão/sazonalidade). '
+                'Reporte os itens pausados/novos. Se for concentrado, recomende pausar/ajustar o item; se for geral, '
+                'trate como mídia/estrutural — não culpe um criativo isolado.')},
+    {'id': 'ac-saturacao', 'fn': q_saturacao,
+     'pergunta': 'Há sinais de saturação da audiência (custo subindo e volume caindo)?',
+     'prompt': ('Olhe a evolução diária de CPL e de leads/dia (trend dimensao=dia, ou cruzar_dia). CPL subindo E '
+                'leads/dia caindo ao longo da campanha indicam saturação. Identifique o ponto de virada e recomende '
+                'a ação (renovar criativo, ampliar/abrir público, ajustar verba). Distinga saturação de variação de fim de semana.')},
+    {'id': 'ac-canal-org', 'fn': q_canal_organico,
+     'pergunta': 'A captação orgânica depende demais de um canal?',
+     'prompt': ('Avalie a concentração dos leads orgânicos no canal dominante (dimensao=canal, recorte de orgânico). '
+                'Acima de 50% num único canal é dependência crítica — avalie o risco e a diversificação. Compare também '
+                'a qualidade entre os canais orgânicos, se houver volume.')},
 ]
 
 
