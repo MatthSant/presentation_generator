@@ -34,7 +34,7 @@ contagens, recalcula taxas), `metrica`.
 |---|---|---|---|---|
 | ac-funil-furo | maior furo do funil | etapas + migração/bench/gap/maior_furo | ✅ | `acom_funnel` (catálogo) |
 | ac-pior-kpi | KPI macro mais fora da meta | KPIs × meta/dev/cls + trend 3d | ✅ | `acom_kpis` (catálogo) |
-| ac-qualidade | qualidade caindo? por origem/criativo? | taxa_qual diária + por origem/temp no tempo | ✅ (origem/temp); ⚠️ criativo | `acom_daily.taxa_qual` + `cruzar_dia(taxa_qual, origem|temperatura)`. **Por CRIATIVO não existe** dimensão no deep mode (prompt diz "origem OU criativos" → origem supre). |
+| ac-qualidade | qualidade caindo? por origem/criativo? | taxa_qual diária + por origem/temp/criativo no tempo | ✅ | `acom_daily.taxa_qual` + `cruzar_dia(taxa_qual, origem\|temperatura\|criativo)`; criativo agora é dimensão (M2) |
 | ac-custo | CPL/CPMQL subindo? mídia vs qualif. | cpl/cpmql/cpm/taxa_qual diários | ✅ | `acom_daily` (cpl,cpmql,cpm,taxa_qual). CPMQL=CPL/taxa_qual decomponível pelos diários |
 | ac-resposta | taxa de resposta suficiente? | taxa_resp nível+meta+tendência diária | ✅ | `acom_kpis.taxa_resp` (nível/meta) + tendência via `consultar(dia, taxa_resp)` → **agora também `acom_daily.taxa_resp` (bind direto)** |
 | ac-pago-org | concentração pago×orgânico | leads por origem (+ métricas) | ✅ | `acom_origem` (catálogo) / `tabela(origem, incluir_geral)` |
@@ -64,6 +64,16 @@ pronto no catálogo p/ **bind direto**.
 sempre; `hook/hold/connect` só quando a base tem vídeo/página (senão seriam só null).
 **Arquivo:** `pysrc/acompanhamento-lancamento/build_report.py`.
 
+### M2 — dimensão `criativo` no deep mode
+**Por quê:** a pergunta de qualidade pede relacionar a queda com **criativos**, mas não havia
+dimensão criativo no `consultar` (só dia/temperatura/canal/origem). O dado existe (coluna
+`field_ad_name`).
+**O que mudou:** `calc.frame_rows`/`cross_dia` ganham `dim='criativo'` (anúncio pago, agrupa por
+`field_ad_name`) + filtro `recorte_criativo`; `query_api` e o registry expõem (`dimensao`
+inclui `criativo`, novo `recorte_criativo`). Verificado: `ranking(criativo, leads)` → 16
+anúncios; `tabela(criativo, incluir_geral)` traz Geral ponderado.
+**Arquivos:** `calc.py`, `query_api.py`, `typeRegistry.ts`, `claude.ts`.
+
 ---
 
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
@@ -78,6 +88,6 @@ sempre; `hook/hold/connect` só quando a base tem vídeo/página (senão seriam 
    de página vira leads/clicks) — refletida no catálogo, não inventada.
 
 ## Pendências (quando houver crédito)
-- Rodar os 6 deepens 1 a 1 e revisar a SAÍDA (usa a IA).
-- Avaliar dimensão **criativo** no deep mode (pergunta de qualidade).
-- Avaliar função `decomposicao` (CPMQL = CPL ÷ taxa_qual; CPL ← CPM/CTR) p/ atribuição.
+- Rodar os 6 deepens 1 a 1 e revisar a SAÍDA (usa a IA) — única parte bloqueada por crédito.
+- Avaliar função `decomposicao` (CPMQL = CPL ÷ taxa_qual; CPL ← CPM/CTR) p/ atribuição — só
+  vale confirmar se a IA tropeça nisso ao rodar; os dados já estão em `acom_daily`.

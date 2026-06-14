@@ -183,10 +183,11 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' }],
           params: {
             ...genericParams(M),
-            dimensao: { enum: ['dia', 'temperatura', 'canal', 'origem'], desc: 'eixo do recorte: dia = série temporal; temperatura = Quente/Morno/Frio (só pago); canal = utm_source; origem = pago × orgânico (default: dia)' },
+            dimensao: { enum: ['dia', 'temperatura', 'canal', 'origem', 'criativo'], desc: 'eixo do recorte: dia = série temporal; temperatura = Quente/Morno/Frio (só pago); canal = utm_source; origem = pago × orgânico; criativo = anúncio (field_ad_name, só pago) — p/ muitos criativos use ranking/tabela (default: dia)' },
             recorte_origem: { enum: ['Pago', 'Orgânico'], desc: 'filtra as linhas a uma origem antes de agregar (ex.: dia só do Pago)' },
             recorte_temperatura: { enum: ['Quente', 'Morno', 'Frio', 'Indefinido'], desc: 'filtra a uma temperatura (ex.: CPL por dia só do tráfego Quente)' },
             recorte_canal: { desc: 'filtra a um canal/utm_source específico (use um valor visto na dimensão canal)' },
+            recorte_criativo: { desc: 'filtra a um criativo/anúncio específico (use um valor visto na dimensão criativo)' },
             incluir_geral: { enum: ['sim', 'nao'], desc: 'inclua a linha/série "Geral" com o valor GLOBAL CORRETO (o motor soma contagens e RECALCULA taxas ponderadas — num÷den). USE isto p/ um total/geral; NUNCA some os grupos você mesmo (somar taxa dá 113%).' },
           },
         },

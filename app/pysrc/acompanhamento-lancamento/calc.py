@@ -109,6 +109,11 @@ def norm_source(v):
     return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
 
 
+def ad_name(r):
+    """Nome do criativo/anúncio (field_ad_name) normalizado."""
+    return (str(r.get('field_ad_name') or '').strip()) or 'Não trackeado'
+
+
 # ── agregação de um conjunto de linhas ───────────────────────────────────────
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
@@ -180,6 +185,8 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
             return False
         if f.get('canal') and norm_source(r.get('utm_source')) != f['canal']:
             return False
+        if f.get('criativo') and ad_name(r) != f['criativo']:
+            return False
         return True
 
     sub = [r for r in rows if keep(r)]
@@ -189,6 +196,10 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
         fixed = None
     elif dim == 'canal':
         keyfn = lambda r: norm_source(r.get('utm_source'))
+        fixed = None
+    elif dim == 'criativo':
+        sub = [r for r in sub if is_paid(r)]            # criativo = anúncio pago
+        keyfn = ad_name
         fixed = None
     elif dim == 'origem':
         keyfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
@@ -227,6 +238,8 @@ def cross_dia(rows, dim, trules=None):
         grpfn = lambda r: infer_temp(r.get('field_campaign_name'), trules) if is_paid(r) else None
     elif dim == 'canal':
         grpfn = lambda r: norm_source(r.get('utm_source'))
+    elif dim == 'criativo':
+        grpfn = lambda r: (ad_name(r) if is_paid(r) else None)
     elif dim == 'origem':
         grpfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
     else:
