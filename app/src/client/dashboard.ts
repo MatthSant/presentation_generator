@@ -17,6 +17,13 @@ const DEFAULT_W: Record<string, number> = {
   'kpi': 3,
 };
 const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap', 'rank-card']);
+/** Tipos de gráfico onde "remover outliers" faz sentido: séries numéricas ao longo
+ *  de categorias (uma cerca de Tukey/MAD por série). Pizza/donut (partes do todo),
+ *  radial (gauge), treemap (hierarquia), scatter ({x,y}) e radar não se aplicam. */
+const OUTLIER_CHART_TYPES = new Set(['bar', 'bar-horizontal', 'line', 'area', 'mixed', 'stacked']);
+const chartTypeOf = (w: Widget): string | undefined =>
+  w.type === 'chart-table' ? (w as { chart?: { chartType?: string } }).chart?.chartType
+    : (w as { chartType?: string }).chartType;
 
 /** Row height (px) used only while the Gridstack editor is open. The read path
  *  uses content-sized tracks, so this just gives the editor a sane drag grid. */
@@ -191,7 +198,8 @@ export class Dashboard {
     tile.appendChild(renderWidget(widget, ctx));
     const newCharts = ctx.charts.slice(beforeCharts);
     this.tiles.push({ widget, tile, chartElId: newCharts[0]?.elId });
-    if (this.opts.outlierToggle && (widget.type === 'chart' || widget.type === 'chart-table') && newCharts.length) {
+    if (this.opts.outlierToggle && (widget.type === 'chart' || widget.type === 'chart-table') && newCharts.length
+        && OUTLIER_CHART_TYPES.has(chartTypeOf(widget) ?? '')) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'tile-outlier' + ((widget as { outliers?: boolean }).outliers ? ' on' : '');
