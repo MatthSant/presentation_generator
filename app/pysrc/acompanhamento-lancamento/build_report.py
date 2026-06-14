@@ -470,6 +470,7 @@ def assemble(rows, config, content, opts=None):
     created = config.get('created_at') or datetime.date.today().isoformat()
     data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
                           'campaign_label': config.get('campaign_label') or '',
+                          'data_ate': B['corte_label'],   # chip "Dados até DD/MM" na navbar
                           'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],

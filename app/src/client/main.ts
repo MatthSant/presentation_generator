@@ -93,6 +93,16 @@ class App {
             : `<span class="tn-crumb">${esc(c)}</span><span class="tn-sep">/</span>`).join('')
         : esc(crumbs[0] || '');
     }
+    // Chip "Dados até DD/MM" na navbar (último dia de dado) — só quando o tipo informa.
+    const dataAte = (data.meta as { data_ate?: string } | undefined)?.data_ate;
+    const topnav = document.getElementById('topnav');
+    document.getElementById('tn-live')?.remove();
+    if (dataAte && topnav) {
+      const live = document.createElement('span');
+      live.id = 'tn-live'; live.className = 'tn-live';
+      live.innerHTML = `<span class="tn-live-dot"></span>Dados até ${esc(dataAte)}`;
+      topnav.insertBefore(live, topnav.querySelector('.tn-right'));
+    }
     this.setupHistorico();
     // Cards clicáveis (link-card) → navegam para uma seção (ficha).
     document.addEventListener('goto-section', (e) => {
