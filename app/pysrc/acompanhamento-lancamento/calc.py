@@ -212,6 +212,32 @@ def frame_rows(rows, dim, filtro=None, trules=None):
     return out
 
 
+def cross_dia(rows, dim, trules=None):
+    """Crosstab DIA × dimensão (temperatura|canal|origem): KPIs derivados por célula
+    (dia, grupo). Habilita UM gráfico multi-linha 'métrica por dia, uma linha por
+    grupo' (ex.: CPL por dia Quente × Morno) — em vez de um gráfico por grupo."""
+    trules = trules or {}
+    if dim == 'temperatura':
+        grpfn = lambda r: infer_temp(r.get('field_campaign_name'), trules) if is_paid(r) else None
+    elif dim == 'canal':
+        grpfn = lambda r: norm_source(r.get('utm_source'))
+    elif dim == 'origem':
+        grpfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
+    else:
+        return []
+    cells = {}
+    for r in rows:
+        g = grpfn(r)
+        if g is None:
+            continue
+        cells.setdefault((_date(r), g), []).append(r)
+    out = []
+    for key in sorted(cells, key=lambda k: (k[0], k[1])):
+        d = derive(_sum(cells[key]))
+        out.append({'dia': _day_label(key[0]), 'serie': key[1], 'm': {m: d.get(m) for m in FRAME_METRICS}})
+    return out
+
+
 # ── tendência / desvio vs meta ───────────────────────────────────────────────
 
 def trend(series, cost=False):

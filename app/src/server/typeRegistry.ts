@@ -179,7 +179,8 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const G = genericFuncoes('recorte');
       return {
         consultar: {
-          funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking],
+          funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking,
+            { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' }],
           params: {
             ...genericParams(M),
             dimensao: { enum: ['dia', 'temperatura', 'canal', 'origem'], desc: 'eixo do recorte: dia = série temporal; temperatura = Quente/Morno/Frio (só pago); canal = utm_source; origem = pago × orgânico (default: dia)' },

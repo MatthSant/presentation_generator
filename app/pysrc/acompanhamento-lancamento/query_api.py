@@ -44,7 +44,29 @@ def build_frame(B, a):
     }
 
 
-EXTRA = {}
+def cruzar_dia(B, a):
+    """UMA métrica por DIA × dimensão (temperatura|canal|origem), em formato LONG
+    (colunas dia/serie/valor) → habilita UM gráfico multi-linha (bind x="dia",
+    series="serie", y="valor"), uma linha por grupo. Use NO LUGAR de vários gráficos
+    separados quando comparar o MESMO indicador entre grupos ao longo do tempo."""
+    metric = a.get('metrica', 'cpl')
+    dim = a.get('dimensao', 'temperatura')
+    if metric not in METRICS:
+        return qc.nao_disp(f"métrica '{metric}' inválida")
+    if dim not in ('temperatura', 'canal', 'origem'):
+        return qc.nao_disp("dimensao deve ser temperatura, canal ou origem")
+    cells = calc.cross_dia(B['rows_corte'], dim, B.get('trules'))
+    rows = [{'dia': c['dia'], 'serie': c['serie'], 'valor': qc.rnd(c['m'].get(metric))}
+            for c in cells if c['m'].get(metric) is not None]
+    series = sorted({r['serie'] for r in rows})
+    if len(rows) < 2 or len(series) < 1:
+        return qc.nao_disp(f'sem dados p/ {metric} por dia × {dim}')
+    lab = calc.LABELS.get(metric, metric)
+    return qc.ok(rows, ['dia', 'serie'],
+                 f'{lab} por dia × {dim} (long: dia/serie/valor — bind x="dia", series="serie", y="valor") — {len(series)} séries: {", ".join(series)}.')
+
+
+EXTRA = {'cruzar_dia': cruzar_dia}
 
 
 def main():
