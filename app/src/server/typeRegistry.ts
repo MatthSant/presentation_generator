@@ -232,6 +232,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             recorte_publico: { desc: 'filtra a um público/adset específico (use um valor visto na dimensão publico)' },
             recorte_campanha: { desc: 'filtra a uma campanha específica (use um valor visto na dimensão campanha)' },
             incluir_geral: { enum: ['sim', 'nao'], desc: 'inclua a linha "Geral" com o valor GLOBAL CORRETO (o motor soma contagens e RECALCULA taxas/custos ponderados — num÷den). USE isto p/ um total/geral; NUNCA some os grupos você mesmo (somar taxa/ROAS dá número errado).' },
+            so_midia: { enum: ['sim', 'nao'], desc: 'só p/ dimensao=dia|semana (e cruzar_dia): poda a cauda pós-lançamento (dias SEM mídia paga de captação). USE p/ custo/saturação no tempo (CPL/CPMQL/leads por semana) — senão os dias finais com mídia desligada distorcem a série (ex.: leads "−100%").' },
           },
         },
       };

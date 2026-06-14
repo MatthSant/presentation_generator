@@ -287,6 +287,34 @@ dimensão (`trend cpmql dimensao=semana` → CPMQL S1→S6 52,73→112,25, +113%
 (igual ao acompanhamento — só essa parte depende de crédito). As 6 perguntas de custo/
 mídia/saturação/gap agora têm ferramenta determinística dedicada.
 
+### Simulação via Agent das 17 perguntas (sem crédito API)
+
+Rodada completa em 5 agentes (clusters) contra a base REAL `inde/debriefing` (com metas).
+Veredito: **o motor + as instruções bastam** — todas as 17 foram respondidas com número
+real (atingimento/decomposicao/onde_concentra/tabela/ranking/trend); nenhuma meta
+inventada por dimensão; nenhuma taxa/ROAS somada (usaram `incluir_geral`); métricas
+secundárias ficaram como o "porquê" (decomposição), não viraram perguntas novas. As 3
+históricas (`db-vs-historico`, `db-receita-invest`, `db-roas-hist`) degradaram com
+honestidade ("sem lançamento anterior carregado" — `hist_csv` ausente nesta base), sem
+inventar histórico.
+
+Achados acionáveis da simulação → **3 ajustes aplicados**:
+1. **`so_midia=sim`** (dia/semana/cruzar_dia): poda a cauda pós-lançamento (dias sem mídia
+   paga). Sem isso o `trend` de leads reportava "−99%" por causa das semanas com mídia
+   desligada. `decomposicao`/`onde_concentra` já cortavam essa cauda; faltava nas séries.
+2. **`escopo` 3 vias** (Pago/Orgânico/**Não identificado**): o `_esc` jogava
+   `nao_identificado` em "Orgânico" → orgânico inflava (552 vs 545 vendas do relatório).
+   Agora bate com o `deb_split_vend` (9009 leads / 545 vendas no orgânico).
+3. **`atingimento` anexa nota** "metas só no nível global" quando recebe `dimensao` (a IA
+   às vezes passa `dimensao=canal` esperando meta por canal; antes era descartado em
+   silêncio).
+
+Achado NÃO implementado (escopo maior, documentado): o `query_api` não cruza **histórico
+por dimensão** — o `hist` vive só em `deb_kpis` (KPI global, via bind), não na `consultar`.
+Nenhuma das 17 perguntas exige cruzamento histórico desagregado (as 3 históricas são todas
+de KPI global), mas uma função `variacao_hist`/dimensão "lançamento" seria o próximo passo
+se surgir a necessidade.
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.

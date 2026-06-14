@@ -22,10 +22,16 @@ import calc  # noqa: E402
 import common.query_core as qc  # noqa: E402
 
 
-def _week_rows(B):
+def _media_days(rows):
+    """Dias com mídia paga de captação (invest>0) — usado p/ podar a cauda pós-
+    lançamento (mídia desligada) em séries temporais quando so_midia=sim."""
+    return {calc._date(r) for r in rows
+            if r.get('_camp') == 'captacao' and calc.fnum(r.get('invest_total')) > 0 and calc._date(r)}
+
+
+def _week_rows(rows):
     """Linhas agrupadas por semana da campanha (S1, S2, …) com KPIs completos —
     início = 1º dia com tração (leads > 5), como no relatório semanal."""
-    rows = B.get('_rows') or []
     dated = [(calc._dt(calc._date(r)), r) for r in rows if calc._dt(calc._date(r))]
     if not dated:
         return []
@@ -51,13 +57,19 @@ def build_frame(B, a):
     filtro = {k: a[k2] for k, k2 in (('escopo', 'recorte_escopo'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
                                      ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
+    src = B.get('_rows') or []
+    # so_midia: nas séries temporais, poda a cauda pós-lançamento (dias sem mídia paga)
+    # que distorce a leitura de custo/saturação (ex.: trend de leads caindo p/ "-100%").
+    if dim in ('dia', 'semana') and str(a.get('so_midia', '')).lower() in ('sim', 'true', '1'):
+        md = _media_days(src)
+        src = [r for r in src if calc._date(r) in md]
     if dim == 'semana' and not filtro:
-        rows = _week_rows(B)
+        rows = _week_rows(src)
         if geral and rows:
-            g = calc._derive(B.get('_rows') or [])
+            g = calc._derive(src)
             rows.append({'key': 'Geral', 'm': {m: g.get(m) for m in calc.FRAME_METRICS}})
     else:
-        rows = calc.frame_rows(B.get('_rows') or [], dim, filtro, incluir_geral=geral)
+        rows = calc.frame_rows(src, dim, filtro, incluir_geral=geral)
     if not rows:
         return {'status': 'nao_disponivel', 'motivo': f'sem dados para dimensão={dim} com esse recorte'}
     return {
@@ -90,8 +102,9 @@ def atingimento(M, _a):
         rows.append(row)
     if not any('Meta' in r for r in rows):
         return {'status': 'nao_disponivel', 'motivo': 'sem metas configuradas na base'}
+    nota = ' As metas existem só no nível GLOBAL — não há meta por canal/temperatura/criativo.' if _a.get('dimensao') else ''
     return {'status': 'ok', 'table': {'dims': ['indicador'], 'filters': [], 'rows': rows},
-            'summary': 'Realizado vs meta da campanha (Gap absoluto e Atingimento %).'}
+            'summary': 'Realizado vs meta da campanha (Gap absoluto e Atingimento %).' + nota}
 
 
 def cruzar_dia(B, a):
@@ -106,7 +119,11 @@ def cruzar_dia(B, a):
         return qc.nao_disp(f"métrica '{metric}' inválida")
     if dim not in ('escopo', 'canal', 'temperatura', 'criativo', 'publico', 'campanha'):
         return qc.nao_disp("dimensao deve ser escopo, canal, temperatura, criativo, publico ou campanha")
-    cells = calc.cross_dia(B.get('_rows') or [], dim)
+    src = B.get('_rows') or []
+    if str(a.get('so_midia', '')).lower() in ('sim', 'true', '1'):
+        md = _media_days(src)
+        src = [r for r in src if calc._date(r) in md]
+    cells = calc.cross_dia(src, dim)
     rows = [{'dia': c['dia'], 'serie': c['serie'], 'valor': qc.rnd(c['m'].get(metric))}
             for c in cells if c['m'].get(metric) is not None]
     series = sorted({r['serie'] for r in rows})

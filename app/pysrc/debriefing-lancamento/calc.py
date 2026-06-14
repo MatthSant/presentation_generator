@@ -200,7 +200,8 @@ def _derive(sub):
 
 
 def _esc(r):
-    return 'Pago' if r.get('_tipo') == 'pago' else 'Orgânico'
+    t = r.get('_tipo')
+    return 'Pago' if t == 'pago' else ('Orgânico' if t == 'organico' else 'Não identificado')
 
 
 def _keyfn(dim):
@@ -239,7 +240,7 @@ def frame_rows(rows, dim, filtro=None, incluir_geral=False):
     if dim in ('temperatura', 'publico'):        # conceitos só do pago
         sub = [r for r in sub if r.get('_tipo') == 'pago']
     keyfn = _keyfn(dim)
-    fixed = ['Pago', 'Orgânico'] if dim == 'escopo' else None
+    fixed = ['Pago', 'Orgânico', 'Não identificado'] if dim == 'escopo' else None
 
     groups = {}
     for r in sub:
