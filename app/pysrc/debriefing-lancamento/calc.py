@@ -205,12 +205,14 @@ def _derive(sub):
 
 
 # ── ponte de faturamento (impacto na receita por etapa do funil) ──────────────
-# Identidade exata: Faturamento = Leads × TaxaResposta × Qualificação × Fechamento ×
-# Ticket, onde TaxaResp=respostas/leads, Qualif=mqls/respostas, Fechamento=vendas/mqls
-# (MQL→venda), Ticket=fat/vendas. Permite decompor a VARIAÇÃO de receita (vs meta/
-# histórico/janela) e atribuir quanto cada etapa do funil pesou — em % e em R$.
+# Identidade EXATA: Faturamento = Leads × TaxaResposta × Qualificação × (Vendas÷MQL) ×
+# Ticket, onde TaxaResp=respostas/leads, Qualif=mqls/respostas, Ticket=fat/vendas.
+# RESSALVA: não há coluna de vendas ATRIBUÍDAS a MQL no dump — 'Vendas÷MQL' é a razão
+# vendas_totais/MQLs (telescopa a identidade: taxa_resp×qual×(vendas/mql)=vendas/leads),
+# NÃO uma taxa de conversão MQL→venda; pode passar de 1 em recorte orgânico (vendas sem
+# MQL). taxa_resp e qual são taxas reais; este fator é o resíduo que fecha a conversão.
 REV_FACTORS = [('leads', 'Volume (leads)'), ('taxa_resp', 'Taxa de Resposta'),
-               ('qual', 'Qualificação'), ('close', 'Fechamento (MQL→venda)'),
+               ('qual', 'Qualificação'), ('close', 'Vendas ÷ MQL'),
                ('ticket', 'Ticket médio')]
 
 

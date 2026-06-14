@@ -361,10 +361,14 @@ faziam esse contrafactual NA MÃO ("se o pago convertesse como o orgânico, +364
 Agora há ferramenta determinística.
 
 `impacto_receita` decompõe a variação de faturamento (atual × baseline) pela identidade
-exata **Faturamento = Volume(leads) × Taxa de Resposta × Qualificação × Fechamento
-(MQL→venda) × Ticket**, via log-decomposição, e atribui a cada etapa o **Impacto em R$**
-(soma = Δ total, sinal correto) + Δ% + % do gap. `base=meta|historico|janela`; `recorte_*`
-para um segmento (ex.: só o Pago). `calc.rev_factors` + `calc.match` (filtro compartilhado
+exata **Faturamento = Volume(leads) × Taxa de Resposta × Qualificação × (Vendas÷MQL) ×
+Ticket**, via log-decomposição, e atribui a cada etapa o **Impacto em R$** (soma = Δ
+total, sinal correto) + Δ% + % do gap. **Ressalva (apontada na revisão):** NÃO há coluna
+de vendas atribuídas a MQL no dado — o 4º fator é **`Vendas÷MQL`** = razão
+vendas_totais/MQLs, que telescopa a identidade mas NÃO é conversão MQL→venda (pode passar
+de 1 no orgânico, onde há venda sem MQL); `taxa_resp` e `qual` são taxas reais. Rótulo
+ajustado de "Fechamento (MQL→venda)" → "Vendas ÷ MQL" p/ não prometer causalidade.
+`base=meta|historico|janela`; `recorte_*` para um segmento (ex.: só o Pago). `calc.rev_factors` + `calc.match` (filtro compartilhado
 com `frame_rows`); `load_goals` agora lê `meta_taxa_resp` p/ a baseline meta.
 
 Validação sem crédito (base real `inde/debriefing`, gap de receita vs meta −R$155,6k):

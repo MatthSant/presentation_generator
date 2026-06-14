@@ -335,11 +335,13 @@ def variacao_hist(B, a):
 def impacto_receita(B, a):
     """Ponte de faturamento (impacto na receita por ETAPA DO FUNIL): decompõe a variação
     de faturamento — atual × baseline — na contribuição de cada etapa, em % e em R$:
-      Faturamento = Leads × TaxaResposta × Qualificação × Fechamento(MQL→venda) × Ticket.
-    Responde "quanto a queda de qualificação (ou de conversão, volume, ticket) custou de
-    RECEITA". baseline: 'meta' (default se houver metas) | 'historico' (lançamento
-    anterior) | 'janela' (início × fim do lançamento). recorte_* restringe a um segmento
-    (ex.: só o Pago). A IA reporta a etapa de maior impacto em R$ — não faz a álgebra."""
+      Faturamento = Leads × TaxaResposta × Qualificação × (Vendas÷MQL) × Ticket.
+    RESSALVA: 'Vendas÷MQL' é a razão vendas_totais/MQLs (não há vendas atribuídas a MQL no
+    dado) — telescopa a identidade, mas NÃO é uma taxa de conversão MQL→venda; pode passar
+    de 1 em recorte orgânico. taxa_resp e qual são taxas reais. Responde "quanto a queda de
+    qualificação (ou de volume, ticket) custou de RECEITA". baseline: 'meta' (default se
+    houver metas) | 'historico' (lançamento anterior) | 'janela' (início × fim). recorte_*
+    restringe a um segmento (ex.: só o Pago). A IA reporta a etapa de maior |R$|."""
     filtro = {k: a[k2] for k, k2 in (('escopo', 'recorte_escopo'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
                                      ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
@@ -395,7 +397,8 @@ def impacto_receita(B, a):
     summary = (f'Ponte de faturamento atual × {blab}{seg}: R$ {qc.rnd(b["fat"], 0)} → R$ {qc.rnd(cur["fat"], 0)} '
                f'(Δ R$ {qc.rnd(dfat, 0)}, {sinal}). Impacto de cada ETAPA DO FUNIL na receita: leia o "Impacto R$" '
                f'(soma = Δ total; sinal correto). A etapa de maior |R$| é a alavanca; "% do gap" >100%/negativo = '
-               f'etapas que se compensam. Custos NÃO entram — receita = Volume×Resposta×Qualificação×Fechamento×Ticket.')
+               f'etapas que se compensam. Custos NÃO entram — receita = Volume×Resposta×Qualificação×(Vendas÷MQL)×Ticket '
+               f'(Vendas÷MQL = razão vendas/MQLs, não conversão atribuída a MQL — pode passar de 1 no orgânico).')
     return qc.ok(rows, ['Etapa do funil'], summary)
 
 
