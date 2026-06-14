@@ -212,17 +212,7 @@ class App {
     // Seções det-*: rodapé de revisão (aprovar / pedir revisão regenera a própria
     // seção / ★1–5). Seções antigas sem historyId não mostram nada.
     if (section.historyId) {
-      const rt = this.buildRating(section.historyId, async (c) => {
-        this.setBusy(true, 'Revisando o detalhamento…');
-        try {
-          await this.api.revisarDet(section.id, c);
-          this.store.dropSection(section.id);
-          await this.go(this.store.currentPageId, section.id, true);
-          this.toast('Detalhamento revisado.');
-        } catch (e) {
-          this.toast(`Falha na revisão: ${(e as Error).message}`);
-        } finally { this.setBusy(false); }
-      }, async () => {
+      const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async () => {
         if (!window.confirm('Descartar este detalhamento? A seção será removida e não dá para desfazer.')) return;
         this.setBusy(true, 'Descartando…');
         try {
@@ -529,19 +519,30 @@ class App {
     kpi: 4, 'find-block': 6, ni: 6, 'ni-vertical': 6,
   };
   private static WAND = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg>';
+  // lápis — "pedir revisão deste bloco" (dentro de detalhamento/aprofundamento)
+  private static PENCIL = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>';
+  private static MODAL_REVISABLE = new Set(['chart', 'table', 'find-block', 'kpi', 'highlight', 'ni', 'ni-vertical']);
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
    *  is attached. Works across all pages/blocks, not just insight cards. */
   private markDeepen(section: Section): void {
+    // seção de aprofundamento (det-*): NÃO se faz deepen aninhado nos blocos — em vez
+    // da varinha, cada bloco ganha "pedir revisão deste bloco" (regenera a seção com
+    // o pedido escopado ao bloco → ajuste mais assertivo).
+    const isDet = !!section.historyId;
     for (const w of section.widgets) {
       if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
-      if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link')) continue;
+      if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link, :scope > .tile-revisar')) continue;
+      const title = (w as { title?: string }).title || '';
+      if (isDet) {
+        tile.appendChild(this.revisarButton(title, (instr) => void this.revisarDetSection(section.id, instr)));
+        continue;
+      }
       // band kpi-card (atingimento de meta) é uma faixa horizontal com o % grande à
       // direita → a varinha fica no topo-direito como nos outros blocos; o CSS dá um
       // pequeno espaçamento p/ baixo no card (padding-top) p/ o % não colidir.
       const existing = (w as { modal?: string }).modal;
-      const title = (w as { title?: string }).title || '';
       if (existing) {
         // já tem detalhamento → varinha roxa cheia (abre o modal)
         const a = document.createElement('a');
@@ -588,6 +589,59 @@ class App {
     });
     dlg.showModal();
     ta.focus();
+  }
+
+  /** Botão "pedir revisão deste bloco" (dentro de um detalhamento/aprofundamento).
+   *  Escopa o pedido ao bloco — ex.: "Revisar o bloco X: troque por um gráfico Y". */
+  private revisarButton(blockTitle: string, onSubmit: (instr: string) => void): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tile-revisar';
+    btn.title = 'Pedir revisão deste bloco';
+    btn.setAttribute('aria-label', 'Pedir revisão deste bloco');
+    btn.innerHTML = App.PENCIL;
+    btn.addEventListener('click', (e) => { e.stopPropagation(); this.openBlockRevision(blockTitle, onSubmit); });
+    return btn;
+  }
+
+  /** Diálogo de revisão escopado a um bloco. Prefixa o pedido com o bloco-alvo p/
+   *  deixar o ajuste assertivo, depois chama o caminho de revisão (regenera). */
+  private openBlockRevision(blockTitle: string, onSubmit: (instr: string) => void): void {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'deepen-dlg';
+    dlg.innerHTML = `<form method="dialog" class="deepen-form">
+      <h3>Pedir revisão do bloco</h3>
+      <p class="deepen-card">${esc(blockTitle || 'este bloco')}</p>
+      <textarea placeholder="O que mudar NESTE bloco? Ex.: troque este gráfico por uma comparação X × Y ao longo dos dias."></textarea>
+      <div class="deepen-actions">
+        <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
+        <button value="go" class="deepen-btn" type="submit">Pedir revisão</button>
+      </div></form>`;
+    document.body.appendChild(dlg);
+    const ta = dlg.querySelector('textarea')!;
+    dlg.addEventListener('close', () => {
+      const txt = ta.value.trim();
+      const go = dlg.returnValue === 'go';
+      dlg.remove();
+      if (!go || !txt) return;
+      onSubmit(blockTitle ? `Revisar o bloco "${blockTitle}": ${txt}` : `Revisar um bloco: ${txt}`);
+    });
+    dlg.showModal();
+    ta.focus();
+  }
+
+  /** Revisão de uma seção det-* (aprofundamento): regenera a própria seção com o
+   *  comentário. Compartilhado pelo rodapé geral e pelos botões por bloco. */
+  private async revisarDetSection(sectionId: string, comentario: string): Promise<void> {
+    this.setBusy(true, 'Revisando o detalhamento…');
+    try {
+      await this.api.revisarDet(sectionId, comentario);
+      this.store.dropSection(sectionId);
+      await this.go(this.store.currentPageId, sectionId, true);
+      this.toast('Detalhamento revisado.');
+    } catch (e) {
+      this.toast(`Falha na revisão: ${(e as Error).message}`);
+    } finally { this.setBusy(false); }
   }
 
   private async runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<void> {
@@ -648,6 +702,12 @@ class App {
       const node = renderWidget(w, ctx);
       const span = Math.max(1, Math.min(12, (w as { w?: number }).w ?? App.MODAL_SPAN[w.type] ?? 12));
       node.style.setProperty('--span', String(span));
+      // botão "pedir revisão deste bloco" — escopa o ajuste ao bloco e regenera o modal
+      if (ownerBlockId && App.MODAL_REVISABLE.has(w.type)) {
+        node.style.position = 'relative';
+        const t = (w as { title?: string }).title || modal.title || '';
+        node.appendChild(this.revisarButton(t, (instr) => void this.runDeepen(this.store.currentSectionId, ownerBlockId, instr, modal)));
+      }
       body.appendChild(node);
     }
     dialog.appendChild(body);

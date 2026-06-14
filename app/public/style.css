@@ -1085,6 +1085,21 @@ table tr:nth-child(even) td:not(.csp):not(.cp):not(.cn0):not(.cn):not(.csn):not(
 /* "ver detalhamento" — círculo roxo cheio, sempre visível */
 .tile-detail-link { background:var(--purple); color:#fff; border:none; text-decoration:none; }
 .tile-detail-link:hover { box-shadow:0 0 0 4px color-mix(in srgb, var(--purple) 16%, transparent); }
+/* "pedir revisão deste bloco" — lápis no topo-direito, dentro de detalhamento
+ * (modal: .ic-body > *) e aprofundamento (.dash-tile). Aparece no hover do bloco. */
+.tile-revisar {
+  position:absolute; top:11px; right:12px; z-index:6;
+  width:26px; height:26px; border-radius:50%; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--bg); color:var(--purple);
+  border:1px solid color-mix(in srgb, var(--purple) 30%, transparent); opacity:0;
+  transition:opacity .12s, background .14s, box-shadow .14s var(--ease);
+}
+.tile-revisar .svg-ic { width:15px; height:15px; }
+.dash-tile:hover .tile-revisar, .ic-body > *:hover .tile-revisar { opacity:1; }
+.tile-revisar:hover { background:var(--purple-bg); }
+body.edit-mode .tile-revisar { display:none; }
+@media print { .tile-revisar { display:none !important; } }
 /* reserva espaço no cabeçalho pra varinha não cobrir o badge/título/rótulo */
 .chart-head { padding-right:30px; }
 .kc--feature .kc-head { padding-right:30px; }
