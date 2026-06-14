@@ -203,24 +203,35 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     label: 'Debriefing de Lançamento',
     pysrcDir: 'debriefing-lancamento',
     supportsInsights: false,
-    queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/ranking por canal/temperatura/semana
+    queryScript: 'query_api.py',          // modo FUNDO: frames + decomposição + drill-down por escopo/canal/temperatura/campanha/criativo/publico/semana
     gerarPage: 'gerar-debriefing.html',
     montadorPage: 'montador-debriefing.html',
     requiredFiles: ['goals'],             // metas são obrigatórias (atingimento, comparativo, Δ vs meta)
     controlsKind: 'debriefing-lancamento',
     validateConfig() { return []; },
     buildDeepenMeta() {
-      const M = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'cpmql', 'fpl'];
+      const M = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl', 'cpmql', 'fpl',
+        'cpm', 'ctr', 'connect', 'conv_pag', 'taxa_resp'];
       const G = genericFuncoes('grupo');
       return {
         consultar: {
           funcoes: [
             G.tabela, G.ranking, G.series, G.series_long, G.correlacao, G.trend, G.variacao,
             { id: 'atingimento', desc: 'realizado × META × gap × atingimento% por indicador GLOBAL (vendas/leads/fat/qualif/CPL/CPMQL) — use para "a meta foi atingida? onde ficou o gap?"' },
+            { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (escopo/canal/temperatura/criativo/publico/campanha) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use p/ saturação/evolução (ex.: "CPL por dia por temperatura" = 1 gráfico).' },
+            { id: 'decomposicao', desc: 'decompõe a VARIAÇÃO de cpl ou cpmql (início → fim do lançamento) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade paga). Use p/ "o custo subiu por mídia (leilão) ou por queda de qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' },
+            { id: 'onde_concentra', desc: 'DRILL-DOWN de atribuição p/ uma métrica que piorou ao longo do lançamento (param metrica): varre criativo → publico → campanha → canal → temperatura e diz ONDE a piora se concentra (item que domina) ou se é AMPLA/uniforme → causa GLOBAL (leilão/sazonalidade). Reporta pausados/novos por nível. Use p/ "onde o CPL/custo piorou: um recorte ou geral?" — o motor decide o nível; a IA reporta e argumenta.' },
           ],
           params: {
-            dimensao: { enum: ['escopo', 'canal', 'temperatura', 'semana'], desc: 'eixo do recorte (escopo = pago × orgânico; canal; temperatura; semana)' },
+            dimensao: { enum: ['escopo', 'canal', 'temperatura', 'campanha', 'criativo', 'publico', 'semana'], desc: 'eixo do recorte (o que QUEBRA as métricas em linhas): escopo = pago × orgânico; canal = utm_source; temperatura = quente/frio/remarketing/advantage (pago); campanha = field_campaign_name (← utm_campaign no orgânico); criativo = anúncio (field_ad_name ← utm_content no orgânico); publico = conjunto/adset (field_adset_name, pago); semana = série semanal. P/ muitas linhas (criativo/publico/campanha) use ranking/tabela' },
             ...genericParams(M),
+            recorte_escopo: { enum: ['Pago', 'Orgânico'], desc: 'filtra as linhas a um escopo antes de agregar (ex.: canal só do Pago)' },
+            recorte_temperatura: { desc: 'filtra a uma temperatura (use um valor visto na dimensão temperatura, ex.: quente)' },
+            recorte_canal: { desc: 'filtra a um canal/utm_source específico (use um valor visto na dimensão canal)' },
+            recorte_criativo: { desc: 'filtra a um criativo/anúncio específico (use um valor visto na dimensão criativo)' },
+            recorte_publico: { desc: 'filtra a um público/adset específico (use um valor visto na dimensão publico)' },
+            recorte_campanha: { desc: 'filtra a uma campanha específica (use um valor visto na dimensão campanha)' },
+            incluir_geral: { enum: ['sim', 'nao'], desc: 'inclua a linha "Geral" com o valor GLOBAL CORRETO (o motor soma contagens e RECALCULA taxas/custos ponderados — num÷den). USE isto p/ um total/geral; NUNCA some os grupos você mesmo (somar taxa/ROAS dá número errado).' },
           },
         },
       };

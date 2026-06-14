@@ -117,6 +117,170 @@ def _sub(rows, **f):
     return out
 
 
+# ── modo-fundo: dimensões do dump + agregação de um recorte arbitrário ────────
+# O dump do debriefing é nível-anúncio (mesmas colunas do acompanhamento): além de
+# escopo/canal/temperatura/semana, dá pra abrir por criativo/público/campanha. As
+# linhas já vêm classificadas (_tipo/_camp/_temp) por classify().
+
+def norm_source(v):
+    """utm_source normalizado: vazios/null/'-' viram '(direto)'."""
+    s = str(v if v is not None else '').strip()
+    return '(direto)' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
+
+
+def _coalesce(*vals):
+    for v in vals:
+        s = str(v if v is not None else '').strip()
+        if s and s.lower() not in ('null', 'none', 'nan', '-', '(none)'):
+            return s
+    return 'Não trackeado'
+
+
+def ad_name(r):
+    """Criativo: field_ad_name (pago) com fallback p/ utm_content (orgânico, onde os
+    field_ad_* vêm vazios) — assim o orgânico aparece nomeado, não como 'Não trackeado'."""
+    return _coalesce(r.get('field_ad_name'), r.get('utm_content'))
+
+
+def adset_name(r):
+    """Público/conjunto de anúncios (field_adset_name) — conceito pago, sem UTM equivalente."""
+    return _coalesce(r.get('field_adset_name'))
+
+
+def campaign_name(r):
+    """Campanha: field_campaign_name com fallback p/ utm_campaign (orgânico)."""
+    return _coalesce(r.get('field_campaign_name'), r.get('utm_campaign'))
+
+
+# Conjunto de métricas expostas no modo-fundo (superset dos KPIs do relatório +
+# os fatores de mídia p/ a decomposição de CPL/CPMQL).
+FRAME_METRICS = ['leads', 'vendas', 'conv', 'qual', 'fat', 'invest', 'roas', 'cpl',
+                 'cpmql', 'fpl', 'cpm', 'ctr', 'connect', 'conv_pag', 'taxa_resp']
+LABELS = {'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Conversão', 'qual': 'Qualificação',
+          'fat': 'Faturamento', 'invest': 'Investimento', 'roas': 'ROAS', 'cpl': 'CPL',
+          'cpmql': 'CPMQL', 'fpl': 'Fat/lead', 'cpm': 'CPM', 'ctr': 'CTR',
+          'connect': 'Connect Rate', 'conv_pag': 'Conv. de Página', 'taxa_resp': 'Taxa de Resposta'}
+COST = {'cpl', 'cpmql', 'cpm'}
+
+
+def _derive(sub):
+    """KPIs derivados de um recorte arbitrário de linhas (None onde não há base).
+    Espelha as definições do dict M: investimento = só captação; ROAS/CPL/CPMQL/CPM
+    usam mídia paga de captação; qualidade tem versão geral e versão paga (que entra
+    no CPMQL). conv_pag/connect/ctr/cpm habilitam a decomposição log do CPL."""
+    pago = [r for r in sub if r.get('_tipo') == 'pago']
+    cpt = [r for r in sub if r.get('_camp') == 'captacao']
+    leads = soma(sub, 'leads')
+    vendas = soma(sub, 'vendas')
+    fat = soma(sub, 'faturamento')
+    fat_pago = soma(pago, 'faturamento')
+    invest_cpt = soma(cpt, 'invest_total')
+    leads_traf = soma(sub, 'leads_trafego')
+    imp = soma(sub, 'impressoes')
+    clicks = soma(sub, 'link_clicks')
+    pv = soma(sub, 'pageviews')
+    mqls_t, resps_t = soma(sub, 'leads_mqls'), soma(sub, 'respostas')
+    mqls_p, resps_p = soma(pago, 'leads_mqls'), soma(pago, 'respostas')
+    qual_p = pct(mqls_p, resps_p)
+    cpl = div(invest_cpt, leads_traf) if invest_cpt > 0 else None
+    return {
+        'leads': round(leads), 'vendas': round(vendas),
+        'fat': round(fat, 2), 'invest': round(invest_cpt, 2),
+        'conv': pct(vendas, leads), 'qual': pct(mqls_t, resps_t), 'qual_pago': qual_p,
+        'roas': (div(fat_pago - invest_cpt, invest_cpt) if invest_cpt > 0 else None),
+        'cpl': cpl,
+        'cpmql': (div(cpl * 100, qual_p) if (cpl and qual_p) else None),
+        'fpl': div(fat, leads),
+        'cpm': (div(invest_cpt * 1000, imp) if imp else None),
+        'ctr': (pct(clicks, imp) if imp else None),
+        'connect': (pct(pv, clicks) if pv else None),
+        'conv_pag': (pct(leads_traf, pv) if pv else (pct(leads_traf, clicks) if clicks else None)),
+        'taxa_resp': pct(resps_t, leads),
+    }
+
+
+def _esc(r):
+    return 'Pago' if r.get('_tipo') == 'pago' else 'Orgânico'
+
+
+def _keyfn(dim):
+    return {'temperatura': lambda r: r.get('_temp'), 'canal': lambda r: norm_source(r.get('utm_source')),
+            'criativo': ad_name, 'publico': adset_name, 'campanha': campaign_name,
+            'escopo': _esc}.get(dim, _date)
+
+
+def frame_rows(rows, dim, filtro=None, incluir_geral=False):
+    """Agrega o recorte por dimensão p/ o modo-fundo: [{key, m:{métrica:valor}}].
+
+    dim ∈ dia | escopo | canal | temperatura | criativo | publico | campanha.
+    `filtro` restringe as linhas ANTES de agrupar (escopo/temperatura/canal/criativo/
+    publico/campanha) — habilita cruzamentos como 'ROAS por temperatura SÓ do canal X'.
+    `incluir_geral` (partições, não dia) acrescenta a linha 'Geral' com o valor GLOBAL
+    CORRETO — _derive(tudo): soma p/ contagens, recálculo ponderado p/ taxas/custos —
+    em vez de a IA somar os grupos (taxa nunca se soma)."""
+    f = filtro or {}
+
+    def keep(r):
+        if f.get('escopo') and _esc(r) != f['escopo']:
+            return False
+        if f.get('temperatura') and r.get('_temp') != f['temperatura']:
+            return False
+        if f.get('canal') and norm_source(r.get('utm_source')) != f['canal']:
+            return False
+        if f.get('criativo') and ad_name(r) != f['criativo']:
+            return False
+        if f.get('publico') and adset_name(r) != f['publico']:
+            return False
+        if f.get('campanha') and campaign_name(r) != f['campanha']:
+            return False
+        return True
+
+    sub = [r for r in rows if keep(r)]
+    if dim in ('temperatura', 'publico'):        # conceitos só do pago
+        sub = [r for r in sub if r.get('_tipo') == 'pago']
+    keyfn = _keyfn(dim)
+    fixed = ['Pago', 'Orgânico'] if dim == 'escopo' else None
+
+    groups = {}
+    for r in sub:
+        groups.setdefault(keyfn(r), []).append(r)
+    if dim == 'dia':
+        keys = sorted(groups)
+    elif fixed:
+        keys = [k for k in fixed if k in groups]
+    else:                                         # partição: mais leads primeiro
+        keys = sorted(groups, key=lambda k: -_derive(groups[k])['leads'])
+
+    out = []
+    for k in keys:
+        d = _derive(groups[k])
+        out.append({'key': str(k), 'm': {m: d.get(m) for m in FRAME_METRICS}})
+    if incluir_geral and dim != 'dia' and sub:
+        g = _derive(sub)
+        out.append({'key': 'Geral', 'm': {m: g.get(m) for m in FRAME_METRICS}})
+    return out
+
+
+def cross_dia(rows, dim):
+    """Crosstab DIA × dimensão: KPIs derivados por célula (dia, grupo). Habilita UM
+    gráfico multi-linha 'métrica por dia, uma linha por grupo' (ex.: CPL por dia por
+    temperatura) — em vez de um gráfico por grupo."""
+    if dim in ('temperatura', 'publico'):
+        rows = [r for r in rows if r.get('_tipo') == 'pago']
+    keyfn = _keyfn(dim)
+    cells = {}
+    for r in rows:
+        d = _date(r)
+        if not d:
+            continue
+        cells.setdefault((d, keyfn(r)), []).append(r)
+    out = []
+    for (d, g) in sorted(cells):
+        m = _derive(cells[(d, g)])
+        out.append({'dia': d[8:10] + '/' + d[5:7], 'serie': str(g), 'm': {k: m.get(k) for k in FRAME_METRICS}})
+    return out
+
+
 # ── metas (goals) e histórico ─────────────────────────────────────────────────
 
 def _mean_nonzero(vals):
@@ -432,6 +596,9 @@ def build(rows, config=None):
     M['field_conversion'] = fc
     M['nome'] = config.get('client_name') or config.get('nome_campanha') or fc
     M['campaign_label'] = config.get('campaign_label') or ''
+    # linhas classificadas do lançamento — só p/ o modo-fundo (query_api). build_report
+    # lê campos nomeados de M, nunca serializa M inteiro, então não vaza p/ o dataset.
+    M['_rows'] = rows
     return M
 
 

@@ -239,6 +239,45 @@ cortar?" (ranking de eficiência) — avaliar se vira pergunta ou fica como deep
 
 ---
 
+## Debriefing de lançamento — mesmos checks aplicados
+
+Confirmado que o dump do debriefing é **nível-anúncio** (tem `field_ad_name`,
+`field_adset_name`, `field_campaign_name`, `utm_content`/`utm_campaign`) — o docstring
+antigo do `calc` ("utm_source × campanha × dia") estava desatualizado. Logo os mesmos
+recortes do acompanhamento se aplicam. Verificado sem crédito contra
+`backup/_app-memory-cleared/base/inde/debriefing-ui/` (1726 linhas).
+
+| Item (≡ acompanhamento) | Antes (debriefing) | Depois |
+|---|---|---|
+| Dimensões no deep | escopo/canal/temperatura/semana (pré-agregado) | **+ campanha, criativo, publico**; tudo via `frame_rows` sobre linhas cruas |
+| Métricas por dimensão | canal só tinha leads/vendas/conv/qual/fat | **`_derive` rico**: + invest/ROAS/CPL/CPMQL/CPM/CTR/connect/conv_pag em qualquer recorte pago |
+| Recortes (cross-cut) | nenhum | `recorte_escopo/temperatura/canal/criativo/publico/campanha` |
+| Geral ponderado | não | `incluir_geral=sim` (soma contagens, recalcula taxa/ROAS — nunca somar) |
+| Volume no ranking | não | `rank_extra=['leads','vendas','invest']` |
+| Coalesce orgânico | não | `ad_name = field_ad_name ← utm_content`; `campaign_name ← utm_campaign` |
+| Decomposição de custo | não | **`decomposicao`** CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade paga |
+| Drill-down de atribuição | não | **`onde_concentra`** criativo→publico→campanha→canal→temperatura + pausados/novos |
+| Cruzamento no tempo | não | **`cruzar_dia`** (métrica por dia × dimensão, multi-linha) |
+| UTF-8 no stdout | não | `sys.stdout.reconfigure('utf-8')` |
+
+**Janela de tempo (adaptação ao tipo):** o debriefing é retrospectivo (vs META, não
+início→recente como o acompanhamento diário). `decomposicao`/`onde_concentra` comparam a
+**janela inicial × final do lançamento** (≈20% dos dias com captação de cada ponta) →
+responde "a eficiência deteriorou ao longo do lançamento?" (saturação). O gap vs meta
+segue **global** (não há meta desagregada) — `atingimento` cobre isso; a IA é instruída
+a não inventar meta por dimensão.
+
+**Validação sem crédito (fixture INDÊ):**
+- `decomposicao cpl`: CPL +27% → **CPM +51,8% contribui 176%** (leilão), amortecido por CTR/Conv.Página melhorando.
+- `decomposicao cpmql`: +85% → **Qualidade paga contribui 61,6%** (caiu -31,6%) > CPL 38,4% → driver = qualidade (responde `db-cpmql-driver`).
+- `onde_concentra cpl`: veredito **GLOBAL** (piora ampla; canal "1 item só" = facebook-ads) — concorda com a decomposição (CPM/leilão, não um criativo).
+- `tabela`/`ranking` por temperatura: ROAS quente 2,14× × advantage 0,64× (responde escalar/pausar); escopo Pago ROAS 1,05× × Orgânico conv 6,06%.
+- `recorte_temperatura=quente` filtra o canal; `incluir_geral` adiciona Geral ponderado.
+
+**Pendência de crédito:** rodar as 17 perguntas norteadoras 1 a 1 e revisar a SAÍDA da IA
+(igual ao acompanhamento — só essa parte depende de crédito). As 6 perguntas de custo/
+mídia/saturação/gap agora têm ferramenta determinística dedicada.
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.
