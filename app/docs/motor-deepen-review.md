@@ -274,6 +274,15 @@ a não inventar meta por dimensão.
 - `tabela`/`ranking` por temperatura: ROAS quente 2,14× × advantage 0,64× (responde escalar/pausar); escopo Pago ROAS 1,05× × Orgânico conv 6,06%.
 - `recorte_temperatura=quente` filtra o canal; `incluir_geral` adiciona Geral ponderado.
 
+**Simulação via Agent (sem crédito API) — pergunta db-custo:** o agente investigou com
+`decomposicao cpmql/cpl` + `onde_concentra` e produziu um detalhamento honesto e correto:
+CPMQL +85% puxado **61,6% por qualidade** (não leilão) e CPL +27% **integralmente por CPM**
+(176%, amortecido por CTR/Conv.Página). Não inventou meta por dimensão quando `atingimento`
+deu `nao_disponivel`, e não somou taxa. **Achado de discoverability:** rodou `trend` sem
+`dimensao` → caiu no default `canal` em vez da curva temporal. Capacidade já existia
+(`trend`/`series` com `dimensao=semana`); só faltava sinalizar — corrigido no desc da
+dimensão (`trend cpmql dimensao=semana` → CPMQL S1→S6 52,73→112,25, +113%, CV=0,22).
+
 **Pendência de crédito:** rodar as 17 perguntas norteadoras 1 a 1 e revisar a SAÍDA da IA
 (igual ao acompanhamento — só essa parte depende de crédito). As 6 perguntas de custo/
 mídia/saturação/gap agora têm ferramenta determinística dedicada.
