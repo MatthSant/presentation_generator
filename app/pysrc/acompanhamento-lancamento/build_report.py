@@ -158,6 +158,13 @@ def assemble(rows, config, content, opts=None):
     # canais orgânicos por utm_source (top 8) — alimenta o breakdown da seção Canais
     add_table('acom_canais', ['canal'], [{'canal': c['source'], 'leads': c['leads']}
                                          for c in B['canais_org'][:8]])
+    # temperatura · tráfego pago — também vai pro dataset (não só o widget inline) p/ o
+    # deep mode poder cruzar CPL/CPMQL/leads por temperatura (Quente/Morno/Frio)
+    if B['temp']:
+        add_table('acom_temp', ['temperatura'],
+                  [{'temperatura': t, 'leads': v['leads'], 'invest': round(v['invest'], 2),
+                    'cpl': v['cpl'], 'cpmql': v['cpmql']}
+                   for t, v in B['temp'].items() if v.get('leads')])
     # agregados (não têm widget próprio; alimentam perguntas norteadoras + deep mode)
     add_table('acom_kpis', ['metric'], [
         {'metric': m, 'label': calc.LABELS[m], 'grupo': 'macro' if m in calc.KPI_MACRO else 'trafego',

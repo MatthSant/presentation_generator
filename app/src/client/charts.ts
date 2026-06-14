@@ -214,10 +214,18 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     opts.legend = legend;
     const donut: Record<string, unknown> = { size: '55%' };
     if (def.donutTotal) {
+      // Valor central abreviado p/ caber no buraco em qualquer magnitude (2.657, 40k,
+      // 1,2M) — sem isso, um total grande (ex.: 40000) estourava por cima do gráfico.
+      const dFmt = def.valueFormat
+        ? valueFmt(def.valueFormat)
+        : (v: number) => { const n = Number(v) || 0, a = Math.abs(n);
+            return a >= 1e6 ? `${brNum(n / 1e6, 1)}M` : a >= 1e4 ? `${brNum(n / 1e3, 0)}k` : brNum(n, 0); };
       donut.labels = {
         show: true,
-        total: { show: true, label: def.totalLabel || 'Total', color: labelColor, fontSize: '11px', fontWeight: 400 },
-        value: { fontSize: '22px', fontWeight: 700, color: dark ? '#FFFFFF' : '#0E0E10', offsetY: 4 },
+        total: { show: true, label: def.totalLabel || 'Total', color: labelColor, fontSize: '11px', fontWeight: 400,
+          formatter: (w: { globals: { seriesTotals: number[] } }) => dFmt(w.globals.seriesTotals.reduce((a, b) => a + b, 0)) },
+        value: { fontSize: '21px', fontWeight: 700, color: dark ? '#FFFFFF' : '#0E0E10', offsetY: 4,
+          formatter: (val: string) => dFmt(Number(val)) },
         name: { fontSize: '11px', color: labelColor, offsetY: -4 },
       };
     }
