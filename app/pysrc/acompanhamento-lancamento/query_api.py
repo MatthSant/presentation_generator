@@ -29,7 +29,8 @@ def build_frame(B, a):
     (origem/temperatura/canal) filtra as linhas antes — ex.: CPL por dia só do Quente."""
     dim = a.get('dimensao', 'dia')
     filtro = {k: a[k2] for k, k2 in (('origem', 'recorte_origem'), ('temperatura', 'recorte_temperatura'),
-                                     ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo')) if a.get(k2)}
+                                     ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
+                                     ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
     geral = str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1')
     if dim == 'dia' and not filtro:
         rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in B['days']]
@@ -54,8 +55,8 @@ def cruzar_dia(B, a):
     dim = a.get('dimensao', 'temperatura')
     if metric not in METRICS:
         return qc.nao_disp(f"métrica '{metric}' inválida")
-    if dim not in ('temperatura', 'canal', 'origem', 'criativo'):
-        return qc.nao_disp("dimensao deve ser temperatura, canal, origem ou criativo")
+    if dim not in ('temperatura', 'canal', 'origem', 'criativo', 'publico', 'campanha'):
+        return qc.nao_disp("dimensao deve ser temperatura, canal, origem, criativo, publico ou campanha")
     cells = calc.cross_dia(B['rows_corte'], dim, B.get('trules'))
     rows = [{'dia': c['dia'], 'serie': c['serie'], 'valor': qc.rnd(c['m'].get(metric))}
             for c in cells if c['m'].get(metric) is not None]

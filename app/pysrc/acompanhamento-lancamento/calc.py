@@ -114,6 +114,16 @@ def ad_name(r):
     return (str(r.get('field_ad_name') or '').strip()) or 'Não trackeado'
 
 
+def adset_name(r):
+    """Nome do PÚBLICO/conjunto de anúncios (field_adset_name) normalizado."""
+    return (str(r.get('field_adset_name') or '').strip()) or 'Não trackeado'
+
+
+def campaign_name(r):
+    """Nome da CAMPANHA (field_campaign_name) normalizado."""
+    return (str(r.get('field_campaign_name') or '').strip()) or 'Não trackeado'
+
+
 # ── agregação de um conjunto de linhas ───────────────────────────────────────
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
@@ -187,6 +197,10 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
             return False
         if f.get('criativo') and ad_name(r) != f['criativo']:
             return False
+        if f.get('publico') and adset_name(r) != f['publico']:
+            return False
+        if f.get('campanha') and campaign_name(r) != f['campanha']:
+            return False
         return True
 
     sub = [r for r in rows if keep(r)]
@@ -200,6 +214,14 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
     elif dim == 'criativo':
         sub = [r for r in sub if is_paid(r)]            # criativo = anúncio pago
         keyfn = ad_name
+        fixed = None
+    elif dim == 'publico':
+        sub = [r for r in sub if is_paid(r)]            # público = conjunto de anúncios (pago)
+        keyfn = adset_name
+        fixed = None
+    elif dim == 'campanha':
+        sub = [r for r in sub if is_paid(r)]            # campanha (pago)
+        keyfn = campaign_name
         fixed = None
     elif dim == 'origem':
         keyfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
@@ -240,6 +262,10 @@ def cross_dia(rows, dim, trules=None):
         grpfn = lambda r: norm_source(r.get('utm_source'))
     elif dim == 'criativo':
         grpfn = lambda r: (ad_name(r) if is_paid(r) else None)
+    elif dim == 'publico':
+        grpfn = lambda r: (adset_name(r) if is_paid(r) else None)
+    elif dim == 'campanha':
+        grpfn = lambda r: (campaign_name(r) if is_paid(r) else None)
     elif dim == 'origem':
         grpfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
     else:

@@ -76,6 +76,38 @@ anúncios; `tabela(criativo, incluir_geral)` traz Geral ponderado.
 
 ---
 
+### M3 — dimensões `publico` (adset) e `campanha` no deep mode
+**Por quê:** faltavam, e vêm do dump. **público** = `field_adset_name`, **campanha** =
+`field_campaign_name` (ambas tráfego pago).
+**O que mudou:** `calc.frame_rows`/`cross_dia` + `recorte_publico`/`recorte_campanha` + query_api
++ registry + prompt. Verificado: `ranking(publico, leads)` (2 adsets), `tabela(campanha,
+incluir_geral)` (campanhas + Geral). Helpers `adset_name`/`campaign_name`.
+
+---
+
+## Rodada de verificação das dimensões (o que vem do dump)
+
+**Definição (do usuário):** dimensão = coluna pela qual as métricas são QUEBRADAS em linhas
+(um agrupamento). Coluna que vem como VALOR agregável é métrica, não dimensão.
+
+| Coluna do dump | É dimensão? | Status |
+|---|---|---|
+| `data` | sim → **dia** | ✅ coberta |
+| `utm_source` | sim → **canal** | ✅ coberta |
+| `field_ad_name` | sim → **criativo** | ✅ (M2) |
+| `field_adset_name` | sim → **publico** | ✅ (M3) |
+| `field_campaign_name` | sim → **campanha** (+ temperatura inferida) | ✅ (M3 / acom_temp) |
+| (derivado invest>0) | sim → **origem** (pago/org) | ✅ coberta |
+| `utm_medium`, `utm_campaign`, `utm_content`, `utm_*_traf` | sim, mas **redundantes** (duplicam hierarquia Meta campanha/adset/ad ou origem) | ⏸️ não expostas — adicionar só se houver caso real |
+| `field_conversion` | não (id do lançamento — é FILTRO p/ um lançamento, não quebra interna) | n/a |
+| `leads_novo`, `leads_antigos`, `cliente_inscrito` | **NÃO** — tipo de lead vem como CONTAGEM (métrica), não agrupa as outras métricas | ✅ corretamente fora |
+| demais (`respostas`, `invest_total`, `impressoes`, `vendas_*`, `views_*`, `hook_rate`…) | não — métricas | n/a |
+
+**Conclusão:** todas as dimensões reais (hierarquia Meta + origem + temperatura + dia) estão
+expostas. Tipo de lead corretamente tratado como métrica. UTMs redundantes deixadas de fora.
+
+---
+
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
 1. **Dado derivável e útil = pronto no catálogo** (bind direto), não só via `consultar`.
