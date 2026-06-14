@@ -204,23 +204,21 @@ def _derive(sub):
     }
 
 
-# ── ponte de faturamento (impacto na receita por etapa do funil) ──────────────
-# Identidade EXATA: Faturamento = Leads × TaxaResposta × Qualificação × (Vendas÷MQL) ×
-# Ticket, onde TaxaResp=respostas/leads, Qualif=mqls/respostas, Ticket=fat/vendas.
-# RESSALVA: não há coluna de vendas ATRIBUÍDAS a MQL no dump — 'Vendas÷MQL' é a razão
-# vendas_totais/MQLs (telescopa a identidade: taxa_resp×qual×(vendas/mql)=vendas/leads),
-# NÃO uma taxa de conversão MQL→venda; pode passar de 1 em recorte orgânico (vendas sem
-# MQL). taxa_resp e qual são taxas reais; este fator é o resíduo que fecha a conversão.
-REV_FACTORS = [('leads', 'Volume (leads)'), ('taxa_resp', 'Taxa de Resposta'),
-               ('qual', 'Qualificação'), ('close', 'Vendas ÷ MQL'),
+# ── ponte de faturamento (impacto na receita) ─────────────────────────────────
+# Identidade EXATA com fatores IDENTIFICADOS (medíveis, sem suposição):
+#   Faturamento = Volume(leads) × Conversão(vendas/leads) × Ticket(fat/vendas).
+# NÃO decompomos a conversão em etapas de MQL (taxa_resp/qualif/MQL→venda): o dado NÃO
+# mede a conversão de MQL vs não-MQL, então qualif×(vendas/MQL) seria um split NÃO-
+# identificado (arbitrário) — atribuir receita à qualificação assume algo que não existe.
+# Qualidade/MQL é assunto de CUSTO (CPMQL = CPL/qualif), tratado em decomposicao(cpmql).
+REV_FACTORS = [('leads', 'Volume (leads)'), ('conv', 'Conversão (vendas/leads)'),
                ('ticket', 'Ticket médio')]
 
 
 def rev_factors(rows):
-    leads, resp, mql = soma(rows, 'leads'), soma(rows, 'respostas'), soma(rows, 'leads_mqls')
-    vend, fat = soma(rows, 'vendas'), soma(rows, 'faturamento')
-    return {'leads': leads, 'taxa_resp': div(resp, leads, 6), 'qual': div(mql, resp, 6),
-            'close': div(vend, mql, 6), 'ticket': div(fat, vend, 2), 'fat': fat, 'vendas': vend}
+    leads, vend, fat = soma(rows, 'leads'), soma(rows, 'vendas'), soma(rows, 'faturamento')
+    return {'leads': leads, 'conv': div(vend, leads, 6), 'ticket': div(fat, vend, 2),
+            'fat': fat, 'vendas': vend}
 
 
 def match(r, f):
@@ -350,7 +348,6 @@ def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
         'cpmql': _mean_nonzero([fnum(r.get('meta_cpmql')) for r in rows]),
         'conv': _mean_nonzero([fnum(r.get('meta_conversao')) for r in rows]) * 100,
         'qual': _mean_nonzero([fnum(r.get('meta_taxa_qual')) for r in rows]) * 100 or 40.0,
-        'taxa_resp': _mean_nonzero([fnum(r.get('meta_taxa_resp')) for r in rows]) * 100,
         'by_canal': by_canal,
         'meta_vendas_canal': mvc,
         'meta_vendas_temp': dict(meta_vendas_temp or {}),

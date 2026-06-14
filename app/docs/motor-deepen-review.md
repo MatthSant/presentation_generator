@@ -361,26 +361,30 @@ faziam esse contrafactual NA MÃO ("se o pago convertesse como o orgânico, +364
 Agora há ferramenta determinística.
 
 `impacto_receita` decompõe a variação de faturamento (atual × baseline) pela identidade
-exata **Faturamento = Volume(leads) × Taxa de Resposta × Qualificação × (Vendas÷MQL) ×
-Ticket**, via log-decomposição, e atribui a cada etapa o **Impacto em R$** (soma = Δ
-total, sinal correto) + Δ% + % do gap. **Ressalva (apontada na revisão):** NÃO há coluna
-de vendas atribuídas a MQL no dado — o 4º fator é **`Vendas÷MQL`** = razão
-vendas_totais/MQLs, que telescopa a identidade mas NÃO é conversão MQL→venda (pode passar
-de 1 no orgânico, onde há venda sem MQL); `taxa_resp` e `qual` são taxas reais. Rótulo
-ajustado de "Fechamento (MQL→venda)" → "Vendas ÷ MQL" p/ não prometer causalidade.
-`base=meta|historico|janela`; `recorte_*` para um segmento (ex.: só o Pago). `calc.rev_factors` + `calc.match` (filtro compartilhado
+exata **Faturamento = Volume(leads) × Conversão(vendas/leads) × Ticket**, via
+log-decomposição, e atribui a cada fator o **Impacto em R$** (soma = Δ total, sinal
+correto) + Δ% + % do gap. `base=meta|historico|janela`; `recorte_*` para um segmento.
+
+**Correção de método (apontada na revisão).** A 1ª versão decompunha a conversão em etapas
+de MQL (TaxaResposta × Qualificação × Vendas/MQL). Isso é **inválido**: o dado NÃO mede a
+conversão de MQL vs não-MQL, então `qualif × (vendas/MQL)` é um split **não-identificado**
+(o produto `vendas/respostas` é fixo; a divisão entre os dois é arbitrária) — a álgebra
+jogava o impacto em "Qualificação" sem base causal, atribuindo receita a algo que o dado
+não suporta. Os fatores da ponte agora são só os **identificados/medíveis** (Volume,
+Conversão, Ticket). **Qualidade/MQL é assunto de CUSTO**, não de receita: o impacto da
+qualificação aparece corretamente no `decomposicao(cpmql)` (CPMQL = CPL ÷ qualif) — não na
+ponte de receita. Regra geral: decompor receita só por fatores que o dado mede de fato. `calc.rev_factors` + `calc.match` (filtro compartilhado
 com `frame_rows`); `load_goals` agora lê `meta_taxa_resp` p/ a baseline meta.
 
-Validação sem crédito (base real `inde/debriefing`, gap de receita vs meta −R$155,6k):
-**Qualificação −R$477k** (etapa que mais destruiu receita: 31,8%→20,1%), quase toda
-compensada por **Taxa de Resposta +R$445k** (48,7%→74,6%); Volume −R$78k, Fechamento
-−R$100k, Ticket +R$54k — os R$ somam exatamente o gap. Simulação via Agent ("qual etapa
-do funil custou os R$155 mil?"): achou `impacto_receita` de primeira (boa discoverability),
-contou a história certa (qualificação é a alavanca, mascarada pela resposta), sugeriu
-waterfall. Ajuste do feedback: a coluna foi renomeada de "Contribuição %" → **"% do gap"**
-(o sinal era contraintuitivo quando etapas se compensam; o "Impacto R$" é o número
-inequívoco). Próximo passo possível (não bloqueante): um `por:dimensao` no
-`impacto_receita` p/ drillar a etapa-alavanca (hoje a IA encadeia com ranking/variacao_hist).
+Validação sem crédito (base real `inde/debriefing`, gap de receita vs meta −R$155,6k,
+ponte de 3 fatores): **Conversão −R$132k** (−11,9%, 85% do gap — a alavanca) + **Volume
+−R$78k** (leads abaixo da meta), parcialmente compensados por **Ticket +R$54k**; os R$
+somam exatamente o Δ. (A coluna foi renomeada de "Contribuição %" → **"% do gap"**, pois o
+sinal confunde quando fatores se compensam; o "Impacto R$" é o número inequívoco.) A
+simulação via Agent da 1ª versão (5 fatores) é o que EXPÔS o erro de método — atribuía
+−R$477k à qualificação, um split não-identificado; a correção (3 fatores medíveis) é a que
+ficou. Próximo passo possível (não bloqueante): um `por:dimensao` p/ ver a conversão por
+segmento (hoje a IA encadeia com `ranking`/`variacao_hist`).
 
 ## Boas práticas do motor (rascunho — vale p/ todos os tipos)
 
@@ -392,11 +396,13 @@ inequívoco). Próximo passo possível (não bloqueante): um `por:dimensao` no
 4. **Só ERRO reprova** no gate; preferência de forma é sugestão (passada de polimento).
 5. **Disponibilidade variável explícita** (ex.: sem pageviews → omite hook/hold/connect; conv.
    de página vira leads/clicks) — refletida no catálogo, não inventada.
-6. **Contrafactual/atribuição é trabalho do MOTOR, não da IA na mão.** Impacto na receita por
-   etapa do funil (`impacto_receita`), atribuição de custo (`decomposicao`), onde a piora se
-   concentra (`onde_concentra`) e variação vs histórico (`variacao_hist`) entregam R$/contribuição
-   AUDITÁVEIS (log-decomposição, soma fecha com o Δ total) — a IA reporta e argumenta, nunca
-   calcula o "e se" na mão.
+6. **Contrafactual/atribuição é trabalho do MOTOR, não da IA na mão.** Impacto na receita
+   (`impacto_receita`: Volume×Conversão×Ticket), atribuição de custo (`decomposicao`), onde a
+   piora se concentra (`onde_concentra`) e variação vs histórico (`variacao_hist`) entregam
+   R$/contribuição AUDITÁVEIS (log-decomposição, soma fecha com o Δ total) — a IA reporta, não
+   calcula o "e se" na mão. **MAS só decomponha por fatores que o dado MEDE:** inserir uma
+   etapa não-identificada (ex.: conversão de MQL×não-MQL, ausente no dado) cria atribuição
+   espúria — separe o que é receita (conversão/ticket/volume) do que é custo (CPL/CPMQL/qualif).
 7. **Check de cobertura por tipo:** varrer TODAS as colunas do dump e mapear o que vira
    dimensão/métrica no deep — o que ficar de fora é decisão explícita (niche/vazio), não
    esquecimento.
