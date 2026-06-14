@@ -202,6 +202,33 @@ medição; confiança menor onde a dimensão tem poucos itens (2 públicos/campa
 
 ---
 
+### M7 — orgânico via UTM (coalesce) + itens pausados no drill-down
+**Por quê (alertas do doc):** no orgânico os `field_ad_name/adset/campaign` vêm vazios → caíam
+em 'Não trackeado'; e item sem dado recente era ambíguo (desligado × piorou).
+**O que mudou:**
+- **coalesce**: criativo = `coalesce(field_ad_name, utm_content)`, campanha =
+  `coalesce(field_campaign_name, utm_campaign)` → orgânico aparece NOMEADO; essas dimensões
+  deixam de filtrar só pago (incluem orgânico). publico (adset) segue pago (sem UTM equivalente).
+  Verificado: ranking de criativo foi de 16 → 30 itens (com orgânico).
+- **pausados/novos**: `onde_concentra` reporta, por nível, itens ATIVOS no início e sem dado
+  recente (= provavelmente DESLIGADOS — não contam como piora) e os NOVOS. Verificado:
+  criativo 9 pausados / 4 novos. A IA lê "pausaram os ruins / entraram novos".
+**Arquivos:** `calc.py`, `query_api.py`, `claude.ts`.
+
+### #22 — Perguntas norteadoras: recombinações × métricas secundárias
+**Princípio (do usuário):** métrica SECUNDÁRIA/intermediária (CPMQL, CPM, CTR, conv.página…)
+NÃO vira pergunta de aprofundamento — entra como pergunta de IMPACTO **dentro** do deepen
+("por que o CPL subiu? → olha a métrica intermediária"). As 6 perguntas primárias ficam.
+**Conclusão:** NÃO criar perguntas tipo "CPMQL por criativo". As recombinações (dimensão ×
+métrica, métrica intermediária) são cobertas pelos TOOLS do deepen — `onde_concentra` (qual
+recorte puxa), `cruzar_dia` (grupo no tempo), `decomposicao` (qual fator), dimensões +
+`incluir_geral`. Ou seja, a "recombinação" é resolvida no deepen sob demanda, não como banco
+de perguntas. Candidato PRIMÁRIO futuro (não secundário): "qual criativo/público escalar ou
+cortar?" (ranking de eficiência) — avaliar se vira pergunta ou fica como deepen; por ora o
+`ranking` por dimensão já cobre dentro do deepen.
+
+---
+
 ## Status final (acompanhamento)
 - **6 perguntas revisadas 1 a 1** (2 simulações ricas via agent: ac-qualidade, ac-custo;
   4 em revisão combinada). Todas **engine-ready**.

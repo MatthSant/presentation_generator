@@ -156,6 +156,11 @@ def _concentra(ini_rows, rec_rows, dim, metric, trules, is_cost):
     CONCENTRADA num item ou AMPLA (quase todos). Contribuição ponderada por volume."""
     fi = {x['key']: x['m'] for x in calc.frame_rows(ini_rows, dim, None, trules)}
     fr = {x['key']: x['m'] for x in calc.frame_rows(rec_rows, dim, None, trules)}
+    # item no início e AUSENTE no recente = provavelmente DESLIGADO (não "piorou pra zero");
+    # presente só no recente = NOVO. Nenhum dos dois conta como piora (a piora só olha quem
+    # tem dado nas DUAS janelas) — mas reportamos p/ a IA interpretar ("pausaram os ruins").
+    pausados = [k for k in fi if k not in fr and (fi[k].get('leads') or 0) > 0]
+    novos = [k for k in fr if k not in fi and (fr[k].get('leads') or 0) > 0]
     tot_leads = sum((fr[k].get('leads') or 0) for k in fr) or 1.0
     items = []
     for k, m in fr.items():
@@ -168,7 +173,7 @@ def _concentra(ini_rows, rec_rows, dim, metric, trules, is_cost):
                       'var_pct': qc.rnd((mr / mi - 1) * 100, 1), 'leads': round(vol),
                       'piorou': worse, '_contrib': (vol / tot_leads) * dln})
     if not items:
-        return {'dim': dim, 'n': 0, 'verdict': 'sem dado'}
+        return {'dim': dim, 'n': 0, 'verdict': 'sem dado', 'pausados': len(pausados), 'novos': len(novos)}
     items.sort(key=lambda it: -abs(it['_contrib']))
     sum_abs = sum(abs(it['_contrib']) for it in items) or 1e-9
     top = items[0]
@@ -190,7 +195,7 @@ def _concentra(ini_rows, rec_rows, dim, metric, trules, is_cost):
         it.pop('_contrib', None)
     return {'dim': dim, 'n': n, 'verdict': verdict, 'top_item': top['item'],
             'top_share_%': qc.rnd(top_share * 100, 0), 'vol_pior_%': qc.rnd(vol_worse * 100, 0),
-            'itens': items[:6]}
+            'pausados': len(pausados), 'novos': len(novos), 'itens': items[:6]}
 
 
 # ordem do drill-down (fino → grosso → ortogonais); global = uniforme em tudo
@@ -219,7 +224,8 @@ def onde_concentra(B, a):
         conclusao = 'Piora AMPLA/uniforme em todos os níveis → causa GLOBAL (mídia/leilão/sazonalidade/estrutural), não um recorte específico.'
     rows = [{'nível': lv['dim'], 'veredito': lv['verdict'],
              'item que mais pesa': lv.get('top_item'), 'peso do top %': lv.get('top_share_%'),
-             '% volume que piorou': lv.get('vol_pior_%'), 'itens': lv['n']} for lv in niveis]
+             '% volume que piorou': lv.get('vol_pior_%'), 'itens': lv['n'],
+             'pausados': lv.get('pausados', 0), 'novos': lv.get('novos', 0)} for lv in niveis]
     return {'status': 'ok', 'table': {'dims': ['nível'], 'filters': [], 'rows': rows},
             'summary': f'Atribuição de {calc.LABELS.get(metric, metric)} (início→recente). {conclusao}',
             'detalhe': {lv['dim']: lv.get('itens') for lv in niveis}}

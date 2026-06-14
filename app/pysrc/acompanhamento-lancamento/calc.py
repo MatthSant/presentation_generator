@@ -109,19 +109,28 @@ def norm_source(v):
     return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
 
 
+def _coalesce(*vals):
+    for v in vals:
+        s = str(v if v is not None else '').strip()
+        if s and s.lower() not in ('null', 'none', 'nan', '-', '(none)'):
+            return s
+    return 'Não trackeado'
+
+
 def ad_name(r):
-    """Nome do criativo/anúncio (field_ad_name) normalizado."""
-    return (str(r.get('field_ad_name') or '').strip()) or 'Não trackeado'
+    """Criativo: field_ad_name (pago) com fallback p/ utm_content (orgânico, onde os
+    field_ad_* vêm vazios) — assim o orgânico aparece nomeado, não como 'Não trackeado'."""
+    return _coalesce(r.get('field_ad_name'), r.get('utm_content'))
 
 
 def adset_name(r):
-    """Nome do PÚBLICO/conjunto de anúncios (field_adset_name) normalizado."""
-    return (str(r.get('field_adset_name') or '').strip()) or 'Não trackeado'
+    """Público/conjunto de anúncios (field_adset_name) — conceito pago, sem UTM equivalente."""
+    return _coalesce(r.get('field_adset_name'))
 
 
 def campaign_name(r):
-    """Nome da CAMPANHA (field_campaign_name) normalizado."""
-    return (str(r.get('field_campaign_name') or '').strip()) or 'Não trackeado'
+    """Campanha: field_campaign_name com fallback p/ utm_campaign (orgânico)."""
+    return _coalesce(r.get('field_campaign_name'), r.get('utm_campaign'))
 
 
 # ── agregação de um conjunto de linhas ───────────────────────────────────────
@@ -211,16 +220,14 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
     elif dim == 'canal':
         keyfn = lambda r: norm_source(r.get('utm_source'))
         fixed = None
-    elif dim == 'criativo':
-        sub = [r for r in sub if is_paid(r)]            # criativo = anúncio pago
+    elif dim == 'criativo':                             # pago (field_ad) + orgânico (utm_content)
         keyfn = ad_name
         fixed = None
     elif dim == 'publico':
-        sub = [r for r in sub if is_paid(r)]            # público = conjunto de anúncios (pago)
+        sub = [r for r in sub if is_paid(r)]            # público = conjunto de anúncios (só pago)
         keyfn = adset_name
         fixed = None
-    elif dim == 'campanha':
-        sub = [r for r in sub if is_paid(r)]            # campanha (pago)
+    elif dim == 'campanha':                             # pago (field_campaign) + orgânico (utm_campaign)
         keyfn = campaign_name
         fixed = None
     elif dim == 'origem':
@@ -261,11 +268,11 @@ def cross_dia(rows, dim, trules=None):
     elif dim == 'canal':
         grpfn = lambda r: norm_source(r.get('utm_source'))
     elif dim == 'criativo':
-        grpfn = lambda r: (ad_name(r) if is_paid(r) else None)
+        grpfn = ad_name
     elif dim == 'publico':
         grpfn = lambda r: (adset_name(r) if is_paid(r) else None)
     elif dim == 'campanha':
-        grpfn = lambda r: (campaign_name(r) if is_paid(r) else None)
+        grpfn = campaign_name
     elif dim == 'origem':
         grpfn = lambda r: 'Pago' if is_paid(r) else 'Orgânico'
     else:
