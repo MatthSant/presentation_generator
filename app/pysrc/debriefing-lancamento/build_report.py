@@ -181,10 +181,13 @@ def assemble(rows, config, content, opts=None):
     retorno_h = (H['fat'] - h_inv) if (H.get('fat') is not None and h_inv) else None
     roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
     roas_h = H.get('roas')
+    # Ordem: Faturamento, Reembolsos, Retorno, ROI, ROAS (ROI/ROAS em destaque roxo).
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
        real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
        hist_fmt=(money(H.get('fat')) if H.get('fat') else None))
+    km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
+       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2)
     km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7', w=2,
        real=M['retorno'], meta=retorno_meta, hist=retorno_h,
        meta_fmt=(money(retorno_meta) if retorno_meta is not None else None),
@@ -193,12 +196,12 @@ def assemble(rows, config, content, opts=None):
        real=M['roi'], meta=roi_meta, hist=roi_h,
        meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None),
        hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
+    pan[-1]['emph'] = True
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
     km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27', w=2,
        real=M['roas'], meta=roas_meta, hist=roas_h, meta_fmt=(xf(roas_meta) if roas_meta is not None else None),
        hist_fmt=(xf(roas_h) if roas_h else None))
-    km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
-       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2)
+    pan[-1]['emph'] = True
 
     eb(pan, pg, 'pan-eb-vol', 'INDICADORES DE VOLUME', '8 métricas')
     ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
