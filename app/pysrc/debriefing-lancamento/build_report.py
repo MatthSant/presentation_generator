@@ -40,7 +40,10 @@ def assemble(rows, config, content, opts=None):
     def add_table(name, dims, rows_):
         dataset[name] = {'dims': list(dims), 'filters': [], 'rows': rows_}
 
-    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None):
+    def _gstatus(tone):
+        return 'ok' if tone == 'pos' else ('bad' if tone == 'neg' else 'warn')
+
+    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
                 'sub': sub, 'icon': icon, 'iconColor': color}
         if real is not None and meta:
@@ -53,8 +56,12 @@ def assemble(rows, config, content, opts=None):
                                'hist': ([f'{dh:+.0f}% vs hist.', th] if dh is not None else ['— vs hist.', 'neutral'])}
                 # rodapé de meta + desvio com selo ✓/⚠/✕ (estilo KPIs macro do acompanhamento)
                 if meta_fmt:
-                    card['goal'] = {'label': f'Meta {meta_fmt}', 'delta': f'{d:+.0f}%',
-                                    'status': 'ok' if tone == 'pos' else ('bad' if tone == 'neg' else 'warn')}
+                    card['goal'] = {'label': f'Meta {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
+        elif real is not None and hist and hist_fmt:
+            # Sem meta (derivados): mesmo padrão de rodapé, comparando vs histórico.
+            dh, th = _dev(real, hist, invert)
+            if dh is not None:
+                card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
         arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
     def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=None, invert=False):
@@ -153,13 +160,21 @@ def assemble(rows, config, content, opts=None):
 
     # 5 indicadores macro numa linha só (w=2, como os KPIs macro do acompanhamento).
     pg.newrow()
+    # Histórico (lançamento anterior) p/ os derivados — mesmo rodapé de comparação.
+    h_inv = H.get('invest')
+    retorno_h = (H['fat'] - h_inv) if (H.get('fat') is not None and h_inv) else None
+    roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
+    roas_h = H.get('roas')
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
        real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4, meta_fmt=money(G.get('fat')) if G.get('fat') else None)
-    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7', w=2)
-    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5', w=2)
+    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7', w=2,
+       real=M['retorno'], hist=retorno_h, hist_fmt=(money(retorno_h) if retorno_h is not None else None))
+    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5', w=2,
+       real=M['roi'], hist=roi_h, hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
-    km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27', w=2)
+    km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27', w=2,
+       real=M['roas'], hist=roas_h, hist_fmt=(xf(roas_h) if roas_h else None))
     km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
        f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2)
 
