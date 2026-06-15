@@ -135,6 +135,7 @@
         $('form').hidden = false;
         buildForm(d.config);
         setupTempEditor(d.config);
+        setupMetas(d.config);
         setupGoals(d.config);
         setupDict(d.config);
       } catch (e) {
@@ -185,6 +186,7 @@
       for (const [k, v] of scal) root.appendChild(k === 'client_name' ? clientSelectEl(v) : fieldEl([k], k, v));
       for (const [k, v] of objs) {
         if (advKeys.has(k)) continue;
+        if (k === 'metas') continue;  // metas: card próprio com toggle manual/launch (setupMetas)
         const g = document.createElement('div'); g.className = 'grp';
         const t = document.createElement('div'); t.className = 'grp-t'; t.textContent = label(k); g.appendChild(t);
         const grid = document.createElement('div'); grid.className = 'u-grid';
@@ -228,10 +230,45 @@
       });
     }
 
-    // Launch goals na atualização: upload opcional de um novo CSV de metas
-    // (wtl_launch_goals). Se enviado, substitui as metas (manuais/retidas).
+    // Metas (acompanhamento): igual ao criar — escolhe Manuais ou Launch goals (CSV).
+    // Default = como foi setado na última geração (goals_csv presente → goals).
+    function setupMetas(cfg) {
+      if (cfg.type !== 'acompanhamento-lancamento') return;
+      const m = cfg.metas || {};
+      const hasGoals = !!cfg.goals_csv;
+      const fld = (id, lbl, val, step) => `<div class="fld"><label>${lbl}</label><input id="${id}" type="number"${step ? ` step="${step}"` : ''} value="${val == null ? '' : val}"></div>`;
+      const card = document.createElement('div');
+      card.className = 'u-card';
+      card.innerHTML =
+        '<p class="u-h">Metas da campanha</p>'
+        + '<p class="u-hsub">Fonte das metas (como na criação) — vem como foi setado na última geração.</p>'
+        + '<div class="fld" style="max-width:340px"><label>Fonte das metas</label><select id="m-mode"><option value="manual">Metas manuais</option><option value="goals">Launch goals (CSV)</option></select></div>'
+        + '<div id="metas-manual" style="margin-top:14px"><div class="u-grid">'
+          + fld('am-leads', 'Meta leads total', m._leads_total)
+          + fld('am-leads-td', 'Meta leads to date', m._leads_td)
+          + fld('am-cpl', 'CPL (R$)', m.cpl, '0.01')
+          + fld('am-cpmql', 'CPMQL (R$)', m.cpmql, '0.01')
+          + fld('am-resp', 'Taxa de Resposta (%)', m.taxa_resp, '0.1')
+          + fld('am-qual', 'Taxa de Qualidade (%)', m.taxa_qual, '0.1')
+        + '</div></div>'
+        + '<div id="metas-goals" style="margin-top:14px" hidden>'
+          + '<div class="u-row"><label class="u-file-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Escolher CSV<input type="file" id="u-goals" accept=".csv,text/csv" hidden></label>'
+          + '<span class="u-file-name" id="u-goals-name">' + (hasGoals ? 'mantém o launch goals atual' : 'nenhum arquivo') + '</span></div>'
+          + '<p class="u-hint" style="margin-top:8px">Metas por utm_source × dia (<code>wtl_launch_goals</code>). Sem arquivo novo, mantém o launch goals atual.</p></div>';
+      $('go').before(card);
+      const mode = card.querySelector('#m-mode');
+      mode.value = hasGoals ? 'goals' : 'manual';
+      const sync = () => { const g = mode.value === 'goals'; card.querySelector('#metas-manual').hidden = g; card.querySelector('#metas-goals').hidden = !g; };
+      mode.addEventListener('change', sync); sync();
+      card.querySelector('#u-goals').addEventListener('change', (e) => {
+        GOALS_FILE = e.target.files[0] || null;
+        card.querySelector('#u-goals-name').textContent = GOALS_FILE ? GOALS_FILE.name : (hasGoals ? 'mantém o launch goals atual' : 'nenhum arquivo');
+      });
+    }
+
+    // Launch goals na atualização (debriefing): upload opcional de um novo CSV de metas.
     function setupGoals(cfg) {
-      if (!GOALS_TYPES.has(cfg.type)) return;
+      if (cfg.type !== 'debriefing-lancamento') return;  // acompanhamento usa o toggle (setupMetas)
       const card = document.createElement('div');
       card.className = 'u-card';
       const hasGoals = !!cfg.goals_csv;
@@ -303,8 +340,22 @@
       let cfg;
       try { cfg = collectConfig(); }
       catch (e) { const m = $('msg'); m.className = 'u-msg err'; m.textContent = 'Campo avançado com JSON inválido: ' + e.message; return; }
-      // Novo launch goals substitui as metas (manuais/retidas) → limpa cfg.metas.
-      if (GOALS_FILE && cfg.metas) cfg.metas = {};
+      // Fonte das metas (acompanhamento): manual → envia metas e descarta goals;
+      // launch goals → zera metas e mantém/sobe o CSV de goals.
+      const mMode = document.getElementById('m-mode');
+      if (mMode) {
+        if (mMode.value === 'manual') {
+          const num = (id) => { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) ? v : undefined; };
+          const metas = {};
+          const set = (k, id) => { const v = num(id); if (v !== undefined) metas[k] = v; };
+          set('cpl', 'am-cpl'); set('cpmql', 'am-cpmql'); set('taxa_resp', 'am-resp'); set('taxa_qual', 'am-qual');
+          set('_leads_total', 'am-leads'); set('_leads_td', 'am-leads-td');
+          cfg.metas = metas;
+          cfg.goals_csv = '';   // sem launch goals
+        } else {
+          cfg.metas = {};        // launch goals: mantém o retido (cfg.goals_csv) ou o upload
+        }
+      }
       const msg = $('msg'); msg.className = 'u-msg work'; msg.textContent = 'Atualizando análise…';
       $('go').disabled = true;
       const fd = new FormData();

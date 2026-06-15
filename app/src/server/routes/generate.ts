@@ -292,10 +292,18 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     applyTempDefaults(config, client, type);
     const cfgErrors = def.validateConfig(config);
     if (cfgErrors.length) { res.status(400).json({ error: cfgErrors.join('; ') }); return; }
-    // Auxiliares: reaproveita os CSVs retidos na base (não são re-enviados aqui).
-    for (const aux of ['goals', 'hist', 'dict'] as const) {
+    // Auxiliares retidos: hist/dict reaproveitados automaticamente.
+    for (const aux of ['hist', 'dict'] as const) {
       const dest = path.join(baseDir, `${aux}.csv`);
       if (fs.existsSync(dest)) config[`${aux}_csv`] = dest;
+    }
+    // Metas: a UI controla a fonte. goals_csv truthy (retido) → re-aponta p/ a base;
+    // '' (metas manuais) ou ausente → sem launch goals. Upload novo (abaixo) sobrescreve.
+    if (config.goals_csv) {
+      const dest = path.join(baseDir, 'goals.csv');
+      config.goals_csv = fs.existsSync(dest) ? dest : undefined;
+    } else {
+      delete config.goals_csv;
     }
     // content: retido > reconstruído do s10 (insights) > default. preserve() cuida do resto.
     const content = readJson<unknown>(path.join(baseDir, 'content.json'))
@@ -328,6 +336,8 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       try {
         if (newCsv) fs.copyFileSync(csvPath, baseCsv);
         for (const aux of newAux) fs.copyFileSync(path.join(job, `${aux}.csv`), path.join(baseDir, `${aux}.csv`));
+        // Metas manuais (sem launch goals) → remove o goals.csv retido p/ não voltar.
+        if (!config.goals_csv) { try { fs.rmSync(path.join(baseDir, 'goals.csv')); } catch { /* sem goals retido */ } }
         writeJson(path.join(baseDir, 'config.json'), config);
         writeJson(path.join(baseDir, 'content.json'), content);
       } catch { /* não-fatal */ }
