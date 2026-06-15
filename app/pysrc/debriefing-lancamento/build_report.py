@@ -43,44 +43,42 @@ def assemble(rows, config, content, opts=None):
     def _gstatus(tone):
         return 'ok' if tone == 'pos' else ('bad' if tone == 'neg' else 'warn')
 
+    def _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt):
+        """Rodapé de meta toggleável Meta↔Hist (substitui o pill — a base já mostra o
+        desvio). None quando não há meta formatada."""
+        if real is None or not meta or not meta_fmt:
+            return None
+        d, tone = _dev(real, meta, invert)
+        if d is None:
+            return None
+        mg = {'label': f'Meta {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
+        dh, th = _dev(real, hist, invert) if hist else (None, 'neutral')
+        if dh is not None and hist_fmt:
+            hg = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
+        else:
+            hg = {'label': 'Hist —', 'delta': '', 'status': 'neutral'}
+        return {'meta': mg, 'hist': hg}
+
+    def _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt):
+        gc = _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt)
+        if gc:
+            card['goalCmp'] = gc
+        elif real is not None and hist and hist_fmt:
+            # Sem meta (derivados): rodapé estático comparando vs histórico.
+            dh, th = _dev(real, hist, invert)
+            if dh is not None:
+                card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
+
     def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
                 'sub': sub, 'icon': icon, 'iconColor': color}
-        if real is not None and meta:
-            d, tone = _dev(real, meta, invert)
-            if d is not None:
-                card['delta'] = f'{d:+.0f}% vs meta'; card['deltaTone'] = tone
-                # dual delta para o toggle vs Meta / vs Histórico (hist = '—' sem histórico)
-                dh, th = _dev(real, hist, invert) if hist else (None, 'neutral')
-                card['cmp'] = {'meta': [f'{d:+.0f}% vs meta', tone],
-                               'hist': ([f'{dh:+.0f}% vs hist.', th] if dh is not None else ['— vs hist.', 'neutral'])}
-                # rodapé de meta + desvio com selo ✓/⚠/✕ (estilo KPIs macro do acompanhamento)
-                if meta_fmt:
-                    card['goal'] = {'label': f'Meta {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
-        elif real is not None and hist and hist_fmt:
-            # Sem meta (derivados): mesmo padrão de rodapé, comparando vs histórico.
-            dh, th = _dev(real, hist, invert)
-            if dh is not None:
-                card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
+        _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt)
         arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
     def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=None, invert=False, hist=None, meta_fmt=None, hist_fmt=None):
-        # mesmo padrão dos KPIs macro: card feature com rodapé "Meta X · ±% ✓" e
-        # toggle vs Meta / vs Histórico (sem ícone).
+        # mesmo padrão dos KPIs macro: card feature com rodapé "Meta X · ±% ✓" toggleável (sem ícone).
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value, 'sub': sub}
-        if real is not None and meta:
-            d, tone = _dev(real, meta, invert)
-            if d is not None:
-                card['delta'] = f'{d:+.0f}% vs meta'; card['deltaTone'] = tone
-                dh, th = _dev(real, hist, invert) if hist else (None, 'neutral')
-                card['cmp'] = {'meta': [f'{d:+.0f}% vs meta', tone],
-                               'hist': ([f'{dh:+.0f}% vs hist.', th] if dh is not None else ['— vs hist.', 'neutral'])}
-                if meta_fmt:
-                    card['goal'] = {'label': f'Meta {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
-        elif real is not None and hist and hist_fmt:
-            dh, th = _dev(real, hist, invert)
-            if dh is not None:
-                card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
+        _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt)
         arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
     def eb(arr, pg, wid, title, caption='', n=None, color=None):
@@ -185,27 +183,31 @@ def assemble(rows, config, content, opts=None):
     roas_h = H.get('roas')
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
-       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4, meta_fmt=money(G.get('fat')) if G.get('fat') else None)
+       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
+       hist_fmt=(money(H.get('fat')) if H.get('fat') else None))
     km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7', w=2,
        real=M['retorno'], meta=retorno_meta, hist=retorno_h,
-       meta_fmt=(money(retorno_meta) if retorno_meta is not None else None))
+       meta_fmt=(money(retorno_meta) if retorno_meta is not None else None),
+       hist_fmt=(money(retorno_h) if retorno_h is not None else None))
     km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5', w=2,
        real=M['roi'], meta=roi_meta, hist=roi_h,
-       meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None))
+       meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None),
+       hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
     km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27', w=2,
-       real=M['roas'], meta=roas_meta, hist=roas_h, meta_fmt=(xf(roas_meta) if roas_meta is not None else None))
+       real=M['roas'], meta=roas_meta, hist=roas_h, meta_fmt=(xf(roas_meta) if roas_meta is not None else None),
+       hist_fmt=(xf(roas_h) if roas_h else None))
     km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
        f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2)
 
     eb(pan, pg, 'pan-eb-vol', 'INDICADORES DE VOLUME', '8 métricas')
-    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None))
-    ks(pan, pg, 'pan-v-leads', 'Leads Totais', intf(M['leads_total']), f"pago {pct_of(M['leads_pago'], M['leads_total'])} · org {pct_of(M['leads_org'], M['leads_total'])}", 'users', '#185FA5', real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), meta_fmt=(intf(G.get('leads')) if G.get('leads') else None))
-    ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None))
+    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
+    ks(pan, pg, 'pan-v-leads', 'Leads Totais', intf(M['leads_total']), f"pago {pct_of(M['leads_pago'], M['leads_total'])} · org {pct_of(M['leads_org'], M['leads_total'])}", 'users', '#185FA5', real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), meta_fmt=(intf(G.get('leads')) if G.get('leads') else None), hist_fmt=(intf(H.get('leads')) if H.get('leads') else None))
+    ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
     ks(pan, pg, 'pan-v-conv', 'Conversão Geral', pctf(M['conv_geral']), f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#534AB7', real=M['conv_geral'], meta=G.get('conv'), meta_fmt=(pctf(G.get('conv')) if G.get('conv') else None))
     ks(pan, pg, 'pan-v-inv', 'Investimento Total', money(M['invest_total']), f"captação {money(M['invest_cpt'])}", 'coin', '#534AB7', real=M['invest_total'], hist=H.get('invest'), invert=True, hist_fmt=(money(H.get('invest')) if H.get('invest') else None))
-    ks(pan, pg, 'pan-v-cpl', 'CPL', money(M['cpl']), 'invest. cpt / leads tráfego', 'users', '#185FA5', real=M['cpl'], meta=G.get('cpl'), invert=True, hist=H.get('cpl'), meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None))
-    ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), 'CPL / qualif. paga', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None))
+    ks(pan, pg, 'pan-v-cpl', 'CPL', money(M['cpl']), 'invest. cpt / leads tráfego', 'users', '#185FA5', real=M['cpl'], meta=G.get('cpl'), invert=True, hist=H.get('cpl'), meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None), hist_fmt=(money(H.get('cpl')) if H.get('cpl') else None))
+    ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), 'CPL / qualif. paga', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
     ks(pan, pg, 'pan-v-recap', 'Leads Recapturados', intf(M['l_ant'] + M['l_cli']), f"antigos {intf(M['l_ant'])} · clientes {intf(M['l_cli'])}", 'refresh', '#854F0B')
 
     eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META')

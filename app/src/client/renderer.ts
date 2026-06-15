@@ -257,6 +257,7 @@ const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', n
 
 /* Modo de comparação (meta | hist) do toggle de plataforma. Os badges com `cmp`
  * leem este modo no render e trocam ao vivo via setCmpMode (sem re-render). */
+const goalSym = (st: string): string => (st === 'ok' ? '✓' : st === 'bad' ? '✕' : st === 'warn' ? '⚠' : '');
 let cmpMode: 'meta' | 'hist' = 'meta';
 export function setCmpMode(m: 'meta' | 'hist'): void {
   cmpMode = m;
@@ -265,6 +266,20 @@ export function setCmpMode(m: 'meta' | 'hist'): void {
     const tone = p.dataset[`${m}Tone`] ?? 'neutral';
     p.textContent = val;
     p.className = `pill ${PILL_TONE[tone] ?? PILL_TONE.neutral} kc-cmp`;
+  });
+  // rodapés de meta toggleáveis (goalCmp): troca Meta ↔ Histórico ao vivo
+  document.querySelectorAll<HTMLElement>('.kc-goal.kc-goal-cmp').forEach((g) => {
+    const lbl = g.dataset[`${m}Lbl`];
+    if (lbl === undefined) return;
+    const lblEl = g.querySelector('.kc-goal-lbl');
+    if (lblEl) lblEl.textContent = lbl;
+    const valEl = g.querySelector<HTMLElement>('.kc-goal-val');
+    if (valEl) {
+      const delta = g.dataset[`${m}Delta`] ?? '';
+      const st = g.dataset[`${m}Status`] ?? 'warn';
+      valEl.textContent = goalSym(st) ? `${delta} ${goalSym(st)}` : delta;
+      valEl.className = `kc-goal-val kg-${st}`;
+    }
   });
 }
 export function getCmpMode(): 'meta' | 'hist' { return cmpMode; }
@@ -349,14 +364,17 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     const flbl = el('div', 'kc-lbl', w.label);
     if (w.info) flbl.appendChild(infoBadge(w.info));
     head.appendChild(flbl);
-    if (w.cmp) {
-      const cur = w.cmp[cmpMode] || w.cmp.meta;
-      const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
-      pill.dataset.meta = w.cmp.meta[0]; pill.dataset.metaTone = w.cmp.meta[1];
-      pill.dataset.hist = w.cmp.hist[0]; pill.dataset.histTone = w.cmp.hist[1];
-      head.appendChild(pill);
-    } else if (w.delta) {
-      head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
+    // O rodapé de meta (goal/goalCmp) já mostra o desvio — não duplica no topo.
+    if (!w.goal && !w.goalCmp) {
+      if (w.cmp) {
+        const cur = w.cmp[cmpMode] || w.cmp.meta;
+        const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
+        pill.dataset.meta = w.cmp.meta[0]; pill.dataset.metaTone = w.cmp.meta[1];
+        pill.dataset.hist = w.cmp.hist[0]; pill.dataset.histTone = w.cmp.hist[1];
+        head.appendChild(pill);
+      } else if (w.delta) {
+        head.appendChild(el('span', `pill ${PILL_TONE[w.deltaTone || 'neutral']}`, w.delta));
+      }
     }
     card.appendChild(head);
     const row = el('div', 'kc-valrow');
@@ -373,13 +391,23 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? ' ↑' : ' ↓'));
       card.appendChild(dd);
     }
-    if (w.goal) {
+    const goalSrc = w.goalCmp ? (w.goalCmp[cmpMode] || w.goalCmp.meta) : w.goal;
+    if (goalSrc) {
       const g = el('div', 'kc-goal');
-      g.appendChild(el('span', 'kc-goal-lbl', w.goal.label));
-      if (w.goal.delta) {
-        const st = w.goal.status || 'warn';
-        const sym = st === 'ok' ? '✓' : st === 'bad' ? '✕' : st === 'warn' ? '⚠' : '';
-        g.appendChild(el('span', `kc-goal-val kg-${st}`, sym ? `${w.goal.delta} ${sym}` : w.goal.delta));
+      g.appendChild(el('span', 'kc-goal-lbl', goalSrc.label));
+      if (goalSrc.delta) {
+        const st = goalSrc.status || 'warn';
+        g.appendChild(el('span', `kc-goal-val kg-${st}`, goalSym(st) ? `${goalSrc.delta} ${goalSym(st)}` : goalSrc.delta));
+      }
+      if (w.goalCmp) {
+        // toggleável: guarda meta/hist p/ o setCmpMode trocar o rodapé ao vivo
+        g.classList.add('kc-goal-cmp');
+        for (const mode of ['meta', 'hist'] as const) {
+          const s = w.goalCmp[mode];
+          g.dataset[`${mode}Lbl`] = s.label;
+          g.dataset[`${mode}Delta`] = s.delta || '';
+          g.dataset[`${mode}Status`] = s.status || 'warn';
+        }
       }
       card.appendChild(g);
     }
