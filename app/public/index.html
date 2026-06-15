@@ -130,15 +130,24 @@
     document.addEventListener('click', (e) => { if (!newMenu.hidden && !newMenu.contains(e.target) && e.target !== newBtn) { newMenu.hidden = true; newBtn.setAttribute('aria-expanded', 'false'); } });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') newMenu.hidden = true; });
 
+    // Ícone por tipo de análise (mesmo do menu Nova análise); fallback = livro.
+    const SW = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+    const TYPE_ICON = {
+      'conversao-perfil': `<svg viewBox="0 0 24 24" ${SW}><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg>`,
+      'historico-lancamentos': `<svg viewBox="0 0 24 24" ${SW}><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg>`,
+      'criativos': `<svg viewBox="0 0 24 24" ${SW}><path d="M2 7l4-4h12l4 4M2 7v13a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7M2 7h20M10 11a2 2 0 0 0 4 0"/></svg>`,
+      'acompanhamento-lancamento': `<svg viewBox="0 0 24 24" ${SW}><path d="M3 3v18h18"/><path d="M7 16l3-3 2 2 5-6"/><circle cx="17" cy="9" r="1.4"/></svg>`,
+      'debriefing-lancamento': `<svg viewBox="0 0 24 24" ${SW}><path d="M3 3v18h18"/><rect x="7" y="11" width="2.5" height="7"/><rect x="12" y="7" width="2.5" height="11"/><rect x="17" y="14" width="2.5" height="4"/></svg>`,
+    };
+    const BOOK = `<svg viewBox="0 0 24 24" ${SW}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>`;
     // Guias
     try {
       const guias = ((await (await fetch('/guias.json')).json()).guias) || [];
       if (guias.length) {
-        const BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>';
         document.getElementById('sec-guias').hidden = false;
         document.getElementById('guia-grid').innerHTML = guias.map(g => `
           <a class="guide" href="/guia/${encodeURIComponent(g.slug)}">
-            <span class="ic">${BOOK}</span>
+            <span class="ic">${TYPE_ICON[g.slug] || BOOK}</span>
             <h3>${esc(g.title)}</h3>
             <p>${esc(g.summary || '')}</p>
             <span class="go">Abrir guia ${ARROW}</span>
