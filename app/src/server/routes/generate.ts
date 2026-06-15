@@ -49,14 +49,16 @@ function uniqueSlug(out: string, client: string, base: string): string {
 const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
 
 /** Preenche temp_rules/temp_overwrite do config a partir do cliente → fallback geral,
- *  quando o formulário não mandou regras. O default de cada motor é o último recurso. */
+ *  quando o config não trouxe regras. Na geração nova o form manda as regras; na
+ *  atualização a UI manda as da análise atual (ou as puxadas do cliente). O default
+ *  de cada motor é o último recurso. */
 function applyTempDefaults(config: Record<string, unknown>, client: string, type: string): void {
   if (!TEMP_TYPES.has(type)) return;
   if (Array.isArray(config.temp_rules) && config.temp_rules.length) return;
   const t = clientTemp(client) || globalTemp();
   if (!t) return;
   config.temp_rules = t.temp_rules;
-  if (config.temp_overwrite === undefined) config.temp_overwrite = t.temp_overwrite;
+  config.temp_overwrite = t.temp_overwrite;
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -285,6 +287,8 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     config.type = type; config.client = client;
     config.client_name = String(config.client_name || retainedCfg.client_name || '').trim() || clientName(client) || client;
     if (!String(config.title || '').trim()) config.title = String(retainedCfg.title || `${config.client_name} · ${def.label}`);
+    // Atualização: usa as regras que vierem no config (da análise atual ou puxadas do
+    // cliente pela UI); se nenhuma, cai no cliente → geral.
     applyTempDefaults(config, client, type);
     const cfgErrors = def.validateConfig(config);
     if (cfgErrors.length) { res.status(400).json({ error: cfgErrors.join('; ') }); return; }

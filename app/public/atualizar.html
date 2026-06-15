@@ -81,6 +81,7 @@
   </main>
 
   <script src="/js/page-chrome.js" defer></script>
+  <script src="/js/temp-rules.js"></script>
   <script>
     const qs = new URLSearchParams(location.search);
     const client = qs.get('c') || qs.get('client');
@@ -108,6 +109,9 @@
 
     let RETAINED = null;  // config completo retido (base p/ o merge no submit)
     let CLIENTS = [];     // clientes cadastrados (p/ o seletor)
+    let TEMP_CTL = null;  // editor de regras de temperatura (substitui o JSON avançado)
+    // Tipos cuja temperatura é classificada por regras (espelha o servidor).
+    const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
 
     if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
     else init();
@@ -124,6 +128,7 @@
         RETAINED = d.config;
         $('form').hidden = false;
         buildForm(d.config);
+        setupTempEditor(d.config);
       } catch (e) {
         $('loading').textContent = 'Falha ao carregar a configuração: ' + e.message;
       }
@@ -182,11 +187,37 @@
       }
       // arrays / objetos complexos (ex.: criterios, channels) → JSON avançado
       for (const [k, v] of adv) {
+        if (k === 'temp_rules') continue;  // editado pelo editor de regras (não JSON)
         const det = document.createElement('details'); det.className = 'adv';
         const sm = document.createElement('summary'); sm.textContent = `${label(k)} (avançado · JSON)`; det.appendChild(sm);
         const ta = document.createElement('textarea'); ta.dataset.json = k; ta.value = JSON.stringify(v, null, 2); ta.spellcheck = false;
         det.appendChild(ta); root.appendChild(det);
       }
+    }
+
+    // Editor de regras de temperatura: começa com as da ANÁLISE ATUAL; botão puxa as
+    // do cliente (com fallback pro padrão geral do app). Substitui o JSON avançado.
+    function setupTempEditor(cfg) {
+      if (!TEMP_TYPES.has(cfg.type)) return;
+      const card = document.createElement('div');
+      card.className = 'u-card';
+      card.innerHTML =
+        '<div class="u-row" style="justify-content:space-between; align-items:flex-start; margin-bottom:8px">'
+        + '<div><p class="u-h" style="margin:0">Regras de temperatura</p>'
+        + '<p class="u-hsub" style="margin:4px 0 0">Da análise atual — classifica pelo nome da campanha (ILIKE; 1ª regra que casar vence).</p></div>'
+        + '<button type="button" class="u-file-btn" id="temp-pull"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Puxar do cliente</button>'
+        + '</div><div id="temp-editor"></div>';
+      $('go').before(card);
+      TEMP_CTL = window.mountTempRules($('temp-editor'), { rules: cfg.temp_rules || [], overwrite: !!cfg.temp_overwrite });
+      $('temp-pull').addEventListener('click', async () => {
+        const def = await window.fetchTempDefault();
+        const t = window.tempForClient(CLIENTS, client, def);
+        TEMP_CTL.setRules(t.temp_rules); TEMP_CTL.setOverwrite(t.temp_overwrite);
+        const msg = $('msg'); msg.className = 'u-msg ok';
+        msg.textContent = (t.temp_rules && t.temp_rules.length)
+          ? 'Regras do cliente carregadas — revise e clique em Atualizar.'
+          : 'O cliente não tem regras próprias; carregado o padrão geral.';
+      });
     }
 
     function collectConfig() {
@@ -205,6 +236,7 @@
       for (const ta of $('fields').querySelectorAll('textarea[data-json]')) {
         cfg[ta.dataset.json] = JSON.parse(ta.value);  // pode lançar → tratado no submit
       }
+      if (TEMP_CTL) { cfg.temp_rules = TEMP_CTL.getRules(); cfg.temp_overwrite = TEMP_CTL.getOverwrite(); }
       return cfg;
     }
 
