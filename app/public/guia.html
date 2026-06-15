@@ -7,38 +7,42 @@
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
   <style>
-    body { background: var(--bg-page); }
-    .g-wrap { max-width: 1320px; margin: 0 auto; padding: 40px 36px 100px; }
-    .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .g-tag::before { content:''; width:5px; height:5px; border-radius:50%; background: currentColor; }
-    .g-title { font-size: 30px; font-weight: 750; letter-spacing: -.025em; line-height: 1.15; margin: 14px 0 0; max-width: 26ch; }
-    .g-summary { font-size: 16px; color: var(--gray); line-height: 1.6; margin-top: 12px; max-width: 62ch; }
-    .g-ctas { display:flex; flex-wrap:wrap; gap:10px; margin-top: 20px; }
-    .g-rule { height:1px; background: var(--divider); margin: 28px 0 26px; }
+    body.guidepg { background: var(--canvas, var(--bg-page)); }
+    .guidepg .page { max-width: 1140px; margin: 0 auto; padding: 34px 40px 80px; }
+    .guidepg .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); padding: 6px 12px; border-radius: var(--r-pill); display: inline-flex; align-items: center; gap: 8px; }
+    .guidepg .eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+    .guidepg h1 { font-size: 38px; font-weight: 800; letter-spacing: -.035em; line-height: 1.1; margin: 16px 0 0; max-width: 22ch; }
+    .guidepg .lead { font-size: 17px; color: var(--gray2); font-weight: 500; line-height: 1.6; max-width: 62ch; margin-top: 14px; }
+    .guidepg .actions { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+    .guidepg .btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: var(--r-pill); font: inherit; font-size: 14.5px; font-weight: 700; border: 1px solid var(--border-strong); background: var(--card, #fff); color: var(--fg); cursor: pointer; text-decoration: none; transition: background .15s var(--ease), border-color .15s var(--ease), transform .12s var(--ease), box-shadow .15s var(--ease); }
+    .guidepg .btn svg { width: 17px; height: 17px; }
+    .guidepg .btn:hover { background: var(--surface); transform: translateY(-1px); }
+    .guidepg .btn.primary { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 10px 22px -10px rgba(124,58,237,.7); }
+    .guidepg .btn.primary:hover { background: var(--purple-600); border-color: var(--purple-600); }
+    .guidepg .rule { height: 1px; background: var(--divider); margin: 30px 0 28px; }
 
-    /* Seções em cards distribuídos em colunas (masonry) — usa a largura da tela. */
-    .g-sections { columns: 2; column-gap: 20px; }
-    @media (max-width: 880px) { .g-sections { columns: 1; } }
-    .g-sec { break-inside: avoid; -webkit-column-break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 20px; padding: 19px 22px; }
-    .g-h2 { font-size: 12.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); display:flex; align-items:center; gap:10px; margin-bottom: 13px; }
-    .g-h2::after { content:''; flex:1; height:1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
-    .g-sub { font-size: 14.5px; font-weight: 700; color: var(--fg); margin: 16px 0 6px; }
-    .g-sec > .g-sub:first-of-type { margin-top: 2px; }
-    .g-p { font-size: 14px; color: var(--fg); line-height: 1.65; margin: 0 0 10px; }
-    .g-ul { list-style: none; margin: 4px 0 11px; padding: 0; }
-    .g-ul li { position: relative; font-size: 13.5px; color: var(--fg); line-height: 1.55; padding: 4px 0 4px 20px; }
-    .g-ul li::before { content:''; position:absolute; left: 3px; top: 11px; width: 6px; height: 6px; border-radius: 2px; background: var(--purple); opacity:.55; }
-    .g-callout { display:flex; gap:11px; background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); border-radius: 11px; padding: 12px 14px; margin: 8px 0 4px; }
-    .g-callout-l { flex-shrink:0; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--purple); padding-top: 2px; }
-    .g-callout-t { font-size: 13.5px; color: var(--fg); line-height: 1.6; }
-    .g-p code, .g-ul code, .g-callout code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .88em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; color: var(--fg); }
-    .g-empty { color: var(--gray); padding: 60px 0; text-align:center; }
+    .guidepg .sections { columns: 2; column-gap: 22px; }
+    @media (max-width: 880px) { .guidepg .sections { columns: 1; } }
+    .guidepg .card { break-inside: avoid; -webkit-column-break-inside: avoid; display: inline-block; width: 100%; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 24px 26px; margin: 0 0 22px; }
+    .guidepg .card-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: var(--purple); display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .guidepg .card-eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--divider); }
+    .guidepg .sub-h { font-size: 15px; font-weight: 800; letter-spacing: -.01em; color: var(--fg); margin: 20px 0 9px; }
+    .guidepg .sub-h:first-of-type { margin-top: 0; }
+    .guidepg .gd-p { font-size: 14px; color: var(--gray); line-height: 1.65; margin: 0 0 11px; }
+    .guidepg .witly { list-style: none; display: flex; flex-direction: column; gap: 11px; margin: 4px 0 12px; padding: 0; }
+    .guidepg .witly li { position: relative; padding-left: 20px; font-size: 14px; color: var(--gray); line-height: 1.55; }
+    .guidepg .witly li::before { content: ''; position: absolute; left: 0; top: 7px; width: 8px; height: 8px; border-radius: 2.5px; background: var(--purple); }
+    .guidepg .gd-callout { display: flex; gap: 11px; background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); border-radius: var(--r-md); padding: 12px 14px; margin: 8px 0 11px; }
+    .guidepg .gd-callout-l { flex-shrink: 0; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--purple); padding-top: 2px; }
+    .guidepg .gd-callout-t { font-size: 13.5px; color: var(--fg); line-height: 1.6; }
+    .guidepg .gd-p code, .guidepg .witly code, .guidepg .gd-callout code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: .88em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; color: var(--purple-600); }
+    .guidepg .g-empty { color: var(--gray2); padding: 60px 0; text-align: center; }
   </style>
 </head>
-<body>
+<body class="guidepg">
   <header class="home-bar" data-sub="Guia" data-back="/"></header>
   <script src="/js/page-chrome.js" defer></script>
-  <div class="g-wrap" id="g-wrap"></div>
+  <div class="page" id="g-wrap"></div>
 
   <script type="module">
     const wrap = document.getElementById('g-wrap');
@@ -48,10 +52,10 @@
       : new URLSearchParams(location.search).get('slug')) || '';
 
     const block = (b) => {
-      if (b.type === 'sub') return `<h3 class="g-sub">${esc(b.text)}</h3>`;
-      if (b.type === 'ul') return `<ul class="g-ul">${(b.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
-      if (b.type === 'callout') return `<div class="g-callout"><span class="g-callout-l">${esc(b.label || '')}</span><span class="g-callout-t">${esc(b.text)}</span></div>`;
-      return `<p class="g-p">${esc(b.text)}</p>`;
+      if (b.type === 'sub') return `<h3 class="sub-h">${esc(b.text)}</h3>`;
+      if (b.type === 'ul') return `<ul class="witly">${(b.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
+      if (b.type === 'callout') return `<div class="gd-callout"><span class="gd-callout-l">${esc(b.label || '')}</span><span class="gd-callout-t">${esc(b.text)}</span></div>`;
+      return `<p class="gd-p">${esc(b.text)}</p>`;
     };
 
     try {
@@ -61,30 +65,25 @@
       else {
         document.title = `Guia · ${g.title}`;
         const ctaGerar = g.gerar
-          ? `<a class="btn btn--primary" href="${esc(g.gerar)}">
+          ? `<a class="btn primary" href="${esc(g.gerar)}">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                Criar esta análise</a>`
           : '';
-        const ctaReport = g.report
-          ? `<a class="btn ${g.gerar ? 'btn--ghost' : 'btn--primary'}" href="/report/${encodeURIComponent(g.report.client)}/${encodeURIComponent(g.report.slug)}">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h6V3H3zM3 21h6v-4H3zM13 21h8V11h-8zM13 7h8V3h-8z"/></svg>
-               Abrir relatório de exemplo</a>`
-          : '';
         const ctaMontador = g.montador
-          ? `<a class="btn btn--ghost" href="/montador/${encodeURIComponent(g.montador)}">
+          ? `<a class="btn" href="/montador/${encodeURIComponent(g.montador)}">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="M13.5 6 10.5 18"/></svg>
                Montar a query</a>`
           : '';
         wrap.innerHTML = `
-          ${g.tag ? `<span class="g-tag">${esc(g.tag)}</span>` : ''}
-          <h1 class="g-title">${esc(g.title)}</h1>
-          <p class="g-summary">${esc(g.summary || '')}</p>
-          <div class="g-ctas">${ctaGerar}${ctaReport}${ctaMontador}</div>
-          <div class="g-rule"></div>
-          <div class="g-sections">
+          ${g.tag ? `<span class="eyebrow">${esc(g.tag)}</span>` : ''}
+          <h1>${esc(g.title)}</h1>
+          <p class="lead">${esc(g.summary || '')}</p>
+          <div class="actions">${ctaGerar}${ctaMontador}</div>
+          <div class="rule"></div>
+          <div class="sections">
             ${(g.sections || []).map(s => `
-              <section class="card g-sec">
-                <h2 class="g-h2">${esc(s.title)}</h2>
+              <section class="card">
+                <h2 class="card-eyebrow">${esc(s.title)}</h2>
                 ${(s.blocks || []).map(block).join('')}
               </section>`).join('')}
           </div>`;
