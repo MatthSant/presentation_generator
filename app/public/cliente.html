@@ -7,44 +7,103 @@
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
   <style>
-    body { background: var(--bg-page); }
-    .c-wrap { max-width: 1180px; margin: 0 auto; padding: 36px 28px 80px; }
-    .c-head { display:flex; align-items:center; gap: 15px; margin-bottom: 6px; }
-    .c-mono { width: 48px; height: 48px; border-radius: 12px; display:grid; place-items:center; font-size: 20px; font-weight: 800; color: var(--purple); background: var(--purple-bg); flex-shrink: 0; }
-    .c-name { font-size: 24px; font-weight: 750; letter-spacing: -.02em; }
-    .c-slug { font-size: 12.5px; color: var(--gray2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .c-count { font-size: 13px; color: var(--gray2); margin: 22px 0 12px; font-weight: 600; }
-    .c-empty { color: var(--gray2); font-size: 14px; padding: 50px 0; text-align:center; }
-    /* Painel de edição */
-    .ed { background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 24px; margin-top: 22px; }
-    .ed-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 0 0 14px; }
-    .ed-h:not(:first-child) { margin-top: 24px; }
-    .ed-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-    .ed-field label { font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
-    .ed-field input, .ed-field textarea { width: 100%; padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--card, #fff); font: inherit; font-size: 14px; color: var(--fg); }
-    .ed-field textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
-    .ed-field input:focus, .ed-field textarea:focus { outline: 0; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-bg); }
-    .ed-help { font-size: 12px; color: var(--gray2); line-height: 1.5; margin: 0 0 12px; }
-    .ed-foot { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
-    .ed-msg { font-size: 13px; font-weight: 600; }
-    .ed-msg.ok { color: var(--ok-fg, #15803d); }
-    .ed-msg.err { color: var(--err-fg, #b91c1c); }
+    body.cl { background: var(--canvas, var(--bg-page)); }
+    .cl .page { max-width: 1140px; margin: 0 auto; padding: 28px 32px 90px; }
+    .cl .crumbs { display: flex; align-items: center; gap: 9px; font-size: 13.5px; margin-bottom: 24px; }
+    .cl .crumbs a { color: var(--gray2); text-decoration: none; font-weight: 600; }
+    .cl .crumbs a:hover { color: var(--fg); }
+    .cl .crumbs .sl { color: var(--faint); }
+    .cl .crumbs .cur { color: var(--fg); font-weight: 700; }
+
+    .cl .chead { display: flex; align-items: center; gap: 18px; }
+    .cl .chead .av { width: 62px; height: 62px; border-radius: 17px; display: grid; place-items: center; font-size: 25px; font-weight: 800; color: #fff; flex-shrink: 0; background: linear-gradient(135deg, var(--plum, #2E084B), var(--purple)); }
+    .cl .chead .id { flex: 1; min-width: 0; }
+    .cl .chead .id h1 { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+    .cl .chead .id .slug { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13.5px; color: var(--gray2); margin-top: 4px; }
+
+    .cl .stats { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+    .cl .stat { display: flex; align-items: center; gap: 12px; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-card); padding: 12px 16px; }
+    .cl .stat .si { width: 34px; height: 34px; border-radius: 9px; background: var(--purple-bg); color: var(--purple); display: grid; place-items: center; flex-shrink: 0; }
+    .cl .stat .si svg { width: 17px; height: 17px; }
+    .cl .stat .sv b { display: block; font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+    .cl .stat .sv small { font-size: 11.5px; color: var(--gray2); font-weight: 600; }
+
+    .cl .about { background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 24px; margin-top: 22px; }
+    .cl .about-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .cl .about-hd b { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); }
+    .cl .about-hd .rule { flex: 1; height: 1px; background: var(--divider); }
+    .cl .edit-link { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13px; font-weight: 700; color: var(--gray); background: var(--surface); border: 1px solid var(--border); padding: 7px 13px; border-radius: var(--r-pill); cursor: pointer; transition: all .15s; }
+    .cl .edit-link svg { width: 14px; height: 14px; }
+    .cl .edit-link:hover { color: var(--purple); border-color: var(--purple-300, #c3a4f7); background: var(--purple-bg); }
+    .cl .about-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 26px; }
+    @media (max-width: 760px) { .cl .about-grid { grid-template-columns: 1fr; } }
+    .cl .about-k { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin-bottom: 9px; }
+    .cl .about-v { font-size: 14.5px; color: var(--gray); line-height: 1.6; }
+    .cl .empty { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--gray2); font-weight: 600; font-style: italic; }
+    .cl .empty svg { width: 15px; height: 15px; color: var(--faint); }
+    .cl .rules { display: flex; flex-direction: column; gap: 9px; }
+    .cl .rule-chip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; font-weight: 600; color: var(--gray); }
+    .cl .rule-chip .term { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); padding: 3px 9px; border-radius: 7px; color: var(--fg); }
+    .cl .rule-chip .arrow { color: var(--faint); }
+    .cl .rule-chip .temp { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 3px 10px; border-radius: var(--r-pill); background: var(--purple-bg); color: var(--purple); }
+    .cl .default-note { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--gray2); font-weight: 600; background: var(--surface); border: 1px solid var(--border); padding: 7px 12px; border-radius: var(--r-pill); }
+    .cl .default-note svg { width: 14px; height: 14px; color: var(--purple); }
+
+    /* Modo edição (inline no card About) */
+    .cl .ed-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .cl .ed-field label { font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+    .cl .ed-field input, .cl .ed-field textarea { width: 100%; padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--card, #fff); font: inherit; font-size: 14px; color: var(--fg); }
+    .cl .ed-field textarea { min-height: 84px; resize: vertical; line-height: 1.5; }
+    .cl .ed-field input:focus, .cl .ed-field textarea:focus { outline: 0; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-bg); }
+    .cl .ed-sub { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin: 18px 0 10px; }
+    .cl .ed-foot { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+    .cl .ed-msg { font-size: 13px; font-weight: 600; }
+    .cl .ed-msg.ok { color: var(--ok-fg, #15803d); }
+    .cl .ed-msg.err { color: var(--err-fg, #b91c1c); }
+    .cl [hidden] { display: none !important; }
+
+    .cl .sec-label { display: flex; align-items: center; gap: 13px; margin: 34px 0 16px; }
+    .cl .sec-label b { font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: var(--gray2); }
+    .cl .sec-label .count { font-size: 11.5px; font-weight: 800; color: var(--purple); background: var(--purple-bg); padding: 3px 9px; border-radius: var(--r-pill); }
+    .cl .sec-label .rule { flex: 1; height: 1px; background: var(--divider); }
+
+    .cl .analyses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    @media (max-width: 980px) { .cl .analyses { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .cl .analyses { grid-template-columns: 1fr; } }
+    .cl .acard { text-align: left; display: flex; flex-direction: column; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 20px 22px; cursor: pointer; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); text-decoration: none; color: inherit; }
+    .cl .acard:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); border-color: var(--purple-300, #c3a4f7); }
+    .cl .acard .tag { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); padding: 5px 11px; border-radius: var(--r-pill); }
+    .cl .acard .tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+    .cl .acard h3 { font-size: 17px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; margin: 14px 0 0; }
+    .cl .acard .meta { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--gray2); font-weight: 600; }
+    .cl .acard .meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--faint); }
+    .cl .acard .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--divider); }
+    .cl .acard .open { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--purple); }
+    .cl .acard .open svg { width: 15px; height: 15px; transition: transform .2s var(--ease); }
+    .cl .acard:hover .open svg { transform: translateX(3px); }
+    .cl .acard.add { align-items: center; justify-content: center; gap: 10px; border-style: dashed; border-color: var(--border-strong); box-shadow: none; color: var(--gray2); font-size: 14px; font-weight: 700; min-height: 172px; }
+    .cl .acard.add svg { width: 20px; height: 20px; }
+    .cl .acard.add:hover { color: var(--purple); border-color: var(--purple-300, #c3a4f7); background: var(--purple-bg); }
+    .cl .empty-an { color: var(--gray2); font-size: 14px; padding: 40px 0; }
   </style>
 </head>
-<body>
+<body class="cl">
   <header class="home-bar" data-sub="Cliente" data-back="/"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="c-wrap" id="wrap"><p class="c-empty">Carregando…</p></div>
+  <div class="page" id="page"><p class="empty-an">Carregando…</p></div>
 
   <script src="/js/temp-rules.js"></script>
   <script type="module">
-    const wrap = document.getElementById('wrap');
+    const page = document.getElementById('page');
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const slug = decodeURIComponent((location.pathname.match(/\/cliente\/([^/]+)/) || [])[1] || '');
     const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }); };
-    const TYPE = { dashboard: { label: 'Dashboard', ac: 'var(--purple)', acb: 'var(--purple-bg)' }, ltv: { label: 'LTV', ac: 'var(--green)', acb: 'var(--green-bg)' } };
-    const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"/></svg>';
+    const TYPE_LABEL = { 'acompanhamento-lancamento': 'Acompanhamento', 'debriefing-lancamento': 'Debriefing', 'historico-lancamentos': 'Histórico', 'conversao-perfil': 'Conversão', 'criativos': 'Criativos', dashboard: 'Dashboard', ltv: 'LTV' };
+    const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"/></svg>';
+    const ICO_AN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg>';
+    const ICO_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2"/></svg>';
+    const ICO_THERMO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>';
 
     try {
       const [rows, clientsDoc, tempDefault] = await Promise.all([
@@ -57,43 +116,77 @@
       const reg = (clientsDoc.clients || []).find(c => c.slug === slug) || {};
       const name = reg.name || items[0]?.clientName || slug;
       document.title = `Cliente · ${name}`;
+      const rules = reg.temp_rules || [];
+      const types = new Set(items.map(i => i.type).filter(Boolean));
 
-      const card = (r) => {
-        const t = TYPE[r.type] || { label: r.type || '', ac: 'var(--gray)', acb: 'var(--surface)' };
-        return `<a class="card an-card" style="--ac:${t.ac};--acb:${t.acb}" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
-          <span class="an-go">${ARROW}</span>
-          ${t.label ? `<span class="an-type">${esc(t.label)}</span>` : ''}
-          <div class="an-title">${esc(r.title || r.slug)}</div>
-          <div class="an-meta"><span>${esc(r.slug)}</span><span>${esc(fmtDate(r.created_at))}</span></div>
+      const ruleChip = (r) => `<div class="rule-chip">${(r.contains || []).map(t => `<span class="term">${esc(t)}</span>`).join('')}<span class="arrow">→</span><span class="temp">${esc(r.label)}</span></div>`;
+      const acard = (r) => `
+        <a class="acard" href="/report/${encodeURIComponent(r.client)}/${encodeURIComponent(r.slug)}">
+          <span class="tag">${esc(TYPE_LABEL[r.type] || r.type || 'Relatório')}</span>
+          <h3>${esc(r.title || r.slug)}</h3>
+          <div class="meta"><span>${esc(fmtDate(r.created_at)) || '—'}</span></div>
+          <div class="foot"><span class="open">Abrir ${ARROW}</span><span class="by">${esc(r.slug)}</span></div>
         </a>`;
-      };
 
-      wrap.innerHTML = `
-        <div class="c-head">
-          <span class="c-mono">${esc((name || '?').trim().charAt(0).toUpperCase())}</span>
-          <div><div class="c-name">${esc(name)}</div><div class="c-slug">${esc(slug)}</div></div>
+      page.innerHTML = `
+        <div class="crumbs"><a href="/">Clientes</a><span class="sl">›</span><span class="cur">${esc(name)}</span></div>
+        <div class="chead">
+          <span class="av">${esc((name || '?').trim().charAt(0).toUpperCase())}</span>
+          <div class="id"><h1>${esc(name)}</h1><div class="slug">${esc(slug)}</div></div>
         </div>
 
-        <div class="ed">
-          <p class="ed-h">Dados do cliente</p>
-          <div class="ed-field"><label for="ed-name">Nome</label><input id="ed-name" value="${esc(reg.name || name)}" /></div>
-          <div class="ed-field"><label for="ed-ctx">Contexto do negócio</label><textarea id="ed-ctx" placeholder="O que o cliente faz, produto principal, ticket, público, modelo de lançamento, particularidades…">${esc(reg.context || '')}</textarea></div>
+        <div class="stats">
+          <div class="stat"><span class="si">${ICO_AN}</span><span class="sv"><b>${items.length}</b><small>${items.length === 1 ? 'análise' : 'análises'}</small></span></div>
+          <div class="stat"><span class="si">${ICO_TAG}</span><span class="sv"><b>${types.size}</b><small>${types.size === 1 ? 'tipo' : 'tipos'}</small></span></div>
+          <div class="stat"><span class="si">${ICO_THERMO}</span><span class="sv"><b>${rules.length}</b><small>${rules.length === 1 ? 'regra de temp.' : 'regras de temp.'}</small></span></div>
+        </div>
 
-          <p class="ed-h">Regras de temperatura</p>
-          <p class="ed-help">Classificam o lead pelo trecho do <strong>nome da campanha</strong> (ILIKE — a 1ª regra que casar vence). Usadas em Acompanhamento, Criativos e Debriefing quando este cliente é selecionado. Vazio = usa o padrão geral (Configurações).</p>
-          <div id="temp-editor"></div>
+        <div class="about">
+          <div class="about-hd"><b>Sobre o cliente</b><span class="rule"></span><button class="edit-link" id="ed-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Editar</button></div>
 
-          <div class="ed-foot">
-            <button class="btn btn--primary" id="ed-save">Salvar cliente</button>
-            <span class="ed-msg" id="ed-msg"></span>
+          <div id="about-view">
+            <div class="about-grid">
+              <div>
+                <div class="about-k">Contexto do negócio</div>
+                ${reg.context ? `<div class="about-v">${esc(reg.context)}</div>`
+                  : `<span class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Sem contexto cadastrado</span>`}
+              </div>
+              <div>
+                <div class="about-k">Regras de temperatura</div>
+                ${rules.length ? `<div class="rules">${rules.map(ruleChip).join('')}</div>`
+                  : `<span class="default-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4"/></svg>Usando o padrão geral (Configurações)</span>`}
+              </div>
+            </div>
+          </div>
+
+          <div id="about-edit" hidden>
+            <div class="ed-field"><label for="ed-name">Nome</label><input id="ed-name" value="${esc(reg.name || name)}" /></div>
+            <div class="ed-field"><label for="ed-ctx">Contexto do negócio</label><textarea id="ed-ctx" placeholder="O que o cliente faz, produto principal, ticket, público, modelo de lançamento…">${esc(reg.context || '')}</textarea></div>
+            <p class="ed-sub">Regras de temperatura</p>
+            <div id="temp-editor"></div>
+            <div class="ed-foot">
+              <button class="btn btn--primary" id="ed-save">Salvar</button>
+              <button class="btn" id="ed-cancel">Cancelar</button>
+              <span class="ed-msg" id="ed-msg"></span>
+            </div>
           </div>
         </div>
 
-        <p class="c-count">${items.length} ${items.length === 1 ? 'análise' : 'análises'}</p>
-        ${items.length ? `<div class="home-grid">${items.map(card).join('')}</div>` : '<p class="c-empty">Nenhuma análise para este cliente.</p>'}`;
+        <div class="sec-label"><b>Análises</b>${items.length ? `<span class="count">${items.length}</span>` : ''}<span class="rule"></span></div>
+        ${items.length
+          ? `<div class="analyses">${items.map(acard).join('')}
+              <a class="acard add" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Nova análise</a></div>`
+          : `<p class="empty-an">Nenhuma análise para este cliente ainda.</p>`}`;
 
+      // Editar ⇄ visualizar
+      const view = document.getElementById('about-view');
+      const edit = document.getElementById('about-edit');
+      const toggle = document.getElementById('ed-toggle');
       const tctl = window.mountTempRules(document.getElementById('temp-editor'),
-        { rules: reg.temp_rules || [], overwrite: !!reg.temp_overwrite });
+        { rules, overwrite: !!reg.temp_overwrite });
+      const showEdit = (on) => { view.hidden = on; edit.hidden = !on; toggle.hidden = on; };
+      toggle.addEventListener('click', () => showEdit(true));
+      document.getElementById('ed-cancel').addEventListener('click', () => showEdit(false));
 
       const msg = document.getElementById('ed-msg');
       const save = document.getElementById('ed-save');
@@ -109,12 +202,11 @@
           });
           const d = await r.json();
           if (!r.ok) throw new Error(d.error || 'falha');
-          msg.className = 'ed-msg ok'; msg.textContent = 'Salvo.';
-        } catch (e) { msg.className = 'ed-msg err'; msg.textContent = '⚠ ' + e.message; }
-        finally { save.disabled = false; }
+          location.reload();
+        } catch (e) { msg.className = 'ed-msg err'; msg.textContent = '⚠ ' + e.message; save.disabled = false; }
       });
     } catch (e) {
-      wrap.innerHTML = `<p class="c-empty">Erro ao carregar: ${esc(e.message)}</p>`;
+      page.innerHTML = `<p class="empty-an">Erro ao carregar: ${esc(e.message)}</p>`;
     }
   </script>
 </body>
