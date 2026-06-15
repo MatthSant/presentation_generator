@@ -128,24 +128,31 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s01 — Panorama ════════════════════════════════════════════════════
     pan, pg = [], Grid()
-    eb(pan, pg, 'pan-eb-meta', 'METAS ATINGIDAS?', 'realizado vs meta da campanha')
-    # donuts de atingimento como kpi-card com barra
-    if M['at_leads'] is not None:
-        km(pan, pg, 'pan-at-leads', 'Atingimento · Leads', f"{M['at_leads']:.0f}%",
-           f"{intf(M['leads_total'])} de {intf(G.get('leads') or 0)} leads", 'target', '#534AB7',
-           real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), w=6)
-    if M['at_vendas'] is not None:
-        km(pan, pg, 'pan-at-vendas', 'Atingimento · Vendas', f"{M['at_vendas']:.0f}%",
-           f"{intf(M['vendas_total'])} de {intf((G.get('meta_vendas_canal') and sum(G['meta_vendas_canal'].values())) or G.get('vendas') or 0)} vendas",
-           'circle-check', '#3B6D11', real=M['vendas_total'],
-           meta=(sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')), hist=H.get('vendas'), w=6)
+    # ── Indicadores globais: metas (bandas em destaque) + resultado macro juntos ──
+    def at_tone(p):
+        p = p or 0
+        return 'pos' if p >= 100 else ('neg' if p < 80 else 'neutral')
 
-    eb(pan, pg, 'pan-eb-macro', 'RESULTADO MACRO', '5 indicadores')
+    def band(wid, label, real, meta, at, tone, w=6, h=2):
+        if real is None or not meta or at is None:
+            return
+        pan.append({'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'band': True,
+                    'label': label, 'value': f'{intf(real)} / {intf(meta)}',
+                    'sub': 'realizado vs meta da campanha', 'delta': f'{at:.0f}%', 'deltaTone': tone})
+        pg.add(wid, 'kpi-card', w, h)
+
+    eb(pan, pg, 'pan-eb-glob', 'INDICADORES GLOBAIS', 'atingimento de metas + resultado macro do lançamento')
+    # Metas em destaque (estilo captação): bandas grandes; Vendas em roxo (emph).
+    mv_meta = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
+    band('pan-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']))
+    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], 'emph')
+
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
        real=M['fat'], meta=G.get('fat'), hist=H.get('fat'))
     km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7')
     km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5')
+    pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
     km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27')
     km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
        f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D')

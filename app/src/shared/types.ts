@@ -428,6 +428,9 @@ export interface KpiCardWidget extends WidgetBase {
   label: string;
   value: string;
   sub?: string;
+  /** Definição/fórmula opcional — renderiza um "i" com tooltip após o rótulo
+   *  (ex.: indicadores calculados como ROI). */
+  info?: string;
   icon?: string;
   iconColor?: string;
   /** Variation badge (feature tier), e.g. "↑ +3.0pp vs anterior". */

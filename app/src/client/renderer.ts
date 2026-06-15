@@ -325,7 +325,9 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     const tone = w.deltaTone || 'neutral';
     const card = el('div', `card kc kc--feature kc--band kc--band-${tone}`);
     const main = el('div', 'kc-band-main');
-    main.appendChild(el('div', 'kc-lbl', w.label));
+    const blbl = el('div', 'kc-lbl', w.label);
+    if (w.info) blbl.appendChild(infoBadge(w.info));
+    main.appendChild(blbl);
     const val = el('div', 'kc-val');
     val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
     main.appendChild(val);
@@ -344,7 +346,9 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
     // pill de comparação à direita; valor; "3d: X"; pill de tendência verde/vermelha;
     // linha de meta com ✓/✗.
     const head = el('div', 'kc-head');
-    head.appendChild(el('div', 'kc-lbl', w.label));
+    const flbl = el('div', 'kc-lbl', w.label);
+    if (w.info) flbl.appendChild(infoBadge(w.info));
+    head.appendChild(flbl);
     if (w.cmp) {
       const cur = w.cmp[cmpMode] || w.cmp.meta;
       const pill = el('span', `pill ${PILL_TONE[cur[1] || 'neutral']} kc-cmp`, cur[0]);
