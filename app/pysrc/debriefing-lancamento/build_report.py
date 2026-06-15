@@ -165,6 +165,10 @@ def assemble(rows, config, content, opts=None):
     g_fat, g_inv = G.get('fat'), G.get('invest_cpt')
     retorno_meta = (g_fat - g_inv) if (g_fat and g_inv) else None
     roi_meta = (retorno_meta / g_inv * 100) if (retorno_meta is not None and g_inv) else None
+    # ROAS captação usa receita PAGA; a meta de receita (goals) é total → estima a paga
+    # pela fração paga realizada e aplica (receita_paga − invest) / invest.
+    paid_share = (M['fat_pago'] / M['fat']) if M.get('fat') else None
+    roas_meta = (((g_fat * paid_share) - g_inv) / g_inv) if (g_fat and g_inv and paid_share) else None
     h_inv = H.get('invest')
     retorno_h = (H['fat'] - h_inv) if (H.get('fat') is not None and h_inv) else None
     roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
@@ -180,7 +184,7 @@ def assemble(rows, config, content, opts=None):
        meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None))
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
     km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27', w=2,
-       real=M['roas'], hist=roas_h, hist_fmt=(xf(roas_h) if roas_h else None))
+       real=M['roas'], meta=roas_meta, hist=roas_h, meta_fmt=(xf(roas_meta) if roas_meta is not None else None))
     km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
        f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2)
 
