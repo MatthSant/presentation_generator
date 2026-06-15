@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Usuários — Gerenciamento</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body.usuarios { background: var(--canvas, var(--bg-page)); }
+    .usuarios .page { max-width: 1200px; margin: 0 auto; padding: 30px 28px 80px; }
+    .usuarios h1 { font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
+    .usuarios .desc { font-size: 15px; color: var(--gray2); font-weight: 500; line-height: 1.6; max-width: 74ch; margin-top: 8px; }
+    .usuarios .layout { display: grid; grid-template-columns: 380px 1fr; gap: 26px; align-items: start; margin-top: 26px; }
+    @media (max-width: 860px) { .usuarios .layout { grid-template-columns: 1fr; } .usuarios .form-card { position: static; } }
+
+    .usuarios .form-card { position: sticky; top: 92px; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 24px; }
+    .usuarios .form-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .usuarios .form-eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--divider); }
+    .usuarios .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+    .usuarios .label { font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+    .usuarios .ctrl { width: 100%; padding: 11px 13px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--card, #fff); font: inherit; font-size: 14px; color: var(--fg); transition: border-color .15s, box-shadow .15s; }
+    .usuarios .ctrl::placeholder { color: var(--faint); }
+    .usuarios .ctrl:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-bg); }
+    .usuarios .seg { display: flex; gap: 0; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+    .usuarios .seg button { flex: 1; padding: 10px 12px; border: none; background: var(--card, #fff); font: inherit; font-size: 13.5px; font-weight: 700; color: var(--gray2); cursor: pointer; transition: background .15s, color .15s; }
+    .usuarios .seg button.on { background: var(--purple); color: #fff; }
+    .usuarios .btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 18px; border-radius: var(--r-pill); font: inherit; font-size: 14px; font-weight: 700; border: 1px solid var(--border-strong); background: var(--card, #fff); color: var(--fg); cursor: pointer; transition: background .15s, border-color .15s, transform .12s; }
+    .usuarios .btn svg { width: 16px; height: 16px; }
+    .usuarios .btn.primary { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 10px 22px -10px rgba(124,58,237,.7); width: 100%; justify-content: center; }
+    .usuarios .btn.primary:hover { background: var(--purple-600); border-color: var(--purple-600); transform: translateY(-1px); }
+    .usuarios .msg { margin-top: 14px; font-size: 13px; font-weight: 600; border-radius: var(--r-md); padding: 9px 12px; display: none; }
+    .usuarios .msg.ok { display: block; background: var(--ok-bg); color: var(--ok-fg); }
+    .usuarios .msg.err { display: block; background: var(--err-bg); color: var(--err-fg); }
+
+    .usuarios .list-hd { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .usuarios .list-hd b { font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: var(--gray2); }
+    .usuarios .list-hd .count { font-size: 11.5px; font-weight: 800; color: var(--purple); background: var(--purple-bg); padding: 3px 9px; border-radius: var(--r-pill); }
+
+    .usuarios .users { display: flex; flex-direction: column; gap: 14px; }
+    .usuarios .ucard { background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 18px 20px; transition: box-shadow .2s var(--ease), border-color .2s var(--ease); }
+    .usuarios .ucard:hover { box-shadow: var(--shadow-lift); border-color: var(--purple-300, #c3a4f7); }
+    .usuarios .uc-top { display: flex; align-items: center; gap: 13px; }
+    .usuarios .uc-av { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0; background: linear-gradient(135deg, var(--purple), #9a63f5); }
+    .usuarios .uc-id { flex: 1; min-width: 0; }
+    .usuarios .uc-id b { font-size: 15px; font-weight: 800; letter-spacing: -.01em; word-break: break-all; }
+    .usuarios .uc-meta { font-size: 12px; color: var(--gray2); margin-top: 3px; }
+    .usuarios .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 3px 9px; border-radius: var(--r-pill); }
+    .usuarios .pill.admin { background: var(--purple-bg); color: var(--purple); }
+    .usuarios .pill.consultor { background: var(--border); color: var(--gray); }
+    .usuarios .pill.you { background: var(--ok-bg, #dcfce7); color: var(--ok-fg, #15803d); }
+    .usuarios .uc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .usuarios .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--card, #fff); color: var(--gray2); display: grid; place-items: center; cursor: pointer; transition: all .15s; }
+    .usuarios .icon-btn svg { width: 16px; height: 16px; }
+    .usuarios .icon-btn:hover { color: var(--purple); border-color: var(--purple-300, #c3a4f7); background: var(--purple-bg); }
+    .usuarios .icon-btn.danger:hover { color: var(--err-fg, #b91c1c); border-color: #f3b4b4; background: var(--err-bg, #fee2e2); }
+    .usuarios .uc-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--divider); }
+    .usuarios .uc-foot .seg { width: 200px; }
+    .usuarios .uc-stat { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--gray2); }
+    .usuarios .uc-stat svg { width: 14px; height: 14px; color: var(--purple); }
+    .usuarios .grow { flex: 1; }
+    .usuarios .link-btn { font-size: 12.5px; font-weight: 700; color: var(--purple); background: none; border: none; cursor: pointer; padding: 4px 2px; }
+    .usuarios .clients-panel { margin-top: 12px; border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; background: var(--purple-bg, #faf7ff); }
+    .usuarios .clients-panel[hidden] { display: none; }
+    .usuarios .cp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; max-height: 200px; overflow: auto; margin: 8px 0 12px; }
+    .usuarios .cp-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg); cursor: pointer; }
+    .usuarios .cp-row input { accent-color: var(--purple); }
+    .usuarios .cp-row .owned { font-size: 10.5px; color: var(--gray2); }
+    .usuarios .cp-foot { display: flex; align-items: center; gap: 12px; }
+    .usuarios .restricted { text-align: center; padding: 80px 20px; color: var(--gray2); }
+    .usuarios .restricted svg { width: 44px; height: 44px; color: var(--faint); margin-bottom: 14px; }
+    .usuarios .restricted b { display: block; font-size: 18px; color: var(--fg); margin-bottom: 6px; }
+    .usuarios .empty { color: var(--gray2); font-size: 14px; padding: 40px 0; text-align: center; }
+  </style>
+</head>
+<body class="usuarios">
+  <header class="home-bar" data-sub="Usuários" data-back="/config.html"></header>
+  <script src="/js/page-chrome.js" defer></script>
+
+  <div class="page">
+    <h1>Usuários</h1>
+    <p class="desc">Crie e gerencie os consultores que acessam o app. Administradores podem criar usuários, resetar senhas, definir papéis e atribuir quais clientes cada um enxerga na home.</p>
+
+    <div class="layout">
+      <div class="form-card">
+        <p class="form-eyebrow">Novo usuário</p>
+        <div class="field"><span class="label">E-mail</span><input id="f-email" class="ctrl" type="email" placeholder="consultor@witly.com" autocomplete="off" /></div>
+        <div class="field"><span class="label">Senha</span><input id="f-pass" class="ctrl" type="text" placeholder="ao menos 6 caracteres" autocomplete="new-password" /></div>
+        <div class="field"><span class="label">Papel</span>
+          <div class="seg" id="f-role">
+            <button type="button" data-role="consultor" class="on">Consultor</button>
+            <button type="button" data-role="admin">Admin</button>
+          </div>
+        </div>
+        <button class="btn primary" id="save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>Criar usuário</button>
+        <div class="msg" id="msg"></div>
+      </div>
+
+      <div>
+        <div class="list-hd"><b>Cadastrados</b><span class="count" id="count">0</span></div>
+        <div class="users" id="list"><p class="empty">Carregando…</p></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const show = (cls, t) => { const m = $('msg'); m.className = 'msg ' + cls; m.textContent = t; };
+    const fmtDate = (s) => { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
+
+    const IC_KEY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 19 4M16 7l3 3M14 9l2 2"/></svg>';
+    const IC_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/></svg>';
+    const IC_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>';
+
+    let USERS = [];
+    let ME = null;
+    let AVAIL = [];
+    let newRole = 'consultor';
+
+    $('f-role').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      newRole = b.dataset.role;
+      [...$('f-role').children].forEach((c) => c.classList.toggle('on', c === b));
+    });
+
+    function card(u) {
+      const isMe = u.id === ME;
+      const initial = (u.email || '?').trim().charAt(0).toUpperCase();
+      const roleSeg = `<div class="seg" data-role-seg="${u.id}">
+        <button type="button" data-r="consultor" class="${u.role === 'consultor' ? 'on' : ''}">Consultor</button>
+        <button type="button" data-r="admin" class="${u.role === 'admin' ? 'on' : ''}">Admin</button>
+      </div>`;
+      return `<div class="ucard" data-id="${u.id}">
+        <div class="uc-top">
+          <span class="uc-av">${esc(initial)}</span>
+          <span class="uc-id"><b>${esc(u.email)}</b><div class="uc-meta">criado em ${fmtDate(u.createdAt)}</div></span>
+          <span class="pill ${u.role}">${u.role === 'admin' ? 'Admin' : 'Consultor'}</span>
+          ${isMe ? '<span class="pill you">Você</span>' : ''}
+          <span class="uc-actions">
+            <button class="icon-btn" data-act="pass" title="Resetar senha">${IC_KEY}</button>
+            <button class="icon-btn danger" data-act="del" title="Remover usuário" ${isMe ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>${IC_TRASH}</button>
+          </span>
+        </div>
+        <div class="uc-foot">
+          ${roleSeg}
+          <span class="uc-stat">${IC_USERS}${u.clients.length} ${u.clients.length === 1 ? 'cliente' : 'clientes'}</span>
+          <span class="grow"></span>
+          <button class="link-btn" data-act="clients">Gerenciar clientes ›</button>
+        </div>
+        <div class="clients-panel" data-panel="${u.id}" hidden></div>
+      </div>`;
+    }
+
+    function render() {
+      $('count').textContent = String(USERS.length);
+      $('list').innerHTML = USERS.length ? USERS.map(card).join('') : '<p class="empty">Nenhum usuário ainda.</p>';
+    }
+
+    function clientsPanel(u) {
+      const owned = new Set(u.clients);
+      const rows = AVAIL.map((c) => {
+        const otherOwner = c.owner && c.owner !== u.id;
+        return `<label class="cp-row">
+          <input type="checkbox" value="${esc(c.slug)}" ${owned.has(c.slug) ? 'checked' : ''} />
+          <span>${esc(c.name)}</span>
+          ${otherOwner ? '<span class="owned">(de outro)</span>' : ''}
+        </label>`;
+      }).join('');
+      return `<div class="cp-grid">${rows || '<span class="empty">Nenhuma análise em output/ ainda.</span>'}</div>
+        <div class="cp-foot"><button class="btn primary" style="width:auto;padding:9px 16px" data-save-clients="${u.id}">Salvar clientes</button>
+        <span class="uc-stat" data-cp-msg="${u.id}"></span></div>`;
+    }
+
+    async function api(url, opts) {
+      const r = await fetch(url, opts);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      return d;
+    }
+
+    $('list').addEventListener('click', async (e) => {
+      const cardEl = e.target.closest('.ucard'); if (!cardEl) return;
+      const id = cardEl.dataset.id;
+      const u = USERS.find((x) => x.id === id); if (!u) return;
+
+      // papel (segmented)
+      const roleBtn = e.target.closest('[data-role-seg] button');
+      if (roleBtn) {
+        const role = roleBtn.dataset.r;
+        if (role === u.role) return;
+        try { await api(`/api/users/${id}/role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) }); await load(); }
+        catch (err) { alert('Erro: ' + err.message); }
+        return;
+      }
+
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act === 'pass') {
+        const pw = prompt(`Nova senha para ${u.email} (mín. 6 caracteres):`);
+        if (!pw) return;
+        try { await api(`/api/users/${id}/password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) }); alert('Senha atualizada. As sessões desse usuário foram encerradas.'); }
+        catch (err) { alert('Erro: ' + err.message); }
+      } else if (act === 'del') {
+        if (!confirm(`Remover ${u.email}? Os clientes dele ficam sem dono (some da home até reatribuir).`)) return;
+        try { await api(`/api/users/${id}`, { method: 'DELETE' }); await load(); }
+        catch (err) { alert('Erro: ' + err.message); }
+      } else if (act === 'clients') {
+        const panel = cardEl.querySelector(`[data-panel="${id}"]`);
+        if (!panel.hidden) { panel.hidden = true; return; }
+        panel.innerHTML = clientsPanel(u);
+        panel.hidden = false;
+      }
+
+      // salvar clientes
+      const saveId = e.target.closest('[data-save-clients]')?.dataset.saveClients;
+      if (saveId) {
+        const panel = cardEl.querySelector(`[data-panel="${saveId}"]`);
+        const clients = [...panel.querySelectorAll('input:checked')].map((i) => i.value);
+        const msg = panel.querySelector(`[data-cp-msg="${saveId}"]`);
+        msg.textContent = 'Salvando…';
+        try { await api(`/api/users/${saveId}/clients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clients }) }); await load(); }
+        catch (err) { msg.textContent = '⚠ ' + err.message; }
+      }
+    });
+
+    $('save').addEventListener('click', async () => {
+      const email = $('f-email').value.trim();
+      const password = $('f-pass').value;
+      if (!email) { show('err', 'Informe o e-mail.'); return; }
+      if (password.length < 6) { show('err', 'Senha precisa de ao menos 6 caracteres.'); return; }
+      $('save').disabled = true;
+      try {
+        await api('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, role: newRole }) });
+        show('ok', `Usuário ${email} criado.`);
+        $('f-email').value = ''; $('f-pass').value = '';
+        load();
+      } catch (err) { show('err', '⚠ ' + err.message); }
+      finally { $('save').disabled = false; }
+    });
+
+    function restricted() {
+      document.querySelector('.layout').innerHTML = `<div class="restricted" style="grid-column:1/-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <b>Acesso restrito</b>Apenas administradores podem gerenciar usuários.</div>`;
+    }
+
+    async function load() {
+      try {
+        const [doc, av] = await Promise.all([
+          api('/api/users'),
+          api('/api/users/available-clients').catch(() => ({ clients: [] })),
+        ]);
+        USERS = doc.users || [];
+        ME = doc.me;
+        AVAIL = av.clients || [];
+        render();
+      } catch (err) {
+        if (/restrito|403/.test(err.message)) restricted();
+        else $('list').innerHTML = '<p class="empty">Erro ao carregar: ' + esc(err.message) + '</p>';
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
