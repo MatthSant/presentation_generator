@@ -20,11 +20,12 @@
     <div class="card">
       <p class="card-eyebrow">Lançamento</p>
       <div class="grid3">
-        <div class="field"><span class="label">field_conversion</span><input class="ctrl" id="t-fc" value="lcto-enxoval-maio-26" /><span class="help">identificador do lançamento</span></div>
+        <div class="field"><span class="label">field_conversion</span><input class="ctrl" id="t-fc" value="lcto-enxoval-maio-26" /><span class="help">identificador do lançamento (filtro do funil)</span></div>
+        <div class="field"><span class="label">Tabela de criativos (permalinks)</span><input class="ctrl" id="t-crt" value="MAT_meta_ad_creatives" /><span class="help">p/ o dicionário de links</span></div>
       </div>
       <div class="builder-foot">
-        <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar SQL</button>
-        <span class="gen-hint">SELECT diário da view de métricas.</span>
+        <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar as duas queries</button>
+        <span class="gen-hint">Métricas diárias + dicionário de links do lançamento.</span>
       </div>
     </div>
 
@@ -40,9 +41,21 @@
       </div>
     </div>
 
+    <div class="out">
+      <div class="out-hd">
+        <span class="out-step">2</span>
+        <span class="t"><b>Dicionário de links</b><small>CSV opcional — só os criativos deste lançamento</small></span>
+        <button class="copy-btn" id="copy2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copiar</span></button>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="fname">dicionario.sql</span><span class="lang">SQL</span></div>
+        <pre class="sql" id="sql2"></pre>
+      </div>
+    </div>
+
     <div class="caveat">
       <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
-      <p><b>Dicionário de criativos (opcional):</b> um CSV <code>field_ad_name,link</code> liga cada anúncio ao seu link no Instagram/Facebook na seção de criativos.</p>
+      <p><b>Dicionário de criativos (opcional):</b> a query <b>2</b> gera o CSV <code>field_ad_name → link</code> dos anúncios <b>deste lançamento</b> (mesmo filtro de funil da query 1), que liga cada anúncio ao seu link no Instagram/Facebook na seção de criativos. Exporte como CSV separado.</p>
     </div>
   </div>
 
@@ -59,9 +72,32 @@
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
       return `-- Métricas diárias do lançamento (acompanhamento tático)\n-- Origem: VW_V2_inscricoes_res_METRICAS\nSELECT\n  ${COLS.join(',\n  ')}\nFROM "VW_V2_inscricoes_res_METRICAS"\nWHERE field_conversion = '${fc}'\nORDER BY data, utm_source, field_campaign_name, field_ad_name;`;
     }
-    const render = () => { window.renderSql($('sql'), buildSql()); };
+    function buildDictSql() {
+      const fc = esc($('t-fc').value.trim() || 'lcto-...');
+      const crt = esc($('t-crt').value.trim()) || 'MAT_meta_ad_creatives';
+      return `-- Dicionário de links: field_ad_name -> URL do post (permalink)
+-- Só os criativos do lançamento '${fc}' (mesmo filtro de funil da query 1) · habilita o preview na ficha
+-- 1ª coluna = field_ad_name (chave); 2ª coluna = a URL. Exporte como CSV separado.
+SELECT DISTINCT
+  c.field_ad_name,
+  COALESCE(
+    c.instagram_permalink_url,
+    c.effective_object_story_url,
+    c.creative_url
+  )                                        AS post_url
+FROM "${crt}" c
+WHERE c.field_ad_name IN (
+    SELECT DISTINCT field_ad_name
+    FROM "VW_V2_inscricoes_res_METRICAS"
+    WHERE field_conversion = '${fc}' AND field_ad_name IS NOT NULL
+  )
+  AND COALESCE(c.instagram_permalink_url, c.effective_object_story_url, c.creative_url) IS NOT NULL
+ORDER BY c.field_ad_name;`;
+    }
+    const render = () => { window.renderSql($('sql'), buildSql()); window.renderSql($('sql2'), buildDictSql()); };
     $('gen').addEventListener('click', render);
     window.wireCopy($('copy'), () => $('sql').dataset.raw);
+    window.wireCopy($('copy2'), () => $('sql2').dataset.raw);
     render();
   </script>
 </body>
