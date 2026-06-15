@@ -6,109 +6,124 @@
   <title>Nova análise — Acompanhamento de Campanha</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
-  <style>
-    body { background: var(--bg-page); }
-    .g-wrap { max-width: 680px; margin: 0 auto; padding: 40px 28px 80px; }
-    .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
-    .g-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 24px; }
-    .g-card { padding: 22px; }
-    .g-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 18px 0 12px; }
-    .g-h:first-child { margin-top: 0; }
-    .g-row { display:flex; gap: 14px; flex-wrap: wrap; }
-    .g-field { display:flex; flex-direction:column; gap:5px; margin-bottom: 14px; flex: 1 1 150px; }
-    .g-field label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); }
-    .g-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
-    .g-field input:focus { border-color: var(--purple); }
-    .g-file-btn { display:inline-flex; align-items:center; gap:8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
-    .g-file-name { font-size: 12.5px; color: var(--gray); margin-left: 10px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .g-go { margin-top: 12px; display:inline-flex; align-items:center; gap:8px; font-size: 14px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 11px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,.3); }
-    .g-go:disabled { opacity: .55; cursor: default; }
-    .g-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 9px; padding: 11px 14px; display:none; }
-    .g-msg.work { display:block; background: var(--purple-bg); color: var(--purple); }
-    .g-msg.ok { display:block; background: var(--ok-bg); color: var(--ok-fg); }
-    .g-msg.err { display:block; background: var(--err-bg); color: var(--err-fg); }
-    .g-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 14px; }
-    .g-hint code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
-  </style>
+  <link rel="stylesheet" href="/criar.css" />
 </head>
-<body>
+<body class="cr">
   <header class="home-bar" data-sub="Nova análise" data-back="/guia/acompanhamento-lancamento" data-back-label="Voltar ao guia"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="g-wrap">
-    <span class="g-tag">Acompanhamento de Campanha</span>
-    <h1 class="g-title">Novo acompanhamento tático</h1>
-    <p class="g-sub">Envie o CSV de métricas do lançamento em curso (view <code>VW_V2_inscricoes_res_METRICAS</code>) e gere o relatório diário: Visão Geral, Evolução, Canais e Tráfego, com metas, tendência dos últimos 3 dias e funil.</p>
+  <div class="cr-wrap">
+    <aside class="secnav">
+      <div class="hd">Seções</div>
+      <a href="#sec-cliente"><span class="n">1</span> Cliente e campanha</a>
+      <a href="#sec-bench"><span class="n">2</span> Benchmarks de tráfego</a>
+      <a href="#sec-temp"><span class="n">3</span> Temperatura</a>
+      <a href="#sec-metas"><span class="n">4</span> Metas</a>
+      <a href="#sec-files"><span class="n">5</span> Arquivos</a>
+    </aside>
 
-    <div class="card g-card">
-      <p class="g-h">Cliente e campanha</p>
-      <div class="g-field full">
-        <label>Cliente</label>
-        <select id="f-client"></select>
-        <small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
-      </div>
-      <div class="g-row">
-        <div class="g-field"><label>Nome da campanha</label><input id="f-nome" placeholder="ex.: Enxoval Inteligente" /></div>
-        <div class="g-field"><label>field_conversion</label><input id="f-fc" placeholder="auto se único" /></div>
-      </div>
-      <div class="g-row">
-        <div class="g-field"><label>Data de corte</label><input id="f-corte" type="date" /></div>
-        <div class="g-field"><label>Data do report</label><input id="f-report" type="date" /></div>
-      </div>
+    <main class="cr-main">
+      <span class="eyebrow">Acompanhamento de Campanha</span>
+      <h1>Novo acompanhamento tático</h1>
+      <p class="desc">Envie o CSV de métricas do lançamento em curso (view <code>VW_V2_inscricoes_res_METRICAS</code>) e gere o relatório diário: Visão Geral, Evolução, Canais e Tráfego, com metas, tendência dos últimos 3 dias e funil.</p>
 
-      <p class="g-h">Benchmarks de tráfego (taxas esperadas — usadas no funil, nos KPIs e nas perguntas)</p>
-      <div class="g-field full">
-        <label>Tipo de funil <small>(prefill dos benchmarks — gerencie em <a href="/benchmarks.html">Benchmarks</a>)</small></label>
-        <select id="b-tipo"></select>
-      </div>
-      <div class="g-row">
-        <div class="g-field"><label>Hook Rate (%)</label><input id="b-hook" type="number" step="1" value="30" /></div>
-        <div class="g-field"><label>Hold Rate (%)</label><input id="b-hold" type="number" step="1" value="30" /></div>
-        <div class="g-field"><label>CTR (%)</label><input id="b-ctr" type="number" step="0.1" value="1.5" /></div>
-      </div>
-      <div class="g-row">
-        <div class="g-field"><label>Connect Rate (%)</label><input id="b-connect" type="number" step="1" value="80" /></div>
-        <div class="g-field"><label>Conv. de Página (%)</label><input id="b-conv" type="number" step="1" value="40" /></div>
-      </div>
+      <section class="card" id="sec-cliente">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span class="t"><b>Cliente e campanha</b><small>O slug da análise é criado automaticamente a partir do cliente.</small></span>
+        </div>
+        <div class="grid2">
+          <div class="field col2">
+            <label class="label" for="f-client">Cliente <span class="req">*</span></label>
+            <select id="f-client" class="ctrl"></select>
+            <small class="help" id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro.</small>
+          </div>
+          <div class="field"><label class="label" for="f-nome">Nome da campanha</label><input id="f-nome" class="ctrl" placeholder="ex.: Enxoval Inteligente" /></div>
+          <div class="field"><label class="label" for="f-fc">field_conversion <span class="hint">auto se único</span></label><input id="f-fc" class="ctrl" placeholder="auto se único" /></div>
+          <div class="field"><label class="label" for="f-corte">Data de corte</label><input id="f-corte" class="ctrl" type="date" /></div>
+          <div class="field"><label class="label" for="f-report">Data do report</label><input id="f-report" class="ctrl" type="date" /></div>
+        </div>
+      </section>
 
-      <p class="g-h">Temperatura — palavras-chave buscadas no nome da campanha (<code>field_campaign_name</code>)</p>
-      <div class="g-row">
-        <div class="g-field"><label>Quente contém</label><input id="t-quente" placeholder="hot, quente" value="hot, quente" /></div>
-        <div class="g-field"><label>Morno contém</label><input id="t-morno" placeholder="warm, morno" value="warm, morno" /></div>
-        <div class="g-field"><label>Frio contém</label><input id="t-frio" placeholder="cold, frio" value="cold, frio, gelad" /></div>
-      </div>
+      <section class="card" id="sec-bench">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>
+          <span class="t"><b>Benchmarks de tráfego</b><small>Taxas esperadas — usadas no funil, nos KPIs e nas perguntas.</small></span>
+        </div>
+        <div class="field col2" style="margin-bottom:16px">
+          <label class="label" for="b-tipo">Tipo de funil <span class="hint">prefill — gerencie em <a href="/benchmarks.html">Benchmarks</a></span></label>
+          <select id="b-tipo" class="ctrl"></select>
+        </div>
+        <div class="grid3">
+          <div class="field with-suffix"><label class="label" for="b-hook">Hook Rate</label><input id="b-hook" class="ctrl" type="number" step="1" value="30" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-hold">Hold Rate</label><input id="b-hold" class="ctrl" type="number" step="1" value="30" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-ctr">CTR</label><input id="b-ctr" class="ctrl" type="number" step="0.1" value="1.5" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-connect">Connect Rate</label><input id="b-connect" class="ctrl" type="number" step="1" value="80" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-conv">Conv. de Página</label><input id="b-conv" class="ctrl" type="number" step="1" value="40" /><span class="sfx">%</span></div>
+        </div>
+      </section>
 
-      <p class="g-h">Metas da campanha (opcional — habilitam o semáforo de desvio)</p>
-      <div class="g-row">
-        <div class="g-field"><label>Meta leads total</label><input id="m-leads" type="number" placeholder="ex.: 3000" /></div>
-        <div class="g-field"><label>Meta leads to date</label><input id="m-leads-td" type="number" placeholder="ex.: 2400" /></div>
-      </div>
-      <div class="g-row">
-        <div class="g-field"><label>CPL (R$)</label><input id="m-cpl" type="number" step="0.01" /></div>
-        <div class="g-field"><label>CPMQL (R$)</label><input id="m-cpmql" type="number" step="0.01" /></div>
-      </div>
-      <div class="g-row">
-        <div class="g-field"><label>Taxa de Resposta (%)</label><input id="m-resp" type="number" step="0.1" /></div>
-        <div class="g-field"><label>Taxa de Qualidade (%)</label><input id="m-qual" type="number" step="0.1" /></div>
-      </div>
+      <section class="card" id="sec-temp">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+          <span class="t"><b>Temperatura</b><small>Palavras-chave buscadas em <code>field_campaign_name</code>.</small></span>
+        </div>
+        <div class="grid3">
+          <div class="field"><label class="label" for="t-quente">Quente contém</label><input id="t-quente" class="ctrl" placeholder="hot, quente" value="hot, quente" /></div>
+          <div class="field"><label class="label" for="t-morno">Morno contém</label><input id="t-morno" class="ctrl" placeholder="warm, morno" value="warm, morno" /></div>
+          <div class="field"><label class="label" for="t-frio">Frio contém</label><input id="t-frio" class="ctrl" placeholder="cold, frio" value="cold, frio, gelad" /></div>
+        </div>
+      </section>
 
-      <p class="g-h">Arquivos</p>
-      <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
-        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV de métricas<input id="f-csv" type="file" accept=".csv" hidden /></label>
-        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
-      </div>
-      <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
-        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Dicionário de criativos (opcional)<input id="f-dict" type="file" accept=".csv" hidden /></label>
-        <span class="g-file-name" id="f-dict-name">nenhum arquivo</span>
-      </div>
+      <section class="card" id="sec-metas">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h13l-3 4 3 4H6"/></svg></span>
+          <span class="t"><b>Metas da campanha</b><small>Opcional — habilitam o semáforo de desvio.</small></span>
+        </div>
+        <div class="grid2">
+          <div class="field"><label class="label" for="m-leads">Meta leads total</label><input id="m-leads" class="ctrl" type="number" placeholder="ex.: 3000" /></div>
+          <div class="field"><label class="label" for="m-leads-td">Meta leads to date</label><input id="m-leads-td" class="ctrl" type="number" placeholder="ex.: 2400" /></div>
+          <div class="field"><label class="label" for="m-cpl">CPL (R$)</label><input id="m-cpl" class="ctrl" type="number" step="0.01" /></div>
+          <div class="field"><label class="label" for="m-cpmql">CPMQL (R$)</label><input id="m-cpmql" class="ctrl" type="number" step="0.01" /></div>
+          <div class="field with-suffix"><label class="label" for="m-resp">Taxa de Resposta</label><input id="m-resp" class="ctrl" type="number" step="0.1" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="m-qual">Taxa de Qualidade</label><input id="m-qual" class="ctrl" type="number" step="0.1" /><span class="sfx">%</span></div>
+        </div>
+      </section>
 
-      <button class="btn btn--primary g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar acompanhamento</button>
+      <section class="card" id="sec-files">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="t"><b>Arquivos</b><small>CSV de métricas e, opcionalmente, dicionário de criativos.</small></span>
+        </div>
+        <label class="drop">
+          <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="dt"><b>CSV de métricas</b><small id="f-csv-name">nenhum arquivo</small></span>
+          <span class="req-tag">Obrigatório</span>
+          <span class="pick">Escolher</span>
+          <input id="f-csv" type="file" accept=".csv" hidden />
+        </label>
+        <label class="drop">
+          <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+          <span class="dt"><b>Dicionário de criativos <span class="help" style="font-weight:600">(opcional)</span></b><small id="f-dict-name">nenhum arquivo</small></span>
+          <span class="pick">Escolher</span>
+          <input id="f-dict" type="file" accept=".csv" hidden />
+        </label>
+        <p class="help" style="margin-top:14px">Colunas esperadas: <code>field_conversion</code>, <code>data</code>, <code>utm_source</code>, <code>field_campaign_name</code>, <code>field_ad_name</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>, <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>leads_trafego</code>, <code>views_totais</code>, <code>views_50pc</code>. Dicionário: <code>field_ad_name,link</code>.</p>
+      </section>
+
       <div class="g-msg" id="msg"></div>
-      <p class="g-hint">Colunas esperadas: <code>field_conversion</code>, <code>data</code>, <code>utm_source</code>, <code>field_campaign_name</code>, <code>field_ad_name</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>, <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>leads_trafego</code>, <code>views_totais</code>, <code>views_50pc</code>. Dicionário: <code>field_ad_name,link</code>.</p>
+    </main>
+  </div>
+
+  <div class="actionbar">
+    <div class="inner">
+      <span class="ab-summary">Relatório <b>Acompanhamento de Campanha</b></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar acompanhamento</button>
     </div>
   </div>
 
+  <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);

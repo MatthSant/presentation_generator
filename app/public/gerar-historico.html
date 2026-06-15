@@ -6,56 +6,64 @@
   <title>Nova análise — Histórico de Lançamentos</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
-  <style>
-    body { background: var(--bg-page); }
-
-    .g-wrap { max-width: 640px; margin: 0 auto; padding: 40px 28px 80px; }
-    .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
-    .g-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 24px; }
-    .g-card { padding: 22px; }
-    .g-row { display:flex; gap: 14px; flex-wrap: wrap; }
-    .g-field { display:flex; flex-direction:column; gap:5px; margin-bottom: 15px; flex: 1 1 160px; }
-    .g-field label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); }
-    .g-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
-    .g-field input:focus { border-color: var(--purple); }
-    .g-file-btn { display:inline-flex; align-items:center; gap:8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
-    .g-file-name { font-size: 12.5px; color: var(--gray); margin-left: 10px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .g-go { margin-top: 8px; display:inline-flex; align-items:center; gap:8px; font-size: 14px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 11px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,.3); }
-    .g-go:disabled { opacity: .55; cursor: default; }
-    .g-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 9px; padding: 11px 14px; display:none; }
-    .g-msg.work { display:block; background: var(--purple-bg); color: var(--purple); }
-    .g-msg.ok { display:block; background: var(--ok-bg); color: var(--ok-fg); }
-    .g-msg.err { display:block; background: var(--err-bg); color: var(--err-fg); }
-    .g-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 14px; }
-    .g-hint code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
-  </style>
+  <link rel="stylesheet" href="/criar.css" />
 </head>
-<body>
+<body class="cr">
   <header class="home-bar" data-sub="Nova análise" data-back="/guia/historico-lancamentos" data-back-label="Voltar ao guia"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="g-wrap">
-    <span class="g-tag">Histórico de Lançamentos</span>
-    <h1 class="g-title">Nova análise histórica</h1>
-    <p class="g-sub">Envie o CSV consolidado (uma linha por evento × tráfego × plataforma × temperatura) e gere o relatório com Panorama, Investimentos e perguntas de aprofundamento.</p>
+  <div class="cr-wrap">
+    <aside class="secnav">
+      <div class="hd">Seções</div>
+      <a href="#sec-cliente"><span class="n">1</span> Cliente</a>
+      <a href="#sec-files"><span class="n">2</span> Arquivo</a>
+    </aside>
 
-    <div class="card g-card">
-      <div class="g-field full">
-        <label>Cliente</label>
-        <select id="f-client"></select>
-        <small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
-      </div>
-      <div class="g-field" style="flex-direction:row; align-items:center; gap:0">
-        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Escolher CSV<input id="f-csv" type="file" accept=".csv" hidden /></label>
-        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
-      </div>
-      <button class="btn btn--primary g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
+    <main class="cr-main">
+      <span class="eyebrow">Histórico de Lançamentos</span>
+      <h1>Nova análise histórica</h1>
+      <p class="desc">Envie o CSV consolidado (uma linha por evento × tráfego × plataforma × temperatura) e gere o relatório com Panorama, Investimentos e perguntas de aprofundamento.</p>
+
+      <section class="card" id="sec-cliente">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span class="t"><b>Cliente</b><small>O slug da análise é criado automaticamente a partir do cliente.</small></span>
+        </div>
+        <div class="field col2">
+          <label class="label" for="f-client">Cliente <span class="req">*</span></label>
+          <select id="f-client" class="ctrl"></select>
+          <small class="help" id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro.</small>
+        </div>
+      </section>
+
+      <section class="card" id="sec-files">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="t"><b>Arquivo</b><small>CSV consolidado do histórico de lançamentos.</small></span>
+        </div>
+        <label class="drop">
+          <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="dt"><b>CSV consolidado</b><small id="f-csv-name">nenhum arquivo</small></span>
+          <span class="req-tag">Obrigatório</span>
+          <span class="pick">Escolher</span>
+          <input id="f-csv" type="file" accept=".csv" hidden />
+        </label>
+        <p class="help" style="margin-top:14px">Colunas esperadas: <code>field_conversion</code>, <code>date_start</code>, <code>tipo_trafego</code>, <code>plataforma</code>, <code>temperatura_lead</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas_pesquisa</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>vendas_mql</code>, <code>vendas_nao_mql</code>, <code>faturamento</code>, <code>refunded_value</code>, <code>recap_antigos</code>, <code>impressoes</code>, <code>link_clicks</code>.</p>
+      </section>
+
       <div class="g-msg" id="msg"></div>
-      <p class="g-hint">Colunas esperadas: <code>field_conversion</code>, <code>date_start</code>, <code>tipo_trafego</code>, <code>plataforma</code>, <code>temperatura_lead</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas_pesquisa</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>vendas_mql</code>, <code>vendas_nao_mql</code>, <code>faturamento</code>, <code>refunded_value</code>, <code>recap_antigos</code>, <code>impressoes</code>, <code>link_clicks</code>.</p>
+    </main>
+  </div>
+
+  <div class="actionbar">
+    <div class="inner">
+      <span class="ab-summary">Relatório <b>Histórico de Lançamentos</b></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
     </div>
   </div>
 
+  <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);

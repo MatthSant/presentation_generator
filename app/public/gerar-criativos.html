@@ -6,82 +6,96 @@
   <title>Nova análise — Criativos</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/criar.css" />
   <style>
-    body { background: var(--bg-page); }
-
-    .g-wrap { max-width: 640px; margin: 0 auto; padding: 40px 28px 80px; }
-    .g-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
-    .g-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 24px; }
-    .g-card { padding: 22px; }
-    .g-row { display:flex; gap: 14px; flex-wrap: wrap; }
-    .g-field { display:flex; flex-direction:column; gap:5px; margin-bottom: 15px; flex: 1 1 160px; }
-    .g-field label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); }
-    .g-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
-    .g-field input:focus { border-color: var(--purple); }
-    .g-fileline { display:flex; align-items:center; margin-bottom: 15px; min-width: 0; }
-    .g-file-btn { display:inline-flex; align-items:center; gap:8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 9px; padding: 11px 15px; cursor: pointer; flex-shrink: 0; }
-    .g-file-name { font-size: 12.5px; color: var(--gray); margin-left: 10px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .g-go { margin-top: 8px; display:inline-flex; align-items:center; gap:8px; font-size: 14px; font-weight: 700; color:#fff; background: var(--purple); border: none; border-radius: 9px; padding: 11px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,.3); }
-    .g-go:disabled { opacity: .55; cursor: default; }
-    .g-msg { margin-top: 16px; font-size: 13.5px; line-height: 1.5; border-radius: 9px; padding: 11px 14px; display:none; }
-    .g-msg.work { display:block; background: var(--purple-bg); color: var(--purple); }
-    .g-msg.ok { display:block; background: var(--ok-bg); color: var(--ok-fg); }
-    .g-msg.err { display:block; background: var(--err-bg); color: var(--err-fg); }
-    .g-hint { font-size: 12px; color: var(--gray2); line-height: 1.55; margin-top: 14px; }
-    .g-hint code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
-    .g-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 22px 0 4px; }
-    .g-hsub { font-size: 12px; color: var(--gray2); line-height: 1.5; margin: 0 0 12px; }
-    .tr-list { display:flex; flex-direction:column; gap: 8px; }
-    .tr-row { display:flex; align-items:center; gap: 8px; }
-    .tr-row input { flex: 1 1 0; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; font-size: 12.5px; color: var(--fg); outline: none; }
-    .tr-row input.tr-contains { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
-    .tr-row input:focus { border-color: var(--purple); }
-    .tr-arrow { color: var(--gray2); font-size: 13px; flex-shrink: 0; }
-    .tr-del { flex-shrink: 0; width: 30px; height: 30px; display:inline-flex; align-items:center; justify-content:center; border: 1px solid var(--border); background: var(--surface); border-radius: 7px; color: var(--gray2); cursor: pointer; font-size: 15px; line-height: 1; }
-    .tr-del:hover { border-color: var(--err-fg); color: var(--err-fg); }
-    .tr-add { margin-top: 10px; display:inline-flex; align-items:center; gap:6px; font-size: 12.5px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
-    .tr-over { display:flex; align-items:center; gap: 7px; margin-top: 12px; font-size: 12.5px; color: var(--gray); cursor: pointer; }
-    .tr-over input { accent-color: var(--purple); width: 15px; height: 15px; }
+    /* Editor de regras de temperatura — específico desta página (não coberto por criar.css) */
+    .cr .tr-list { display: flex; flex-direction: column; gap: 8px; }
+    .cr .tr-row { display: flex; align-items: center; gap: 8px; }
+    .cr .tr-row input { flex: 1 1 0; min-width: 0; height: 42px; padding: 0 12px; background: var(--card, #fff); border: 1px solid var(--border-2, var(--border-strong)); border-radius: var(--r-md); font: inherit; font-size: 13.5px; color: var(--fg); outline: none; transition: border-color .15s, box-shadow .15s; }
+    .cr .tr-row input.tr-contains { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12.5px; }
+    .cr .tr-row input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-bg); }
+    .cr .tr-arrow { color: var(--gray2); font-size: 13px; flex-shrink: 0; }
+    .cr .tr-del { flex-shrink: 0; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-2, var(--border-strong)); background: var(--card, #fff); border-radius: var(--r-md); color: var(--gray2); cursor: pointer; font-size: 17px; line-height: 1; transition: border-color .15s, color .15s; }
+    .cr .tr-del:hover { border-color: var(--err-fg); color: var(--err-fg); }
+    .cr .tr-add { margin-top: 12px; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: var(--r-pill); padding: 9px 15px; cursor: pointer; }
+    .cr .tr-over { display: flex; align-items: center; gap: 9px; margin-top: 16px; font-size: 13px; color: var(--gray); font-weight: 600; cursor: pointer; }
+    .cr .tr-over input { accent-color: var(--purple); width: 16px; height: 16px; }
   </style>
 </head>
-<body>
+<body class="cr">
   <header class="home-bar" data-sub="Nova análise" data-back="/guia/criativos" data-back-label="Voltar ao guia"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="g-wrap">
-    <span class="g-tag">Análise de Criativos</span>
-    <h1 class="g-title">Nova análise de criativos</h1>
-    <p class="g-sub">Envie o CSV de criativos (uma linha por anúncio × dia × campanha/público) e, opcionalmente, o dicionário de links (anúncio → URL do post) para os previews. O relatório abre com Panorama + uma ficha por criativo na sidebar.</p>
+  <div class="cr-wrap">
+    <aside class="secnav">
+      <div class="hd">Seções</div>
+      <a href="#sec-cliente"><span class="n">1</span> Cliente</a>
+      <a href="#sec-files"><span class="n">2</span> Arquivos</a>
+      <a href="#sec-temp"><span class="n">3</span> Temperatura</a>
+    </aside>
 
-    <div class="card g-card">
-      <div class="g-field full">
-        <label>Cliente</label>
-        <select id="f-client"></select>
-        <small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
-      </div>
+    <main class="cr-main">
+      <span class="eyebrow">Análise de Criativos</span>
+      <h1>Nova análise de criativos</h1>
+      <p class="desc">Envie o CSV de criativos (uma linha por anúncio × dia × campanha/público) e, opcionalmente, o dicionário de links (anúncio → URL do post) para os previews. O relatório abre com Panorama + uma ficha por criativo na sidebar.</p>
 
-      <div class="g-fileline">
-        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV de criativos<input id="f-csv" type="file" accept=".csv" hidden /></label>
-        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
-      </div>
-      <div class="g-fileline">
-        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Dicionário de links <span style="font-weight:600;opacity:.7">(opcional)</span><input id="f-dict" type="file" accept=".csv" hidden /></label>
-        <span class="g-file-name" id="f-dict-name">nenhum arquivo</span>
-      </div>
+      <section class="card" id="sec-cliente">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span class="t"><b>Cliente</b><small>O slug da análise é criado automaticamente a partir do cliente.</small></span>
+        </div>
+        <div class="field col2">
+          <label class="label" for="f-client">Cliente <span class="req">*</span></label>
+          <select id="f-client" class="ctrl"></select>
+          <small class="help" id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug da análise é criado automaticamente.</small>
+        </div>
+      </section>
 
-      <p class="g-h">Classificação de temperatura <span style="font-weight:600;color:var(--gray2);text-transform:none;letter-spacing:0">(opcional)</span></p>
-      <p class="g-hsub">Define a <code style="font-family:'JetBrains Mono',monospace;font-size:.9em">temperatura_lead</code> por trecho do <strong>nome da campanha</strong> (ILIKE, case-insensitive — 1ª regra que casar vence). Útil para CSV cru sem a coluna pronta; campanhas sem match viram <code style="font-family:'JetBrains Mono',monospace;font-size:.9em">N/C</code>.</p>
-      <div class="tr-list" id="tr-list"></div>
-      <button type="button" class="tr-add" id="tr-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Adicionar regra</button>
-      <label class="tr-over"><input type="checkbox" id="tr-over" /> Sobrescrever a temperatura já presente no CSV</label>
+      <section class="card" id="sec-files">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="t"><b>Arquivos</b><small>CSV de criativos e, opcionalmente, dicionário de links para os previews.</small></span>
+        </div>
+        <label class="drop">
+          <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="dt"><b>CSV de criativos</b><small id="f-csv-name">nenhum arquivo</small></span>
+          <span class="req-tag">Obrigatório</span>
+          <span class="pick">Escolher</span>
+          <input id="f-csv" type="file" accept=".csv" hidden />
+        </label>
+        <label class="drop">
+          <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+          <span class="dt"><b>Dicionário de links <span class="help" style="font-weight:600">(opcional)</span></b><small id="f-dict-name">nenhum arquivo</small></span>
+          <span class="pick">Escolher</span>
+          <input id="f-dict" type="file" accept=".csv" hidden />
+        </label>
+        <p class="help" style="margin-top:14px">Colunas esperadas no CSV: <code>field_ad_name</code>, <code>field_campaign_name</code>, <code>field_adset_name</code>, <code>temperatura_lead</code>, <code>data</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code>. Dicionário: 1ª coluna <code>field_ad_name</code>, 2ª coluna a URL do post.</p>
+      </section>
 
-      <button class="btn btn--primary g-go" id="go"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
+      <section class="card" id="sec-temp">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+          <span class="t"><b>Classificação de temperatura <span class="help" style="font-weight:600">(opcional)</span></b><small>Define a temperatura por trecho do nome da campanha.</small></span>
+        </div>
+        <p class="help" style="margin-bottom:14px">Define a <code>temperatura_lead</code> por trecho do <strong>nome da campanha</strong> (ILIKE, case-insensitive — 1ª regra que casar vence). Útil para CSV cru sem a coluna pronta; campanhas sem match viram <code>N/C</code>.</p>
+        <div class="tr-list" id="tr-list"></div>
+        <button type="button" class="tr-add" id="tr-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Adicionar regra</button>
+        <label class="tr-over"><input type="checkbox" id="tr-over" /> Sobrescrever a temperatura já presente no CSV</label>
+      </section>
+
       <div class="g-msg" id="msg"></div>
-      <p class="g-hint">Colunas esperadas no CSV: <code>field_ad_name</code>, <code>field_campaign_name</code>, <code>field_adset_name</code>, <code>temperatura_lead</code>, <code>data</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code>. Dicionário: 1ª coluna <code>field_ad_name</code>, 2ª coluna a URL do post.</p>
+    </main>
+  </div>
+
+  <div class="actionbar">
+    <div class="inner">
+      <span class="ab-summary">Relatório <b>Análise de Criativos</b></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
     </div>
   </div>
 
+  <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);

@@ -6,97 +6,112 @@
   <title>Nova análise — Conversão por Perfil</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/criar.css" />
   <style>
-    body { background: var(--bg-page); }
+    /* Mensagem de status: o script usa a classe `.show` (não .work/.ok/.err sozinhas). */
+    .cr .g-msg.show { display: block; }
 
-    .g-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 36px 120px; }
-    .g-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .g-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-    .g-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 12px 0 0; }
-    .g-sub { font-size: 14px; color: var(--gray); margin-top: 6px; max-width: 72ch; line-height: 1.6; }
+    /* Estado desabilitado do card de critérios (alternado pelo script via .g-disabled). */
+    .cr .g-disabled { opacity: .45; pointer-events: none; }
 
-    .g-card { background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 20px 22px; box-shadow: var(--shadow-sm); margin-top: 18px; }
-    .g-step { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gray2); margin-bottom: 14px; display: flex; align-items: center; gap: 9px; }
-    .g-step b { display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 50%; background: var(--purple); color: #fff; font-size: 11px; font-weight: 800; }
-
-    .g-row { display: flex; gap: 14px; flex-wrap: wrap; }
-    .g-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
-    .g-field label { font-size: 12px; font-weight: 700; color: var(--fg); }
-    .g-field input, .g-field select { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
-    .g-field input:focus, .g-field select:focus { border-color: var(--purple); }
-    .g-hint { font-size: 11.5px; color: var(--gray2); margin-top: 4px; line-height: 1.5; }
-
-    .g-file { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .g-file-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 40%, var(--border)); border-radius: 9px; padding: 10px 16px; cursor: pointer; flex-shrink: 0; }
-    .g-file-btn:hover { background: color-mix(in srgb, var(--purple) 12%, var(--bg)); }
-    .g-file-name { font-size: 13px; color: var(--gray); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .g-crit { border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin-bottom: 11px; background: var(--surface); }
-    .g-crit-head { display: flex; align-items: center; gap: 10px; }
-    .g-crit-head input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--purple); flex-shrink: 0; }
-    .g-crit-col { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--gray2); }
-    .g-crit-body { margin-top: 11px; display: none; gap: 12px; flex-wrap: wrap; }
-    .g-crit.on .g-crit-body { display: flex; }
-    .g-crit-body .g-field { min-width: 130px; }
-    .g-ord { flex-basis: 100%; }
-    .g-ord textarea { width: 100%; box-sizing: border-box; min-height: 92px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; line-height: 1.5; color: var(--fg); outline: none; resize: vertical; }
-    .g-ord textarea:focus { border-color: var(--purple); }
-    .g-ckbox { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); }
-
-    .g-actions { position: sticky; bottom: 0; margin-top: 22px; padding: 16px 0 0; }
-    .g-go { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 800; color: #fff; background: var(--purple); border: none; border-radius: 10px; padding: 12px 22px; cursor: pointer; box-shadow: 0 3px 12px rgba(124, 58, 237, .32); }
-    .g-go:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
-    .g-go:not(:disabled):hover { transform: translateY(-1px); }
-    .g-msg { margin-top: 12px; font-size: 13.5px; line-height: 1.6; padding: 11px 14px; border-radius: 9px; display: none; }
-    .g-msg.show { display: block; }
-    .g-msg.err { background: color-mix(in srgb, var(--red) 9%, var(--bg)); border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); color: var(--fg); }
-    .g-msg.ok { background: color-mix(in srgb, var(--green) 10%, var(--bg)); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); color: var(--fg); }
-    .g-msg.work { background: var(--purple-bg); border: 1px solid color-mix(in srgb, var(--purple) 22%, transparent); color: var(--fg); }
-    .g-disabled { opacity: .45; pointer-events: none; }
+    /* Critérios gerados dinamicamente pelo script (renderCriterios) — não cobertos por criar.css. */
+    .cr .g-crit { border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin-bottom: 11px; background: var(--surface); }
+    .cr .g-crit-head { display: flex; align-items: center; gap: 10px; }
+    .cr .g-crit-head input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--purple); flex-shrink: 0; }
+    .cr .g-crit-col { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--gray2); }
+    .cr .g-crit-body { margin-top: 11px; display: none; gap: 12px; flex-wrap: wrap; }
+    .cr .g-crit.on .g-crit-body { display: flex; }
+    .cr .g-crit-body .g-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 130px; }
+    .cr .g-crit-body .g-field label { font-size: 12px; font-weight: 700; color: var(--fg); }
+    .cr .g-crit-body .g-field input { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font-sans), sans-serif; font-size: 13.5px; color: var(--fg); outline: none; }
+    .cr .g-crit-body .g-field input:focus { border-color: var(--purple); }
+    .cr .g-ord { flex-basis: 100%; }
+    .cr .g-ord textarea { width: 100%; box-sizing: border-box; min-height: 92px; background: var(--card, #fff); border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; line-height: 1.5; color: var(--fg); outline: none; resize: vertical; }
+    .cr .g-ord textarea:focus { border-color: var(--purple); }
+    .cr .g-ckbox { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); }
   </style>
 </head>
-<body>
+<body class="cr">
   <header class="home-bar" data-sub="Nova análise" data-back="/"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="g-wrap">
-    <span class="g-tag">Conversão por Perfil</span>
-    <h1 class="g-title">Nova análise</h1>
-    <p class="g-sub">Suba o dump de pesquisa (uma linha por combinação de dimensões × lançamento × canal), confirme os critérios e gere a análise. Os números são calculados no servidor; o arquivo bruto não é guardado.</p>
+  <div class="cr-wrap">
+    <aside class="secnav">
+      <div class="hd">Seções</div>
+      <a href="#sec-id"><span class="n">1</span> Identificação</a>
+      <a href="#sec-csv"><span class="n">2</span> Arquivo de dados</a>
+      <a href="#crit-card"><span class="n">3</span> Critérios</a>
+      <a href="#sec-ia"><span class="n">4</span> Insights com IA</a>
+    </aside>
 
-    <!-- Passo 1 -->
-    <div class="g-card">
-      <div class="g-step"><b>1</b> Identificação</div>
-      <div class="g-row">
-        <div class="g-field"><label>Cliente</label><select id="f-client"></select><small id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug é criado automaticamente.</small></div>
-        <div class="g-field"><label>Janela longa</label><select id="f-long"><option value="12m">12 meses</option><option value="6m">6 meses</option></select></div>
-      </div>
-    </div>
+    <main class="cr-main">
+      <span class="eyebrow">Conversão por Perfil</span>
+      <h1>Nova análise</h1>
+      <p class="desc">Suba o dump de pesquisa (uma linha por combinação de dimensões × lançamento × canal), confirme os critérios e gere a análise. Os números são calculados no servidor; o arquivo bruto não é guardado.</p>
 
-    <!-- Passo 2 -->
-    <div class="g-card">
-      <div class="g-step"><b>2</b> Arquivo de dados (CSV)</div>
-      <div class="g-file">
-        <label class="g-file-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Escolher CSV<input id="f-csv" type="file" accept=".csv" hidden /></label>
-        <span class="g-file-name" id="f-csv-name">nenhum arquivo</span>
-      </div>
-      <p class="g-hint" id="f-csv-info"></p>
-    </div>
+      <section class="card" id="sec-id">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span class="t"><b>Identificação</b><small>O slug da análise é criado automaticamente a partir do cliente.</small></span>
+        </div>
+        <div class="grid2">
+          <div class="field col2">
+            <label class="label" for="f-client">Cliente <span class="req">*</span></label>
+            <select id="f-client" class="ctrl"></select>
+            <small class="help" id="f-client-empty" hidden>Nenhum cliente cadastrado — <a href="/clientes.html">cadastre um cliente</a> primeiro. O slug é criado automaticamente.</small>
+          </div>
+          <div class="field col2">
+            <label class="label" for="f-long">Janela longa</label>
+            <select id="f-long" class="ctrl"><option value="12m">12 meses</option><option value="6m">6 meses</option></select>
+          </div>
+        </div>
+      </section>
 
-    <!-- Passo 3 -->
-    <div class="g-card g-disabled" id="crit-card">
-      <div class="g-step"><b>3</b> Critérios (dimensões que viram páginas)</div>
-      <p class="g-hint" style="margin-bottom:14px">Marque as dimensões a analisar. Em cada uma, edite a lista de grupos: uma por linha, na ordem desejada. Para juntar variantes duplicadas, use <code>texto bruto =&gt; nome final</code>.</p>
-      <div id="crit-list"></div>
-    </div>
+      <section class="card" id="sec-csv">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="t"><b>Arquivo de dados (CSV)</b><small>Dump de pesquisa — as colunas são lidas no servidor para sugerir os critérios.</small></span>
+        </div>
+        <label class="drop">
+          <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+          <span class="dt"><b>Dump de pesquisa (CSV)</b><small id="f-csv-name">nenhum arquivo</small></span>
+          <span class="req-tag">Obrigatório</span>
+          <span class="pick">Escolher</span>
+          <input id="f-csv" type="file" accept=".csv" hidden />
+        </label>
+        <p class="help" id="f-csv-info" style="margin-top:12px"></p>
+      </section>
 
-    <div class="g-actions">
-      <label class="g-ckbox" style="margin-bottom:12px"><input type="checkbox" id="f-insights" checked style="width:16px;height:16px;accent-color:var(--purple)" /> Gerar insights com IA (prosa de Insights/Aprofundamentos a partir dos números)</label>
-      <div><button class="g-go" id="go" disabled>Gerar análise</button></div>
+      <section class="card g-disabled" id="crit-card">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
+          <span class="t"><b>Critérios</b><small>Dimensões que viram páginas no relatório.</small></span>
+        </div>
+        <p class="help" style="margin-bottom:14px">Marque as dimensões a analisar. Em cada uma, edite a lista de grupos: uma por linha, na ordem desejada. Para juntar variantes duplicadas, use <code>texto bruto =&gt; nome final</code>.</p>
+        <div id="crit-list"></div>
+      </section>
+
+      <section class="card" id="sec-ia">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4-6.3-4.6L5.7 21.4 8 14 2 9.4h7.6z"/></svg></span>
+          <span class="t"><b>Insights com IA</b><small>Prosa de Insights/Aprofundamentos gerada a partir dos números.</small></span>
+        </div>
+        <label class="g-ckbox"><input type="checkbox" id="f-insights" checked style="width:16px;height:16px;accent-color:var(--purple)" /> Gerar insights com IA (prosa de Insights/Aprofundamentos a partir dos números)</label>
+      </section>
+
       <div class="g-msg" id="msg"></div>
+    </main>
+  </div>
+
+  <div class="actionbar">
+    <div class="inner">
+      <span class="ab-summary">Relatório <b>Conversão por Perfil</b></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="go" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Gerar análise</button>
     </div>
   </div>
 
+  <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
