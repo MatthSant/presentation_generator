@@ -77,14 +77,14 @@
       const crt = esc($('t-crt').value.trim()) || 'MAT_meta_ad_creatives';
       return `-- Dicionário de links: field_ad_name -> URL do post (permalink)
 -- Só os criativos do lançamento '${fc}' (mesmo filtro de funil da query 1) · habilita o preview na ficha
--- 1ª coluna = field_ad_name (chave); 2ª coluna = a URL. Exporte como CSV separado.
+-- Colunas: field_ad_name (chave) + link (a URL — o acompanhamento lê pela coluna "link").
 SELECT DISTINCT
   c.field_ad_name,
   COALESCE(
     c.instagram_permalink_url,
     c.effective_object_story_url,
     c.creative_url
-  )                                        AS post_url
+  )                                        AS link
 FROM "${crt}" c
 WHERE c.field_ad_name IN (
     SELECT DISTINCT field_ad_name
