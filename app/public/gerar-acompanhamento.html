@@ -75,15 +75,33 @@
       <section class="card" id="sec-metas">
         <div class="card-hd">
           <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h13l-3 4 3 4H6"/></svg></span>
-          <span class="t"><b>Metas da campanha</b><small>Opcional — habilitam o semáforo de desvio.</small></span>
+          <span class="t"><b>Metas da campanha</b><small>Opcional — habilitam o semáforo de desvio. Manuais ou launch goals (CSV).</small></span>
         </div>
-        <div class="grid2">
-          <div class="field"><label class="label" for="m-leads">Meta leads total</label><input id="m-leads" class="ctrl" type="number" placeholder="ex.: 3000" /></div>
-          <div class="field"><label class="label" for="m-leads-td">Meta leads to date</label><input id="m-leads-td" class="ctrl" type="number" placeholder="ex.: 2400" /></div>
-          <div class="field"><label class="label" for="m-cpl">CPL (R$)</label><input id="m-cpl" class="ctrl" type="number" step="0.01" /></div>
-          <div class="field"><label class="label" for="m-cpmql">CPMQL (R$)</label><input id="m-cpmql" class="ctrl" type="number" step="0.01" /></div>
-          <div class="field with-suffix"><label class="label" for="m-resp">Taxa de Resposta</label><input id="m-resp" class="ctrl" type="number" step="0.1" /><span class="sfx">%</span></div>
-          <div class="field with-suffix"><label class="label" for="m-qual">Taxa de Qualidade</label><input id="m-qual" class="ctrl" type="number" step="0.1" /><span class="sfx">%</span></div>
+        <div class="field col2" style="margin-bottom:16px">
+          <label class="label" for="m-mode">Fonte das metas</label>
+          <select id="m-mode" class="ctrl">
+            <option value="manual">Metas manuais (digitadas aqui)</option>
+            <option value="goals">Launch goals (CSV do lançamento)</option>
+          </select>
+        </div>
+        <div id="metas-manual">
+          <div class="grid2">
+            <div class="field"><label class="label" for="m-leads">Meta leads total</label><input id="m-leads" class="ctrl" type="number" placeholder="ex.: 3000" /></div>
+            <div class="field"><label class="label" for="m-leads-td">Meta leads to date</label><input id="m-leads-td" class="ctrl" type="number" placeholder="ex.: 2400" /></div>
+            <div class="field"><label class="label" for="m-cpl">CPL (R$)</label><input id="m-cpl" class="ctrl" type="number" step="0.01" /></div>
+            <div class="field"><label class="label" for="m-cpmql">CPMQL (R$)</label><input id="m-cpmql" class="ctrl" type="number" step="0.01" /></div>
+            <div class="field with-suffix"><label class="label" for="m-resp">Taxa de Resposta</label><input id="m-resp" class="ctrl" type="number" step="0.1" /><span class="sfx">%</span></div>
+            <div class="field with-suffix"><label class="label" for="m-qual">Taxa de Qualidade</label><input id="m-qual" class="ctrl" type="number" step="0.1" /><span class="sfx">%</span></div>
+          </div>
+        </div>
+        <div id="metas-goals" hidden>
+          <label class="drop">
+            <span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h13l-3 4 3 4H6"/></svg></span>
+            <span class="dt"><b>Launch goals (CSV)</b><small id="f-goals-name">nenhum arquivo</small></span>
+            <span class="pick">Escolher</span>
+            <input id="f-goals" type="file" accept=".csv" hidden />
+          </label>
+          <p class="help" style="margin-top:12px">Mesma tabela do debriefing (<code>wtl_launch_goals</code>) — <code>meta_leads, meta_cpl, meta_cpmql, meta_taxa_resp, meta_taxa_qual, meta_conversao, meta_valor_invest</code> por utm_source × dia. Substitui as metas manuais. Gere pelo botão <strong>Gerar SQL</strong> do acompanhamento.</p>
         </div>
       </section>
 
@@ -159,16 +177,29 @@
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
 
+    // Fonte das metas: manuais (digitadas) ou launch goals (CSV do lançamento).
+    let GOALS = null;
+    $('f-goals').addEventListener('change', (e) => { GOALS = e.target.files[0] || null; $('f-goals-name').textContent = GOALS ? GOALS.name : 'nenhum arquivo'; });
+    $('m-mode').addEventListener('change', () => {
+      const g = $('m-mode').value === 'goals';
+      $('metas-manual').hidden = g; $('metas-goals').hidden = !g;
+    });
+
     $('go').addEventListener('click', async () => {
       const client = $('f-client').value;
       if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV) { show('err', 'Escolha o CSV de métricas.'); return; }
+      const goalsMode = $('m-mode').value === 'goals';
+      if (goalsMode && !GOALS) { show('err', 'Escolha o CSV de launch goals (ou troque a fonte para metas manuais).'); return; }
 
+      // Metas: manuais (digitadas) OU launch goals (CSV) — não os dois.
       const metas = {};
-      const add = (k, id) => { const v = numv(id); if (v !== null) metas[k] = v; };
-      add('cpl', 'm-cpl'); add('cpmql', 'm-cpmql');
-      add('taxa_resp', 'm-resp'); add('taxa_qual', 'm-qual');
-      add('_leads_total', 'm-leads'); add('_leads_td', 'm-leads-td');
+      if (!goalsMode) {
+        const add = (k, id) => { const v = numv(id); if (v !== null) metas[k] = v; };
+        add('cpl', 'm-cpl'); add('cpmql', 'm-cpmql');
+        add('taxa_resp', 'm-resp'); add('taxa_qual', 'm-qual');
+        add('_leads_total', 'm-leads'); add('_leads_td', 'm-leads-td');
+      }
       // Benchmarks de tráfego: fonte única do funil E do semáforo dos KPIs.
       const funnel_bench = {};
       const addb = (k, id) => { const v = numv(id); if (v !== null) funnel_bench[k] = v; };
@@ -189,6 +220,7 @@
         const fd = new FormData();
         fd.append('csv', CSV);
         if (DICT) fd.append('dict', DICT);
+        if (goalsMode && GOALS) fd.append('goals', GOALS);
         fd.append('config', JSON.stringify(cfg));
         const r = await fetch(`/api/${encodeURIComponent(client)}/_new/generate`, { method: 'POST', body: fd });
         const d = await r.json();

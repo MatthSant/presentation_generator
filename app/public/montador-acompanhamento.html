@@ -22,10 +22,11 @@
       <div class="grid3">
         <div class="field"><span class="label">field_conversion</span><input class="ctrl" id="t-fc" value="lcto-enxoval-maio-26" /><span class="help">identificador do lançamento (filtro do funil)</span></div>
         <div class="field"><span class="label">Tabela de criativos (permalinks)</span><input class="ctrl" id="t-crt" value="MAT_meta_ad_creatives" /><span class="help">p/ o dicionário de links</span></div>
+        <div class="field"><span class="label">Tabela de metas (launch goals)</span><input class="ctrl" id="t-goals" value="wtl_launch_goals" /><span class="help">metas por utm_source × dia</span></div>
       </div>
       <div class="builder-foot">
         <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar as duas queries</button>
-        <span class="gen-hint">Métricas diárias + dicionário de links do lançamento.</span>
+        <span class="gen-hint">Métricas diárias + dicionário de links + metas do lançamento.</span>
       </div>
     </div>
 
@@ -50,6 +51,18 @@
       <div class="code">
         <div class="code-bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="fname">dicionario.sql</span><span class="lang">SQL</span></div>
         <pre class="sql" id="sql2"></pre>
+      </div>
+    </div>
+
+    <div class="out">
+      <div class="out-hd">
+        <span class="out-step">3</span>
+        <span class="t"><b>Metas — launch goals</b><small>CSV opcional — usar no lugar das metas manuais</small></span>
+        <button class="copy-btn" id="copy3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copiar</span></button>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="fname">launch_goals.sql</span><span class="lang">SQL</span></div>
+        <pre class="sql" id="sql3"></pre>
       </div>
     </div>
 
@@ -94,10 +107,29 @@ WHERE c.field_ad_name IN (
   AND COALESCE(c.instagram_permalink_url, c.effective_object_story_url, c.creative_url) IS NOT NULL
 ORDER BY c.field_ad_name;`;
     }
-    const render = () => { window.renderSql($('sql'), buildSql()); window.renderSql($('sql2'), buildDictSql()); };
+    function buildGoalsSql() {
+      const fc = esc($('t-fc').value.trim() || 'lcto-...');
+      const tg = esc($('t-goals').value.trim()) || 'wtl_launch_goals';
+      return `-- Metas do lançamento (launch goals) — 1 linha por utm_source × dia
+-- Origem: ${tg}  ·  usado como metas no acompanhamento (em vez das metas manuais)
+SELECT
+  data, utm_source, utm_medium, field_conversion,
+  meta_leads, meta_taxa_resp, meta_taxa_qual, meta_valor_invest,
+  meta_cpl, meta_cpmql, meta_cpl_aceitavel, meta_cpmql_aceitavel,
+  meta_conversao, meta_receita, meta_vendas
+FROM "${tg}"
+WHERE field_conversion = '${fc}'
+ORDER BY data, utm_source;`;
+    }
+    const render = () => {
+      window.renderSql($('sql'), buildSql());
+      window.renderSql($('sql2'), buildDictSql());
+      window.renderSql($('sql3'), buildGoalsSql());
+    };
     $('gen').addEventListener('click', render);
     window.wireCopy($('copy'), () => $('sql').dataset.raw);
     window.wireCopy($('copy2'), () => $('sql2').dataset.raw);
+    window.wireCopy($('copy3'), () => $('sql3').dataset.raw);
     render();
   </script>
 </body>
