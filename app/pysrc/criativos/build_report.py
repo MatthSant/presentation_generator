@@ -324,7 +324,9 @@ def assemble(rows, config, content, opts=None):
     pages = [{'id': 'panorama', 'label': 'Panorama', 'sections': [{'id': 's01', 'label': 'Panorama'}]},
              {'id': 'fichas', 'label': 'Fichas', 'sections': fichas_refs}]
     created = (config or {}).get('created_at') or datetime.date.today().isoformat()
-    data_json = {'meta': {'client': config['client'], 'title': config['title'], 'type': 'dashboard',
+    data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
+                          'campaign_label': config.get('campaign_label') or '', 'report_type': config.get('type') or 'criativos',
+                          'title': config['title'], 'type': 'dashboard',
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title']},
                           'controls': {'kind': 'criativos', 'pages': ['panorama', 'fichas'],

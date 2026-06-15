@@ -75,7 +75,7 @@ class App {
     const brand = document.getElementById('tn-client');
     if (brand) {
       // breadcrumb DS Witly: Cliente / Tipo de análise / Campanha (3 níveis).
-      const m = (data.meta || {}) as { client?: string; client_name?: string; campaign_label?: string; title?: string; controls?: { kind?: string } };
+      const m = (data.meta || {}) as { client?: string; client_name?: string; campaign_label?: string; title?: string; report_type?: string; controls?: { kind?: string } };
       const TYPE_LABELS: Record<string, string> = {
         'acompanhamento-lancamento': 'Acompanhamento de Campanha',
         'debriefing-lancamento': 'Debriefing de Lançamento',
@@ -84,7 +84,7 @@ class App {
         'criativos': 'Análise de Criativos',
       };
       const cliente = m.client_name || m.client || '';
-      const tipo = TYPE_LABELS[m.controls?.kind || ''] || '';
+      const tipo = TYPE_LABELS[m.controls?.kind || ''] || TYPE_LABELS[m.report_type || ''] || '';
       const campanha = m.campaign_label || this.slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
       const crumbs = [cliente, tipo, campanha].filter(Boolean);
       brand.innerHTML = crumbs.length > 1
