@@ -160,7 +160,11 @@ def assemble(rows, config, content, opts=None):
 
     # 5 indicadores macro numa linha só (w=2, como os KPIs macro do acompanhamento).
     pg.newrow()
-    # Histórico (lançamento anterior) p/ os derivados — mesmo rodapé de comparação.
+    # Metas derivadas das goals p/ Retorno e ROI (meta_receita − meta_invest);
+    # histórico (lançamento anterior) p/ o ROAS. Mesmo rodapé "Meta/Hist · ±%".
+    g_fat, g_inv = G.get('fat'), G.get('invest_cpt')
+    retorno_meta = (g_fat - g_inv) if (g_fat and g_inv) else None
+    roi_meta = (retorno_meta / g_inv * 100) if (retorno_meta is not None and g_inv) else None
     h_inv = H.get('invest')
     retorno_h = (H['fat'] - h_inv) if (H.get('fat') is not None and h_inv) else None
     roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
@@ -169,9 +173,11 @@ def assemble(rows, config, content, opts=None):
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
        real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4, meta_fmt=money(G.get('fat')) if G.get('fat') else None)
     km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7', w=2,
-       real=M['retorno'], hist=retorno_h, hist_fmt=(money(retorno_h) if retorno_h is not None else None))
+       real=M['retorno'], meta=retorno_meta, hist=retorno_h,
+       meta_fmt=(money(retorno_meta) if retorno_meta is not None else None))
     km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5', w=2,
-       real=M['roi'], hist=roi_h, hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
+       real=M['roi'], meta=roi_meta, hist=roi_h,
+       meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None))
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
     km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '(fat. pago − invest. cpt) / invest. cpt', 'bolt', '#EF9F27', w=2,
        real=M['roas'], hist=roas_h, hist_fmt=(xf(roas_h) if roas_h else None))
