@@ -6,65 +6,61 @@
   <title>Gerar SQL — Análise de Criativos</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
-  <style>
-    body { background: var(--bg-page); }
-
-    .m-wrap { max-width: 980px; margin: 0 auto; padding: 36px 28px 80px; }
-    .m-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .m-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 13px 0 6px; }
-    .m-sub { font-size: 14.5px; color: var(--gray); line-height: 1.6; margin: 0 0 22px; max-width: 70ch; }
-    .m-card { padding: 20px 22px; margin-bottom: 18px; }
-    .m-h { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); margin: 0 0 14px; }
-    .m-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 13px; }
-    .m-field { display:flex; flex-direction:column; gap:5px; }
-    .m-field label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--gray2); }
-    .m-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: var(--fg); outline: none; }
-    .m-field input:focus { border-color: var(--purple); }
-    .m-field small { font-size: 11px; color: var(--gray2); }
-    .m-actions { display:flex; gap:10px; margin-top: 4px; }
-    .m-sql { width: 100%; min-height: 380px; background: #0E0E14; color: #E6E6F0; border: 1px solid var(--border); border-radius: 11px; padding: 16px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.55; white-space: pre; overflow: auto; resize: vertical; }
-    .m-note { font-size: 12.5px; color: var(--gray); line-height: 1.6; }
-    .m-note code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
-    .m-ok { font-size: 12.5px; font-weight: 700; color: var(--ok-fg); margin-left: 8px; }
-  </style>
+  <link rel="stylesheet" href="/montar.css" />
 </head>
-<body>
+<body class="mq">
   <header class="home-bar" data-sub="Gerar SQL" data-back="/guia/criativos" data-back-label="Voltar ao guia"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="m-wrap">
-    <span class="m-tag">Análise de Criativos</span>
-    <h1 class="m-title">Gerar a query de criativos</h1>
-    <p class="m-sub">Query padrão ao nível de <strong>anúncio × dia × campanha × público × temperatura</strong> — junta os insights de mídia (Meta Ads) com os leads/vendas atribuídos. Ajuste os nomes de tabela e os termos de classificação do cliente (variam por conta) e copie o SQL.</p>
+  <div class="mq-page">
+    <span class="eyebrow">Análise de Criativos</span>
+    <h1>Gerar a query de criativos</h1>
+    <p class="desc">Query padrão ao nível de <b>anúncio × dia × campanha × público</b> — junta os insights de mídia (Meta Ads) com os leads/vendas atribuídos. A temperatura é classificada no app pelas regras do cliente (nome da campanha), então não sai na query. Ajuste os nomes de tabela e copie o SQL.</p>
 
-    <div class="card m-card">
-      <p class="m-h">Fontes e classificação (ajuste por cliente)</p>
-      <div class="m-grid">
-        <div class="m-field"><label>Tabela de insights de mídia</label><input id="t-ads" value="MAT_meta_ads_insights" /><small>nível anúncio/dia</small></div>
-        <div class="m-field"><label>Tabela de conversões</label><input id="t-conv" value="MAT_V2_inscricoes_geral_consolidado" /><small>leads + vendas atribuídos</small></div>
-        <div class="m-field"><label>Tabela de criativos (permalinks)</label><input id="t-crt" value="MAT_meta_ad_creatives" /><small>p/ o dicionário de links</small></div>
-        <div class="m-field"><label>Keyword Hot</label><input id="t-hot" value="-quente-" /><small>em field_campaign_name</small></div>
-        <div class="m-field"><label>Keyword Warm</label><input id="t-warm" value="-morno-" /></div>
-        <div class="m-field"><label>Keyword Cold</label><input id="t-cold" value="-frio-" /></div>
-        <div class="m-field"><label>Keyword Advantage</label><input id="t-adv" value="advantage" /></div>
+    <div class="card">
+      <p class="card-eyebrow">Fontes (ajuste por cliente)</p>
+      <div class="grid3">
+        <div class="field"><span class="label">Tabela de insights de mídia</span><input class="ctrl" id="t-ads" value="MAT_meta_ads_insights" /><span class="help">nível anúncio/dia</span></div>
+        <div class="field"><span class="label">Tabela de conversões</span><input class="ctrl" id="t-conv" value="MAT_V2_inscricoes_geral_consolidado" /><span class="help">leads + vendas atribuídos</span></div>
+        <div class="field"><span class="label">Tabela de criativos (permalinks)</span><input class="ctrl" id="t-crt" value="MAT_meta_ad_creatives" /><span class="help">p/ o dicionário de links</span></div>
       </div>
-      <div class="m-actions" style="margin-top:16px">
-        <button class="btn btn--primary" id="gen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar as duas queries</button>
-        <button class="btn btn--ghost" id="copy">Copiar performance</button>
-        <button class="btn btn--ghost" id="copy2">Copiar dicionário</button>
-        <span class="m-ok" id="ok" hidden>copiado ✓</span>
+      <div class="builder-foot">
+        <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar as duas queries</button>
+        <span class="gen-hint">Performance + dicionário de links.</span>
       </div>
     </div>
 
-    <p class="m-h" style="margin:4px 0 8px">1 · Performance (CSV de criativos)</p>
-    <textarea class="m-sql" id="sql" readonly spellcheck="false"></textarea>
+    <div class="out">
+      <div class="out-hd">
+        <span class="out-step">1</span>
+        <span class="t"><b>Performance</b><small>CSV de criativos</small></span>
+        <button class="copy-btn" id="copy1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copiar</span></button>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="fname">performance.sql</span><span class="lang">SQL</span></div>
+        <pre class="sql" id="sql1"></pre>
+      </div>
+    </div>
 
-    <p class="m-h" style="margin:22px 0 8px">2 · Dicionário de links (CSV opcional p/ previews)</p>
-    <textarea class="m-sql" id="sql2" readonly spellcheck="false" style="min-height:180px"></textarea>
+    <div class="out">
+      <div class="out-hd">
+        <span class="out-step">2</span>
+        <span class="t"><b>Dicionário de links</b><small>CSV opcional p/ previews</small></span>
+        <button class="copy-btn" id="copy2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copiar</span></button>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="fname">dicionario.sql</span><span class="lang">SQL</span></div>
+        <pre class="sql" id="sql2"></pre>
+      </div>
+    </div>
 
-    <p class="m-note" style="margin-top:14px"><strong>Cuidados:</strong> confirme os <strong>nomes de tabela/coluna</strong> da conta (variam por cliente) — esta é uma base, não a query final. Confira a atribuição lead→anúncio (<code>field_ad_name</code> precisa bater nas duas fontes), a classificação de temperatura e o volume de <code>N/C</code>. As métricas de vídeo (<code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code>) só existem para criativos em vídeo — ficam 0 nos demais. A query <strong>2</strong> gera o dicionário <code>field_ad_name → URL do post</code> (permalink do Instagram/Facebook) que habilita o preview na ficha — exporte como CSV separado.</p>
+    <div class="caveat">
+      <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+      <p><b>Cuidados:</b> confirme os <b>nomes de tabela/coluna</b> da conta (variam por cliente) — esta é uma base, não a query final. Confira a atribuição lead→anúncio (<code>field_ad_name</code> precisa bater nas duas fontes). As métricas de vídeo (<code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code>) só existem para criativos em vídeo — ficam 0 nos demais. A query <b>2</b> gera o dicionário <code>field_ad_name → URL do post</code> que habilita o preview na ficha — exporte como CSV separado.</p>
+    </div>
   </div>
 
+  <script src="/js/montar.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s).replace(/'/g, "''");
@@ -72,23 +68,15 @@
     function buildSql() {
       const ads = esc($('t-ads').value.trim()) || 'MAT_meta_ads_insights';
       const conv = esc($('t-conv').value.trim()) || 'MAT_V2_inscricoes_geral_consolidado';
-      const hot = esc($('t-hot').value.trim()), warm = esc($('t-warm').value.trim());
-      const cold = esc($('t-cold').value.trim()), adv = esc($('t-adv').value.trim());
-      return `-- Consolidado por anúncio × dia × campanha × público × temperatura
+      return `-- Consolidado por anúncio × dia × campanha × público
 -- Fontes: ${ads} (mídia, nível anúncio/dia)  ⨝  ${conv} (leads/vendas)  ·  PostgreSQL
+-- A temperatura é classificada no app pelas regras do cliente (field_campaign_name).
 WITH midia AS (
   SELECT
     field_ad_name,
     field_campaign_name,
     field_adset_name,
     date_start::DATE                       AS data,
-    CASE
-      WHEN LOWER(field_campaign_name) LIKE '%${adv}%'  THEN 'Advantage'
-      WHEN LOWER(field_campaign_name) LIKE '%${hot}%'  THEN 'Hot'
-      WHEN LOWER(field_campaign_name) LIKE '%${warm}%' THEN 'Warm'
-      WHEN LOWER(field_campaign_name) LIKE '%${cold}%' THEN 'Cold'
-      ELSE 'N/C'
-    END                                    AS temperatura_lead,
     COALESCE(spend::NUMERIC,0)             AS invest_total,
     COALESCE(impressions::NUMERIC,0)       AS impressoes,
     COALESCE(inline_link_clicks::NUMERIC,0) AS link_clicks,
@@ -116,7 +104,6 @@ SELECT
   m.field_ad_name,
   m.field_campaign_name,
   m.field_adset_name,
-  m.temperatura_lead,
   m.data,
   SUM(m.invest_total)  AS invest_total,
   SUM(m.impressoes)    AS impressoes,
@@ -135,8 +122,7 @@ SELECT
 FROM midia m
 LEFT JOIN conv c
   ON c.field_ad_name = m.field_ad_name AND c.data = m.data
-GROUP BY m.field_ad_name, m.field_campaign_name, m.field_adset_name,
-  m.temperatura_lead, m.data
+GROUP BY m.field_ad_name, m.field_campaign_name, m.field_adset_name, m.data
 ORDER BY m.field_ad_name, m.data;`;
     }
 
@@ -158,11 +144,10 @@ WHERE field_ad_name IS NOT NULL
 ORDER BY field_ad_name;`;
     }
 
-    const render = () => { $('sql').value = buildSql(); $('sql2').value = buildDictSql(); };
-    const copyOk = () => { const ok = $('ok'); ok.hidden = false; setTimeout(() => ok.hidden = true, 1600); };
+    const render = () => { window.renderSql($('sql1'), buildSql()); window.renderSql($('sql2'), buildDictSql()); };
     $('gen').addEventListener('click', render);
-    $('copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('sql').value); copyOk(); } catch {} });
-    $('copy2').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('sql2').value); copyOk(); } catch {} });
+    window.wireCopy($('copy1'), () => $('sql1').dataset.raw);
+    window.wireCopy($('copy2'), () => $('sql2').dataset.raw);
     render();
   </script>
 </body>

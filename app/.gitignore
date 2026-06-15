@@ -7,6 +7,7 @@ public/js/*
 !public/js/client-picker.js
 !public/js/criar-secnav.js
 !public/js/temp-rules.js
+!public/js/montar.js
 *.tsbuildinfo
 *.log
 coverage/

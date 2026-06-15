@@ -6,111 +6,85 @@
   <title>Montador da query</title>
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
-  <style>
-    body { background: var(--bg-page); }
-
-    .m-wrap { max-width: 1640px; margin: 0 auto; padding: 34px 36px 90px; }
-    .m-head { margin-bottom: 24px; }
-    .m-tag { display:inline-flex; align-items:center; gap:6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: 6px; padding: 4px 10px; }
-    .m-tag::before { content:''; width:5px; height:5px; border-radius:50%; background: currentColor; }
-    .m-title { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin: 12px 0 0; }
-    .m-sub { font-size: 14px; color: var(--gray); margin-top: 6px; max-width: 70ch; line-height: 1.6; }
-
-    .m-grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; }
-    @media (max-width: 900px) { .m-grid { grid-template-columns: 1fr; } }
-
-    .m-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 13px; padding: 18px; box-shadow: var(--shadow-sm); }
-    .m-block { margin-bottom: 20px; }
-    .m-block:last-child { margin-bottom: 0; }
-    .m-label { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gray2); margin-bottom: 10px; }
-    .m-win { display:flex; align-items:center; gap:9px; }
-    .m-win input { width: 78px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; font-family:var(--font-sans),sans-serif; font-size: 14px; color: var(--fg); outline:none; }
-    .m-win input:focus { border-color: var(--purple); }
-    .m-win span { font-size: 13px; color: var(--gray); }
-
-    .m-pago-row { display:flex; align-items:center; gap:9px; padding: 5px 0; }
-    .m-pago-row .m-pago-k { font-size: 12.5px; color: var(--fg); width: 132px; flex-shrink:0; }
-    .m-pago-row input { flex:1; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; font-family:var(--font-sans),sans-serif; font-size: 12.5px; color: var(--fg); outline:none; }
-    .m-pago-row input:focus { border-color: var(--purple); }
-
-    .m-opt { display:flex; align-items:center; gap:9px; padding: 6px 0; font-size: 13.5px; color: var(--fg); cursor: pointer; }
-    .m-opt input { width:16px; height:16px; accent-color: var(--purple); cursor:pointer; }
-    .m-opt code { font-family:'JetBrains Mono',ui-monospace,monospace; font-size: 11px; color: var(--gray2); margin-left: auto; }
-
-    .m-cf { display:flex; align-items:center; gap:8px; padding: 5px 0; }
-    .m-cf input[type=checkbox] { width:16px; height:16px; accent-color: var(--purple); flex-shrink:0; }
-    .m-cf code { font-family:'JetBrains Mono',ui-monospace,monospace; font-size: 11px; color: var(--gray2); width: 96px; flex-shrink:0; }
-    .m-cf input[type=text] { flex:1; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; font-family:var(--font-sans),sans-serif; font-size: 12.5px; color: var(--fg); outline:none; }
-    .m-cf input[type=text]:focus { border-color: var(--purple); }
-    .m-cf input[type=text]:disabled { opacity:.45; }
-    .m-cf-add { margin-top:8px; font-size: 12px; font-weight:600; color: var(--purple); background:none; border:1px dashed color-mix(in srgb,var(--purple) 35%,var(--border)); border-radius:7px; padding:6px 10px; cursor:pointer; width:100%; }
-    .m-cf-add:hover { background: var(--purple-bg); }
-
-    .m-out { position: relative; }
-    .m-out-bar { display:flex; align-items:center; gap:10px; margin-bottom: 10px; }
-    .m-out-title { font-size: 13px; font-weight: 700; color: var(--fg); }
-    .m-out-meta { font-size: 12px; color: var(--gray2); }
-    .m-copy { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size: 12px; font-weight: 700; color:#fff; background: var(--purple); border:none; border-radius: 8px; padding: 7px 13px; cursor:pointer; transition: opacity .14s; }
-    .m-copy:hover { opacity:.88; }
-    .m-copy svg { width: 14px; height: 14px; }
-    .m-sql { background: oklch(17% 0.01 280); color: oklch(92% 0.01 280); border-radius: 11px; padding: 16px 18px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size: 12px; line-height: 1.55; white-space: pre; overflow:auto; max-height: 70vh; border: 1px solid var(--border); }
-  </style>
+  <link rel="stylesheet" href="/montar.css" />
 </head>
-<body>
+<body class="mq">
   <header class="home-bar" data-sub="Montador" data-back="/guia/conversao-perfil" data-back-label="Voltar ao guia"></header>
   <script src="/js/page-chrome.js" defer></script>
 
-  <div class="m-wrap">
-    <div class="m-head">
-      <span class="m-tag">Conversão por Perfil</span>
-      <h1 class="m-title">Montador da query de extração</h1>
-      <p class="m-sub">Marque as dimensões e os <code>custom_field</code> (com a tradução de cada um) e ajuste a janela do lançamento. A SQL é gerada espelhando as dimensões no <code>SELECT</code> e no <code>GROUP BY</code> — pronta para rodar no banco e exportar o CSV.</p>
+  <div class="mq-page">
+    <span class="eyebrow">Conversão por Perfil</span>
+    <h1>Montador da query de extração</h1>
+    <p class="desc">Marque as dimensões e os <code>custom_field</code> (com a tradução de cada um) e ajuste a janela do lançamento. A SQL é gerada espelhando as dimensões no <code>SELECT</code> e no <code>GROUP BY</code> — pronta para rodar no banco e exportar o CSV.</p>
+
+    <div class="card">
+      <p class="card-eyebrow">Parâmetros da extração</p>
+
+      <div class="grid3">
+        <div class="field col-full">
+          <span class="label">Janela do lançamento</span>
+          <input class="ctrl" type="number" id="win" value="60" min="1" max="365" />
+          <span class="help">dias (conversão de curto prazo, a partir da 1ª captação)</span>
+        </div>
+        <div class="field">
+          <span class="label">Coluna de origem (Pago / Orgânico)</span>
+          <input class="ctrl" type="text" id="pago-col" value="utm_source" />
+          <span class="help">coluna que identifica o canal do lead</span>
+        </div>
+        <div class="field">
+          <span class="label">Termos que marcam "Pago"</span>
+          <input class="ctrl" type="text" id="pago-pat" value="ads" placeholder="ads, cpc, paid" />
+          <span class="help">separados por vírgula</span>
+        </div>
+      </div>
+      <p class="note">Lead cujo <code>utm_source</code> contém qualquer um desses termos vira <b>Pago</b>; o restante é <b>Orgânico</b>. Essa regra define o canal usado em toda a análise.</p>
+
+      <div style="margin-top:22px">
+        <p class="card-eyebrow">Dimensões de perfil</p>
+        <div class="opt-list" id="dims"></div>
+      </div>
+
+      <div style="margin-top:22px">
+        <p class="card-eyebrow">Custom fields (com tradução)</p>
+        <div class="stack" id="cfs"></div>
+        <div class="stack">
+          <button class="btn ghost" id="cf-add">+ adicionar custom_field</button>
+          <button class="btn primary" id="dict-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>Baixar dicionário de custom_fields</button>
+        </div>
+        <p class="note">A tradução não entra na SQL (vira comentário). Baixe o dicionário e informe à skill ao rodar a análise.</p>
+      </div>
+
+      <div style="margin-top:22px">
+        <p class="card-eyebrow">Extras (opcional)</p>
+        <div class="opt-list" id="flags"></div>
+      </div>
+
+      <div class="builder-foot">
+        <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar SQL</button>
+        <span class="gen-hint">Atualiza ao alterar os controles.</span>
+      </div>
     </div>
 
-    <div class="m-grid">
-      <div class="m-panel">
-        <div class="m-block">
-          <div class="m-label">Janela do lançamento</div>
-          <label class="m-win"><input type="number" id="win" value="60" min="1" max="365" /> <span>dias (conversão de curto prazo, a partir da 1ª captação)</span></label>
-        </div>
-
-        <div class="m-block">
-          <div class="m-label">Definição de Pago / Orgânico</div>
-          <label class="m-pago-row"><span class="m-pago-k">Coluna de origem</span><input type="text" id="pago-col" value="utm_source" /></label>
-          <label class="m-pago-row"><span class="m-pago-k">Termos que marcam "Pago"</span><input type="text" id="pago-pat" value="ads" placeholder="ads, cpc, paid" /></label>
-          <p style="font-size:11.5px;color:var(--gray2);margin-top:7px;line-height:1.5">Lead cujo <code>utm_source</code> contém qualquer um desses termos vira <b>Pago</b>; o restante é <b>Orgânico</b>. Separe por vírgula. Essa regra define o canal usado em toda a análise.</p>
-        </div>
-
-        <div class="m-block">
-          <div class="m-label">Dimensões de perfil</div>
-          <div id="dims"></div>
-        </div>
-
-        <div class="m-block">
-          <div class="m-label">Custom fields (com tradução)</div>
-          <div id="cfs"></div>
-          <button class="m-cf-add" id="cf-add">+ adicionar custom_field</button>
-          <button class="m-cf-add" id="dict-dl" style="margin-top:7px;border-style:solid;color:#fff;background:var(--purple);border-color:var(--purple)">↓ Baixar dicionário de custom_fields</button>
-          <p style="font-size:11.5px;color:var(--gray2);margin-top:7px;line-height:1.5">A tradução não entra na SQL (vira comentário). Baixe o dicionário e informe à skill ao rodar a análise.</p>
-        </div>
-
-        <div class="m-block">
-          <div class="m-label">Extras (opcional)</div>
-          <div id="flags"></div>
-        </div>
+    <div class="out">
+      <div class="out-hd">
+        <span class="out-step">1</span>
+        <span class="t"><b>Dump de extração</b><small>uma linha por dimensão × lançamento × canal</small></span>
+        <span class="out-meta" id="meta"></span>
+        <button class="copy-btn" id="copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copiar</span></button>
       </div>
-
-      <div class="m-out">
-        <div class="m-out-bar">
-          <span class="m-out-title">SQL gerada</span>
-          <span class="m-out-meta" id="meta"></span>
-          <button class="m-copy" id="copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copiar</span></button>
-        </div>
-        <pre class="m-sql" id="sql"></pre>
+      <div class="code">
+        <div class="code-bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="fname">conversao-perfil.sql</span><span class="lang">SQL</span></div>
+        <pre class="sql" id="sql"></pre>
       </div>
+    </div>
+
+    <div class="caveat">
+      <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+      <p><b>Cuidados:</b> confirme os <b>nomes de tabela/coluna</b> da conta (variam por cliente) — esta é uma base, não a query final. A tradução dos <code>custom_field</code> não entra na SQL (vira comentário); baixe o dicionário e informe à skill ao rodar a análise.</p>
     </div>
   </div>
 
+  <script src="/js/montar.js"></script>
   <script type="module">
     const $ = id => document.getElementById(id);
     const esc = s => String(s ?? '');
@@ -135,11 +109,11 @@
 
     function renderControls() {
       $('dims').innerHTML = DIMS.map((d, i) => `
-        <label class="m-opt"><input type="checkbox" data-dim="${i}" ${d.on ? 'checked' : ''}/> ${esc(d.label)} <code>${d.col}</code></label>`).join('');
+        <label class="opt"><input type="checkbox" data-dim="${i}" ${d.on ? 'checked' : ''}/> ${esc(d.label)} <code>${d.col}</code></label>`).join('');
       $('flags').innerHTML = FLAGS.map((f, i) => `
-        <label class="m-opt"><input type="checkbox" data-flag="${i}"/> ${esc(f.label)}</label>`).join('');
+        <label class="opt"><input type="checkbox" data-flag="${i}"/> ${esc(f.label)}</label>`).join('');
       $('cfs').innerHTML = CFS.map((c, i) => `
-        <div class="m-cf">
+        <div class="cf-row">
           <input type="checkbox" data-cf="${i}" ${c.on ? 'checked' : ''}/>
           <code>custom_field_${c.n}</code>
           <input type="text" data-cflabel="${i}" placeholder="o que esse campo significa?" value="${esc(c.label)}" ${c.on ? '' : 'disabled'}/>
@@ -267,8 +241,7 @@ ORDER BY field_conversion, total_leads DESC;`;
       readState();
       // toggle the label inputs enabled state without full re-render (keep focus)
       CFS.forEach((c, i) => { const t = $('cfs').querySelector(`[data-cflabel="${i}"]`); if (t) t.disabled = !c.on; });
-      const sql = buildSQL();
-      $('sql').textContent = sql;
+      window.renderSql($('sql'), buildSQL());
       const nCols = selectedCols().length;
       $('meta').textContent = `${nCols} ${nCols === 1 ? 'dimensão' : 'dimensões'} + 4 métricas`;
     }
@@ -276,7 +249,8 @@ ORDER BY field_conversion, total_leads DESC;`;
     renderControls();
     refresh();
 
-    document.querySelector('.m-grid').addEventListener('input', refresh);
+    document.querySelector('.card').addEventListener('input', refresh);
+    $('gen').addEventListener('click', refresh);
     $('cf-add').addEventListener('click', () => {
       readState();
       const used = new Set(CFS.map(c => c.n));
@@ -284,9 +258,7 @@ ORDER BY field_conversion, total_leads DESC;`;
       CFS.push({ n, on: true, label: '' });
       renderControls(); refresh();
     });
-    $('copy').addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText($('sql').textContent); const s = $('copy').querySelector('span'); s.textContent = 'Copiado!'; setTimeout(() => s.textContent = 'Copiar', 1500); } catch {}
-    });
+    window.wireCopy($('copy'), () => $('sql').dataset.raw);
     $('dict-dl').addEventListener('click', () => {
       readState();
       const on = CFS.filter(c => c.on);
