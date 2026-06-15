@@ -25,7 +25,7 @@ body.cr { background: var(--canvas, var(--bg-page)); }
 /* Card de seção */
 .cr .card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 24px 26px; margin-top: 20px; scroll-margin-top: 84px; }
 .cr .card-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.cr .card-hd .ic { width: 34px; height: 34px; border-radius: 10px; background: var(--purple-bg); color: var(--purple); display: grid; place-items: center; flex-shrink: 0; }
+.cr .card-hd .ic { width: 34px; height: 34px; padding: 0; border-radius: 10px; background: var(--purple-bg); color: var(--purple); display: grid; place-items: center; flex-shrink: 0; }
 .cr .card-hd .ic svg { width: 18px; height: 18px; }
 .cr .card-hd .t { flex: 1; min-width: 0; }
 .cr .card-hd .t b { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
