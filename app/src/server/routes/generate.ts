@@ -262,7 +262,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     res.json({ hasBase: true, config: clean, type: cfg!.type });
   });
 
-  app.post('/api/:client/:slug/update', upload.fields([{ name: 'csv', maxCount: 1 }]), async (req, res) => {
+  app.post('/api/:client/:slug/update', upload.fields([{ name: 'csv', maxCount: 1 }, { name: 'goals', maxCount: 1 }, { name: 'dict', maxCount: 1 }]), async (req, res) => {
     if (!gateOk(req)) { res.status(401).json({ error: 'unauthorized' }); return; }
     const { client, slug } = req.params;
     const outDir = analysisDir(ctx.out, client, slug);
@@ -305,6 +305,17 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     fs.mkdirSync(job, { recursive: true });
     const csvPath = newCsv ? path.join(job, 'upload.csv') : baseCsv;
     if (newCsv) fs.writeFileSync(csvPath, newCsv.buffer);
+    // Auxiliares re-enviados na atualização (ex.: novo launch goals) → sobrescrevem
+    // os retidos no config e na base.
+    const newAux: string[] = [];
+    for (const aux of ['goals', 'dict'] as const) {
+      const f = files?.[aux]?.[0];
+      if (!f) continue;
+      const p = path.join(job, `${aux}.csv`);
+      fs.writeFileSync(p, f.buffer);
+      config[`${aux}_csv`] = p;
+      newAux.push(aux);
+    }
     const configPath = path.join(job, 'config.json');
     const contentPath = path.join(job, 'content.json');
     writeJson(configPath, config);
@@ -316,6 +327,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       // Re-retém a base atualizada (novo dump se houver; config + content novos).
       try {
         if (newCsv) fs.copyFileSync(csvPath, baseCsv);
+        for (const aux of newAux) fs.copyFileSync(path.join(job, `${aux}.csv`), path.join(baseDir, `${aux}.csv`));
         writeJson(path.join(baseDir, 'config.json'), config);
         writeJson(path.join(baseDir, 'content.json'), content);
       } catch { /* não-fatal */ }

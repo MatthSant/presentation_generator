@@ -110,8 +110,11 @@
     let RETAINED = null;  // config completo retido (base p/ o merge no submit)
     let CLIENTS = [];     // clientes cadastrados (p/ o seletor)
     let TEMP_CTL = null;  // editor de regras de temperatura (substitui o JSON avançado)
+    let GOALS_FILE = null; // CSV de launch goals re-enviado (opcional)
     // Tipos cuja temperatura é classificada por regras (espelha o servidor).
     const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
+    // Tipos que aceitam launch goals (metas por utm_source × dia).
+    const GOALS_TYPES = new Set(['acompanhamento-lancamento', 'debriefing-lancamento']);
 
     if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
     else init();
@@ -129,6 +132,7 @@
         $('form').hidden = false;
         buildForm(d.config);
         setupTempEditor(d.config);
+        setupGoals(d.config);
       } catch (e) {
         $('loading').textContent = 'Falha ao carregar a configuração: ' + e.message;
       }
@@ -220,6 +224,29 @@
       });
     }
 
+    // Launch goals na atualização: upload opcional de um novo CSV de metas
+    // (wtl_launch_goals). Se enviado, substitui as metas (manuais/retidas).
+    function setupGoals(cfg) {
+      if (!GOALS_TYPES.has(cfg.type)) return;
+      const card = document.createElement('div');
+      card.className = 'u-card';
+      const hasGoals = !!cfg.goals_csv;
+      card.innerHTML =
+        '<p class="u-h">Launch goals (opcional)</p>'
+        + '<p class="u-hsub">Metas por utm_source × dia (tabela <code>wtl_launch_goals</code>). '
+        + (hasGoals ? 'Esta análise já usa um launch goals — ' : 'Sem launch goals nesta análise — ')
+        + 'envie um CSV novo para substituir as metas.</p>'
+        + '<div class="u-row"><label class="u-file-btn">'
+        + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>'
+        + 'Escolher CSV<input type="file" id="u-goals" accept=".csv,text/csv" hidden></label>'
+        + '<span class="u-file-name" id="u-goals-name">' + (hasGoals ? 'mantém o launch goals atual' : 'nenhum arquivo') + '</span></div>';
+      $('go').before(card);
+      $('u-goals').addEventListener('change', (e) => {
+        GOALS_FILE = e.target.files[0] || null;
+        $('u-goals-name').textContent = GOALS_FILE ? GOALS_FILE.name : (hasGoals ? 'mantém o launch goals atual' : 'nenhum arquivo');
+      });
+    }
+
     function collectConfig() {
       const cfg = JSON.parse(JSON.stringify(RETAINED));  // parte do retido (preserva o que não está no form)
       for (const inp of $('fields').querySelectorAll('input[data-path], select[data-path]')) {
@@ -249,12 +276,15 @@
       let cfg;
       try { cfg = collectConfig(); }
       catch (e) { const m = $('msg'); m.className = 'u-msg err'; m.textContent = 'Campo avançado com JSON inválido: ' + e.message; return; }
+      // Novo launch goals substitui as metas (manuais/retidas) → limpa cfg.metas.
+      if (GOALS_FILE && cfg.metas) cfg.metas = {};
       const msg = $('msg'); msg.className = 'u-msg work'; msg.textContent = 'Atualizando análise…';
       $('go').disabled = true;
       const fd = new FormData();
       fd.append('config', JSON.stringify(cfg));
       const file = $('csv').files[0];
       if (file) fd.append('csv', file);
+      if (GOALS_FILE) fd.append('goals', GOALS_FILE);
       try {
         const r = await fetch(`/api/${encodeURIComponent(client)}/${encodeURIComponent(slug)}/update`, { method: 'POST', body: fd });
         const d = await r.json();

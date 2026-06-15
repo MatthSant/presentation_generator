@@ -113,7 +113,7 @@ ORDER BY c.field_ad_name;`;
       return `-- Metas do lançamento (launch goals) — 1 linha por utm_source × dia
 -- Origem: ${tg}  ·  usado como metas no acompanhamento (em vez das metas manuais)
 SELECT
-  data, utm_source, utm_medium, field_conversion,
+  data, utm_source, field_conversion,
   meta_leads, meta_taxa_resp, meta_taxa_qual, meta_valor_invest,
   meta_cpl, meta_cpmql, meta_cpl_aceitavel, meta_cpmql_aceitavel,
   meta_conversao, meta_receita, meta_vendas
