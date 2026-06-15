@@ -151,7 +151,7 @@ def assemble(rows, config, content, opts=None):
     pg.newrow()
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
-       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=2)
+       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4)
     km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), 'faturamento − investimento total', 'database', '#534AB7', w=2)
     km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '(fat − invest) / invest', 'trending-up', '#185FA5', w=2)
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
