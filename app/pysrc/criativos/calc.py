@@ -14,6 +14,10 @@ Hook/Hold só com views_totais>0; criativos sem tráfego = no_data (cinza, fora 
 Percentuais em % real; taxa nunca é média — soma brutos e calcula sobre o total.
 """
 import csv
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
+from common import temp as temp_util
 
 # Benchmarks embutidos (referência, %). Direção: True = maior é melhor.
 BENCH = {'hook_rate': 30.0, 'hold_rate': 25.0}
@@ -168,25 +172,15 @@ def metrics(rows, produto):
 
 def apply_temp_rules(rows, rules, overwrite=False):
     """Deriva `temperatura_lead` do `field_campaign_name` por ILIKE (substring case-
-    insensitive). `rules` = [{'contains': <termo>, 'label': <temperatura>}, ...] em
-    ordem de prioridade (1º match vence). Para CSVs crus de mídia (sem coluna de
+    insensitive). `rules` = [{'contains': [termo, ...]|str, 'label': <temperatura>}, ...]
+    em ordem de prioridade (1º match vence). Para CSVs crus de mídia (sem coluna de
     temperatura limpa) — espelha o CASE WHEN ... LIKE do montador.
 
     Sem `overwrite`, só classifica linhas cuja temperatura está vazia (preserva o que
-    já vier preenchido). Não-casadas viram 'N/C', como na query fonte. Muta as linhas
-    in-place e devolve a mesma lista."""
-    norm = [(str(r.get('contains') or '').strip().lower(), str(r.get('label') or '').strip())
-            for r in (rules or [])]
-    norm = [(c, l) for c, l in norm if c and l]
-    if not norm:
-        return rows
-    for r in rows:
-        cur = (r.get('temperatura_lead') or '').strip()
-        if cur and not overwrite:
-            continue
-        camp = (r.get('field_campaign_name') or '').lower()
-        r['temperatura_lead'] = next((l for c, l in norm if c in camp), 'N/C')
-    return rows
+    já vier preenchido). Não-casadas viram 'N/C'. Muta in-place e devolve a lista."""
+    norm = temp_util.normalize_rules(rules)
+    return temp_util.apply(rows, norm, src='field_campaign_name',
+                           dst='temperatura_lead', overwrite=overwrite, fallback='N/C')
 
 
 def _distinct(rows, col):

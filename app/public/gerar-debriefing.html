@@ -18,7 +18,8 @@
       <a href="#sec-cliente"><span class="n">1</span> Cliente e campanha</a>
       <a href="#sec-periodo"><span class="n">2</span> Período de captação</a>
       <a href="#sec-class"><span class="n">3</span> Classificação</a>
-      <a href="#sec-files"><span class="n">4</span> Arquivos</a>
+      <a href="#sec-temp"><span class="n">4</span> Temperatura</a>
+      <a href="#sec-files"><span class="n">5</span> Arquivos</a>
     </aside>
 
     <main class="cr-main">
@@ -63,6 +64,15 @@
         <div class="field col2" style="margin-top:16px"><label class="label" for="c-vnd">Padrão de vendas <span class="hint">campanha contém</span></label><input id="c-vnd" class="ctrl" value="venda-, -vnd]" /><small class="help">se não há campanha de vendas, deixe um padrão que não casa</small></div>
       </section>
 
+      <section class="card" id="sec-temp">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+          <span class="t"><b>Temperatura</b><small>Classificação por <code>field_campaign_name</code> (ILIKE; 1ª regra que casar vence).</small></span>
+        </div>
+        <div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><p>As regras vêm do <b>cliente selecionado</b> (ou do padrão geral em Configurações) e podem ser ajustadas aqui só para esta análise.</p></div>
+        <div id="temp-editor"></div>
+      </section>
+
       <section class="card" id="sec-files">
         <div class="card-hd">
           <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
@@ -105,13 +115,23 @@
 
   <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
+  <script src="/js/temp-rules.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     let CSV = null, GOALS = null, HIST = null;
     const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
     const list = (id) => $(id).value.split(',').map(s => s.trim()).filter(Boolean);
 
-    window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
+    const CLIENTS = await window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
+    // Temperatura: editor de regras, pré-preenchido pelo cliente (ou fallback geral).
+    const tempDefault = await window.fetchTempDefault();
+    const tctl = window.mountTempRules($('temp-editor'), {});
+    const applyClientTemp = () => {
+      const t = window.tempForClient(CLIENTS, $('f-client').value, tempDefault);
+      tctl.setRules(t.temp_rules); tctl.setOverwrite(t.temp_overwrite);
+    };
+    $('f-client').addEventListener('change', applyClientTemp);
+    applyClientTemp();
 
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-goals').addEventListener('change', (e) => { GOALS = e.target.files[0] || null; $('f-goals-name').textContent = GOALS ? GOALS.name : 'nenhum arquivo'; });
@@ -128,7 +148,8 @@
         field_conversion: $('f-fc').value.trim() || undefined,
         captacao_inicio: $('f-cpt-ini').value || undefined,
         captacao_fim: $('f-cpt-fim').value || undefined,
-        paid_sources: list('c-paid'), cpt_pattern: list('c-cpt'), vnd_pattern: list('c-vnd') };
+        paid_sources: list('c-paid'), cpt_pattern: list('c-cpt'), vnd_pattern: list('c-vnd'),
+        temp_rules: tctl.getRules(), temp_overwrite: tctl.getOverwrite() };
       $('go').disabled = true;
       show('work', 'Gerando o debriefing no servidor (pode levar alguns segundos)…');
       try {

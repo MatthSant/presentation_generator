@@ -10,6 +10,10 @@ vs meta com semáforo, split pago/orgânico, temperatura, tipo de lead, criativo
 """
 import csv
 import re
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
+from common import temp as temp_util
 
 # Métricas de custo (menor é melhor) — direção da tendência e do desvio vs meta.
 COST = {'cpl', 'cpmql', 'cpm'}
@@ -90,17 +94,16 @@ DEFAULT_TEMP = {
 
 
 def temp_rules(config):
-    """Normaliza a regra de temperatura do config (keywords em minúsculas)."""
-    raw = (config or {}).get('temperatura') or DEFAULT_TEMP
-    return {cat: [str(k).lower() for k in (kws or [])] for cat, kws in raw.items()}
+    """Regras de temperatura (label, [termos]) — shape novo `temp_rules` (do cliente/
+    fallback geral) ou legado `temperatura` {cat:[kw]}; default = DEFAULT_TEMP."""
+    rules = temp_util.normalize_rules((config or {}).get('temp_rules'))
+    return rules or temp_util.rules_from_config(config, DEFAULT_TEMP, key='temperatura')
 
 
 def infer_temp(name, rules=None):
-    n = str(name or '').lower()
-    for cat, kws in (rules or DEFAULT_TEMP).items():
-        if any(k and k in n for k in kws):
-            return cat
-    return 'Indefinido'
+    if rules is None:
+        rules = temp_util.normalize_rules(DEFAULT_TEMP)
+    return temp_util.classify(name, rules, 'Indefinido')
 
 
 def norm_source(v):
@@ -465,7 +468,7 @@ def build(rows, config=None):
     # temperatura (só pago) — regra de classificação vem do config (ou default)
     trules = temp_rules(config)
     temp = {}
-    for t in list(trules.keys()) + ['Indefinido']:
+    for t in [lab for lab, _ in trules] + ['Indefinido']:
         sub = [r for r in rows_corte if is_paid(r) and infer_temp(r.get('field_campaign_name'), trules) == t]
         if not sub:
             continue

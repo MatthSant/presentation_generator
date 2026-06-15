@@ -14,14 +14,23 @@ temperature) — caso clássico exige padrões do cliente (ex.: 'cadastro-', 'fa
 import csv
 import re
 import datetime
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
+from common import temp as temp_util
 
 # Defaults de classificação (sobrescrevíveis via config).
 DEF_PAID = ['facebook', 'meta', 'google', 'fb', 'tiktok']           # substring em utm_source
 DEF_CPT = ['-cpt]', 'cadastro-', 'google-search-', 'captacao']      # substring em field_campaign_name
 DEF_VND = ['-vnd]', 'venda-', 'vendas-']
-DEF_TEMP = {'remarketing': ['rmkt', 'remarketing'], 'frio': ['frio', 'cold'],
-            'quente': ['quente', 'hot', 'warm'], 'advantage': ['advantage', '[advantage]']}
-TEMP_ORDER = ['remarketing', 'frio', 'quente', 'advantage']        # último a casar vence
+# Default em ordem de prioridade (1ª regra que casar vence). Sobrescrevível pelo
+# cliente/fallback geral via config['temp_rules'] (ou legado config['temperature']).
+DEF_TEMP_RULES = [
+    {'contains': ['advantage', '[advantage]'], 'label': 'advantage'},
+    {'contains': ['quente', 'hot', 'warm'], 'label': 'quente'},
+    {'contains': ['frio', 'cold'], 'label': 'frio'},
+    {'contains': ['rmkt', 'remarketing'], 'label': 'remarketing'},
+]
 
 
 def load_rows(path):
@@ -88,7 +97,8 @@ def classify(rows, config=None):
     paid = [p.lower() for p in _cfg_list(config, 'paid_sources', DEF_PAID)]
     cpt = [p.lower() for p in _cfg_list(config, 'cpt_pattern', DEF_CPT)]
     vnd = [p.lower() for p in _cfg_list(config, 'vnd_pattern', DEF_VND)]
-    temp_map = (config or {}).get('temperature') or DEF_TEMP
+    trules = (temp_util.normalize_rules(config.get('temp_rules'))
+              or temp_util.rules_from_config(config, DEF_TEMP_RULES, key='temperature'))
     for r in rows:
         src = (r.get('utm_source') or '').strip()
         s = src.lower()
@@ -101,12 +111,7 @@ def classify(rows, config=None):
         cn = (r.get('field_campaign_name') or '').lower()
         r['_camp'] = ('captacao' if any(p in cn for p in cpt)
                       else 'vendas' if any(p in cn for p in vnd) else 'outro')
-        t = 'n/c'
-        for k in TEMP_ORDER:
-            for pat in temp_map.get(k, []):
-                if pat.lower() in cn:
-                    t = k
-        r['_temp'] = t
+        r['_temp'] = temp_util.classify(cn, trules, 'n/c')
     return rows
 
 

@@ -22,7 +22,7 @@ import { TYPES } from '../typeRegistry.js';
 import { buildDigest } from '../datasetCatalog.js';
 import { generateInsights } from '../claude.js';
 import { assignClient } from '../auth.js';
-import { clientName } from './clients.js';
+import { clientName, clientTemp, globalTemp } from './clients.js';
 import type { AuthedRequest } from './authRoutes.js';
 import { validateAnalysis } from '../../shared/validate.js';
 
@@ -42,6 +42,21 @@ function uniqueSlug(out: string, client: string, base: string): string {
   let slug = safe;
   for (let n = 2; fs.existsSync(path.join(out, client, slug)); n++) slug = `${safe}-${n}`;
   return slug;
+}
+
+/** Tipos cuja temperatura é classificada por regras (match no field_campaign_name).
+ *  histórico lê a coluna do CSV; conversão não tem temperatura. */
+const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
+
+/** Preenche temp_rules/temp_overwrite do config a partir do cliente → fallback geral,
+ *  quando o formulário não mandou regras. O default de cada motor é o último recurso. */
+function applyTempDefaults(config: Record<string, unknown>, client: string, type: string): void {
+  if (!TEMP_TYPES.has(type)) return;
+  if (Array.isArray(config.temp_rules) && config.temp_rules.length) return;
+  const t = clientTemp(client) || globalTemp();
+  if (!t) return;
+  config.temp_rules = t.temp_rules;
+  if (config.temp_overwrite === undefined) config.temp_overwrite = t.temp_overwrite;
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -122,6 +137,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     config.client = client;
     config.client_name = String(config.client_name || '').trim() || clientName(client) || client;
     if (!String(config.title || '').trim()) config.title = `${config.client_name} · ${def.label}`;
+    applyTempDefaults(config as Record<string, unknown>, client, type);
 
     const job = path.join(SCRATCH, `gen-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`);
     const csvPath = path.join(job, 'upload.csv');
@@ -269,6 +285,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     config.type = type; config.client = client;
     config.client_name = String(config.client_name || retainedCfg.client_name || '').trim() || clientName(client) || client;
     if (!String(config.title || '').trim()) config.title = String(retainedCfg.title || `${config.client_name} · ${def.label}`);
+    applyTempDefaults(config, client, type);
     const cfgErrors = def.validateConfig(config);
     if (cfgErrors.length) { res.status(400).json({ error: cfgErrors.join('; ') }); return; }
     // Auxiliares: reaproveita os CSVs retidos na base (não são re-enviados aqui).

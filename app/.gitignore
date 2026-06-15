@@ -6,6 +6,7 @@ public/js/*
 !public/js/page-chrome.js
 !public/js/client-picker.js
 !public/js/criar-secnav.js
+!public/js/temp-rules.js
 *.tsbuildinfo
 *.log
 coverage/

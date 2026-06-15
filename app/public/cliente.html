@@ -13,9 +13,22 @@
     .c-mono { width: 48px; height: 48px; border-radius: 12px; display:grid; place-items:center; font-size: 20px; font-weight: 800; color: var(--purple); background: var(--purple-bg); flex-shrink: 0; }
     .c-name { font-size: 24px; font-weight: 750; letter-spacing: -.02em; }
     .c-slug { font-size: 12.5px; color: var(--gray2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .c-ctx { font-size: 14px; color: var(--gray); line-height: 1.6; margin: 12px 0 4px; max-width: 70ch; }
-    .c-count { font-size: 13px; color: var(--gray2); margin: 18px 0 12px; font-weight: 600; }
+    .c-count { font-size: 13px; color: var(--gray2); margin: 22px 0 12px; font-weight: 600; }
     .c-empty { color: var(--gray2); font-size: 14px; padding: 50px 0; text-align:center; }
+    /* Painel de edição */
+    .ed { background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 24px; margin-top: 22px; }
+    .ed-h { font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--purple); margin: 0 0 14px; }
+    .ed-h:not(:first-child) { margin-top: 24px; }
+    .ed-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .ed-field label { font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+    .ed-field input, .ed-field textarea { width: 100%; padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--card, #fff); font: inherit; font-size: 14px; color: var(--fg); }
+    .ed-field textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+    .ed-field input:focus, .ed-field textarea:focus { outline: 0; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-bg); }
+    .ed-help { font-size: 12px; color: var(--gray2); line-height: 1.5; margin: 0 0 12px; }
+    .ed-foot { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+    .ed-msg { font-size: 13px; font-weight: 600; }
+    .ed-msg.ok { color: var(--ok-fg, #15803d); }
+    .ed-msg.err { color: var(--err-fg, #b91c1c); }
   </style>
 </head>
 <body>
@@ -24,6 +37,7 @@
 
   <div class="c-wrap" id="wrap"><p class="c-empty">Carregando…</p></div>
 
+  <script src="/js/temp-rules.js"></script>
   <script type="module">
     const wrap = document.getElementById('wrap');
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -33,14 +47,15 @@
     const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 6l6 6-6 6"/></svg>';
 
     try {
-      const [rows, clientsDoc] = await Promise.all([
+      const [rows, clientsDoc, tempDefault] = await Promise.all([
         fetch('/api/analyses').then(r => r.json()),
         fetch('/api/clients').then(r => r.json()).catch(() => ({ clients: [] })),
+        window.fetchTempDefault(),
       ]);
       const items = (rows || []).filter(r => r.client === slug)
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
-      const reg = (clientsDoc.clients || []).find(c => c.slug === slug);
-      const name = reg?.name || items[0]?.clientName || slug;
+      const reg = (clientsDoc.clients || []).find(c => c.slug === slug) || {};
+      const name = reg.name || items[0]?.clientName || slug;
       document.title = `Cliente · ${name}`;
 
       const card = (r) => {
@@ -58,9 +73,46 @@
           <span class="c-mono">${esc((name || '?').trim().charAt(0).toUpperCase())}</span>
           <div><div class="c-name">${esc(name)}</div><div class="c-slug">${esc(slug)}</div></div>
         </div>
-        ${reg?.context ? `<p class="c-ctx">${esc(reg.context)}</p>` : ''}
+
+        <div class="ed">
+          <p class="ed-h">Dados do cliente</p>
+          <div class="ed-field"><label for="ed-name">Nome</label><input id="ed-name" value="${esc(reg.name || name)}" /></div>
+          <div class="ed-field"><label for="ed-ctx">Contexto do negócio</label><textarea id="ed-ctx" placeholder="O que o cliente faz, produto principal, ticket, público, modelo de lançamento, particularidades…">${esc(reg.context || '')}</textarea></div>
+
+          <p class="ed-h">Regras de temperatura</p>
+          <p class="ed-help">Classificam o lead pelo trecho do <strong>nome da campanha</strong> (ILIKE — a 1ª regra que casar vence). Usadas em Acompanhamento, Criativos e Debriefing quando este cliente é selecionado. Vazio = usa o padrão geral (Configurações).</p>
+          <div id="temp-editor"></div>
+
+          <div class="ed-foot">
+            <button class="btn btn--primary" id="ed-save">Salvar cliente</button>
+            <span class="ed-msg" id="ed-msg"></span>
+          </div>
+        </div>
+
         <p class="c-count">${items.length} ${items.length === 1 ? 'análise' : 'análises'}</p>
         ${items.length ? `<div class="home-grid">${items.map(card).join('')}</div>` : '<p class="c-empty">Nenhuma análise para este cliente.</p>'}`;
+
+      const tctl = window.mountTempRules(document.getElementById('temp-editor'),
+        { rules: reg.temp_rules || [], overwrite: !!reg.temp_overwrite });
+
+      const msg = document.getElementById('ed-msg');
+      const save = document.getElementById('ed-save');
+      save.addEventListener('click', async () => {
+        const nm = document.getElementById('ed-name').value.trim();
+        if (!nm) { msg.className = 'ed-msg err'; msg.textContent = 'Informe o nome.'; return; }
+        save.disabled = true; msg.className = 'ed-msg'; msg.textContent = 'Salvando…';
+        try {
+          const r = await fetch('/api/clients', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: nm, context: document.getElementById('ed-ctx').value.trim(),
+              temp_rules: tctl.getRules(), temp_overwrite: tctl.getOverwrite() }),
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || 'falha');
+          msg.className = 'ed-msg ok'; msg.textContent = 'Salvo.';
+        } catch (e) { msg.className = 'ed-msg err'; msg.textContent = '⚠ ' + e.message; }
+        finally { save.disabled = false; }
+      });
     } catch (e) {
       wrap.innerHTML = `<p class="c-empty">Erro ao carregar: ${esc(e.message)}</p>`;
     }

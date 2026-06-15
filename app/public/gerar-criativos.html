@@ -7,20 +7,6 @@
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/criar.css" />
-  <style>
-    /* Editor de regras de temperatura — específico desta página (não coberto por criar.css) */
-    .cr .tr-list { display: flex; flex-direction: column; gap: 8px; }
-    .cr .tr-row { display: flex; align-items: center; gap: 8px; }
-    .cr .tr-row input { flex: 1 1 0; min-width: 0; height: 42px; padding: 0 12px; background: var(--card, #fff); border: 1px solid var(--border-2, var(--border-strong)); border-radius: var(--r-md); font: inherit; font-size: 13.5px; color: var(--fg); outline: none; transition: border-color .15s, box-shadow .15s; }
-    .cr .tr-row input.tr-contains { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12.5px; }
-    .cr .tr-row input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-bg); }
-    .cr .tr-arrow { color: var(--gray2); font-size: 13px; flex-shrink: 0; }
-    .cr .tr-del { flex-shrink: 0; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-2, var(--border-strong)); background: var(--card, #fff); border-radius: var(--r-md); color: var(--gray2); cursor: pointer; font-size: 17px; line-height: 1; transition: border-color .15s, color .15s; }
-    .cr .tr-del:hover { border-color: var(--err-fg); color: var(--err-fg); }
-    .cr .tr-add { margin-top: 12px; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--purple); background: var(--purple-bg); border: 1px dashed color-mix(in srgb, var(--purple) 45%, var(--border)); border-radius: var(--r-pill); padding: 9px 15px; cursor: pointer; }
-    .cr .tr-over { display: flex; align-items: center; gap: 9px; margin-top: 16px; font-size: 13px; color: var(--gray); font-weight: 600; cursor: pointer; }
-    .cr .tr-over input { accent-color: var(--purple); width: 16px; height: 16px; }
-  </style>
 </head>
 <body class="cr">
   <header class="home-bar" data-sub="Nova análise" data-back="/guia/criativos" data-back-label="Voltar ao guia"></header>
@@ -77,10 +63,8 @@
           <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
           <span class="t"><b>Classificação de temperatura <span class="help" style="font-weight:600">(opcional)</span></b><small>Define a temperatura por trecho do nome da campanha.</small></span>
         </div>
-        <p class="help" style="margin-bottom:14px">Define a <code>temperatura_lead</code> por trecho do <strong>nome da campanha</strong> (ILIKE, case-insensitive — 1ª regra que casar vence). Útil para CSV cru sem a coluna pronta; campanhas sem match viram <code>N/C</code>.</p>
-        <div class="tr-list" id="tr-list"></div>
-        <button type="button" class="tr-add" id="tr-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Adicionar regra</button>
-        <label class="tr-over"><input type="checkbox" id="tr-over" /> Sobrescrever a temperatura já presente no CSV</label>
+        <p class="help" style="margin-bottom:14px">Define a <code>temperatura_lead</code> por trecho do <strong>nome da campanha</strong> (ILIKE — 1ª regra que casar vence). As regras vêm do <strong>cliente selecionado</strong> (ou do padrão geral em Configurações) e podem ser ajustadas aqui. Campanhas sem match viram <code>N/C</code>.</p>
+        <div id="temp-editor"></div>
       </section>
 
       <div class="g-msg" id="msg"></div>
@@ -97,36 +81,22 @@
 
   <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
+  <script src="/js/temp-rules.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     let CSV = null, DICT = null;
     const show = (cls, t) => { const m = $('msg'); m.className = 'g-msg ' + cls; m.textContent = t; };
 
-    window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
-
-    // Editor de regras de temperatura (contains → label). Defaults espelham o montador.
-    const DEFAULT_RULES = [
-      { contains: '-frio-', label: 'Frio' },
-      { contains: '-morno-', label: 'Morno' },
-      { contains: '-quente-', label: 'Quente' },
-      { contains: 'advantage', label: 'Advantage' },
-    ];
-    function addRule(contains = '', label = '') {
-      const row = document.createElement('div');
-      row.className = 'tr-row';
-      row.innerHTML = '<input class="tr-contains" placeholder="trecho no nome da campanha (ex.: -frio-)" />'
-        + '<span class="tr-arrow">→</span><input class="tr-label" placeholder="temperatura (ex.: Frio)" />'
-        + '<button type="button" class="tr-del" title="remover">×</button>';
-      row.querySelector('.tr-contains').value = contains;
-      row.querySelector('.tr-label').value = label;
-      row.querySelector('.tr-del').addEventListener('click', () => row.remove());
-      $('tr-list').appendChild(row);
-    }
-    DEFAULT_RULES.forEach((r) => addRule(r.contains, r.label));
-    $('tr-add').addEventListener('click', () => addRule());
-    const collectRules = () => [...document.querySelectorAll('#tr-list .tr-row')]
-      .map((row) => ({ contains: row.querySelector('.tr-contains').value.trim(), label: row.querySelector('.tr-label').value.trim() }))
-      .filter((r) => r.contains && r.label);
+    const CLIENTS = await window.mountClientSelect($('f-client'), { emptyHint: $('f-client-empty') });
+    // Temperatura: editor de regras, pré-preenchido pelo cliente (ou fallback geral).
+    const tempDefault = await window.fetchTempDefault();
+    const tctl = window.mountTempRules($('temp-editor'), {});
+    const applyClientTemp = () => {
+      const t = window.tempForClient(CLIENTS, $('f-client').value, tempDefault);
+      tctl.setRules(t.temp_rules); tctl.setOverwrite(t.temp_overwrite);
+    };
+    $('f-client').addEventListener('change', applyClientTemp);
+    applyClientTemp();
 
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
