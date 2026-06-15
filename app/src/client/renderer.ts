@@ -386,7 +386,7 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   } else {
     const head = el('div', 'kc-head');
     head.appendChild(el('span', 'kc-lbl', w.label));
-    head.appendChild(iconBox(w.icon, w.iconColor));
+    if (w.icon) head.appendChild(iconBox(w.icon, w.iconColor));
     card.appendChild(head);
     card.appendChild(val);
     if (w.sub) card.appendChild(el('div', 'kc-sub', w.sub));

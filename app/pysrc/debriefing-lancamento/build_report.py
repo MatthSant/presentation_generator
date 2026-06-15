@@ -65,8 +65,8 @@ def assemble(rows, config, content, opts=None):
         arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
     def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=None, invert=False):
-        card = {'id': wid, 'type': 'kpi-card', 'tier': 'volume', 'label': label, 'value': value,
-                'sub': sub, 'icon': icon, 'iconColor': color}
+        # volume tier sem ícone (bloco de indicadores de volume — visual mais limpo).
+        card = {'id': wid, 'type': 'kpi-card', 'tier': 'volume', 'label': label, 'value': value, 'sub': sub}
         if real is not None and meta:
             d, tone = _dev(real, meta, invert)
             if d is not None:
