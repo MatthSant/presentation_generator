@@ -21,14 +21,15 @@ def _pp(v):
 
 
 def _dev(real, meta, invert=False):
-    """Δ% vs meta (+ = melhor). invert para custos (menor é melhor)."""
+    """Δ% bruto vs meta (sinal = direção real: + acima da meta, − abaixo). O `invert`
+    afeta só a COR/avaliação (custo: acima da meta é ruim), nunca o sinal exibido."""
     if not meta:
         return None, 'neutral'
     d = (real - meta) / meta * 100
-    if invert:
-        d = -d
-    tone = 'pos' if d >= 1 else ('neg' if d <= -1 else 'neutral')
-    return d, tone
+    if abs(d) < 1:
+        return d, 'neutral'
+    good = (d <= 0) if invert else (d >= 0)  # custo: abaixo da meta é bom
+    return d, 'pos' if good else 'neg'
 
 
 def assemble(rows, config, content, opts=None):
@@ -469,10 +470,13 @@ def cmp_row(label, real, meta, hist, fmt, invert=False):
     cell_real = f(real)
     cell_meta = f(meta) if meta else '—'
     if meta:
-        d = (real - meta) / meta * 100
-        if invert:
-            d = -d
-        delta = {'value': f'{d:+.0f}%', 'cls': 'c-g' if d >= 1 else ('c-r' if d <= -1 else None)}
+        d = (real - meta) / meta * 100  # sinal bruto: + acima da meta, − abaixo
+        if abs(d) < 1:
+            cls = None
+        else:
+            good = (d <= 0) if invert else (d >= 0)  # custo: abaixo da meta é bom
+            cls = 'c-g' if good else 'c-r'
+        delta = {'value': f'{d:+.0f}%', 'cls': cls}
     else:
         delta = '—'
     return [label, cell_real, cell_meta, delta, f(hist)]
@@ -703,11 +707,11 @@ def _a360(M, G, H):
 
 
 def cmp_pct(real, meta, invert=False):
+    # Sinal bruto vs meta (+ acima, − abaixo). invert é mantido por compat mas não
+    # inverte mais o sinal — a avaliação (cor) é responsabilidade de quem exibe.
     if not meta:
         return None
     d = (real - meta) / meta * 100
-    if invert:
-        d = -d
     return f'{d:+.0f}%'
 
 
