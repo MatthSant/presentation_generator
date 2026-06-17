@@ -452,7 +452,7 @@ def assemble(rows, config, content, opts=None):
     layouts['s07'] = opg.items
 
     pages = [{'id': 'panorama', 'label': 'Panorama Geral', 'sections': [{'id': 's01', 'label': 'Panorama Geral'}]},
-             {'id': 'canal', 'label': 'Canal', 'sections': [{'id': 's02', 'label': 'Canal e Conversão'}]},
+             {'id': 'canal', 'label': 'Canal e Conversão', 'sections': [{'id': 's02', 'label': 'Canal e Conversão'}]},
              {'id': 'trafego', 'label': 'Tráfego Pago', 'sections': [{'id': 's03', 'label': 'Tráfego Pago'}]},
              {'id': 'organico', 'label': 'Orgânico', 'sections': [{'id': 's04', 'label': 'Orgânico'}]},
              {'id': 'temporal', 'label': 'Temporal', 'sections': [{'id': 's05', 'label': 'Análise Temporal'}]},
