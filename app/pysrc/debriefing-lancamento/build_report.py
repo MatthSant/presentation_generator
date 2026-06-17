@@ -238,8 +238,8 @@ def assemble(rows, config, content, opts=None):
 
     eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META', 'indicadores na ordem do funil')
     # Barras de atingimento (widget meta-bars), na ordem do FUNIL: verba → leads (+CPL)
-    # → qualificação (+CPMQL) → conversão → vendas. A barra é colorida pela AVALIAÇÃO
-    # (verde bom · vermelho ruim), igual ao Δ vs meta. Meta e Histórico em valor absoluto.
+    # → qualificação (+CPMQL) → conversão → vendas → faturamento → lucro bruto. A barra é
+    # colorida pela AVALIAÇÃO (verde/âmbar/vermelho), igual ao Δ. Meta/Histórico absolutos.
     mvm = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
     pan.append({'id': 'pan-cmp', 'type': 'meta-bars', 'rows': [
         mb_row('Investimento Captação', M['invest_cpt'], G.get('invest_cpt'), H.get('invest_cpt'), 'money', invert=True),
@@ -249,8 +249,10 @@ def assemble(rows, config, content, opts=None):
         mb_row('CPMQL', M['cpmql'], G.get('cpmql'), H.get('cpmql'), 'money', invert=True),
         mb_row('Conversão', M['conv_geral'], G.get('conv'), None, 'pct'),
         mb_row('Vendas', M['vendas_total'], mvm, H.get('vendas'), 'int'),
+        mb_row('Faturamento', M['fat'], G.get('fat'), H.get('fat'), 'money'),
+        mb_row('Lucro Bruto', M['retorno'], retorno_meta, retorno_h, 'money'),
     ]})
-    pg.add('pan-cmp', 'meta-bars', 12, 7)
+    pg.add('pan-cmp', 'meta-bars', 12, 9)
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': f"Debriefing · {M['nome']}",
                        'sub': f"{M['campaign_label']} — atingiu as metas? resumo macro do lançamento."}, 'widgets': pan}
     layouts['s01'] = pg.items
