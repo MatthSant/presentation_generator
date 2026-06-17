@@ -317,7 +317,7 @@ html, body {
  *  atingimento (cor de avaliação + %) · Δ vs Meta · Meta · Histórico. */
 .meta-bars { display: flex; flex-direction: column; gap: 8px; }
 .meta-bars .mb-head,
-.meta-bars .mb-row { display: grid; grid-template-columns: 168px 88px 1fr 84px 90px 90px; align-items: center; gap: 16px; }
+.meta-bars .mb-row { display: grid; grid-template-columns: 160px 78px 1fr 104px 88px 84px; align-items: center; gap: 14px; }
 .meta-bars .mb-head { padding: 0 22px 2px; }
 .meta-bars .mb-head span { font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; color: var(--gray2); }
 .meta-bars .mb-c-real, .meta-bars .mb-c-delta, .meta-bars .mb-c-meta { text-align: center; }
@@ -334,6 +334,7 @@ html, body {
 .meta-bars .mb-fill--neutral { background: #d9920c; }
 .meta-bars .mb-bar-pct { flex-shrink: 0; min-width: 38px; text-align: right; font-size: 13px; font-weight: 800; color: var(--gray); }
 .meta-bars .mb-delta { text-align: center; }
+.meta-bars .mb-delta .pill { white-space: nowrap; }
 .meta-bars .mb-meta { text-align: center; font-size: 13px; font-weight: 600; color: var(--gray2); }
 .meta-bars .mb-hist { text-align: right; font-size: 13px; font-weight: 600; color: var(--gray2); }
 .meta-bars .mb-dash { color: var(--faint); }

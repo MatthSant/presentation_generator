@@ -492,19 +492,32 @@ def cmp_row(label, real, meta, hist, fmt, invert=False):
 
 def mb_row(label, real, meta, hist, fmt, invert=False):
     """Linha do widget meta-bars. Colunas: indicador · realizado · atingimento (barra
-    colorida pela avaliação + %) · Δ vs meta (sinal real + tom) · meta · histórico."""
+    + diferença % para a meta ao lado) · Δ vs meta (pp para taxas / absoluto para o
+    resto) · meta · histórico. O tom de avaliação (verde/vermelho) vem do _dev."""
     from common.fmt import money as _m, pctf as _p, intf as _i
 
     def f(v):
         if v is None:
             return None
         return _m(v) if fmt == 'money' else (_p(v) if fmt == 'pct' else _i(v))
+
+    def absdiff(d):
+        # diferença real − meta: pp para taxas, R$/contagem (com sinal) para o resto.
+        if fmt == 'pct':
+            return f'{d:+.1f} pp'
+        s = '+' if d >= 0 else '-'
+        a = abs(d)
+        if fmt == 'money':
+            return s + (_m(a) if a >= 1000 else 'R$ ' + f'{a:.2f}'.replace('.', ','))
+        return s + _i(a)
+
     row = {'label': label, 'real': f(real), 'meta': f(meta), 'hist': f(hist)}
     if meta:
-        row['pct'] = round(real / meta * 100, 1)
-        d, tone = _dev(real, meta, invert)
-        if d is not None:
-            row['delta'] = {'value': f'{d:+.1f}%', 'tone': tone}
+        pct = round(real / meta * 100, 1)
+        row['pct'] = pct
+        row['pctLabel'] = f'{abs(pct - 100):.0f}%'   # diferença % para a meta (84% → 16%)
+        _, tone = _dev(real, meta, invert)
+        row['delta'] = {'value': absdiff(real - meta), 'tone': tone}
     return row
 
 
