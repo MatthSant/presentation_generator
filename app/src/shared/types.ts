@@ -601,16 +601,20 @@ export interface MetaBarsWidget extends WidgetBase {
   title?: string;
   caption?: string;
   /** rótulos das colunas (default pt-BR). */
-  cols?: { bar?: string; pct?: string; delta?: string; hist?: string };
+  cols?: { real?: string; bar?: string; delta?: string; meta?: string; hist?: string };
   rows: {
-    label: string; sub?: string;
-    /** atingimento = real/meta×100 — preenche a barra (cap 100%) e vira o número grande. */
+    label: string;
+    /** valor realizado (coluna à esquerda da barra). */
+    real?: string;
+    /** atingimento = real/meta×100 — preenche a barra (cap 100%). */
     pct?: number;
-    /** cor da barra: vol=roxo · invest=verde · cost=laranja. */
-    cat?: 'vol' | 'invest' | 'cost';
-    /** legenda abaixo do %: "DA META" | "DO ORÇ." */
-    pctCaption?: string;
+    /** % do atingimento exibido ao lado da barra (ex.: "84%"). */
+    pctLabel?: string;
+    /** Δ vs meta (sinal real + tom de avaliação) — também colore a barra. */
     delta?: { value: string; tone?: 'pos' | 'neg' | 'neutral' };
+    /** valor absoluto da meta. */
+    meta?: string;
+    /** valor absoluto do histórico (lançamento anterior). */
     hist?: string;
   }[];
 }
