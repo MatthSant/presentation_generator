@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'escopo-cards',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -619,6 +619,22 @@ export interface MetaBarsWidget extends WidgetBase {
   }[];
 }
 
+/** escopo-cards — resumo executivo por escopo: cards (ex.: Geral · Pago · Orgânico)
+ *  com rótulo + número grande (leads) + sub (vendas · conv.) e mini-cards coloridos
+ *  do breakdown (ex.: Novos/Antigos/Clientes) com contagem + %. */
+export interface EscopoCardsWidget extends WidgetBase {
+  type: 'escopo-cards';
+  title?: string;
+  cards: {
+    label: string;
+    /** cor do rótulo + número grande. */
+    tone?: 'purple' | 'green' | 'amber' | 'blue';
+    value: string;
+    sub?: string;
+    minis: { label: string; value: string; pct?: string; tone?: 'purple' | 'amber' | 'green' | 'blue' }[];
+  }[];
+}
+
 /** cri-list — lista de entidades ranqueadas (criativos): thumb + nome (link) +
  *  meta (sub-linha) + stats à direita (ex.: leads + CPMQL proj.). */
 export interface CriListWidget extends WidgetBase {
@@ -636,7 +652,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | EscopoCardsWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
