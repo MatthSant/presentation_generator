@@ -350,13 +350,17 @@ html, body {
 .escopo-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 @media (max-width: 880px) { .escopo-cards { grid-template-columns: 1fr; } }
 .esc-card { display: flex; flex-direction: column; padding: 18px 20px; }
-.esc-eyebrow { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.esc-val { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; margin-top: 4px; }
+.esc-eyebrow { display: flex; align-items: center; gap: 7px; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.esc-eyebrow::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: currentColor; flex-shrink: 0; }
+.esc-val { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.esc-num { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+.esc-unit { font-size: 14px; font-weight: 600; color: var(--gray2); margin-left: 6px; letter-spacing: 0; }
+.esc-chip { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 7px; }
 .esc-sub { font-size: 12.5px; color: var(--gray2); font-weight: 500; margin: 6px 0 14px; }
-.esc--purple .esc-eyebrow, .esc--purple .esc-val { color: var(--purple); }
-.esc--green  .esc-eyebrow, .esc--green  .esc-val { color: var(--green, #16a34a); }
-.esc--amber  .esc-eyebrow, .esc--amber  .esc-val { color: var(--amber-text); }
-.esc--blue   .esc-eyebrow, .esc--blue   .esc-val { color: #185FA5; }
+.esc--purple .esc-eyebrow, .esc--purple .esc-num { color: var(--purple); }
+.esc--green  .esc-eyebrow, .esc--green  .esc-num { color: var(--green, #16a34a); }
+.esc--amber  .esc-eyebrow, .esc--amber  .esc-num { color: var(--amber-text); }
+.esc--blue   .esc-eyebrow, .esc--blue   .esc-num { color: #185FA5; }
 .esc-minis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: auto; }
 .esc-mini { border-radius: 11px; padding: 9px 6px 8px; text-align: center; }
 .esc-mini--purple { background: var(--purple-bg); }

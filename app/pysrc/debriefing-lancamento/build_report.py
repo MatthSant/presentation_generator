@@ -264,16 +264,23 @@ def assemble(rows, config, content, opts=None):
     # ════ s02 — Canal e Conversão ═══════════════════════════════════════════
     can, cg = [], Grid()
     eb(can, cg, 'can-eb', 'RESUMO EXECUTIVO', 'vendas, leads e tipo de lead por escopo')
-    vt = M['vendas_total'] or 1
+    byc = G.get('by_canal') or {}
+    mvc = G.get('meta_vendas_canal') or {}
+    org_ch = [c for c in M['chan'] if c['tipo'] != 'pago']
+    pago_ch = [c for c in M['chan'] if c['tipo'] == 'pago']
+    _mv = lambda chans: sum((mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas') or 0) for c in chans)
+    mvm = sum(mvc.values()) or G.get('vendas')
     esc_cards = []
-    for lbl, tone, lp, lv, cv, nv, an, cl, share in [
-        ('Geral', 'purple', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], None),
-        ('Pago', 'blue', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], pct_of(M['vendas_pago'], vt)),
-        ('Orgânico', 'green', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], pct_of(M['vendas_org'], vt))]:
-        vendas_lbl = 'vendas' if share is None else f'vendas ({share})'
+    for lbl, tone, lp, lv, cv, nv, an, cl, mv in [
+        ('Geral', 'purple', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], mvm),
+        ('Pago', 'blue', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], _mv(pago_ch)),
+        ('Orgânico', 'green', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], _mv(org_ch))]:
+        at = (lv / mv * 100) if mv else None
+        chip = ({'text': f'{at:.0f}% da meta', 'tone': ('pos' if at >= 100 else 'warn' if at >= 80 else 'neg')}
+                if at is not None else None)
         esc_cards.append({
-            'label': lbl, 'tone': tone, 'value': intf(lv),
-            'sub': f'{vendas_lbl} · {intf(lp)} leads · {pctf(cv)} conv.',
+            'label': lbl, 'tone': tone, 'value': intf(lv), 'unit': 'vendas', 'chip': chip,
+            'sub': f'{intf(lp)} leads · {pctf(cv)} conv.',
             'minis': [
                 {'label': 'Novos', 'tone': 'purple', 'value': intf(nv), 'pct': pct_of(nv, lp)},
                 {'label': 'Antigos', 'tone': 'amber', 'value': intf(an), 'pct': pct_of(an, lp)},
