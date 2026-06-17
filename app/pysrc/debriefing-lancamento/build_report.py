@@ -228,9 +228,12 @@ def assemble(rows, config, content, opts=None):
     ks(pan, pg, 'pan-v-cpl', 'CPL', money(M['cpl']), '', 'users', '#185FA5', real=M['cpl'], meta=G.get('cpl'), invert=True, hist=H.get('cpl'), meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None), hist_fmt=(money(H.get('cpl')) if H.get('cpl') else None))
     pan[-1]['info'] = 'Indicador calculado: investimento de captação ÷ leads de tráfego (mídia paga). Custo por lead.'
     ks(pan, pg, 'pan-v-recap', 'Leads Recapturados', intf(M['l_ant'] + M['l_cli']), f"antigos {intf(M['l_ant'])} · clientes {intf(M['l_cli'])}", 'refresh', '#854F0B')
-    # Taxa de Resposta = respostas da pesquisa ÷ leads totais.
-    ks(pan, pg, 'pan-v-resp', 'Taxa de Resposta', pct_of(M['resps_total'], M['leads_total']),
-       f"{intf(M['resps_total'])} resp. / {intf(M['leads_total'])} leads", 'message', '#185FA5')
+    # Taxa de Resposta = respostas da pesquisa ÷ leads totais (vs meta meta_taxa_resp).
+    ks(pan, pg, 'pan-v-resp', 'Taxa de Resposta', pctf(M['taxa_resp']),
+       f"{intf(M['resps_total'])} resp. / {intf(M['leads_total'])} leads", 'message', '#185FA5',
+       real=M['taxa_resp'], meta=G.get('taxa_resp'), hist=H.get('taxa_resp'),
+       meta_fmt=(pctf(G.get('taxa_resp')) if G.get('taxa_resp') else None),
+       hist_fmt=(pctf(H.get('taxa_resp')) if H.get('taxa_resp') else None))
     ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
     ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
     pan[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
