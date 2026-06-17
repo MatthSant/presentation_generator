@@ -371,8 +371,10 @@ html, body {
 .esc-mini--green  .esc-mini-lbl, .esc-mini--green  .esc-mini-val { color: var(--green, #16a34a); }
 .esc-mini--blue   .esc-mini-lbl, .esc-mini--blue   .esc-mini-val { color: #185FA5; }
 
-/* channel-table — tabela com acabamento de app (linha-card, pills refinados) */
-.ch-table { padding: 4px 4px 8px; }
+/* channel-table — tabela com acabamento de app (linha-card, pills refinados).
+   Padding horizontal 0 (o inset vem das próprias linhas, 22px) — .card.ch-table
+   p/ vencer o padding 36/40 do .card global e não duplicar a margem. */
+.card.ch-table { padding: 8px 0 10px; }
 .ch-title { display: flex; align-items: center; gap: 9px; font-size: 11.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--fg); padding: 14px 22px 6px; }
 .ch-grid { display: flex; flex-direction: column; }
 .ch-row { display: grid; grid-template-columns: minmax(140px, 1.6fr) repeat(var(--ch-ncols, 6), minmax(58px, 1fr)); align-items: center; gap: 12px; padding: 13px 22px; }
