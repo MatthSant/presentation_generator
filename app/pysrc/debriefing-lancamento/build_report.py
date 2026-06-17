@@ -181,10 +181,16 @@ def assemble(rows, config, content, opts=None):
     g_fat, g_inv = G.get('fat'), G.get('invest_cpt')
     retorno_meta = (g_fat - g_inv) if (g_fat and g_inv) else None
     roi_meta = (retorno_meta / g_inv * 100) if (retorno_meta is not None and g_inv) else None
-    # ROAS captação usa receita PAGA; a meta de receita (goals) é total → estima a paga
-    # pela fração paga realizada e aplica (receita_paga − invest) / invest.
-    paid_share = (M['fat_pago'] / M['fat']) if M.get('fat') else None
-    roas_meta = (((g_fat * paid_share) - g_inv) / g_inv) if (g_fat and g_inv and paid_share) else None
+    # ROAS captação usa receita PAGA: meta = (meta_fat_pago − meta_invest) / meta_invest.
+    # meta_fat_pago vem das metas POR CANAL (meta_receita dos canais pagos). Fallback p/
+    # análises sem meta por canal: estima pela fração paga realizada (menos preciso).
+    mfat_pago = sum(((G.get('by_canal') or {}).get(c['canal'], {}).get('meta_fat') or 0)
+                    for c in M['chan'] if c['tipo'] == 'pago')
+    if mfat_pago and g_inv:
+        roas_meta = (mfat_pago - g_inv) / g_inv
+    else:
+        paid_share = (M['fat_pago'] / M['fat']) if M.get('fat') else None
+        roas_meta = (((g_fat * paid_share) - g_inv) / g_inv) if (g_fat and g_inv and paid_share) else None
     h_inv = H.get('invest')
     retorno_h = (H['fat'] - h_inv) if (H.get('fat') is not None and h_inv) else None
     roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
@@ -535,21 +541,91 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s03 — Tráfego Pago ════════════════════════════════════════════════
     tra, tg = [], Grid()
-    tra.append({'id': 'tra-rule', 'type': 'highlight', 'color': 'p', 'label': 'Regra do invest_cpt',
-                'text': f"Investimento de mídia = só campanhas de captação ({money(M['invest_cpt'])}). "
-                        f"Invest. de vendas ({money(M['invest_vnd'])}) fica fora de CPL/ROAS/CPMQL/CPM/CTR."}); tg.add('tra-rule', 'highlight', 12, 2)
-    eb(tra, tg, 'tra-eb', 'INDICADORES DE MÍDIA', '9 métricas (só captação)')
-    ks(tra, tg, 'tra-cpl', 'CPL', money(M['cpl']), f"meta {money(G.get('cpl'))}" if G.get('cpl') else 'invest. cpt / leads tráfego',
-       'users', '#185FA5', real=M['cpl'], meta=G.get('cpl'), invert=True)
-    ks(tra, tg, 'tra-cpmql', 'CPMQL', money(M['cpmql']), f"meta {money(G.get('cpmql'))}" if G.get('cpmql') else 'CPL / qualif. paga',
-       'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True)
+    # ── 1ª dobra: indicadores de RESULTADO no estilo macro do Panorama (bandas de
+    # atingimento + grade 2×3). Mídia: ROI→CPL e Reembolso→CPMQL. ──
+    eb(tra, tg, 'tra-eb-res', 'INDICADORES DE RESULTADO', 'atingimento + eficiência da mídia paga')
+
+    def _tband(wid, label, real, meta, at, x, y, w=3):
+        if real is None or not meta or at is None:
+            return
+        tra.append({'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'band': True,
+                    'label': label, 'value': f'{intf(real)} / {intf(meta)}',
+                    'sub': 'realizado vs meta da mídia paga', 'delta': f'{at:.0f}%', 'deltaTone': at_tone(at)})
+        tg.at(wid, 'kpi-card', x, y, w, 2)
+
+    # Tudo nesta página é PAGO → metas/histórico do escopo pago (soma dos canais pagos).
+    _pago_ch = [c for c in M['chan'] if c['tipo'] == 'pago']
+    _bycp = G.get('by_canal') or {}
+    _mvcp = G.get('meta_vendas_canal') or {}
+    _mlp = sum((_bycp.get(c['canal'], {}).get('meta_leads') or 0) for c in _pago_ch)      # meta leads pago
+    _mvp = sum((_mvcp.get(c['canal']) or _bycp.get(c['canal'], {}).get('meta_vendas') or 0) for c in _pago_ch)  # meta vendas pago
+    _mfp = sum((_bycp.get(c['canal'], {}).get('meta_fat') or 0) for c in _pago_ch)        # meta faturamento pago
+    _ginv = G.get('invest_cpt')                                                           # meta invest captação (toda paga)
+    meta_conv_pago = (_mvp / _mlp * 100) if _mlp else None
+    meta_ret_pago = (_mfp - _ginv) if (_mfp and _ginv) else None
+    at_leads_p = (M['leads_pago'] / _mlp * 100) if _mlp else None
+    at_vendas_p = (M['vendas_pago'] / _mvp * 100) if _mvp else None
+    ret_pago = M['fat_pago'] - M['invest_cpt']
+    # histórico pago: chan_hist tem fat/leads/vendas por canal (sem invest → sem hist de retorno).
+    _hfp = (M.get('hist_funnel') or {}).get('pago') or {}
+    hist_conv_pago = (_hfp['vendas'] / _hfp['leads'] * 100) if (_hfp.get('leads') and _hfp.get('vendas')) else None
+    _hfat_pago = (sum(((chist.get(c['canal']) or {}).get('fat') or 0) for c in _pago_ch) or None)
+    ticket_pago = (M['fat_pago'] / M['vendas_pago']) if M['vendas_pago'] else None
+    meta_ticket = (_mfp / _mvp) if _mvp else None
+    hist_ticket = (_hfat_pago / _hfp['vendas']) if (_hfat_pago and _hfp.get('vendas')) else None
+
+    # esquerda: bandas de atingimento empilhadas (w=4, um pouco mais largas) na 1ª coluna;
+    # Investimento e Ticket empilhados (w=2, igual aos demais cards) na 2ª coluna.
+    _tband('tra-at-leads', 'Atingimento · Leads', M['leads_pago'], _mlp or None, at_leads_p, 0, 1, 4)
+    _tband('tra-at-vendas', 'Atingimento · Vendas', M['vendas_pago'], _mvp or None, at_vendas_p, 0, 3, 4)
+    km(tra, tg, 'tra-k-inv', 'Investimento', money(M['invest_cpt']), '', 'coin', '#534AB7',
+       real=M['invest_cpt'], meta=_ginv, invert=True, hist=H.get('invest'), w=2, h=2, x=4, y=1,
+       meta_fmt=(money(_ginv) if _ginv else None), hist_fmt=(money(H.get('invest')) if H.get('invest') else None))
+    tra[-1]['info'] = 'Verba de mídia paga investida em captação (exclui campanhas de venda).'
+    _rs = lambda v: f"R$ {intf(round(v))}" if v else '—'   # ticket em reais cheios (money() abreviaria p/ "R$ 1k")
+    km(tra, tg, 'tra-k-ticket', 'Ticket Médio', _rs(ticket_pago), '', 'shopping-cart', '#3B6D11',
+       real=ticket_pago, meta=meta_ticket, hist=hist_ticket, w=2, h=2, x=4, y=3,
+       meta_fmt=(_rs(meta_ticket) if meta_ticket else None), hist_fmt=(_rs(hist_ticket) if hist_ticket else None))
+    tra[-1]['info'] = 'Faturamento pago ÷ vendas pagas — valor médio por venda na mídia paga.'
+    # topo (direita): Faturamento Pago · CPL · Conversão Paga
+    km(tra, tg, 'tra-k-fat', 'Faturamento Pago', money(M['fat_pago']), '', 'coin', '#3B6D11',
+       real=M['fat_pago'], meta=(_mfp or None), hist=_hfat_pago, w=2, x=6, y=1,
+       meta_fmt=(money(_mfp) if _mfp else None), hist_fmt=(money(_hfat_pago) if _hfat_pago else None))
+    tra[-1]['info'] = f"Faturamento das vendas atribuídas a canais pagos — {pct_of(M['fat_pago'], M['fat'])} do faturamento total."
+    km(tra, tg, 'tra-k-cpl', 'CPL', money(M['cpl']), '', 'users', '#185FA5', w=2, x=8, y=1,
+       real=M['cpl'], meta=G.get('cpl'), invert=True, hist=H.get('cpl'),
+       meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None), hist_fmt=(money(H.get('cpl')) if H.get('cpl') else None))
+    tra[-1]['info'] = 'Indicador calculado: investimento de captação ÷ leads de tráfego (mídia paga). Custo por lead.'
+    km(tra, tg, 'tra-k-conv', 'Conversão Paga', pctf(M['conv_pago']), '', 'circle-check', '#3B6D11', w=2, x=10, y=1,
+       real=M['conv_pago'], meta=meta_conv_pago, hist=hist_conv_pago,
+       meta_fmt=(pctf(meta_conv_pago) if meta_conv_pago else None),
+       hist_fmt=(pctf(hist_conv_pago) if hist_conv_pago else None))
+    tra[-1]['info'] = f"Vendas ÷ leads, só mídia paga ({intf(M['vendas_pago'])} vendas / {intf(M['leads_pago'])} leads)."
+    # baixo (direita): Retorno Pago · CPMQL · ROAS — eficiência em roxo, fórmula no (i)
+    km(tra, tg, 'tra-k-ret', 'Retorno Pago', money(ret_pago), '', 'database', '#534AB7', w=2, x=6, y=3,
+       real=ret_pago, meta=meta_ret_pago,
+       meta_fmt=(money(meta_ret_pago) if meta_ret_pago is not None else None))
+    tra[-1]['emph'] = True
+    tra[-1]['info'] = 'Indicador calculado: faturamento pago − investimento de captação. Lucro bruto da mídia paga (antes de impostos e demais custos).'
+    km(tra, tg, 'tra-k-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', w=2, x=8, y=3,
+       real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'),
+       meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
+    tra[-1]['emph'] = True
+    tra[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
+    km(tra, tg, 'tra-k-roas', 'ROAS Captação', xf(M['roas']), '', 'bolt', '#EF9F27', w=2, x=10, y=3,
+       real=M['roas'], meta=roas_meta, hist=roas_h,
+       meta_fmt=(xf(roas_meta) if roas_meta is not None else None), hist_fmt=(xf(roas_h) if roas_h else None))
+    tra[-1]['emph'] = True
+    tra[-1]['info'] = 'Indicador calculado: (faturamento pago − investimento de captação) ÷ investimento de captação. Retorno sobre a mídia de captação.'
+    tg.cursor_to(5)
+
+    eb(tra, tg, 'tra-eb', 'INDICADORES DE MÍDIA', '6 métricas (só captação)')
     ks(tra, tg, 'tra-qual', 'Qualificação', pctf(M['qual_pago']), f"meta {pctf(G.get('qual'))}" if G.get('qual') else 'MQLs / respostas (pago)',
        'circle-check', '#534AB7', real=M['qual_pago'], meta=G.get('qual'))
     ks(tra, tg, 'tra-ctr', 'CTR', pctf(M['ctr']), 'clicks / impressões', 'trending-up', '#3B6D11')
     ks(tra, tg, 'tra-cpm', 'CPM', money(M['cpm']), 'invest. cpt×1000 / impressões', 'database', '#534AB7')
     ks(tra, tg, 'tra-cpc', 'CPC', money(M['cpc']), 'invest. cpt / clicks', 'coin', '#185FA5')
     ks(tra, tg, 'tra-txpag', 'Taxa de Página', pctf(M['tx_pag']), 'leads tráfego / clicks', 'target', '#3B6D11')
-    ks(tra, tg, 'tra-inv', 'Invest. Captação', money(M['invest_cpt']), 'verba de mídia paga', 'coin', '#534AB7')
     ks(tra, tg, 'tra-cac', 'CAC', money(M['cac']), 'invest. cpt / vendas pago', 'shopping-cart', '#A32D2D')
     eb(tra, tg, 'tra-eb-d', 'CAPTAÇÃO PAGA POR DIA')
     tra.append({'id': 'tra-daily', 'type': 'chart', 'chartType': 'bar', 'title': 'Leads pagos por dia', 'height': 280,
