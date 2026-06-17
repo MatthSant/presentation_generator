@@ -1054,7 +1054,12 @@ function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
   for (const c of w.cards) {
     const card = el('div', `card esc-card esc--${c.tone || 'purple'}`);
     card.appendChild(el('div', 'esc-eyebrow', c.label));
-    card.appendChild(el('div', 'esc-val', c.value));
+    const val = el('div', 'esc-val');
+    const num = el('span', 'esc-num', c.value);
+    if (c.unit) num.appendChild(el('span', 'esc-unit', c.unit));
+    val.appendChild(num);
+    if (c.chip) val.appendChild(el('span', `pill ${PILL_TONE[c.chip.tone || 'neutral']} esc-chip`, c.chip.text));
+    card.appendChild(val);
     if (c.sub) card.appendChild(el('div', 'esc-sub', c.sub));
     const minis = el('div', 'esc-minis');
     for (const m of c.minis || []) {

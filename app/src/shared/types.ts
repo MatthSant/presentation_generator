@@ -630,6 +630,10 @@ export interface EscopoCardsWidget extends WidgetBase {
     /** cor do rótulo + número grande. */
     tone?: 'purple' | 'green' | 'amber' | 'blue';
     value: string;
+    /** unidade após o número grande (ex.: "vendas"), em fonte menor. */
+    unit?: string;
+    /** chip de relação com a meta (ex.: "82% da meta"). */
+    chip?: { text: string; tone?: 'pos' | 'neg' | 'warn' | 'neutral' };
     sub?: string;
     minis: { label: string; value: string; pct?: string; tone?: 'purple' | 'amber' | 'green' | 'blue' }[];
   }[];
