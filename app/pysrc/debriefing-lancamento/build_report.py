@@ -294,14 +294,28 @@ def assemble(rows, config, content, opts=None):
         mv = sum((mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas') or 0) for c in channels)
         return (mv / ml * 100) if ml else None
 
-    def _funil(wid, title, leads, resps, mqls, vendas, meta_conv):
+    def _meta_rate(channels, wkey):
+        # taxa-meta do escopo (resp/qualif): soma ponderada por meta_leads ÷ meta_leads.
+        ml = sum((byc.get(c['canal'], {}).get('meta_leads') or 0) for c in channels)
+        w = sum((byc.get(c['canal'], {}).get(wkey) or 0) for c in channels)
+        return (w / ml * 100) if ml else None
+
+    def _funil(wid, title, leads, resps, mqls, vendas, meta_conv, meta_resp, meta_qual):
         vals = [leads, resps, mqls, vendas]
-        def mig(i):
-            return round(vals[i + 1] / vals[i] * 100, 1) if vals[i] else 0.0
+        mig = lambda i: round(vals[i + 1] / vals[i] * 100, 1) if vals[i] else 0.0
+
+        def step(i, bench):
+            m = mig(i)
+            tr = {'migrate': m, 'loss': round(100 - m, 1)}
+            if bench:
+                tr['bench'] = round(bench, 1)
+                if m < bench:
+                    tr['gap'] = round(bench - m, 1)
+            return tr
         conv = round(vendas / leads * 100, 1) if leads else 0.0
         trans = [
-            {'migrate': mig(0), 'loss': round(100 - mig(0), 1)},   # leads → respostas
-            {'migrate': mig(1), 'loss': round(100 - mig(1), 1)},   # respostas → MQLs
+            step(0, meta_resp),   # leads → respostas vs meta de taxa de resposta
+            step(1, meta_qual),   # respostas → MQLs vs meta de qualificação
             # conversão lead→venda + comparação com a meta (sem "perda" de quem sai)
             {'migrate': conv,
              'bench': round(meta_conv, 1) if meta_conv else None,
@@ -312,12 +326,15 @@ def assemble(rows, config, content, opts=None):
 
     org_ch = [c for c in M['chan'] if c['tipo'] != 'pago']
     pago_ch = [c for c in M['chan'] if c['tipo'] == 'pago']
-    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'leads → respostas → MQLs → conversão (vs meta), por escopo')
-    can.append(_funil('can-fun-ger', 'Geral', M['leads_total'], M['resps_total'], M['mqls_total'], M['vendas_total'], _meta_conv(M['chan'])))
+    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'taxas do funil vs meta do launch, por escopo')
+    can.append(_funil('can-fun-ger', 'Geral', M['leads_total'], M['resps_total'], M['mqls_total'], M['vendas_total'],
+                      _meta_conv(M['chan']), _meta_rate(M['chan'], 'resp_w'), _meta_rate(M['chan'], 'qual_w')))
     cg.add('can-fun-ger', 'funnel', 4, 5)
-    can.append(_funil('can-fun-org', 'Orgânico', M['leads_org'], M['resps_org'], M['mqls_org'], M['vendas_org'], _meta_conv(org_ch)))
+    can.append(_funil('can-fun-org', 'Orgânico', M['leads_org'], M['resps_org'], M['mqls_org'], M['vendas_org'],
+                      _meta_conv(org_ch), _meta_rate(org_ch, 'resp_w'), _meta_rate(org_ch, 'qual_w')))
     cg.add('can-fun-org', 'funnel', 4, 5)
-    can.append(_funil('can-fun-pago', 'Pago', M['leads_pago'], M['resps_pago'], M['mqls_pago'], M['vendas_pago'], _meta_conv(pago_ch)))
+    can.append(_funil('can-fun-pago', 'Pago', M['leads_pago'], M['resps_pago'], M['mqls_pago'], M['vendas_pago'],
+                      _meta_conv(pago_ch), _meta_rate(pago_ch, 'resp_w'), _meta_rate(pago_ch, 'qual_w')))
     cg.add('can-fun-pago', 'funnel', 4, 5)
 
     # canais vs meta de vendas
@@ -347,9 +364,9 @@ def assemble(rows, config, content, opts=None):
                 dcell = {'value': '–', 'tone': 'muted', 'align': 'center'}
                 mcell = {'value': '–', 'tone': 'muted'}
             meta_conv = (meta / ml * 100) if (meta and ml) else None
-            if meta_conv is not None:
-                dc = c['conv'] - meta_conv
-                dccell = {'value': f'{dc:+.1f}pp', 'pill': True, 'tone': ('pos' if dc >= 0 else 'neg'), 'align': 'center'}
+            if meta_conv:
+                dc = (c['conv'] - meta_conv) / meta_conv * 100
+                dccell = {'value': f'{dc:+.1f}%', 'pill': True, 'tone': ('pos' if dc >= 0 else 'neg'), 'align': 'center'}
             else:
                 dccell = {'value': '–', 'tone': 'muted', 'align': 'center'}
             out.append({'name': c['canal'], 'cells': [
