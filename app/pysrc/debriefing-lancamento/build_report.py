@@ -161,10 +161,11 @@ def assemble(rows, config, content, opts=None):
         pg.add(wid, 'kpi-card', w, h)
 
     eb(pan, pg, 'pan-eb-glob', 'INDICADORES GLOBAIS', 'atingimento de metas + resultado macro do lançamento')
-    # Metas em destaque (estilo captação): bandas grandes; Vendas em roxo (emph).
+    # Metas em destaque (estilo captação): bandas grandes, com a cor avaliando o
+    # atingimento (verde ≥100% · âmbar 80–99% · vermelho <80%) — Leads e Vendas iguais.
     mv_meta = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
     band('pan-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']))
-    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], 'emph')
+    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']))
 
     # 5 indicadores macro numa linha só (w=2, como os KPIs macro do acompanhamento).
     pg.newrow()
