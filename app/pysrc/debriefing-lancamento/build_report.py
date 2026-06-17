@@ -282,22 +282,42 @@ def assemble(rows, config, content, opts=None):
     can.append({'id': 'can-resumo', 'type': 'escopo-cards', 'cards': esc_cards})
     cg.add('can-resumo', 'escopo-cards', 12, 4)
 
-    # Pipeline de conversão — 3 funis lado a lado (Geral · Orgânico · Pago)
-    def _funil(wid, title, leads, resps, mqls, vendas):
+    # Pipeline de conversão — 3 funis lado a lado (Geral · Orgânico · Pago). A ÚLTIMA
+    # transição é a CONVERSÃO (vendas/leads, não MQL→venda) com tag de comparação com a
+    # META de conversão do escopo, derivada das metas por canal do launch goals
+    # (by_canal: meta_vendas ÷ meta_leads agregados por tipo de tráfego).
+    byc = G.get('by_canal') or {}
+    mvc = G.get('meta_vendas_canal') or {}
+
+    def _meta_conv(channels):
+        ml = sum((byc.get(c['canal'], {}).get('meta_leads') or 0) for c in channels)
+        mv = sum((mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas') or 0) for c in channels)
+        return (mv / ml * 100) if ml else None
+
+    def _funil(wid, title, leads, resps, mqls, vendas, meta_conv):
         vals = [leads, resps, mqls, vendas]
-        trans = []
-        for i in range(3):
-            mig = (vals[i + 1] / vals[i] * 100) if vals[i] else 0
-            trans.append({'migrate': round(mig, 1), 'loss': round(100 - mig, 1)})
-        steps = [{'label': l, 'value': v} for l, v in
-                 zip(['Leads', 'Respostas', 'MQLs', 'Vendas'], vals)]
+        def mig(i):
+            return round(vals[i + 1] / vals[i] * 100, 1) if vals[i] else 0.0
+        conv = round(vendas / leads * 100, 1) if leads else 0.0
+        trans = [
+            {'migrate': mig(0), 'loss': round(100 - mig(0), 1)},   # leads → respostas
+            {'migrate': mig(1), 'loss': round(100 - mig(1), 1)},   # respostas → MQLs
+            # conversão lead→venda + comparação com a meta (sem "perda" de quem sai)
+            {'migrate': conv,
+             'bench': round(meta_conv, 1) if meta_conv else None,
+             'gap': round(meta_conv - conv, 1) if (meta_conv and conv < meta_conv) else None},
+        ]
+        steps = [{'label': l, 'value': v} for l, v in zip(['Leads', 'Respostas', 'MQLs', 'Vendas'], vals)]
         return {'id': wid, 'type': 'funnel', 'title': title, 'steps': steps, 'transitions': trans}
-    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'leads → respostas → MQLs → vendas, por escopo')
-    can.append(_funil('can-fun-ger', 'Geral', M['leads_total'], M['resps_total'], M['mqls_total'], M['vendas_total']))
+
+    org_ch = [c for c in M['chan'] if c['tipo'] != 'pago']
+    pago_ch = [c for c in M['chan'] if c['tipo'] == 'pago']
+    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'leads → respostas → MQLs → conversão (vs meta), por escopo')
+    can.append(_funil('can-fun-ger', 'Geral', M['leads_total'], M['resps_total'], M['mqls_total'], M['vendas_total'], _meta_conv(M['chan'])))
     cg.add('can-fun-ger', 'funnel', 4, 5)
-    can.append(_funil('can-fun-org', 'Orgânico', M['leads_org'], M['resps_org'], M['mqls_org'], M['vendas_org']))
+    can.append(_funil('can-fun-org', 'Orgânico', M['leads_org'], M['resps_org'], M['mqls_org'], M['vendas_org'], _meta_conv(org_ch)))
     cg.add('can-fun-org', 'funnel', 4, 5)
-    can.append(_funil('can-fun-pago', 'Pago', M['leads_pago'], M['resps_pago'], M['mqls_pago'], M['vendas_pago']))
+    can.append(_funil('can-fun-pago', 'Pago', M['leads_pago'], M['resps_pago'], M['mqls_pago'], M['vendas_pago'], _meta_conv(pago_ch)))
     cg.add('can-fun-pago', 'funnel', 4, 5)
 
     # canais vs meta de vendas

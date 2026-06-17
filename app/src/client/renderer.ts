@@ -908,7 +908,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
         if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
           `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
         if (t.migrate != null) {
-          const meta = below && t.bench != null ? ` · meta ${t.bench.toFixed(0)}%` : '';
+          const meta = below && t.bench != null ? ` · meta ${t.bench.toFixed(t.bench % 1 ? 1 : 0)}%` : '';
           pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
             `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${meta}`));
         }
