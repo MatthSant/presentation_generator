@@ -263,17 +263,17 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s02 — Canal e Conversão ═══════════════════════════════════════════
     can, cg = [], Grid()
-    eb(can, cg, 'can-eb', 'RESUMO EXECUTIVO', 'leads, vendas e tipo de lead por escopo')
-    lt = M['leads_total'] or 1
+    eb(can, cg, 'can-eb', 'RESUMO EXECUTIVO', 'vendas, leads e tipo de lead por escopo')
+    vt = M['vendas_total'] or 1
     esc_cards = []
     for lbl, tone, lp, lv, cv, nv, an, cl, share in [
         ('Geral', 'purple', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], None),
-        ('Pago', 'blue', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], pct_of(M['leads_pago'], lt)),
-        ('Orgânico', 'green', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], pct_of(M['leads_org'], lt))]:
-        leads_lbl = 'leads' if share is None else f'leads ({share})'
+        ('Pago', 'blue', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], pct_of(M['vendas_pago'], vt)),
+        ('Orgânico', 'green', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], pct_of(M['vendas_org'], vt))]:
+        vendas_lbl = 'vendas' if share is None else f'vendas ({share})'
         esc_cards.append({
-            'label': lbl, 'tone': tone, 'value': intf(lp),
-            'sub': f'{leads_lbl} · {intf(lv)} vendas · {pctf(cv)} conv.',
+            'label': lbl, 'tone': tone, 'value': intf(lv),
+            'sub': f'{vendas_lbl} · {intf(lp)} leads · {pctf(cv)} conv.',
             'minis': [
                 {'label': 'Novos', 'tone': 'purple', 'value': intf(nv), 'pct': pct_of(nv, lp)},
                 {'label': 'Antigos', 'tone': 'amber', 'value': intf(an), 'pct': pct_of(an, lp)},
@@ -281,6 +281,25 @@ def assemble(rows, config, content, opts=None):
             ]})
     can.append({'id': 'can-resumo', 'type': 'escopo-cards', 'cards': esc_cards})
     cg.add('can-resumo', 'escopo-cards', 12, 4)
+
+    # Pipeline de conversão — 3 funis lado a lado (Geral · Orgânico · Pago)
+    def _funil(wid, title, leads, resps, mqls, vendas):
+        vals = [leads, resps, mqls, vendas]
+        trans = []
+        for i in range(3):
+            mig = (vals[i + 1] / vals[i] * 100) if vals[i] else 0
+            trans.append({'migrate': round(mig, 1), 'loss': round(100 - mig, 1)})
+        steps = [{'label': l, 'value': v} for l, v in
+                 zip(['Leads', 'Respostas', 'MQLs', 'Vendas'], vals)]
+        return {'id': wid, 'type': 'funnel', 'title': title, 'steps': steps, 'transitions': trans}
+    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'leads → respostas → MQLs → vendas, por escopo')
+    can.append(_funil('can-fun-ger', 'Geral', M['leads_total'], M['resps_total'], M['mqls_total'], M['vendas_total']))
+    cg.add('can-fun-ger', 'funnel', 4, 5)
+    can.append(_funil('can-fun-org', 'Orgânico', M['leads_org'], M['resps_org'], M['mqls_org'], M['vendas_org']))
+    cg.add('can-fun-org', 'funnel', 4, 5)
+    can.append(_funil('can-fun-pago', 'Pago', M['leads_pago'], M['resps_pago'], M['mqls_pago'], M['vendas_pago']))
+    cg.add('can-fun-pago', 'funnel', 4, 5)
+
     # canais vs meta de vendas
     vs = _canais_vs_meta(M['chan'], G.get('by_canal') or {}, M['goals'].get('meta_vendas_canal') or {})
     eb(can, cg, 'can-eb-vs', 'CANAIS vs META DE VENDAS', 'acima / próximo / abaixo')

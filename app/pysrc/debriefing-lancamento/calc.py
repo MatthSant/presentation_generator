@@ -408,6 +408,7 @@ def metrics(rows, config=None, goals=None, hist=None):
         'vendas_total': vendas_total, 'vendas_pago': vendas_pago, 'vendas_org': vendas_org,
         'vendas_sale': int(s('vendas_sale')),
         'mqls_total': mqls_total, 'resps_total': resps_total,
+        'mqls_pago': mqls_pago, 'resps_pago': resps_pago, 'mqls_org': mqls_org, 'resps_org': resps_org,
         'taxa_resp': pct(resps_total, leads_total),
         'qual': pct(mqls_total, resps_total), 'qual_pago': qual_pago, 'qual_org': pct(mqls_org, resps_org),
         'conv_geral': pct(vendas_total, leads_total), 'conv_pago': pct(vendas_pago, leads_pago),
