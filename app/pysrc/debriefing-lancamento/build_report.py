@@ -347,15 +347,20 @@ def assemble(rows, config, content, opts=None):
     # Resultado por canal — duas tabelas (Orgânico · Pago) no widget channel-table.
     mvc = M['goals'].get('meta_vendas_canal') or {}
     byc = G.get('by_canal') or {}
-    ch_cols = [{'label': 'Canal'}, {'label': 'Leads'}, {'label': 'Vendas'}, {'label': 'Meta Vendas'},
-               {'label': 'Δ Vendas', 'align': 'center'}, {'label': 'Conv.'}, {'label': 'Δ Conv.', 'align': 'center'},
-               {'label': 'Qualif.'}, {'label': 'Fat.'}]
+    ch_cols = [{'label': 'Canal'}, {'label': 'Leads'}, {'label': 'Δ Leads', 'align': 'center'},
+               {'label': 'Vendas'}, {'label': 'Meta Vendas'}, {'label': 'Δ Vendas', 'align': 'center'},
+               {'label': 'Conv.'}, {'label': 'Δ Conv.', 'align': 'center'}, {'label': 'Qualif.'}, {'label': 'Fat.'}]
 
     def _ch_rows(chans):
         out = []
         for c in chans:
             meta = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
             ml = byc.get(c['canal'], {}).get('meta_leads')
+            if ml:
+                dl = (c['leads'] - ml) / ml * 100
+                dlcell = {'value': f'{dl:+.1f}%', 'pill': True, 'tone': ('pos' if dl >= 0 else 'neg'), 'align': 'center'}
+            else:
+                dlcell = {'value': '–', 'tone': 'muted', 'align': 'center'}
             if meta:
                 d = (c['vendas'] - meta) / meta * 100
                 dcell = {'value': f'{d:+.1f}%', 'pill': True, 'tone': ('pos' if d >= 0 else 'neg'), 'align': 'center'}
@@ -370,7 +375,7 @@ def assemble(rows, config, content, opts=None):
             else:
                 dccell = {'value': '–', 'tone': 'muted', 'align': 'center'}
             out.append({'name': c['canal'], 'cells': [
-                {'value': intf(c['leads'])}, {'value': intf(c['vendas'])}, mcell, dcell,
+                {'value': intf(c['leads'])}, dlcell, {'value': intf(c['vendas'])}, mcell, dcell,
                 {'value': pctf(c['conv'])}, dccell, {'value': pctf(c['qual'])}, {'value': money(c['fat'])}]})
         return out
 
