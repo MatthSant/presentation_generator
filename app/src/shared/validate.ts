@@ -245,6 +245,10 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'escopo-cards':
       if (!Array.isArray(w.cards) || w.cards.length === 0) c.err(`${path}.cards`, 'escopo-cards requires a cards array');
       break;
+    case 'channel-table':
+      if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'channel-table requires a cols array');
+      if (!Array.isArray(w.rows)) c.err(`${path}.rows`, 'channel-table requires a rows array');
+      break;
   }
 }
 

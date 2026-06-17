@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -1070,6 +1070,32 @@ function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
   return wrap;
 }
 
+/* ── channel-table ── tabela com acabamento de app: 1ª coluna = nome (bold), demais
+ *  com alinhamento/tom por célula (meta âmbar, Δ como pill). Linha-card com hover. */
+function renderChannelTable(w: ChannelTableWidget): HTMLElement {
+  const wrap = el('div', 'card ch-table');
+  if (w.title) wrap.appendChild(el('div', 'ch-title', w.title));
+  const grid = el('div', 'ch-grid');
+  grid.style.setProperty('--ch-ncols', String(Math.max(1, w.cols.length - 1)));
+  const head = el('div', 'ch-row ch-head');
+  w.cols.forEach((c, i) => head.appendChild(el('span', `ch-th ch-a-${c.align || (i === 0 ? 'left' : 'right')}`, c.label)));
+  grid.appendChild(head);
+  for (const r of w.rows) {
+    const row = el('div', 'ch-row');
+    row.appendChild(el('span', 'ch-name', r.name));
+    r.cells.forEach((cell, i) => {
+      const al = cell.align || w.cols[i + 1]?.align || 'right';
+      const td = el('span', `ch-td ch-a-${al}${cell.tone ? ` ch-t-${cell.tone}` : ''}`);
+      if (cell.pill) td.appendChild(el('span', `pill ${PILL_TONE[cell.tone === 'pos' ? 'pos' : cell.tone === 'neg' ? 'neg' : 'neutral']}`, cell.value));
+      else td.textContent = cell.value;
+      row.appendChild(td);
+    });
+    grid.appendChild(row);
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
 /* ── cri-list ── lista de criativos ranqueados: thumb + nome (link) + meta +
  *  stats à direita (leads + CPMQL proj.). Substitui a tabela de criativos. */
 function renderCriList(w: CriListWidget): HTMLElement {
@@ -1467,6 +1493,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'bar-list':    return renderBarList(widget);
       case 'meta-bars':   return renderMetaBars(widget);
       case 'escopo-cards': return renderEscopoCards(widget);
+      case 'channel-table': return renderChannelTable(widget);
       case 'cri-list':    return renderCriList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
