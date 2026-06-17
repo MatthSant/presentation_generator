@@ -562,7 +562,7 @@ class App {
   // highlight, find-note, ni, eyebrow, label-sec).
   private static DEEPENABLE = new Set(['find-block', 'chart', 'table', 'heatmap', 'rank-card',
     'heatmap-toggle', 'chart-toggle', 'chart-table', 'kpi', 'kpi-card', 'kpi-strip', 'qa-card',
-    'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list']);
+    'funnel', 'evolution-picker', 'scatter-picker', 'metric-toggle', 'bar-list', 'cri-list', 'bullet-groups', 'quadrant-scatter']);
   // Span padrão (de 12) por tipo no grid do drawer quando a IA não define `w`.
   // kpi = 4 (3 por linha); blocos médios = 6 (2 por linha); o resto ocupa a linha.
   private static MODAL_SPAN: Record<string, number> = {

@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'escopo-cards', 'channel-table',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -651,7 +651,46 @@ export interface ChannelTableWidget extends WidgetBase {
   rows: {
     name: string;
     /** células correspondentes a cols[1:]. */
-    cells: { value: string; align?: 'left' | 'right' | 'center'; tone?: 'meta' | 'pos' | 'neg' | 'muted'; pill?: boolean }[];
+    cells: { value: string; align?: 'left' | 'right' | 'center'; tone?: 'meta' | 'pos' | 'neg' | 'warn' | 'neutral' | 'muted'; pill?: boolean }[];
+  }[];
+}
+
+/** bullet-groups — 3 colunas de bullet-bars (realizado + marca de meta), agrupadas
+ *  por desempenho vs meta (acima >5% · próximo ±5% · abaixo <−5%), com toggle local
+ *  que troca a métrica (ex.: Vendas ↔ Conversão) — o bucket é recalculado no client. */
+export interface BulletGroupsWidget extends WidgetBase {
+  type: 'bullet-groups';
+  /** rótulo do bloco (usado no compositor de detalhamento; não renderiza — a eyebrow é separada). */
+  title?: string;
+  /** botões do toggle de métrica; o 1º é o default. */
+  toggle: { key: string; label: string }[];
+  /** definição visual dos 3 grupos (a regra de bucket é fixa: >5% · ±5% · <−5%). */
+  groups: { key: 'acima' | 'prox' | 'abaixo'; label: string; tone: 'pos' | 'warn' | 'neg' }[];
+  /** canais com valor+meta por métrica; entrada nula = canal omitido para a métrica. */
+  channels: {
+    name: string;
+    metrics: { [metricKey: string]: { value: number; meta: number; vlabel: string; mlabel: string } | null };
+  }[];
+}
+
+/** quadrant-scatter — mapa 2×2 dos canais: x = desvio % vs meta de conversão, y =
+ *  desvio % vs meta de leads, cor do ponto = avaliação de vendas vs meta (4 níveis).
+ *  Cada quadrante tem um significado (escala+eficiência · volume sem conversão · etc). */
+export interface QuadrantScatterWidget extends WidgetBase {
+  type: 'quadrant-scatter';
+  /** rótulo do bloco (compositor de detalhamento; não renderiza — eyebrow é separada). */
+  title?: string;
+  axes: { x: string; y: string; heat: string; size?: string };
+  quadrants: { pos: 'tr' | 'tl' | 'br' | 'bl'; label: string }[];
+  points: {
+    name: string;
+    /** desvio % no eixo x (conversão vs meta) e y (leads vs meta), sinal = direção. */
+    x: number; y: number;
+    /** cor do ponto = avaliação de vendas vs meta. */
+    tone: 'pos' | 'warn' | 'neutral' | 'neg';
+    /** tamanho da bolha = % de leads do canal na campanha (área proporcional). */
+    size?: number;
+    xlabel?: string; ylabel?: string; vlabel?: string; slabel?: string;
   }[];
 }
 
@@ -672,7 +711,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | EscopoCardsWidget | ChannelTableWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | EscopoCardsWidget | ChannelTableWidget | BulletGroupsWidget | QuadrantScatterWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

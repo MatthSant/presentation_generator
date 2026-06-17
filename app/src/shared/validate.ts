@@ -249,6 +249,15 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       if (!Array.isArray(w.cols)) c.err(`${path}.cols`, 'channel-table requires a cols array');
       if (!Array.isArray(w.rows)) c.err(`${path}.rows`, 'channel-table requires a rows array');
       break;
+    case 'bullet-groups':
+      if (!Array.isArray(w.toggle) || w.toggle.length === 0) c.err(`${path}.toggle`, 'bullet-groups requires a toggle array');
+      if (!Array.isArray(w.groups) || w.groups.length === 0) c.err(`${path}.groups`, 'bullet-groups requires a groups array');
+      if (!Array.isArray(w.channels)) c.err(`${path}.channels`, 'bullet-groups requires a channels array');
+      break;
+    case 'quadrant-scatter':
+      if (!Array.isArray(w.points)) c.err(`${path}.points`, 'quadrant-scatter requires a points array');
+      if (!w.axes || typeof w.axes !== 'object') c.err(`${path}.axes`, 'quadrant-scatter requires an axes object');
+      break;
   }
 }
 
