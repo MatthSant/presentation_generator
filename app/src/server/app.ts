@@ -22,6 +22,7 @@ import { registerPerguntas } from './routes/perguntas.js';
 import { registerHistorico } from './routes/historico.js';
 import { registerQuery } from './routes/query.js';
 import { registerClients } from './routes/clients.js';
+import { registerUsers } from './routes/users.js';
 import { registerBenchmarks } from './routes/benchmarks.js';
 import { registerDeepenReview } from './routes/deepenReview.js';
 import { registerClaudeLog } from './routes/claudeLog.js';
@@ -73,6 +74,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerHistorico(app, ctx);
   registerQuery(app, ctx);
   registerClients(app);
+  registerUsers(app, ctx);
   registerBenchmarks(app);
   registerDeepenReview(app, ctx);
   registerClaudeLog(app, ctx);

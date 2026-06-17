@@ -118,6 +118,10 @@ precisam de 2 casas** (ver tarefa #16 em [TAREFAS.md](TAREFAS.md)).
 - **Posse:** a home lista só análises de clientes que o consultor **possui** (`user_clients`).
   O fluxo `/generate` (UI) faz `assignClient` automático; gerar por script deixa o cliente
   **órfão** (renderiza em `/report/...` mas não aparece na home) → atribuir manualmente.
+- **Usuários & papéis:** `users.role` (`admin` | `consultor`). Admin gerencia usuários em
+  `/usuarios.html` (`routes/users.ts`, guard de admin; CRUD + reset de senha + atribuir
+  clientes). O consultor-semente (`SEED_EMAIL`) vira admin no bootstrap. BetterAuth está
+  adiado — ver [docs/futuro-betterauth.md](docs/futuro-betterauth.md).
 - **Validar:** `cd app && npx tsx scripts/validate.ts <cliente>/<slug>` → 3 camadas válidas;
   `npm run build` (TS limpo); `npm test`.
 - **Testar na UI real** (cliques/screenshot) antes de commitar — não só curl/mock.

@@ -113,6 +113,9 @@ export function openDb(dbPath: string): DB {
   handle.pragma('journal_mode = WAL');
   handle.exec(SCHEMA);
   // Migrações aditivas (CREATE IF NOT EXISTS não altera tabelas existentes):
+  // papel do usuário — 'admin' | 'consultor' (só admin gerencia usuários).
+  try { handle.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'consultor'"); }
+  catch { /* coluna já existe */ }
   // status do fluxo de revisão — 'pendente' | 'aprovado' | 'revisado'.
   try { handle.exec("ALTER TABLE deepen_history ADD COLUMN status TEXT NOT NULL DEFAULT 'pendente'"); }
   catch { /* coluna já existe */ }
