@@ -1662,14 +1662,11 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--band .kc-val { font-size: 26px; }
 .kc--band .kc-sub { flex: none; margin-top: 5px; }
 .kc-band-pill { flex-shrink: 0; font-size: 19px; font-weight: 700; padding: 7px 14px; border-radius: 9px; line-height: 1; letter-spacing: -0.01em; }
-/* tom de status (atingiu / quase / abaixo) tinge o card inteiro — full-border + tint */
-.kc--band-pos { background: var(--green-bg); border-color: color-mix(in srgb, var(--green) 32%, var(--border)); }
-.kc--band-pos .kc-lbl { color: var(--green); }
-.kc--band-neutral { background: var(--amber-bg); border-color: color-mix(in srgb, var(--amber) 30%, var(--border)); }
-.kc--band-neutral .kc-lbl { color: var(--amber); }
-.kc--band-neutral .kc-band-pill { background: color-mix(in srgb, var(--amber) 16%, var(--bg)); color: var(--amber); }
-.kc--band-neg { background: var(--red-bg); border-color: color-mix(in srgb, var(--red) 30%, var(--border)); }
-.kc--band-neg .kc-lbl { color: var(--red); }
+/* tom de status (atingiu / quase / abaixo) colore SÓ a % (pill) — o card fica branco
+   (.card padrão), rótulo neutro. Evita o card inteiro tingido. */
+.kc--band-pos .kc-band-pill { background: var(--green-bg); color: var(--green); }
+.kc--band-neutral .kc-band-pill { background: var(--amber-bg); color: var(--amber); }
+.kc--band-neg .kc-band-pill { background: var(--red-bg); color: var(--red); }
 /* emph — card de destaque (roxo escuro c/ degradê), p/ a métrica-hero (ex.: Meta Geral), sem semáforo */
 .kc--band-emph {
   background: linear-gradient(135deg, #3b1374 0%, #4c1d95 52%, #6d28d9 100%);
