@@ -21,15 +21,18 @@ def _pp(v):
 
 
 def _dev(real, meta, invert=False):
-    """Δ% bruto vs meta (sinal = direção real: + acima da meta, − abaixo). O `invert`
-    afeta só a COR/avaliação (custo: acima da meta é ruim), nunca o sinal exibido."""
+    """Δ% bruto vs meta (sinal = direção real: + acima, − abaixo). invert = custo
+    (menor é melhor). Avaliação em 3 níveis: verde (na meta ou melhor) · âmbar (desvio
+    pequeno, ≤10%) · vermelho (desvio grande) — evita 'tudo vermelho' em desvios baixos."""
     if not meta:
         return None, 'neutral'
     d = (real - meta) / meta * 100
     if abs(d) < 1:
         return d, 'neutral'
     good = (d <= 0) if invert else (d >= 0)  # custo: abaixo da meta é bom
-    return d, 'pos' if good else 'neg'
+    if good:
+        return d, 'pos'
+    return d, 'warn' if abs(d) <= 10 else 'neg'
 
 
 def assemble(rows, config, content, opts=None):
@@ -515,7 +518,7 @@ def mb_row(label, real, meta, hist, fmt, invert=False):
     if meta:
         pct = round(real / meta * 100, 1)
         row['pct'] = pct
-        row['pctLabel'] = f'{abs(pct - 100):.0f}%'   # diferença % para a meta (84% → 16%)
+        row['pctLabel'] = f'{pct - 100:+.0f}%'   # diferença % p/ a meta, com sinal (84% → -16%)
         _, tone = _dev(real, meta, invert)
         row['delta'] = {'value': absdiff(real - meta), 'tone': tone}
     return row
