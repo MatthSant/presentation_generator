@@ -263,17 +263,24 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s02 — Canal e Conversão ═══════════════════════════════════════════
     can, cg = [], Grid()
-    eb(can, cg, 'can-eb', 'RESUMO POR ESCOPO', 'leads, vendas e tipo de lead por escopo')
-    for esc, lbl, lp, lv, cv, nv, an, cl, qc in [
-        ('ger', 'Geral', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], 'p'),
-        ('pago', 'Pago', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], 'p'),
-        ('org', 'Orgânico', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], 'g')]:
-        can.append({'id': f'can-r-{esc}', 'type': 'qa-card', 'qColor': qc, 'title': f'{lbl} · {intf(lp)} leads',
-                    'stats': [_st('Vendas', intf(lv), f'conv {pctf(cv)}'),
-                              _st('Novos', pct_of(nv, lp), tone='purple'),
-                              _st('Antigos', pct_of(an, lp)),
-                              _st('Clientes', pct_of(cl, lp), tone='pos')]})
-        cg.add(f'can-r-{esc}', 'qa-card', 4, 4)
+    eb(can, cg, 'can-eb', 'RESUMO EXECUTIVO', 'leads, vendas e tipo de lead por escopo')
+    lt = M['leads_total'] or 1
+    esc_cards = []
+    for lbl, tone, lp, lv, cv, nv, an, cl, share in [
+        ('Geral', 'purple', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], None),
+        ('Pago', 'blue', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], pct_of(M['leads_pago'], lt)),
+        ('Orgânico', 'green', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], pct_of(M['leads_org'], lt))]:
+        leads_lbl = 'leads' if share is None else f'leads ({share})'
+        esc_cards.append({
+            'label': lbl, 'tone': tone, 'value': intf(lp),
+            'sub': f'{leads_lbl} · {intf(lv)} vendas · {pctf(cv)} conv.',
+            'minis': [
+                {'label': 'Novos', 'tone': 'purple', 'value': intf(nv), 'pct': pct_of(nv, lp)},
+                {'label': 'Antigos', 'tone': 'amber', 'value': intf(an), 'pct': pct_of(an, lp)},
+                {'label': 'Clientes', 'tone': 'green', 'value': intf(cl), 'pct': pct_of(cl, lp)},
+            ]})
+    can.append({'id': 'can-resumo', 'type': 'escopo-cards', 'cards': esc_cards})
+    cg.add('can-resumo', 'escopo-cards', 12, 4)
     # canais vs meta de vendas
     vs = _canais_vs_meta(M['chan'], G.get('by_canal') or {}, M['goals'].get('meta_vendas_canal') or {})
     eb(can, cg, 'can-eb-vs', 'CANAIS vs META DE VENDAS', 'acima / próximo / abaixo')

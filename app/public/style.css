@@ -347,6 +347,31 @@ html, body {
   .meta-bars .mb-meta, .meta-bars .mb-hist { display: none; }
 }
 
+/* escopo-cards — resumo executivo por escopo (Geral · Pago · Orgânico) */
+.escopo-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 880px) { .escopo-cards { grid-template-columns: 1fr; } }
+.esc-card { display: flex; flex-direction: column; padding: 18px 20px; }
+.esc-eyebrow { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.esc-val { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; margin-top: 4px; }
+.esc-sub { font-size: 12.5px; color: var(--gray2); font-weight: 500; margin: 6px 0 14px; }
+.esc--purple .esc-eyebrow, .esc--purple .esc-val { color: var(--purple); }
+.esc--green  .esc-eyebrow, .esc--green  .esc-val { color: var(--green, #16a34a); }
+.esc--amber  .esc-eyebrow, .esc--amber  .esc-val { color: var(--amber-text); }
+.esc--blue   .esc-eyebrow, .esc--blue   .esc-val { color: #185FA5; }
+.esc-minis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: auto; }
+.esc-mini { border-radius: 11px; padding: 9px 6px 8px; text-align: center; }
+.esc-mini--purple { background: var(--purple-bg); }
+.esc-mini--amber  { background: var(--amber-bg); }
+.esc-mini--green  { background: var(--green-bg); }
+.esc-mini--blue   { background: color-mix(in srgb, #185FA5 11%, transparent); }
+.esc-mini-lbl { font-size: 8.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.esc-mini-val { font-size: 16px; font-weight: 800; margin-top: 3px; letter-spacing: -.01em; }
+.esc-mini-pct { font-size: 10px; font-weight: 600; color: var(--gray2); margin-top: 1px; }
+.esc-mini--purple .esc-mini-lbl, .esc-mini--purple .esc-mini-val { color: var(--purple); }
+.esc-mini--amber  .esc-mini-lbl, .esc-mini--amber  .esc-mini-val { color: var(--amber-text); }
+.esc-mini--green  .esc-mini-lbl, .esc-mini--green  .esc-mini-val { color: var(--green, #16a34a); }
+.esc-mini--blue   .esc-mini-lbl, .esc-mini--blue   .esc-mini-val { color: #185FA5; }
+
 .bar-list { display: flex; flex-direction: column; }
 .bl-rows { display: flex; flex-direction: column; gap: 11px; padding: 2px 0; }
 .bl-row { display: grid; grid-template-columns: 124px 1fr auto auto; align-items: center; gap: 12px; }

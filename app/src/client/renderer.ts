@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -1047,6 +1047,29 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
   return wrap;
 }
 
+/* ── escopo-cards ── resumo executivo por escopo: cards (Geral · Pago · Orgânico)
+ *  com número grande (leads) + sub e mini-cards coloridos do breakdown. */
+function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
+  const wrap = el('div', 'escopo-cards');
+  for (const c of w.cards) {
+    const card = el('div', `card esc-card esc--${c.tone || 'purple'}`);
+    card.appendChild(el('div', 'esc-eyebrow', c.label));
+    card.appendChild(el('div', 'esc-val', c.value));
+    if (c.sub) card.appendChild(el('div', 'esc-sub', c.sub));
+    const minis = el('div', 'esc-minis');
+    for (const m of c.minis || []) {
+      const mc = el('div', `esc-mini esc-mini--${m.tone || 'purple'}`);
+      mc.appendChild(el('div', 'esc-mini-lbl', m.label));
+      mc.appendChild(el('div', 'esc-mini-val', m.value));
+      if (m.pct) mc.appendChild(el('div', 'esc-mini-pct', m.pct));
+      minis.appendChild(mc);
+    }
+    card.appendChild(minis);
+    wrap.appendChild(card);
+  }
+  return wrap;
+}
+
 /* ── cri-list ── lista de criativos ranqueados: thumb + nome (link) + meta +
  *  stats à direita (leads + CPMQL proj.). Substitui a tabela de criativos. */
 function renderCriList(w: CriListWidget): HTMLElement {
@@ -1443,6 +1466,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'funnel':      return renderFunnel(widget);
       case 'bar-list':    return renderBarList(widget);
       case 'meta-bars':   return renderMetaBars(widget);
+      case 'escopo-cards': return renderEscopoCards(widget);
       case 'cri-list':    return renderCriList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
