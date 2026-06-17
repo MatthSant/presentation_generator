@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'escopo-cards',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'escopo-cards', 'channel-table',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -635,6 +635,22 @@ export interface EscopoCardsWidget extends WidgetBase {
   }[];
 }
 
+/** channel-table — tabela com acabamento de app: 1ª coluna = nome (bold), demais
+ *  colunas com alinhamento/tom por célula (meta em âmbar, Δ como pill pos/neg,
+ *  números à direita). Linha-card com hover; sem cara de tabela HTML crua. */
+export interface ChannelTableWidget extends WidgetBase {
+  type: 'channel-table';
+  title?: string;
+  caption?: string;
+  /** cabeçalho — a 1ª coluna rotula o nome; as demais alinham as células. */
+  cols: { label: string; align?: 'left' | 'right' | 'center' }[];
+  rows: {
+    name: string;
+    /** células correspondentes a cols[1:]. */
+    cells: { value: string; align?: 'left' | 'right' | 'center'; tone?: 'meta' | 'pos' | 'neg' | 'muted'; pill?: boolean }[];
+  }[];
+}
+
 /** cri-list — lista de entidades ranqueadas (criativos): thumb + nome (link) +
  *  meta (sub-linha) + stats à direita (ex.: leads + CPMQL proj.). */
 export interface CriListWidget extends WidgetBase {
@@ -652,7 +668,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | EscopoCardsWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | EscopoCardsWidget | ChannelTableWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

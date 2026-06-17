@@ -307,10 +307,37 @@ def assemble(rows, config, content, opts=None):
         nomes = vs[key]
         fb(can, cg, f'can-vs-{key}', f'{col} ({len(nomes)})', tagc,
            ', '.join(nomes[:6]) or '—', '', w=4, h=3)
-    table(can, cg, 'can-tbl', 'Resultado por Canal',
-          ['Canal', 'Tipo', 'Leads', 'Vendas', 'Conv.', 'Qualif.', 'Faturamento'],
-          [[c['canal'], 'pago' if c['tipo'] == 'pago' else 'org.', intf(c['leads']), intf(c['vendas']),
-            pctf(c['conv']), pctf(c['qual']), money(c['fat'])] for c in M['chan'][:14]], h=6)
+    # Resultado por canal — duas tabelas (Orgânico · Pago) no widget channel-table.
+    mvc = M['goals'].get('meta_vendas_canal') or {}
+    byc = G.get('by_canal') or {}
+    ch_cols = [{'label': 'Canal'}, {'label': 'Leads'}, {'label': 'Vendas'}, {'label': 'Meta Vendas'},
+               {'label': 'Δ Vendas', 'align': 'center'}, {'label': 'Conv.'}, {'label': 'Qualif.'}, {'label': 'Fat.'}]
+
+    def _ch_rows(chans):
+        out = []
+        for c in chans:
+            meta = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
+            if meta:
+                d = (c['vendas'] - meta) / meta * 100
+                dcell = {'value': f'{d:+.1f}%', 'pill': True, 'tone': ('pos' if d >= 0 else 'neg'), 'align': 'center'}
+                mcell = {'value': intf(meta), 'tone': 'meta'}
+            else:
+                dcell = {'value': '–', 'tone': 'muted', 'align': 'center'}
+                mcell = {'value': '–', 'tone': 'muted'}
+            out.append({'name': c['canal'], 'cells': [
+                {'value': intf(c['leads'])}, {'value': intf(c['vendas'])}, mcell, dcell,
+                {'value': pctf(c['conv'])}, {'value': pctf(c['qual'])}, {'value': money(c['fat'])}]})
+        return out
+
+    org = sorted([c for c in M['chan'] if c['tipo'] != 'pago'], key=lambda c: -c['fat'])
+    pago = sorted([c for c in M['chan'] if c['tipo'] == 'pago'], key=lambda c: -c['fat'])
+    eb(can, cg, 'can-eb-tbl', 'RESULTADO POR CANAL', 'orgânico e pago, separados')
+    if pago:
+        can.append({'id': 'can-tbl-pago', 'type': 'channel-table', 'title': 'Pago', 'cols': ch_cols, 'rows': _ch_rows(pago)})
+        cg.add('can-tbl-pago', 'channel-table', 12, max(3, len(pago) + 2))
+    if org:
+        can.append({'id': 'can-tbl-org', 'type': 'channel-table', 'title': 'Orgânico', 'cols': ch_cols, 'rows': _ch_rows(org[:14])})
+        cg.add('can-tbl-org', 'channel-table', 12, max(3, min(len(org), 14) + 2))
     sections['s02'] = {'id': 's02', 'header': {'badge': 'Canal', 'title': 'Canal e Conversão',
                        'sub': 'Performance por canal e por escopo (pago × orgânico).'}, 'widgets': can}
     layouts['s02'] = cg.items
