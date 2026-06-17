@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -1006,6 +1006,49 @@ function renderBarList(w: BarListWidget): HTMLElement {
   return wrap;
 }
 
+/* ── meta-bars ── comparativo Realizado vs Meta em linhas-card: indicador (nome +
+ *  sub) · barra de atingimento (cor por categoria) · % grande · Δ vs meta (pill) ·
+ *  histórico. Cabeçalho de colunas no topo. */
+function renderMetaBars(w: MetaBarsWidget): HTMLElement {
+  const wrap = el('div', 'meta-bars');
+  if (w.title) { const h = el('div', 'chart-head'); h.appendChild(el('div', 'chart-title', w.title)); wrap.appendChild(h); }
+  const c = w.cols || {};
+  const head = el('div', 'mb-head');
+  head.appendChild(el('span', 'mb-c-ind', 'INDICADOR'));
+  head.appendChild(el('span', 'mb-c-bar', c.bar || 'ATINGIMENTO DA META'));
+  head.appendChild(el('span', 'mb-c-pct', c.pct || '% META'));
+  head.appendChild(el('span', 'mb-c-delta', c.delta || 'Δ VS META'));
+  head.appendChild(el('span', 'mb-c-hist', c.hist || 'HISTÓRICO'));
+  wrap.appendChild(head);
+  for (const r of w.rows) {
+    const row = el('div', 'mb-row');
+    const ind = el('div', 'mb-ind');
+    ind.appendChild(el('b', 'mb-name', r.label));
+    if (r.sub) ind.appendChild(el('span', 'mb-sub', r.sub));
+    row.appendChild(ind);
+
+    const barWrap = el('div', 'mb-bar');
+    const track = el('div', 'mb-track');
+    const fill = el('div', `mb-fill mb-fill--${r.cat || 'vol'}`);
+    fill.style.width = `${Math.max(2, Math.min(100, r.pct ?? 0))}%`;
+    track.appendChild(fill); barWrap.appendChild(track); row.appendChild(barWrap);
+
+    const pctEl = el('div', 'mb-pct');
+    pctEl.appendChild(el('b', 'mb-pct-v', r.pct != null ? `${Math.round(r.pct)}%` : '—'));
+    if (r.pctCaption) pctEl.appendChild(el('span', 'mb-pct-c', r.pctCaption));
+    row.appendChild(pctEl);
+
+    const deltaEl = el('div', 'mb-delta');
+    if (r.delta) deltaEl.appendChild(el('span', `pill ${PILL_TONE[r.delta.tone || 'neutral']}`, r.delta.value));
+    else deltaEl.appendChild(el('span', 'mb-dash', '—'));
+    row.appendChild(deltaEl);
+
+    row.appendChild(el('div', 'mb-hist', r.hist || '—'));
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
 /* ── cri-list ── lista de criativos ranqueados: thumb + nome (link) + meta +
  *  stats à direita (leads + CPMQL proj.). Substitui a tabela de criativos. */
 function renderCriList(w: CriListWidget): HTMLElement {
@@ -1401,6 +1444,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'qa-card':     return renderQaCard(widget, ctx);
       case 'funnel':      return renderFunnel(widget);
       case 'bar-list':    return renderBarList(widget);
+      case 'meta-bars':   return renderMetaBars(widget);
       case 'cri-list':    return renderCriList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);

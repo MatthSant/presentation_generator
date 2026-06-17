@@ -313,6 +313,36 @@ html, body {
 .chart-badge { font-size: 11px; font-weight: 700; }
 
 /* ── bar-list — barras horizontais rótulo+barra+valor+% (Origem do Tráfego / Temperatura) ── */
+/* meta-bars — comparativo Realizado vs Meta em linhas-card (atingimento da meta) */
+.meta-bars { display: flex; flex-direction: column; gap: 8px; }
+.meta-bars .mb-head,
+.meta-bars .mb-row { display: grid; grid-template-columns: 190px 1fr 92px 96px 88px; align-items: center; gap: 18px; }
+.meta-bars .mb-head { padding: 0 22px 2px; }
+.meta-bars .mb-head span { font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; color: var(--gray2); }
+.meta-bars .mb-c-pct, .meta-bars .mb-c-delta { text-align: center; }
+.meta-bars .mb-c-hist { text-align: right; }
+.meta-bars .mb-row { background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 13px 22px; }
+.meta-bars .mb-ind { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.meta-bars .mb-name { font-size: 15px; font-weight: 800; letter-spacing: -.01em; color: var(--fg); }
+.meta-bars .mb-sub { font-size: 12px; color: var(--gray2); font-weight: 500; }
+.meta-bars .mb-track { height: 10px; border-radius: 999px; background: var(--divider, rgba(0,0,0,.07)); overflow: hidden; }
+.meta-bars .mb-fill { height: 100%; border-radius: 999px; transition: width .4s var(--ease); }
+.meta-bars .mb-fill--vol { background: var(--purple); }
+.meta-bars .mb-fill--invest { background: #15a06b; }
+.meta-bars .mb-fill--cost { background: #e0850b; }
+.meta-bars .mb-pct { text-align: center; }
+.meta-bars .mb-pct-v { display: block; font-size: 18px; font-weight: 800; color: var(--fg); line-height: 1.1; }
+.meta-bars .mb-pct-c { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray2); }
+.meta-bars .mb-delta { text-align: center; }
+.meta-bars .mb-hist { text-align: right; font-size: 13px; font-weight: 600; color: var(--gray2); }
+.meta-bars .mb-dash { color: var(--faint); }
+@media (max-width: 760px) {
+  .meta-bars .mb-head { display: none; }
+  .meta-bars .mb-row { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .meta-bars .mb-bar { grid-column: 1 / -1; order: 3; }
+  .meta-bars .mb-hist { display: none; }
+}
+
 .bar-list { display: flex; flex-direction: column; }
 .bl-rows { display: flex; flex-direction: column; gap: 11px; padding: 2px 0; }
 .bl-row { display: grid; grid-template-columns: 124px 1fr auto auto; align-items: center; gap: 12px; }

@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -593,6 +593,28 @@ export interface BarListWidget extends WidgetBase {
             stats?: { label: string; value: string }[]; headline?: { label: string; value: string } }[];
 }
 
+/** meta-bars — comparativo Realizado vs Meta em linhas-card: indicador (nome + sub
+ *  "real · meta X"), barra de atingimento (% da meta, cor por categoria), % grande,
+ *  Δ vs meta (pill) e histórico. Usado no Panorama do debriefing (funil de indicadores). */
+export interface MetaBarsWidget extends WidgetBase {
+  type: 'meta-bars';
+  title?: string;
+  caption?: string;
+  /** rótulos das colunas (default pt-BR). */
+  cols?: { bar?: string; pct?: string; delta?: string; hist?: string };
+  rows: {
+    label: string; sub?: string;
+    /** atingimento = real/meta×100 — preenche a barra (cap 100%) e vira o número grande. */
+    pct?: number;
+    /** cor da barra: vol=roxo · invest=verde · cost=laranja. */
+    cat?: 'vol' | 'invest' | 'cost';
+    /** legenda abaixo do %: "DA META" | "DO ORÇ." */
+    pctCaption?: string;
+    delta?: { value: string; tone?: 'pos' | 'neg' | 'neutral' };
+    hist?: string;
+  }[];
+}
+
 /** cri-list — lista de entidades ranqueadas (criativos): thumb + nome (link) +
  *  meta (sub-linha) + stats à direita (ex.: leads + CPMQL proj.). */
 export interface CriListWidget extends WidgetBase {
@@ -610,7 +632,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;
