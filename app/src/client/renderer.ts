@@ -1006,43 +1006,41 @@ function renderBarList(w: BarListWidget): HTMLElement {
   return wrap;
 }
 
-/* ── meta-bars ── comparativo Realizado vs Meta em linhas-card: indicador (nome +
- *  sub) · barra de atingimento (cor por categoria) · % grande · Δ vs meta (pill) ·
- *  histórico. Cabeçalho de colunas no topo. */
+/* ── meta-bars ── comparativo em linhas-card. Colunas: Indicador · Realizado ·
+ *  barra de atingimento (cor de AVALIAÇÃO: verde bom · vermelho ruim · âmbar
+ *  neutro, com o % ao lado) · Δ vs Meta (pill) · valor da Meta · valor do Histórico. */
 function renderMetaBars(w: MetaBarsWidget): HTMLElement {
   const wrap = el('div', 'meta-bars');
   if (w.title) { const h = el('div', 'chart-head'); h.appendChild(el('div', 'chart-title', w.title)); wrap.appendChild(h); }
   const c = w.cols || {};
   const head = el('div', 'mb-head');
   head.appendChild(el('span', 'mb-c-ind', 'INDICADOR'));
+  head.appendChild(el('span', 'mb-c-real', c.real || 'REALIZADO'));
   head.appendChild(el('span', 'mb-c-bar', c.bar || 'ATINGIMENTO DA META'));
-  head.appendChild(el('span', 'mb-c-pct', c.pct || '% META'));
   head.appendChild(el('span', 'mb-c-delta', c.delta || 'Δ VS META'));
+  head.appendChild(el('span', 'mb-c-meta', c.meta || 'META'));
   head.appendChild(el('span', 'mb-c-hist', c.hist || 'HISTÓRICO'));
   wrap.appendChild(head);
   for (const r of w.rows) {
     const row = el('div', 'mb-row');
-    const ind = el('div', 'mb-ind');
-    ind.appendChild(el('b', 'mb-name', r.label));
-    if (r.sub) ind.appendChild(el('span', 'mb-sub', r.sub));
-    row.appendChild(ind);
+    row.appendChild(el('div', 'mb-ind', r.label));
+    row.appendChild(el('div', 'mb-real', r.real || '—'));
 
+    const tone = r.delta?.tone || 'neutral';
     const barWrap = el('div', 'mb-bar');
     const track = el('div', 'mb-track');
-    const fill = el('div', `mb-fill mb-fill--${r.cat || 'vol'}`);
+    const fill = el('div', `mb-fill mb-fill--${tone}`);   // cor avalia o atingimento
     fill.style.width = `${Math.max(2, Math.min(100, r.pct ?? 0))}%`;
-    track.appendChild(fill); barWrap.appendChild(track); row.appendChild(barWrap);
-
-    const pctEl = el('div', 'mb-pct');
-    pctEl.appendChild(el('b', 'mb-pct-v', r.pct != null ? `${Math.round(r.pct)}%` : '—'));
-    if (r.pctCaption) pctEl.appendChild(el('span', 'mb-pct-c', r.pctCaption));
-    row.appendChild(pctEl);
+    track.appendChild(fill); barWrap.appendChild(track);
+    if (r.pct != null) barWrap.appendChild(el('span', 'mb-bar-pct', r.pctLabel || `${Math.round(r.pct)}%`));
+    row.appendChild(barWrap);
 
     const deltaEl = el('div', 'mb-delta');
-    if (r.delta) deltaEl.appendChild(el('span', `pill ${PILL_TONE[r.delta.tone || 'neutral']}`, r.delta.value));
+    if (r.delta) deltaEl.appendChild(el('span', `pill ${PILL_TONE[tone]}`, r.delta.value));
     else deltaEl.appendChild(el('span', 'mb-dash', '—'));
     row.appendChild(deltaEl);
 
+    row.appendChild(el('div', 'mb-meta', r.meta || '—'));
     row.appendChild(el('div', 'mb-hist', r.hist || '—'));
     wrap.appendChild(row);
   }

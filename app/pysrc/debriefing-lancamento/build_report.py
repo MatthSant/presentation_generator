@@ -235,17 +235,17 @@ def assemble(rows, config, content, opts=None):
 
     eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META', 'indicadores na ordem do funil')
     # Barras de atingimento (widget meta-bars), na ordem do FUNIL: verba → leads (+CPL)
-    # → qualificação (+CPMQL) → conversão → vendas. Cor: roxo (volume) · verde (invest)
-    # · laranja (custo). O Δ vs meta carrega a avaliação (vermelho/verde).
+    # → qualificação (+CPMQL) → conversão → vendas. A barra é colorida pela AVALIAÇÃO
+    # (verde bom · vermelho ruim), igual ao Δ vs meta. Meta e Histórico em valor absoluto.
     mvm = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
     pan.append({'id': 'pan-cmp', 'type': 'meta-bars', 'rows': [
-        mb_row('Investimento Captação', M['invest_cpt'], G.get('invest_cpt'), H.get('invest_cpt'), 'money', 'invest', invert=True, meta_word='orç.', pctcap='DO ORÇ.'),
-        mb_row('Leads', M['leads_total'], G.get('leads'), H.get('leads'), 'int', 'vol'),
-        mb_row('CPL', M['cpl'], G.get('cpl'), H.get('cpl'), 'money', 'cost', invert=True),
-        mb_row('Qualificação', M['qual'], G.get('qual'), H.get('qual'), 'pct', 'vol'),
-        mb_row('CPMQL', M['cpmql'], G.get('cpmql'), H.get('cpmql'), 'money', 'cost', invert=True),
-        mb_row('Conversão', M['conv_geral'], G.get('conv'), None, 'pct', 'vol'),
-        mb_row('Vendas', M['vendas_total'], mvm, H.get('vendas'), 'int', 'vol'),
+        mb_row('Investimento Captação', M['invest_cpt'], G.get('invest_cpt'), H.get('invest_cpt'), 'money', invert=True),
+        mb_row('Leads', M['leads_total'], G.get('leads'), H.get('leads'), 'int'),
+        mb_row('CPL', M['cpl'], G.get('cpl'), H.get('cpl'), 'money', invert=True),
+        mb_row('Qualificação', M['qual'], G.get('qual'), H.get('qual'), 'pct'),
+        mb_row('CPMQL', M['cpmql'], G.get('cpmql'), H.get('cpmql'), 'money', invert=True),
+        mb_row('Conversão', M['conv_geral'], G.get('conv'), None, 'pct'),
+        mb_row('Vendas', M['vendas_total'], mvm, H.get('vendas'), 'int'),
     ]})
     pg.add('pan-cmp', 'meta-bars', 12, 7)
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': f"Debriefing · {M['nome']}",
@@ -490,27 +490,21 @@ def cmp_row(label, real, meta, hist, fmt, invert=False):
     return [label, cell_real, cell_meta, delta, f(hist)]
 
 
-def mb_row(label, real, meta, hist, fmt, cat, invert=False, meta_word='meta', pctcap=None):
-    """Linha do widget meta-bars: indicador (nome + 'real · meta X'), atingimento %
-    (barra + número), Δ vs meta (sinal bruto + tom) e histórico. cat: vol|invest|cost."""
+def mb_row(label, real, meta, hist, fmt, invert=False):
+    """Linha do widget meta-bars. Colunas: indicador · realizado · atingimento (barra
+    colorida pela avaliação + %) · Δ vs meta (sinal real + tom) · meta · histórico."""
     from common.fmt import money as _m, pctf as _p, intf as _i
 
     def f(v):
         if v is None:
-            return '—'
+            return None
         return _m(v) if fmt == 'money' else (_p(v) if fmt == 'pct' else _i(v))
-    row = {'label': label, 'cat': cat}
+    row = {'label': label, 'real': f(real), 'meta': f(meta), 'hist': f(hist)}
     if meta:
-        row['sub'] = f'{f(real)} · {meta_word} {f(meta)}'
         row['pct'] = round(real / meta * 100, 1)
-        row['pctCaption'] = pctcap or 'DA META'
         d, tone = _dev(real, meta, invert)
         if d is not None:
             row['delta'] = {'value': f'{d:+.1f}%', 'tone': tone}
-    else:
-        row['sub'] = f(real)
-    if hist is not None:
-        row['hist'] = f(hist)
     return row
 
 
