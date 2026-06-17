@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, QuadrantScatterWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
@@ -1047,6 +1047,170 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
   return wrap;
 }
 
+/* ── bullet-groups ── 3 colunas (acima/próximo/abaixo) de bullet-bars: barra =
+ *  realizado, marca = meta. Toggle local troca a métrica e re-agrupa no client
+ *  (>5% acima · ±5% próximo · <−5% abaixo). */
+function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
+  const wrap = el('div', 'card bullet-groups');
+  let active = w.toggle[0]?.key || '';
+
+  const top = el('div', 'blt-top');
+  const legend = el('div', 'blt-legend');
+  legend.appendChild(el('span', 'blt-lg-bar'));
+  legend.appendChild(el('span', '', 'Realizado'));
+  legend.appendChild(el('span', 'blt-lg-mk'));
+  legend.appendChild(el('span', '', 'Meta'));
+  top.appendChild(legend);
+
+  const toggle = el('div', 'blt-toggle');
+  const tabs: HTMLElement[] = [];
+  for (const m of w.toggle) {
+    const t = el('button', 'blt-tab', m.label);
+    if (m.key === active) t.classList.add('is-active');
+    t.addEventListener('click', () => {
+      if (m.key === active) return;
+      active = m.key;
+      for (const x of tabs) x.classList.toggle('is-active', x === t);
+      paint();
+    });
+    tabs.push(t); toggle.appendChild(t);
+  }
+  top.appendChild(toggle);
+  wrap.appendChild(top);
+
+  const cols = el('div', 'blt-cols');
+  wrap.appendChild(cols);
+
+  function paint(): void {
+    cols.innerHTML = '';
+    type Row = { name: string; value: number; meta: number; vlabel: string; mlabel: string };
+    const buckets: Record<string, Row[]> = {};
+    for (const g of w.groups) buckets[g.key] = [];
+    for (const ch of w.channels) {
+      const e = ch.metrics[active];
+      if (!e || !e.meta) continue;
+      const dv = (e.value - e.meta) / e.meta * 100;
+      const k = dv > 5 ? 'acima' : dv >= -5 ? 'prox' : 'abaixo';
+      if (buckets[k]) buckets[k].push({ name: ch.name, value: e.value, meta: e.meta, vlabel: e.vlabel, mlabel: e.mlabel });
+    }
+    for (const g of w.groups) {
+      const list = (buckets[g.key] || []).sort((a, b) => b.value - a.value);
+      const col = el('div', `blt-group blt-group--${g.tone}`);
+      const head = el('div', 'blt-group-head');
+      head.appendChild(el('span', 'blt-dot'));
+      head.appendChild(el('span', 'blt-group-lbl', g.label));
+      head.appendChild(el('span', 'blt-group-n', String(list.length)));
+      col.appendChild(head);
+      if (!list.length) {
+        const empty = el('div', 'blt-empty');
+        empty.appendChild(el('span', 'blt-empty-ic', '—'));
+        empty.appendChild(el('span', '', 'Nenhum canal nesta faixa'));
+        col.appendChild(empty);
+        cols.appendChild(col);
+        continue;
+      }
+      const scale = Math.max(...list.map(r => Math.max(r.value, r.meta))) * 1.12 || 1;
+      for (const r of list) {
+        const row = el('div', 'blt-row');
+        const rhead = el('div', 'blt-row-head');
+        rhead.appendChild(el('span', 'blt-name', r.name));
+        rhead.appendChild(el('span', `blt-val blt-val--${g.tone}`, r.vlabel));
+        row.appendChild(rhead);
+        const barline = el('div', 'blt-barline');
+        const track = el('div', 'blt-track');
+        const fill = el('div', `blt-fill blt-fill--${g.tone}`);
+        fill.style.width = `${Math.max(2, r.value / scale * 100)}%`;
+        track.appendChild(fill);
+        const mk = el('div', 'blt-marker');
+        mk.style.left = `${Math.min(100, r.meta / scale * 100)}%`;
+        mk.title = `Meta ${r.mlabel}`;
+        track.appendChild(mk);
+        barline.appendChild(track);
+        barline.appendChild(el('span', 'blt-metatxt', `meta ${r.mlabel}`));
+        row.appendChild(barline);
+        col.appendChild(row);
+      }
+      cols.appendChild(col);
+    }
+  }
+  paint();
+  return wrap;
+}
+
+/* ── quadrant-scatter ── mapa 2×2 dos canais: x = conversão vs meta, y = leads vs
+ *  meta, cor = vendas vs meta (4 níveis). Renderizado como SVG auto-contido. */
+function renderQuadrantScatter(w: QuadrantScatterWidget): HTMLElement {
+  const wrap = el('div', 'card quad-scatter');
+  const E = (s: string) => String(s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] || c));
+
+  const top = el('div', 'qs-top');
+  const capTxt = `Cor = ${w.axes.heat}` + (w.axes.size ? ` · Tamanho = ${w.axes.size}` : '');
+  top.appendChild(el('div', 'qs-cap', capTxt));
+  const leg = el('div', 'qs-legend');
+  const tiers: [string, string][] = [['neg', 'Abaixo'], ['warn', 'Atenção'], ['neutral', 'Na meta'], ['pos', 'Acima']];
+  for (const [t, lab] of tiers) {
+    const it = el('span', 'qs-lg-item');
+    it.appendChild(el('span', `qs-lg-dot qs-lg-dot--${t}`));
+    it.appendChild(el('span', '', lab));
+    leg.appendChild(it);
+  }
+  top.appendChild(leg);
+  wrap.appendChild(top);
+
+  const pts = w.points || [];
+  const maxAbs = Math.max(10, ...pts.map(p => Math.max(Math.abs(p.x), Math.abs(p.y))));
+  const R = Math.ceil(maxAbs / 10) * 10;
+  const PL = 96, PR = 716, PT = 28, PB = 416, cx = (PL + PR) / 2, cy = (PT + PB) / 2;
+  const sx = (v: number) => cx + (Math.max(-R, Math.min(R, v)) / R) * ((PR - PL) / 2);
+  const sy = (v: number) => cy - (Math.max(-R, Math.min(R, v)) / R) * ((PB - PT) / 2);
+
+  const qpos: Record<string, [number, number, string]> = {
+    tr: [PR - 12, PT + 18, 'end'], tl: [PL + 12, PT + 18, 'start'],
+    br: [PR - 12, PB - 12, 'end'], bl: [PL + 12, PB - 12, 'start'],
+  };
+  let quadSvg = '';
+  for (const q of w.quadrants || []) {
+    const [qx, qy, anch] = qpos[q.pos] || qpos.tr;
+    quadSvg += `<text x="${qx}" y="${qy}" class="qs-qlbl" text-anchor="${anch}">${E(q.label)}</text>`;
+  }
+
+  const maxSize = Math.max(1, ...pts.map(p => p.size || 0));
+  const rOf = (s?: number) => (pts.some(p => p.size != null) ? Math.max(5, 17 * Math.sqrt((s || 0) / maxSize)) : 7);
+  let ptsSvg = '';
+  for (const p of pts) {
+    const x = sx(p.x), y = sy(p.y), r = rOf(p.size);
+    const right = x > cx;
+    const lx = right ? x - (r + 5) : x + (r + 5);
+    const anch = right ? 'end' : 'start';
+    const title = [p.name, p.vlabel, p.xlabel, p.ylabel, p.slabel].filter(Boolean).join(' · ');
+    ptsSvg += `<g class="qs-pt-g"><title>${E(title)}</title>`
+      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" class="qs-pt qs-pt--${p.tone}"/>`
+      + `<text x="${lx.toFixed(1)}" y="${(y + 3.5).toFixed(1)}" class="qs-ptlbl" text-anchor="${anch}">${E(p.name)}</text></g>`;
+  }
+
+  const svg = `<svg viewBox="0 0 760 500" class="qs-svg" role="img" aria-label="Mapa de canais">`
+    + `<rect x="${cx}" y="${PT}" width="${PR - cx}" height="${cy - PT}" class="qs-q qs-q--good"/>`
+    + `<rect x="${PL}" y="${PT}" width="${cx - PL}" height="${cy - PT}" class="qs-q qs-q--warn"/>`
+    + `<rect x="${cx}" y="${cy}" width="${PR - cx}" height="${PB - cy}" class="qs-q qs-q--neutral"/>`
+    + `<rect x="${PL}" y="${cy}" width="${cx - PL}" height="${PB - cy}" class="qs-q qs-q--bad"/>`
+    + `<rect x="${PL}" y="${PT}" width="${PR - PL}" height="${PB - PT}" class="qs-frame"/>`
+    + `<line x1="${cx}" y1="${PT}" x2="${cx}" y2="${PB}" class="qs-axis"/>`
+    + `<line x1="${PL}" y1="${cy}" x2="${PR}" y2="${cy}" class="qs-axis"/>`
+    + quadSvg
+    + `<text x="${PL}" y="${PB + 22}" class="qs-tick" text-anchor="start">−${R}%</text>`
+    + `<text x="${PR}" y="${PB + 22}" class="qs-tick" text-anchor="end">+${R}%</text>`
+    + `<text x="${cx}" y="${PB + 36}" class="qs-axttl" text-anchor="middle">${E(w.axes.x)} →</text>`
+    + `<text x="${PL - 14}" y="${PT + 5}" class="qs-tick" text-anchor="end">+${R}%</text>`
+    + `<text x="${PL - 14}" y="${PB}" class="qs-tick" text-anchor="end">−${R}%</text>`
+    + `<text transform="translate(${PL - 56},${cy}) rotate(-90)" class="qs-axttl" text-anchor="middle">${E(w.axes.y)} →</text>`
+    + ptsSvg
+    + `</svg>`;
+  const holder = el('div', 'qs-plot');
+  holder.innerHTML = svg;
+  wrap.appendChild(holder);
+  return wrap;
+}
+
 /* ── escopo-cards ── resumo executivo por escopo: cards (Geral · Pago · Orgânico)
  *  com número grande (leads) + sub e mini-cards coloridos do breakdown. */
 function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
@@ -1091,7 +1255,7 @@ function renderChannelTable(w: ChannelTableWidget): HTMLElement {
     r.cells.forEach((cell, i) => {
       const al = cell.align || w.cols[i + 1]?.align || 'right';
       const td = el('span', `ch-td ch-a-${al}${cell.tone ? ` ch-t-${cell.tone}` : ''}`);
-      if (cell.pill) td.appendChild(el('span', `pill ${PILL_TONE[cell.tone === 'pos' ? 'pos' : cell.tone === 'neg' ? 'neg' : 'neutral']}`, cell.value));
+      if (cell.pill) td.appendChild(el('span', `pill ${PILL_TONE[cell.tone || 'neutral'] || PILL_TONE.neutral}`, cell.value));
       else td.textContent = cell.value;
       row.appendChild(td);
     });
@@ -1497,6 +1661,8 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'funnel':      return renderFunnel(widget);
       case 'bar-list':    return renderBarList(widget);
       case 'meta-bars':   return renderMetaBars(widget);
+      case 'bullet-groups': return renderBulletGroups(widget);
+      case 'quadrant-scatter': return renderQuadrantScatter(widget);
       case 'escopo-cards': return renderEscopoCards(widget);
       case 'channel-table': return renderChannelTable(widget);
       case 'cri-list':    return renderCriList(widget);

@@ -344,43 +344,92 @@ def assemble(rows, config, content, opts=None):
                       _meta_conv(pago_ch), _meta_rate(pago_ch, 'resp_w'), _meta_rate(pago_ch, 'qual_w')))
     cg.add('can-fun-pago', 'funnel', 4, 5)
 
-    # canais vs meta de vendas
-    vs = _canais_vs_meta(M['chan'], G.get('by_canal') or {}, M['goals'].get('meta_vendas_canal') or {})
-    eb(can, cg, 'can-eb-vs', 'CANAIS vs META DE VENDAS', 'acima / próximo / abaixo')
-    for col, key, tagc in [('↑ Acima da meta', 'acima', 'g'), ('≈ Próximo', 'prox', 'a'), ('↓ Abaixo', 'abaixo', 'r')]:
-        nomes = vs[key]
-        fb(can, cg, f'can-vs-{key}', f'{col} ({len(nomes)})', tagc,
-           ', '.join(nomes[:6]) or '—', '', w=4, h=3)
-    # Resultado por canal — duas tabelas (Orgânico · Pago) no widget channel-table.
     mvc = M['goals'].get('meta_vendas_canal') or {}
     byc = G.get('by_canal') or {}
+
+    # canais vs meta — bullet-bars por desempenho, com toggle local vendas ↔ conversão.
+    eb(can, cg, 'can-eb-vs', 'CANAIS vs META', 'realizado vs meta por canal — alterne a métrica')
+    blt_ch = []
+    for c in M['chan']:
+        meta_v = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
+        ml = byc.get(c['canal'], {}).get('meta_leads')
+        if not (meta_v or ml):
+            continue
+        meta_conv = (meta_v / ml * 100) if (meta_v and ml) else None
+        blt_ch.append({'name': c['canal'], 'metrics': {
+            'leads': ({'value': c['leads'], 'meta': ml, 'vlabel': intf(c['leads']), 'mlabel': intf(ml)} if ml else None),
+            'vendas': ({'value': c['vendas'], 'meta': meta_v, 'vlabel': intf(c['vendas']), 'mlabel': intf(meta_v)} if meta_v else None),
+            'conv': ({'value': c['conv'], 'meta': meta_conv, 'vlabel': pctf(c['conv']), 'mlabel': pctf(meta_conv)}
+                     if meta_conv else None)}})
+    if blt_ch:
+        can.append({'id': 'can-vs-blt', 'type': 'bullet-groups', 'title': 'Canais vs Meta',
+                    'toggle': [{'key': 'leads', 'label': 'Leads'}, {'key': 'vendas', 'label': 'Vendas'}, {'key': 'conv', 'label': 'Conversão'}],
+                    'groups': [{'key': 'acima', 'label': '↑ Acima da meta', 'tone': 'pos'},
+                               {'key': 'prox', 'label': '≈ Próximo (±5%)', 'tone': 'warn'},
+                               {'key': 'abaixo', 'label': '↓ Abaixo da meta', 'tone': 'neg'}],
+                    'channels': blt_ch})
+
+        def _maxbucket(metric):
+            g = {'acima': 0, 'prox': 0, 'abaixo': 0}
+            for ch in blt_ch:
+                e = ch['metrics'].get(metric)
+                if not e or not e['meta']:
+                    continue
+                dv = (e['value'] - e['meta']) / e['meta'] * 100
+                g['acima' if dv > 5 else 'prox' if dv >= -5 else 'abaixo'] += 1
+            return max(g.values())
+        _mr = max(_maxbucket('leads'), _maxbucket('vendas'), _maxbucket('conv'))
+        cg.add('can-vs-blt', 'bullet-groups', 12, max(4, 2 + (_mr + 1) // 2 + 1))
+
+    # Mapa 2×2: x = conversão vs meta, y = leads vs meta, cor = vendas vs meta.
+    quad_pts = []
+    leads_tot = M.get('leads_total') or 0
+    for c in M['chan']:
+        meta_v = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
+        ml = byc.get(c['canal'], {}).get('meta_leads')
+        if not (meta_v and ml):
+            continue
+        dx, _tx = _dev(c['conv'], meta_v / ml * 100)
+        dy, _ty = _dev(c['leads'], ml)
+        dvend, tone = _dev(c['vendas'], meta_v)
+        lshare = (c['leads'] / leads_tot * 100) if leads_tot else 0
+        quad_pts.append({'name': c['canal'], 'x': round(dx, 1), 'y': round(dy, 1), 'tone': tone,
+                         'size': round(lshare, 1),
+                         'xlabel': f'conv {dx:+.0f}%', 'ylabel': f'leads {dy:+.0f}%',
+                         'vlabel': f'vendas {dvend:+.0f}%', 'slabel': f'{lshare:.0f}% dos leads'})
+    if len(quad_pts) >= 2:
+        eb(can, cg, 'can-eb-quad', 'MAPA DE CANAIS', 'cada ponto é um canal — posição vs meta, cor = vendas, tamanho = leads')
+        can.append({'id': 'can-quad', 'type': 'quadrant-scatter', 'title': 'Mapa de Canais',
+                    'axes': {'x': 'Conversão vs meta', 'y': 'Leads vs meta', 'heat': 'Vendas vs meta', 'size': '% de leads'},
+                    'quadrants': [{'pos': 'tr', 'label': 'Escala + eficiência'},
+                                  {'pos': 'tl', 'label': 'Volume sem conversão'},
+                                  {'pos': 'br', 'label': 'Eficiente, falta escala'},
+                                  {'pos': 'bl', 'label': 'Abaixo em tudo'}],
+                    'points': quad_pts})
+        cg.add('can-quad', 'quadrant-scatter', 12, 5)
+
+    # Resultado por canal — duas tabelas (Orgânico · Pago) no widget channel-table.
     ch_cols = [{'label': 'Canal'}, {'label': 'Leads'}, {'label': 'Δ Leads', 'align': 'center'},
                {'label': 'Vendas'}, {'label': 'Meta Vendas'}, {'label': 'Δ Vendas', 'align': 'center'},
                {'label': 'Conv.'}, {'label': 'Δ Conv.', 'align': 'center'}, {'label': 'Qualif.'}, {'label': 'Fat.'}]
+
+    def _dpill(real, base):
+        # delta % com a escala de avaliação (verde · âmbar · cinza · vermelho), via _dev.
+        if not base:
+            return {'value': '–', 'tone': 'muted', 'align': 'center'}
+        d, tone = _dev(real, base)
+        return {'value': f'{d:+.1f}%', 'pill': True, 'tone': tone, 'align': 'center'}
 
     def _ch_rows(chans):
         out = []
         for c in chans:
             meta = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
             ml = byc.get(c['canal'], {}).get('meta_leads')
-            if ml:
-                dl = (c['leads'] - ml) / ml * 100
-                dlcell = {'value': f'{dl:+.1f}%', 'pill': True, 'tone': ('pos' if dl >= 0 else 'neg'), 'align': 'center'}
-            else:
-                dlcell = {'value': '–', 'tone': 'muted', 'align': 'center'}
-            if meta:
-                d = (c['vendas'] - meta) / meta * 100
-                dcell = {'value': f'{d:+.1f}%', 'pill': True, 'tone': ('pos' if d >= 0 else 'neg'), 'align': 'center'}
-                mcell = {'value': intf(meta), 'tone': 'meta'}
-            else:
-                dcell = {'value': '–', 'tone': 'muted', 'align': 'center'}
-                mcell = {'value': '–', 'tone': 'muted'}
+            mcell = {'value': intf(meta), 'tone': 'meta'} if meta else {'value': '–', 'tone': 'muted'}
+            dlcell = _dpill(c['leads'], ml)
+            dcell = _dpill(c['vendas'], meta)
             meta_conv = (meta / ml * 100) if (meta and ml) else None
-            if meta_conv:
-                dc = (c['conv'] - meta_conv) / meta_conv * 100
-                dccell = {'value': f'{dc:+.1f}%', 'pill': True, 'tone': ('pos' if dc >= 0 else 'neg'), 'align': 'center'}
-            else:
-                dccell = {'value': '–', 'tone': 'muted', 'align': 'center'}
+            dccell = _dpill(c['conv'], meta_conv)
             out.append({'name': c['canal'], 'cells': [
                 {'value': intf(c['leads'])}, dlcell, {'value': intf(c['vendas'])}, mcell, dcell,
                 {'value': pctf(c['conv'])}, dccell, {'value': pctf(c['qual'])}, {'value': money(c['fat'])}]})
@@ -709,17 +758,6 @@ def _strat_points(M):
             'leads': d['l_all'], 'l_pago': d['l_pago'], 'l_org': d['l_org'],
             'vendas': d['v_all'], 'conv': d['c_all']}})
     return pts
-
-
-def _canais_vs_meta(chan, by_canal, mvc):
-    acima, prox, abaixo = [], [], []
-    for c in chan:
-        meta = mvc.get(c['canal']) or (by_canal.get(c['canal'], {}).get('meta_vendas'))
-        if not meta:
-            continue
-        dv = (c['vendas'] - meta) / meta * 100
-        (acima if dv > 5 else prox if dv >= -5 else abaixo).append(c['canal'])
-    return {'acima': acima, 'prox': prox, 'abaixo': abaixo}
 
 
 def _st(label, value, sub=None, delta=None, tone=None):
