@@ -102,8 +102,10 @@ def classify(rows, config=None):
     for r in rows:
         src = (r.get('utm_source') or '').strip()
         s = src.lower()
-        if not src:
-            r['_tipo'] = 'nao_identificado'
+        if not src or s in ('null', 'none', 'nan', '-', '–', '—', '(direto)'):
+            # sem rastreio de origem → "Não trackeado", contabilizado como orgânico.
+            r['utm_source'] = 'Não trackeado'
+            r['_tipo'] = 'organico'
         elif any(p in s for p in paid):
             r['_tipo'] = 'pago'
         else:

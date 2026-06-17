@@ -331,12 +331,14 @@ def assemble(rows, config, content, opts=None):
     mvc = M['goals'].get('meta_vendas_canal') or {}
     byc = G.get('by_canal') or {}
     ch_cols = [{'label': 'Canal'}, {'label': 'Leads'}, {'label': 'Vendas'}, {'label': 'Meta Vendas'},
-               {'label': 'Δ Vendas', 'align': 'center'}, {'label': 'Conv.'}, {'label': 'Qualif.'}, {'label': 'Fat.'}]
+               {'label': 'Δ Vendas', 'align': 'center'}, {'label': 'Conv.'}, {'label': 'Δ Conv.', 'align': 'center'},
+               {'label': 'Qualif.'}, {'label': 'Fat.'}]
 
     def _ch_rows(chans):
         out = []
         for c in chans:
             meta = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
+            ml = byc.get(c['canal'], {}).get('meta_leads')
             if meta:
                 d = (c['vendas'] - meta) / meta * 100
                 dcell = {'value': f'{d:+.1f}%', 'pill': True, 'tone': ('pos' if d >= 0 else 'neg'), 'align': 'center'}
@@ -344,9 +346,15 @@ def assemble(rows, config, content, opts=None):
             else:
                 dcell = {'value': '–', 'tone': 'muted', 'align': 'center'}
                 mcell = {'value': '–', 'tone': 'muted'}
+            meta_conv = (meta / ml * 100) if (meta and ml) else None
+            if meta_conv is not None:
+                dc = c['conv'] - meta_conv
+                dccell = {'value': f'{dc:+.1f}pp', 'pill': True, 'tone': ('pos' if dc >= 0 else 'neg'), 'align': 'center'}
+            else:
+                dccell = {'value': '–', 'tone': 'muted', 'align': 'center'}
             out.append({'name': c['canal'], 'cells': [
                 {'value': intf(c['leads'])}, {'value': intf(c['vendas'])}, mcell, dcell,
-                {'value': pctf(c['conv'])}, {'value': pctf(c['qual'])}, {'value': money(c['fat'])}]})
+                {'value': pctf(c['conv'])}, dccell, {'value': pctf(c['qual'])}, {'value': money(c['fat'])}]})
         return out
 
     org = sorted([c for c in M['chan'] if c['tipo'] != 'pago'], key=lambda c: -c['fat'])
