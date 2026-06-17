@@ -217,18 +217,21 @@ def assemble(rows, config, content, opts=None):
     pg.cursor_to(5)  # bloco de indicadores globais ocupa y=0..5 (eyebrow + 2 linhas h=2)
 
     eb(pan, pg, 'pan-eb-vol', 'INDICADORES DE VOLUME', '8 métricas')
-    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
-    ks(pan, pg, 'pan-v-leads', 'Leads Totais', intf(M['leads_total']), f"pago {pct_of(M['leads_pago'], M['leads_total'])} · org {pct_of(M['leads_org'], M['leads_total'])}", 'users', '#185FA5', real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), meta_fmt=(intf(G.get('leads')) if G.get('leads') else None), hist_fmt=(intf(H.get('leads')) if H.get('leads') else None))
-    ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
+    # Ordem fixa do grid (definida pelo consultor): linha 1 Investimento · Leads · CPL ·
+    # Recapturados; linha 2 Taxa de Resposta · Qualificação · CPMQL · Vendas. (Reordenar
+    # arrastando na UI não sobrevive à regeração — a ordem durável é esta.)
     ks(pan, pg, 'pan-v-inv', 'Investimento Total', money(M['invest_total']), f"captação {money(M['invest_cpt'])}", 'coin', '#534AB7', real=M['invest_total'], hist=H.get('invest'), invert=True, hist_fmt=(money(H.get('invest')) if H.get('invest') else None))
+    ks(pan, pg, 'pan-v-leads', 'Leads Totais', intf(M['leads_total']), f"pago {pct_of(M['leads_pago'], M['leads_total'])} · org {pct_of(M['leads_org'], M['leads_total'])}", 'users', '#185FA5', real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), meta_fmt=(intf(G.get('leads')) if G.get('leads') else None), hist_fmt=(intf(H.get('leads')) if H.get('leads') else None))
     ks(pan, pg, 'pan-v-cpl', 'CPL', money(M['cpl']), '', 'users', '#185FA5', real=M['cpl'], meta=G.get('cpl'), invert=True, hist=H.get('cpl'), meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None), hist_fmt=(money(H.get('cpl')) if H.get('cpl') else None))
     pan[-1]['info'] = 'Indicador calculado: investimento de captação ÷ leads de tráfego (mídia paga). Custo por lead.'
-    ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
-    pan[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
     ks(pan, pg, 'pan-v-recap', 'Leads Recapturados', intf(M['l_ant'] + M['l_cli']), f"antigos {intf(M['l_ant'])} · clientes {intf(M['l_cli'])}", 'refresh', '#854F0B')
-    # Taxa de Resposta = respostas da pesquisa ÷ leads totais (preenche o slot vazio do grid).
+    # Taxa de Resposta = respostas da pesquisa ÷ leads totais.
     ks(pan, pg, 'pan-v-resp', 'Taxa de Resposta', pct_of(M['resps_total'], M['leads_total']),
        f"{intf(M['resps_total'])} resp. / {intf(M['leads_total'])} leads", 'message', '#185FA5')
+    ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
+    ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
+    pan[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
+    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
 
     eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META')
     table(pan, pg, 'pan-cmp', '', ['Indicador', 'Realizado', 'Meta', 'Δ vs Meta', 'Histórico'], [
