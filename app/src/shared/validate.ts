@@ -256,7 +256,7 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       break;
     case 'quadrant-scatter':
       if (!Array.isArray(w.points)) c.err(`${path}.points`, 'quadrant-scatter requires a points array');
-      if (!w.axes || typeof w.axes !== 'object') c.err(`${path}.axes`, 'quadrant-scatter requires an axes object');
+      if (!w.modes || typeof w.modes !== 'object' || !(w.modes as { meta?: unknown }).meta) c.err(`${path}.modes`, 'quadrant-scatter requires modes.meta');
       break;
   }
 }

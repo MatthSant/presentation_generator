@@ -562,8 +562,10 @@ export interface FunnelWidget extends WidgetBase {
   title?: string;
   sub?: string;
   steps: { label: string; value: number }[];
-  /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido. */
-  transitions?: { loss?: number; migrate?: number; bench?: number; gap?: number; worst?: boolean; invalid?: boolean }[];
+  /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido.
+   *  bench/gap = comparação vs meta; benchHist/gapHist = vs histórico (toggle de plataforma). */
+  transitions?: { loss?: number; migrate?: number; bench?: number; gap?: number;
+                  benchHist?: number; gapHist?: number; worst?: boolean; invalid?: boolean }[];
 }
 
 /** strat-grid — perguntas estratégicas: N colunas (cards), cada uma com título e
@@ -634,6 +636,8 @@ export interface EscopoCardsWidget extends WidgetBase {
     unit?: string;
     /** chip de relação com a meta (ex.: "82% da meta"). */
     chip?: { text: string; tone?: 'pos' | 'neg' | 'warn' | 'neutral' };
+    /** chip vs histórico (toggle de plataforma) — substitui `chip` no modo hist. */
+    chipHist?: { text: string; tone?: 'pos' | 'neg' | 'warn' | 'neutral' };
     sub?: string;
     minis: { label: string; value: string; pct?: string; tone?: 'purple' | 'amber' | 'green' | 'blue' }[];
   }[];
@@ -653,6 +657,12 @@ export interface ChannelTableWidget extends WidgetBase {
     /** células correspondentes a cols[1:]. */
     cells: { value: string; align?: 'left' | 'right' | 'center'; tone?: 'meta' | 'pos' | 'neg' | 'warn' | 'neutral' | 'muted'; pill?: boolean }[];
   }[];
+  /** visões por modo de comparação (meta/planejado ↔ histórico); o client troca
+   *  via toggle de plataforma. Quando presente, sobrepõe cols/rows. */
+  cmp?: {
+    meta: { cols: ChannelTableWidget['cols']; rows: ChannelTableWidget['rows'] };
+    hist?: { cols: ChannelTableWidget['cols']; rows: ChannelTableWidget['rows'] };
+  };
 }
 
 /** bullet-groups — 3 colunas de bullet-bars (realizado + marca de meta), agrupadas
@@ -666,31 +676,42 @@ export interface BulletGroupsWidget extends WidgetBase {
   toggle: { key: string; label: string }[];
   /** definição visual dos 3 grupos (a regra de bucket é fixa: >5% · ±5% · <−5%). */
   groups: { key: 'acima' | 'prox' | 'abaixo'; label: string; tone: 'pos' | 'warn' | 'neg' }[];
-  /** canais com valor+meta por métrica; entrada nula = canal omitido para a métrica. */
+  /** canais com valor + base(s) por métrica. A base segue o toggle de plataforma
+   *  (meta/planejado ou histórico); entrada nula = canal omitido para a métrica. */
   channels: {
     name: string;
-    metrics: { [metricKey: string]: { value: number; meta: number; vlabel: string; mlabel: string } | null };
+    metrics: { [metricKey: string]: {
+      value: number; vlabel: string;
+      bases: { meta?: { v: number; label: string }; hist?: { v: number; label: string } };
+    } | null };
   }[];
 }
 
 /** quadrant-scatter — mapa 2×2 dos canais: x = desvio % vs meta de conversão, y =
  *  desvio % vs meta de leads, cor do ponto = avaliação de vendas vs meta (4 níveis).
  *  Cada quadrante tem um significado (escala+eficiência · volume sem conversão · etc). */
+/** moldura textual por modo de comparação (planejado/meta · histórico). */
+export interface QuadrantFrame {
+  axes: { x: string; y: string; heat: string };
+  /** nota no rodapé do guia (ex.: "Meta = o planejado de cada canal"). */
+  note?: string;
+  quadrants: { pos: 'tr' | 'tl' | 'br' | 'bl'; label: string; tone?: 'pos' | 'warn' | 'neutral' | 'neg'; desc?: string }[];
+}
 export interface QuadrantScatterWidget extends WidgetBase {
   type: 'quadrant-scatter';
   /** rótulo do bloco (compositor de detalhamento; não renderiza — eyebrow é separada). */
   title?: string;
-  axes: { x: string; y: string; heat: string; size?: string };
-  quadrants: { pos: 'tr' | 'tl' | 'br' | 'bl'; label: string }[];
+  /** rótulo do tamanho da bolha (ex.: "% de leads"), igual nos dois modos. */
+  size?: string;
+  /** molduras por modo; o client escolhe via toggle de plataforma (meta↔hist). */
+  modes: { meta: QuadrantFrame; hist?: QuadrantFrame };
+  /** desvios são computados no client: valor realizado + base meta (e hist, se houver). */
   points: {
     name: string;
-    /** desvio % no eixo x (conversão vs meta) e y (leads vs meta), sinal = direção. */
-    x: number; y: number;
-    /** cor do ponto = avaliação de vendas vs meta. */
-    tone: 'pos' | 'warn' | 'neutral' | 'neg';
-    /** tamanho da bolha = % de leads do canal na campanha (área proporcional). */
-    size?: number;
-    xlabel?: string; ylabel?: string; vlabel?: string; slabel?: string;
+    size?: number; slabel?: string;
+    conv: number; leads: number; vendas: number;
+    meta: { conv: number; leads: number; vendas: number };
+    hist?: { conv: number; leads: number; vendas: number };
   }[];
 }
 

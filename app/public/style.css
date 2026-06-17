@@ -400,8 +400,25 @@ html, body {
 .qs-lg-dot--warn { background: var(--amber, #d97706); }
 .qs-lg-dot--neutral { background: var(--gray, #64748b); }
 .qs-lg-dot--neg { background: var(--err-fg, #dc2626); }
-.qs-plot { width: 100%; max-width: 520px; margin: 0 auto; }
+.qs-body { display: flex; align-items: stretch; gap: 24px; }
+.qs-plot { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
 .qs-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.qs-guide { flex: 0 0 244px; display: flex; flex-direction: column; gap: 12px; padding: 4px 0 8px 22px; border-left: 1px solid var(--divider); align-self: center; }
+.qs-guide-h { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gray2); }
+.qs-guide-item { display: flex; align-items: flex-start; gap: 9px; }
+.qs-guide-sw { flex-shrink: 0; width: 11px; height: 11px; border-radius: 3px; margin-top: 2px; }
+.qs-guide-sw--pos { background: color-mix(in srgb, var(--ok-fg, #16a34a) 80%, transparent); }
+.qs-guide-sw--warn { background: color-mix(in srgb, var(--amber, #d97706) 80%, transparent); }
+.qs-guide-sw--neutral { background: color-mix(in srgb, var(--gray, #64748b) 70%, transparent); }
+.qs-guide-sw--neg { background: color-mix(in srgb, var(--err-fg, #dc2626) 80%, transparent); }
+.qs-guide-tx { min-width: 0; }
+.qs-guide-lbl { font-size: 12px; font-weight: 700; color: var(--fg); letter-spacing: -.005em; }
+.qs-guide-desc { font-size: 11px; font-weight: 500; color: var(--gray2); line-height: 1.4; margin-top: 1px; }
+.qs-guide-note { margin-top: 4px; padding-top: 11px; border-top: 1px solid var(--divider); font-size: 10.5px; font-weight: 500; color: var(--gray2); line-height: 1.45; }
+@media (max-width: 760px) {
+  .qs-body { flex-direction: column; gap: 14px; }
+  .qs-guide { flex-basis: auto; border-left: none; border-top: 1px solid var(--divider); padding: 12px 0 0; align-self: stretch; }
+}
 .qs-q--good { fill: color-mix(in srgb, var(--ok-fg, #16a34a) 7%, transparent); }
 .qs-q--warn { fill: color-mix(in srgb, var(--amber, #d97706) 7%, transparent); }
 .qs-q--neutral { fill: color-mix(in srgb, var(--gray, #64748b) 5%, transparent); }
