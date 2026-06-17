@@ -69,11 +69,13 @@ def assemble(rows, config, content, opts=None):
             if dh is not None:
                 card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
 
-    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None):
+    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None, x=None, y=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
                 'sub': sub, 'icon': icon, 'iconColor': color}
         _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt)
-        arr.append(card); pg.add(wid, 'kpi-card', w, h)
+        arr.append(card)
+        if x is not None: pg.at(wid, 'kpi-card', x, y, w, h)
+        else: pg.add(wid, 'kpi-card', w, h)
 
     def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=None, invert=False, hist=None, meta_fmt=None, hist_fmt=None):
         # mesmo padrão dos KPIs macro: card feature com rodapé "Meta X · ±% ✓" toggleável (sem ícone).
@@ -152,23 +154,24 @@ def assemble(rows, config, content, opts=None):
         p = p or 0
         return 'pos' if p >= 100 else ('neg' if p < 80 else 'neutral')
 
-    def band(wid, label, real, meta, at, tone, w=6, h=2):
+    def band(wid, label, real, meta, at, tone, w=6, h=2, x=None, y=None):
         if real is None or not meta or at is None:
             return
         pan.append({'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': label, 'value': f'{intf(real)} / {intf(meta)}',
                     'sub': 'realizado vs meta da campanha', 'delta': f'{at:.0f}%', 'deltaTone': tone})
-        pg.add(wid, 'kpi-card', w, h)
+        if x is not None: pg.at(wid, 'kpi-card', x, y, w, h)
+        else: pg.add(wid, 'kpi-card', w, h)
 
     eb(pan, pg, 'pan-eb-glob', 'INDICADORES GLOBAIS', 'atingimento de metas + resultado macro do lançamento')
-    # Metas em destaque (estilo captação): bandas grandes, com a cor avaliando o
-    # atingimento (verde ≥100% · âmbar 80–99% · vermelho <80%) — Leads e Vendas iguais.
+    # Layout 2D explícito (y=1): duas bandas de atingimento EMPILHADAS à esquerda (w=6),
+    # e a grade 2×3 de macros à direita (w=2 cada). Linha de cima: Faturamento, Reembolsos,
+    # Conversão; linha de baixo: Retorno, ROI, ROAS (eficiência em roxo, fórmula no (i)).
+    # A cor das bandas avalia o atingimento (verde ≥100% · âmbar 80–99% · vermelho <80%).
     mv_meta = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
-    band('pan-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']))
-    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']))
+    band('pan-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']), x=0, y=1)
+    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']), x=0, y=3)
 
-    # 5 indicadores macro numa linha só (w=2, como os KPIs macro do acompanhamento).
-    pg.newrow()
     # Metas derivadas das goals p/ Retorno e ROI (meta_receita − meta_invest);
     # histórico (lançamento anterior) p/ o ROAS. Mesmo rodapé "Meta/Hist · ±%".
     g_fat, g_inv = G.get('fat'), G.get('invest_cpt')
@@ -182,37 +185,40 @@ def assemble(rows, config, content, opts=None):
     retorno_h = (H['fat'] - h_inv) if (H.get('fat') is not None and h_inv) else None
     roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
     roas_h = H.get('roas')
-    # Ordem: Faturamento, Reembolsos, Retorno, ROI, ROAS. Os 3 de eficiência (Retorno,
-    # ROI, ROAS) ficam em destaque roxo (emph) e levam a fórmula no (i) — não na legenda.
+    # ── linha de cima (direita): Faturamento, Reembolsos, Conversão ──
     km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
        f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
-       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=4, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
+       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=2, x=6, y=1, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
        hist_fmt=(money(H.get('fat')) if H.get('fat') else None))
     km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
-       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2)
-    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), '', 'database', '#534AB7', w=2,
+       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2, x=8, y=1)
+    km(pan, pg, 'pan-k-conv', 'Conversão Geral', pctf(M['conv_geral']),
+       f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#3B6D11', w=2, x=10, y=1,
+       real=M['conv_geral'], meta=G.get('conv'), meta_fmt=(pctf(G.get('conv')) if G.get('conv') else None))
+    # ── linha de baixo (direita): Retorno, ROI, ROAS — eficiência em roxo, fórmula no (i) ──
+    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), '', 'database', '#534AB7', w=2, x=6, y=3,
        real=M['retorno'], meta=retorno_meta, hist=retorno_h,
        meta_fmt=(money(retorno_meta) if retorno_meta is not None else None),
        hist_fmt=(money(retorno_h) if retorno_h is not None else None))
     pan[-1]['emph'] = True
     pan[-1]['info'] = 'Indicador calculado: faturamento total − investimento total. Lucro bruto da campanha, antes de impostos e demais custos.'
-    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '', 'trending-up', '#185FA5', w=2,
+    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", '', 'trending-up', '#185FA5', w=2, x=8, y=3,
        real=M['roi'], meta=roi_meta, hist=roi_h,
        meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None),
        hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
     pan[-1]['emph'] = True
     pan[-1]['info'] = 'Indicador calculado: (faturamento total − investimento total) ÷ investimento total. Retorno percentual sobre todo o investimento da campanha.'
-    km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '', 'bolt', '#EF9F27', w=2,
+    km(pan, pg, 'pan-k-roas', 'ROAS Captação', xf(M['roas']), '', 'bolt', '#EF9F27', w=2, x=10, y=3,
        real=M['roas'], meta=roas_meta, hist=roas_h, meta_fmt=(xf(roas_meta) if roas_meta is not None else None),
        hist_fmt=(xf(roas_h) if roas_h else None))
     pan[-1]['emph'] = True
     pan[-1]['info'] = 'Indicador calculado: (faturamento pago − investimento de captação) ÷ investimento de captação. Retorno sobre a mídia de captação.'
+    pg.cursor_to(5)  # bloco de indicadores globais ocupa y=0..5 (eyebrow + 2 linhas h=2)
 
-    eb(pan, pg, 'pan-eb-vol', 'INDICADORES DE VOLUME', '8 métricas')
+    eb(pan, pg, 'pan-eb-vol', 'INDICADORES DE VOLUME', '7 métricas')
     ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
     ks(pan, pg, 'pan-v-leads', 'Leads Totais', intf(M['leads_total']), f"pago {pct_of(M['leads_pago'], M['leads_total'])} · org {pct_of(M['leads_org'], M['leads_total'])}", 'users', '#185FA5', real=M['leads_total'], meta=G.get('leads'), hist=H.get('leads'), meta_fmt=(intf(G.get('leads')) if G.get('leads') else None), hist_fmt=(intf(H.get('leads')) if H.get('leads') else None))
     ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
-    ks(pan, pg, 'pan-v-conv', 'Conversão Geral', pctf(M['conv_geral']), f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#534AB7', real=M['conv_geral'], meta=G.get('conv'), meta_fmt=(pctf(G.get('conv')) if G.get('conv') else None))
     ks(pan, pg, 'pan-v-inv', 'Investimento Total', money(M['invest_total']), f"captação {money(M['invest_cpt'])}", 'coin', '#534AB7', real=M['invest_total'], hist=H.get('invest'), invert=True, hist_fmt=(money(H.get('invest')) if H.get('invest') else None))
     ks(pan, pg, 'pan-v-cpl', 'CPL', money(M['cpl']), 'invest. cpt / leads tráfego', 'users', '#185FA5', real=M['cpl'], meta=G.get('cpl'), invert=True, hist=H.get('cpl'), meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None), hist_fmt=(money(H.get('cpl')) if H.get('cpl') else None))
     ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), 'CPL / qualif. paga', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
