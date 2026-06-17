@@ -253,7 +253,7 @@ def assemble(rows, config, content, opts=None):
         mb_row('Lucro Bruto', M['retorno'], retorno_meta, retorno_h, 'money'),
     ]})
     pg.add('pan-cmp', 'meta-bars', 12, 9)
-    sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': f"Debriefing · {M['nome']}",
+    sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama Geral', 'title': f"Debriefing · {M['nome']}",
                        'sub': f"{M['campaign_label']} — atingiu as metas? resumo macro do lançamento."}, 'widgets': pan}
     layouts['s01'] = pg.items
 
@@ -447,7 +447,7 @@ def assemble(rows, config, content, opts=None):
                        'sub': 'Visão executiva de 1 tela.'}, 'widgets': op}
     layouts['s07'] = opg.items
 
-    pages = [{'id': 'panorama', 'label': 'Panorama', 'sections': [{'id': 's01', 'label': 'Panorama'}]},
+    pages = [{'id': 'panorama', 'label': 'Panorama Geral', 'sections': [{'id': 's01', 'label': 'Panorama Geral'}]},
              {'id': 'canal', 'label': 'Canal', 'sections': [{'id': 's02', 'label': 'Canal e Conversão'}]},
              {'id': 'trafego', 'label': 'Tráfego Pago', 'sections': [{'id': 's03', 'label': 'Tráfego Pago'}]},
              {'id': 'organico', 'label': 'Orgânico', 'sections': [{'id': 's04', 'label': 'Orgânico'}]},
