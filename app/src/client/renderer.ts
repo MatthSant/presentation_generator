@@ -253,7 +253,7 @@ function sparkSvg(data: (number | null)[]): SVGElement | null {
 }
 
 /* tone → base .pill color modifier (kpi deltas, rich table cells) */
-const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', neutral: 'pill--neutral' };
+const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', neutral: 'pill--neutral', warn: 'pill--warn' };
 
 /* Modo de comparação (meta | hist) do toggle de plataforma. Os badges com `cmp`
  * leem este modo no render e trocam ao vivo via setCmpMode (sem re-render). */
