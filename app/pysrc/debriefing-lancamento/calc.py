@@ -334,9 +334,14 @@ def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
         src = (r.get('utm_source') or '').strip()
         if not src:
             continue
-        c = by_canal.setdefault(src, {'meta_leads': 0.0, 'meta_vendas': 0.0, 'meta_cpl': []})
-        c['meta_leads'] += fnum(r.get('meta_leads'))
+        c = by_canal.setdefault(src, {'meta_leads': 0.0, 'meta_vendas': 0.0, 'meta_cpl': [],
+                                      'resp_w': 0.0, 'qual_w': 0.0})
+        ml = fnum(r.get('meta_leads'))
+        c['meta_leads'] += ml
         c['meta_vendas'] += fnum(r.get('meta_vendas'))
+        # taxas de resp/qualif ponderadas por meta_leads (p/ meta por escopo no funil).
+        c['resp_w'] += fnum(r.get('meta_taxa_resp')) * ml
+        c['qual_w'] += fnum(r.get('meta_taxa_qual')) * ml
         if fnum(r.get('meta_cpl')) > 0:
             c['meta_cpl'].append(fnum(r.get('meta_cpl')))
     for c in by_canal.values():
