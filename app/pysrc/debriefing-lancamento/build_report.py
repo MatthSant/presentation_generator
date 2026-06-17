@@ -233,16 +233,21 @@ def assemble(rows, config, content, opts=None):
     pan[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
     ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
 
-    eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META')
-    table(pan, pg, 'pan-cmp', '', ['Indicador', 'Realizado', 'Meta', 'Δ vs Meta', 'Histórico'], [
-        cmp_row('Vendas', M['vendas_total'], sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas'), H.get('vendas'), 'int'),
-        cmp_row('Leads', M['leads_total'], G.get('leads'), H.get('leads'), 'int'),
-        cmp_row('Conversão', M['conv_geral'], G.get('conv'), None, 'pct'),
-        cmp_row('Invest. Captação', M['invest_cpt'], G.get('invest_cpt'), H.get('invest_cpt'), 'money', invert=True),
-        cmp_row('CPL', M['cpl'], G.get('cpl'), H.get('cpl'), 'money', invert=True),
-        cmp_row('Qualificação', M['qual'], G.get('qual'), H.get('qual'), 'pct'),
-        cmp_row('CPMQL', M['cpmql'], G.get('cpmql'), H.get('cpmql'), 'money', invert=True),
-    ], h=5)
+    eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META', 'indicadores na ordem do funil')
+    # Barras de atingimento (widget meta-bars), na ordem do FUNIL: verba → leads (+CPL)
+    # → qualificação (+CPMQL) → conversão → vendas. Cor: roxo (volume) · verde (invest)
+    # · laranja (custo). O Δ vs meta carrega a avaliação (vermelho/verde).
+    mvm = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
+    pan.append({'id': 'pan-cmp', 'type': 'meta-bars', 'rows': [
+        mb_row('Investimento Captação', M['invest_cpt'], G.get('invest_cpt'), H.get('invest_cpt'), 'money', 'invest', invert=True, meta_word='orç.', pctcap='DO ORÇ.'),
+        mb_row('Leads', M['leads_total'], G.get('leads'), H.get('leads'), 'int', 'vol'),
+        mb_row('CPL', M['cpl'], G.get('cpl'), H.get('cpl'), 'money', 'cost', invert=True),
+        mb_row('Qualificação', M['qual'], G.get('qual'), H.get('qual'), 'pct', 'vol'),
+        mb_row('CPMQL', M['cpmql'], G.get('cpmql'), H.get('cpmql'), 'money', 'cost', invert=True),
+        mb_row('Conversão', M['conv_geral'], G.get('conv'), None, 'pct', 'vol'),
+        mb_row('Vendas', M['vendas_total'], mvm, H.get('vendas'), 'int', 'vol'),
+    ]})
+    pg.add('pan-cmp', 'meta-bars', 12, 7)
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': f"Debriefing · {M['nome']}",
                        'sub': f"{M['campaign_label']} — atingiu as metas? resumo macro do lançamento."}, 'widgets': pan}
     layouts['s01'] = pg.items
@@ -483,6 +488,30 @@ def cmp_row(label, real, meta, hist, fmt, invert=False):
     else:
         delta = '—'
     return [label, cell_real, cell_meta, delta, f(hist)]
+
+
+def mb_row(label, real, meta, hist, fmt, cat, invert=False, meta_word='meta', pctcap=None):
+    """Linha do widget meta-bars: indicador (nome + 'real · meta X'), atingimento %
+    (barra + número), Δ vs meta (sinal bruto + tom) e histórico. cat: vol|invest|cost."""
+    from common.fmt import money as _m, pctf as _p, intf as _i
+
+    def f(v):
+        if v is None:
+            return '—'
+        return _m(v) if fmt == 'money' else (_p(v) if fmt == 'pct' else _i(v))
+    row = {'label': label, 'cat': cat}
+    if meta:
+        row['sub'] = f'{f(real)} · {meta_word} {f(meta)}'
+        row['pct'] = round(real / meta * 100, 1)
+        row['pctCaption'] = pctcap or 'DA META'
+        d, tone = _dev(real, meta, invert)
+        if d is not None:
+            row['delta'] = {'value': f'{d:+.1f}%', 'tone': tone}
+    else:
+        row['sub'] = f(real)
+    if hist is not None:
+        row['hist'] = f(hist)
+    return row
 
 
 def _strat_questions(M, G, H):

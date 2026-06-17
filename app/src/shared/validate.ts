@@ -239,6 +239,9 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'cri-list':
       if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'cri-list requires a rows array');
       break;
+    case 'meta-bars':
+      if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'meta-bars requires a rows array');
+      break;
   }
 }
 
