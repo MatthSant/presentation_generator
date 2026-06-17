@@ -254,8 +254,9 @@ def assemble(rows, config, content, opts=None):
         mb_row('Vendas', M['vendas_total'], mvm, H.get('vendas'), 'int'),
         mb_row('Faturamento', M['fat'], G.get('fat'), H.get('fat'), 'money'),
         mb_row('Lucro Bruto', M['retorno'], retorno_meta, retorno_h, 'money'),
+        mb_row('ROI Global', M['roi'], roi_meta, roi_h, 'pct'),
     ]})
-    pg.add('pan-cmp', 'meta-bars', 12, 9)
+    pg.add('pan-cmp', 'meta-bars', 12, 10)
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama Geral', 'title': f"Debriefing · {M['nome']}",
                        'sub': f"{M['campaign_label']} — atingiu as metas? resumo macro do lançamento."}, 'widgets': pan}
     layouts['s01'] = pg.items
