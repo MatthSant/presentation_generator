@@ -270,22 +270,33 @@ def assemble(rows, config, content, opts=None):
     pago_ch = [c for c in M['chan'] if c['tipo'] == 'pago']
     _mv = lambda chans: sum((mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas') or 0) for c in chans)
     mvm = sum(mvc.values()) or G.get('vendas')
+    hf_esc = M.get('hist_funnel') or {}
+
+    def _chip(at, base_lbl):
+        if at is None:
+            return None
+        return {'text': f'{at:.0f}% {base_lbl}', 'tone': ('pos' if at >= 100 else 'warn' if at >= 80 else 'neg')}
+
     esc_cards = []
-    for lbl, tone, lp, lv, cv, nv, an, cl, mv in [
-        ('Geral', 'purple', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], mvm),
-        ('Pago', 'blue', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], _mv(pago_ch)),
-        ('Orgânico', 'green', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], _mv(org_ch))]:
+    for lbl, tone, scope, lp, lv, cv, nv, an, cl, mv in [
+        ('Geral', 'purple', 'geral', M['leads_total'], M['vendas_total'], M['conv_geral'], M['l_novo'], M['l_ant'], M['l_cli'], mvm),
+        ('Pago', 'blue', 'pago', M['leads_pago'], M['vendas_pago'], M['conv_pago'], M['l_novo_p'], M['l_ant_p'], M['l_cli_p'], _mv(pago_ch)),
+        ('Orgânico', 'green', 'org', M['leads_org'], M['vendas_org'], M['conv_org'], M['l_novo_o'], M['l_ant_o'], M['l_cli_o'], _mv(org_ch))]:
         at = (lv / mv * 100) if mv else None
-        chip = ({'text': f'{at:.0f}% da meta', 'tone': ('pos' if at >= 100 else 'warn' if at >= 80 else 'neg')}
-                if at is not None else None)
-        esc_cards.append({
-            'label': lbl, 'tone': tone, 'value': intf(lv), 'unit': 'vendas', 'chip': chip,
+        hv = (hf_esc.get(scope) or {}).get('vendas')
+        ath = (lv / hv * 100) if hv else None
+        card = {
+            'label': lbl, 'tone': tone, 'value': intf(lv), 'unit': 'vendas', 'chip': _chip(at, 'da meta'),
             'sub': f'{intf(lp)} leads · {pctf(cv)} conv.',
             'minis': [
                 {'label': 'Novos', 'tone': 'purple', 'value': intf(nv), 'pct': pct_of(nv, lp)},
                 {'label': 'Antigos', 'tone': 'amber', 'value': intf(an), 'pct': pct_of(an, lp)},
                 {'label': 'Clientes', 'tone': 'green', 'value': intf(cl), 'pct': pct_of(cl, lp)},
-            ]})
+            ]}
+        ch = _chip(ath, 'do histórico')
+        if ch:
+            card['chipHist'] = ch
+        esc_cards.append(card)
     can.append({'id': 'can-resumo', 'type': 'escopo-cards', 'cards': esc_cards})
     cg.add('can-resumo', 'escopo-cards', 12, 4)
 
@@ -307,81 +318,68 @@ def assemble(rows, config, content, opts=None):
         w = sum((byc.get(c['canal'], {}).get(wkey) or 0) for c in channels)
         return (w / ml * 100) if ml else None
 
-    def _funil(wid, title, leads, resps, mqls, vendas, meta_conv, meta_resp, meta_qual):
+    hfun = M.get('hist_funnel') or {}
+
+    def _hrates(scope):
+        h = hfun.get(scope)
+        if not h:
+            return (None, None, None)
+        rr = (h['resps'] / h['leads'] * 100) if h['leads'] else None       # taxa de resposta
+        qr = (h['mqls'] / h['resps'] * 100) if h['resps'] else None        # qualificação
+        cr = (h['vendas'] / h['leads'] * 100) if h['leads'] else None      # conversão lead→venda
+        return (cr, rr, qr)
+
+    def _funil(wid, title, leads, resps, mqls, vendas, meta_conv, meta_resp, meta_qual, scope):
         vals = [leads, resps, mqls, vendas]
         mig = lambda i: round(vals[i + 1] / vals[i] * 100, 1) if vals[i] else 0.0
+        hist_conv, hist_resp, hist_qual = _hrates(scope)
 
-        def step(i, bench):
+        def step(i, bench, hbench):
             m = mig(i)
             tr = {'migrate': m, 'loss': round(100 - m, 1)}
             if bench:
                 tr['bench'] = round(bench, 1)
                 if m < bench:
                     tr['gap'] = round(bench - m, 1)
+            if hbench:
+                tr['benchHist'] = round(hbench, 1)
+                if m < hbench:
+                    tr['gapHist'] = round(hbench - m, 1)
             return tr
         conv = round(vendas / leads * 100, 1) if leads else 0.0
         trans = [
-            step(0, meta_resp),   # leads → respostas vs meta de taxa de resposta
-            step(1, meta_qual),   # respostas → MQLs vs meta de qualificação
-            # conversão lead→venda + comparação com a meta (sem "perda" de quem sai)
+            step(0, meta_resp, hist_resp),   # leads → respostas vs taxa de resposta (meta/hist)
+            step(1, meta_qual, hist_qual),   # respostas → MQLs vs qualificação (meta/hist)
+            # conversão lead→venda + comparação com a base (sem "perda" de quem sai)
             {'migrate': conv,
              'bench': round(meta_conv, 1) if meta_conv else None,
-             'gap': round(meta_conv - conv, 1) if (meta_conv and conv < meta_conv) else None},
+             'gap': round(meta_conv - conv, 1) if (meta_conv and conv < meta_conv) else None,
+             'benchHist': round(hist_conv, 1) if hist_conv else None,
+             'gapHist': round(hist_conv - conv, 1) if (hist_conv and conv < hist_conv) else None},
         ]
         steps = [{'label': l, 'value': v} for l, v in zip(['Leads', 'Respostas', 'MQLs', 'Vendas'], vals)]
         return {'id': wid, 'type': 'funnel', 'title': title, 'steps': steps, 'transitions': trans}
 
     org_ch = [c for c in M['chan'] if c['tipo'] != 'pago']
     pago_ch = [c for c in M['chan'] if c['tipo'] == 'pago']
-    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'taxas do funil vs meta do launch, por escopo')
+    eb(can, cg, 'can-eb-pipe', 'PIPELINE DE CONVERSÃO', 'taxas do funil vs a base (meta ou histórico), por escopo')
     can.append(_funil('can-fun-ger', 'Geral', M['leads_total'], M['resps_total'], M['mqls_total'], M['vendas_total'],
-                      _meta_conv(M['chan']), _meta_rate(M['chan'], 'resp_w'), _meta_rate(M['chan'], 'qual_w')))
+                      _meta_conv(M['chan']), _meta_rate(M['chan'], 'resp_w'), _meta_rate(M['chan'], 'qual_w'), 'geral'))
     cg.add('can-fun-ger', 'funnel', 4, 5)
     can.append(_funil('can-fun-org', 'Orgânico', M['leads_org'], M['resps_org'], M['mqls_org'], M['vendas_org'],
-                      _meta_conv(org_ch), _meta_rate(org_ch, 'resp_w'), _meta_rate(org_ch, 'qual_w')))
+                      _meta_conv(org_ch), _meta_rate(org_ch, 'resp_w'), _meta_rate(org_ch, 'qual_w'), 'org'))
     cg.add('can-fun-org', 'funnel', 4, 5)
     can.append(_funil('can-fun-pago', 'Pago', M['leads_pago'], M['resps_pago'], M['mqls_pago'], M['vendas_pago'],
-                      _meta_conv(pago_ch), _meta_rate(pago_ch, 'resp_w'), _meta_rate(pago_ch, 'qual_w')))
+                      _meta_conv(pago_ch), _meta_rate(pago_ch, 'resp_w'), _meta_rate(pago_ch, 'qual_w'), 'pago'))
     cg.add('can-fun-pago', 'funnel', 4, 5)
 
     mvc = M['goals'].get('meta_vendas_canal') or {}
     byc = G.get('by_canal') or {}
 
-    # canais vs meta — bullet-bars por desempenho, com toggle local vendas ↔ conversão.
-    eb(can, cg, 'can-eb-vs', 'CANAIS vs META', 'realizado vs meta por canal — alterne a métrica')
-    blt_ch = []
-    for c in M['chan']:
-        meta_v = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
-        ml = byc.get(c['canal'], {}).get('meta_leads')
-        if not (meta_v or ml):
-            continue
-        meta_conv = (meta_v / ml * 100) if (meta_v and ml) else None
-        blt_ch.append({'name': c['canal'], 'metrics': {
-            'leads': ({'value': c['leads'], 'meta': ml, 'vlabel': intf(c['leads']), 'mlabel': intf(ml)} if ml else None),
-            'vendas': ({'value': c['vendas'], 'meta': meta_v, 'vlabel': intf(c['vendas']), 'mlabel': intf(meta_v)} if meta_v else None),
-            'conv': ({'value': c['conv'], 'meta': meta_conv, 'vlabel': pctf(c['conv']), 'mlabel': pctf(meta_conv)}
-                     if meta_conv else None)}})
-    if blt_ch:
-        can.append({'id': 'can-vs-blt', 'type': 'bullet-groups', 'title': 'Canais vs Meta',
-                    'toggle': [{'key': 'leads', 'label': 'Leads'}, {'key': 'vendas', 'label': 'Vendas'}, {'key': 'conv', 'label': 'Conversão'}],
-                    'groups': [{'key': 'acima', 'label': '↑ Acima da meta', 'tone': 'pos'},
-                               {'key': 'prox', 'label': '≈ Próximo (±5%)', 'tone': 'warn'},
-                               {'key': 'abaixo', 'label': '↓ Abaixo da meta', 'tone': 'neg'}],
-                    'channels': blt_ch})
-
-        def _maxbucket(metric):
-            g = {'acima': 0, 'prox': 0, 'abaixo': 0}
-            for ch in blt_ch:
-                e = ch['metrics'].get(metric)
-                if not e or not e['meta']:
-                    continue
-                dv = (e['value'] - e['meta']) / e['meta'] * 100
-                g['acima' if dv > 5 else 'prox' if dv >= -5 else 'abaixo'] += 1
-            return max(g.values())
-        _mr = max(_maxbucket('leads'), _maxbucket('vendas'), _maxbucket('conv'))
-        cg.add('can-vs-blt', 'bullet-groups', 12, max(4, 2 + (_mr + 1) // 2 + 1))
-
-    # Mapa 2×2: x = conversão vs meta, y = leads vs meta, cor = vendas vs meta.
+    # Mapa 2×2: x = conversão vs base, y = leads vs base, cor = vendas vs base,
+    # tamanho da bolha = % de leads. Base = planejado (meta) ou lançamento anterior
+    # (toggle de plataforma). Vem ANTES do bullet "Canais vs Meta".
+    chist = M.get('chan_hist') or {}
     quad_pts = []
     leads_tot = M.get('leads_total') or 0
     for c in M['chan']:
@@ -389,29 +387,98 @@ def assemble(rows, config, content, opts=None):
         ml = byc.get(c['canal'], {}).get('meta_leads')
         if not (meta_v and ml):
             continue
-        dx, _tx = _dev(c['conv'], meta_v / ml * 100)
-        dy, _ty = _dev(c['leads'], ml)
-        dvend, tone = _dev(c['vendas'], meta_v)
         lshare = (c['leads'] / leads_tot * 100) if leads_tot else 0
-        quad_pts.append({'name': c['canal'], 'x': round(dx, 1), 'y': round(dy, 1), 'tone': tone,
-                         'size': round(lshare, 1),
-                         'xlabel': f'conv {dx:+.0f}%', 'ylabel': f'leads {dy:+.0f}%',
-                         'vlabel': f'vendas {dvend:+.0f}%', 'slabel': f'{lshare:.0f}% dos leads'})
+        pt = {'name': c['canal'], 'size': round(lshare, 1), 'slabel': f'{lshare:.0f}% dos leads',
+              'conv': round(c['conv'], 4), 'leads': c['leads'], 'vendas': c['vendas'],
+              'meta': {'conv': round(meta_v / ml * 100, 4), 'leads': ml, 'vendas': meta_v}}
+        h = chist.get(c['canal'])
+        if h and h.get('leads') and h.get('vendas'):
+            pt['hist'] = {'conv': round(h['conv'], 4), 'leads': h['leads'], 'vendas': h['vendas']}
+        quad_pts.append(pt)
     if len(quad_pts) >= 2:
-        eb(can, cg, 'can-eb-quad', 'MAPA DE CANAIS', 'cada ponto é um canal — posição vs meta, cor = vendas, tamanho = leads')
+        has_hist = any('hist' in p for p in quad_pts)
+        modes = {'meta': {
+            'axes': {'x': 'Conversão vs planejado', 'y': 'Leads vs planejado', 'heat': 'Vendas vs planejado'},
+            'note': 'Tudo é comparado ao planejado (meta) de cada canal — que varia por canal. Ex.: um canal pode converter bem e ainda ficar abaixo do que foi planejado pra ele.',
+            'quadrants': [
+                {'pos': 'tr', 'label': 'Escala + eficiência', 'tone': 'pos',
+                 'desc': 'Leads e conversão acima do planejado. Manter o investimento e escalar.'},
+                {'pos': 'tl', 'label': 'Volume sem conversão', 'tone': 'warn',
+                 'desc': 'Leads acima do planejado, conversão abaixo. Revisar qualificação e oferta.'},
+                {'pos': 'br', 'label': 'Eficiente, falta escala', 'tone': 'neutral',
+                 'desc': 'Conversão acima do planejado, leads abaixo. Investir em volume.'},
+                {'pos': 'bl', 'label': 'Abaixo em tudo', 'tone': 'neg',
+                 'desc': 'Leads e conversão abaixo do planejado. Diagnosticar a fundo ou cortar.'}]}}
+        if has_hist:
+            modes['hist'] = {
+                'axes': {'x': 'Conversão vs anterior', 'y': 'Leads vs anterior', 'heat': 'Vendas vs anterior'},
+                'note': 'Comparado ao lançamento anterior, mesmo canal. Canais sem histórico ficam de fora neste modo.',
+                'quadrants': [
+                    {'pos': 'tr', 'label': 'Cresceu nos dois', 'tone': 'pos',
+                     'desc': 'Leads e conversão acima do lançamento anterior. Tendência de alta.'},
+                    {'pos': 'tl', 'label': 'Mais leads, pior conv.', 'tone': 'warn',
+                     'desc': 'Cresceu em leads, mas converteu pior que antes. Olhar qualificação.'},
+                    {'pos': 'br', 'label': 'Melhor conv., menos leads', 'tone': 'neutral',
+                     'desc': 'Converteu melhor que antes, mas perdeu volume. Recuperar leads.'},
+                    {'pos': 'bl', 'label': 'Caiu nos dois', 'tone': 'neg',
+                     'desc': 'Leads e conversão abaixo do lançamento anterior. Atenção.'}]}
+        eb(can, cg, 'can-eb-quad', 'MAPA DE CANAIS', 'cada ponto é um canal — posição vs o planejado (meta) do canal · cor = vendas, tamanho = leads')
         can.append({'id': 'can-quad', 'type': 'quadrant-scatter', 'title': 'Mapa de Canais',
-                    'axes': {'x': 'Conversão vs meta', 'y': 'Leads vs meta', 'heat': 'Vendas vs meta', 'size': '% de leads'},
-                    'quadrants': [{'pos': 'tr', 'label': 'Escala + eficiência'},
-                                  {'pos': 'tl', 'label': 'Volume sem conversão'},
-                                  {'pos': 'br', 'label': 'Eficiente, falta escala'},
-                                  {'pos': 'bl', 'label': 'Abaixo em tudo'}],
-                    'points': quad_pts})
-        cg.add('can-quad', 'quadrant-scatter', 12, 5)
+                    'size': '% de leads', 'modes': modes, 'points': quad_pts})
+        cg.add('can-quad', 'quadrant-scatter', 12, 6)
+
+    # canais vs base — bullet-bars por desempenho, toggle de métrica (leads/vendas/conv)
+    # × toggle de plataforma (meta/planejado ↔ histórico).
+    eb(can, cg, 'can-eb-vs', 'CANAIS vs META', 'realizado vs a base (meta ou histórico) por canal — alterne a métrica')
+    blt_ch = []
+    for c in M['chan']:
+        meta_v = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
+        ml = byc.get(c['canal'], {}).get('meta_leads')
+        if not (meta_v or ml):
+            continue
+        meta_conv = (meta_v / ml * 100) if (meta_v and ml) else None
+        h = chist.get(c['canal']) or {}
+
+        def _metric(value, vlabel, mbase, mfmt, hbase):
+            bases = {}
+            if mbase:
+                bases['meta'] = {'v': mbase, 'label': mfmt(mbase)}
+            if hbase:
+                bases['hist'] = {'v': hbase, 'label': mfmt(hbase)}
+            return {'value': value, 'vlabel': vlabel, 'bases': bases} if bases else None
+
+        hconv = h.get('conv') if (h.get('leads') and h.get('vendas')) else None
+        blt_ch.append({'name': c['canal'], 'metrics': {
+            'leads': _metric(c['leads'], intf(c['leads']), ml, intf, h.get('leads')),
+            'vendas': _metric(c['vendas'], intf(c['vendas']), meta_v, intf, h.get('vendas')),
+            'conv': _metric(c['conv'], pctf(c['conv']), meta_conv, pctf, hconv)}})
+    if blt_ch:
+        can.append({'id': 'can-vs-blt', 'type': 'bullet-groups', 'title': 'Canais vs Meta',
+                    'toggle': [{'key': 'leads', 'label': 'Leads'}, {'key': 'vendas', 'label': 'Vendas'}, {'key': 'conv', 'label': 'Conversão'}],
+                    'groups': [{'key': 'acima', 'label': '↑ Acima', 'tone': 'pos'},
+                               {'key': 'prox', 'label': '≈ Próximo (±5%)', 'tone': 'warn'},
+                               {'key': 'abaixo', 'label': '↓ Abaixo', 'tone': 'neg'}],
+                    'channels': blt_ch})
+
+        def _maxbucket(metric):
+            g = {'acima': 0, 'prox': 0, 'abaixo': 0}
+            for ch in blt_ch:
+                e = ch['metrics'].get(metric)
+                b = e and e['bases'].get('meta')
+                if not b:
+                    continue
+                dv = (e['value'] - b['v']) / b['v'] * 100
+                g['acima' if dv > 5 else 'prox' if dv >= -5 else 'abaixo'] += 1
+            return max(g.values())
+        _mr = max(_maxbucket('leads'), _maxbucket('vendas'), _maxbucket('conv'))
+        cg.add('can-vs-blt', 'bullet-groups', 12, max(4, 2 + (_mr + 1) // 2 + 1))
 
     # Resultado por canal — duas tabelas (Orgânico · Pago) no widget channel-table.
+    # Δ e a coluna de base (Meta Vendas ↔ Hist Vendas) seguem o toggle de plataforma.
     ch_cols = [{'label': 'Canal'}, {'label': 'Leads'}, {'label': 'Δ Leads', 'align': 'center'},
-               {'label': 'Vendas'}, {'label': 'Meta Vendas'}, {'label': 'Δ Vendas', 'align': 'center'},
-               {'label': 'Conv.'}, {'label': 'Δ Conv.', 'align': 'center'}, {'label': 'Qualif.'}, {'label': 'Fat.'}]
+               {'label': 'Qualif.'}, {'label': 'Conv.'}, {'label': 'Δ Conv.', 'align': 'center'},
+               {'label': 'Vendas'}, {'label': 'Δ Vendas', 'align': 'center'},
+               {'label': 'Fat.'}, {'label': 'Δ Fat.', 'align': 'center'}]
 
     def _dpill(real, base):
         # delta % com a escala de avaliação (verde · âmbar · cinza · vermelho), via _dev.
@@ -420,29 +487,47 @@ def assemble(rows, config, content, opts=None):
         d, tone = _dev(real, base)
         return {'value': f'{d:+.1f}%', 'pill': True, 'tone': tone, 'align': 'center'}
 
-    def _ch_rows(chans):
+    def _ch_rows(chans, mode):
         out = []
         for c in chans:
-            meta = mvc.get(c['canal']) or byc.get(c['canal'], {}).get('meta_vendas')
-            ml = byc.get(c['canal'], {}).get('meta_leads')
-            mcell = {'value': intf(meta), 'tone': 'meta'} if meta else {'value': '–', 'tone': 'muted'}
-            dlcell = _dpill(c['leads'], ml)
-            dcell = _dpill(c['vendas'], meta)
-            meta_conv = (meta / ml * 100) if (meta and ml) else None
-            dccell = _dpill(c['conv'], meta_conv)
+            if mode == 'hist':
+                h = chist.get(c['canal']) or {}
+                b_leads = h.get('leads')
+                b_vendas = h.get('vendas')
+                b_conv = h.get('conv') if (h.get('leads') and h.get('vendas')) else None
+                b_fat = h.get('fat')
+            else:
+                bc = byc.get(c['canal'], {})
+                b_vendas = mvc.get(c['canal']) or bc.get('meta_vendas')
+                b_leads = bc.get('meta_leads')
+                b_conv = (b_vendas / b_leads * 100) if (b_vendas and b_leads) else None
+                b_fat = bc.get('meta_fat')
             out.append({'name': c['canal'], 'cells': [
-                {'value': intf(c['leads'])}, dlcell, {'value': intf(c['vendas'])}, mcell, dcell,
-                {'value': pctf(c['conv'])}, dccell, {'value': pctf(c['qual'])}, {'value': money(c['fat'])}]})
+                {'value': intf(c['leads'])}, _dpill(c['leads'], b_leads),
+                {'value': pctf(c['qual'])},
+                {'value': pctf(c['conv'])}, _dpill(c['conv'], b_conv),
+                {'value': intf(c['vendas'])}, _dpill(c['vendas'], b_vendas),
+                {'value': money(c['fat'])}, _dpill(c['fat'], b_fat)]})
         return out
+
+    has_chist = bool(chist)
+
+    def _ch_widget(wid, title, chans):
+        w = {'id': wid, 'type': 'channel-table', 'title': title,
+             'cols': ch_cols, 'rows': _ch_rows(chans, 'meta')}
+        if has_chist:
+            w['cmp'] = {'meta': {'cols': ch_cols, 'rows': _ch_rows(chans, 'meta')},
+                        'hist': {'cols': ch_cols, 'rows': _ch_rows(chans, 'hist')}}
+        return w
 
     org = sorted([c for c in M['chan'] if c['tipo'] != 'pago'], key=lambda c: -c['fat'])
     pago = sorted([c for c in M['chan'] if c['tipo'] == 'pago'], key=lambda c: -c['fat'])
     eb(can, cg, 'can-eb-tbl', 'RESULTADO POR CANAL', 'orgânico e pago, separados')
     if pago:
-        can.append({'id': 'can-tbl-pago', 'type': 'channel-table', 'title': 'Pago', 'cols': ch_cols, 'rows': _ch_rows(pago)})
+        can.append(_ch_widget('can-tbl-pago', 'Pago', pago))
         cg.add('can-tbl-pago', 'channel-table', 12, max(3, len(pago) + 2))
     if org:
-        can.append({'id': 'can-tbl-org', 'type': 'channel-table', 'title': 'Orgânico', 'cols': ch_cols, 'rows': _ch_rows(org[:14])})
+        can.append(_ch_widget('can-tbl-org', 'Orgânico', org[:14]))
         cg.add('can-tbl-org', 'channel-table', 12, max(3, min(len(org), 14) + 2))
     sections['s02'] = {'id': 's02', 'header': {'badge': 'Canal', 'title': 'Canal e Conversão',
                        'sub': 'Performance por canal e por escopo (pago × orgânico).'}, 'widgets': can}

@@ -259,6 +259,22 @@ const PILL_TONE: Record<string, string> = { pos: 'pill--ok', neg: 'pill--err', n
  * leem este modo no render e trocam ao vivo via setCmpMode (sem re-render). */
 const goalSym = (st: string): string => (st === 'ok' ? '✓' : st === 'bad' ? '✕' : st === 'warn' ? '⚠' : '');
 let cmpMode: 'meta' | 'hist' = 'meta';
+/* Widgets que recomputam ao trocar meta↔histórico (mapa de canais, bullet, tabela)
+ * registram um repaint aqui; o setCmpMode chama todos e poda os desconectados. */
+const cmpListeners: { el: HTMLElement; cb: (m: 'meta' | 'hist') => void }[] = [];
+export function onCmpChange(el: HTMLElement, cb: (m: 'meta' | 'hist') => void): void {
+  cmpListeners.push({ el, cb });
+}
+/* Δ% + tom de avaliação (verde/âmbar/cinza/vermelho) — espelha `_dev` do motor. */
+export function devTone(real: number | null | undefined, base: number | null | undefined, invert = false): { d: number | null; tone: 'pos' | 'warn' | 'neutral' | 'neg' } {
+  if (real == null || !base) return { d: null, tone: 'neutral' };
+  const d = (real - base) / base * 100;
+  const ad = Math.abs(d);
+  if (ad < 1) return { d, tone: 'neutral' };
+  const good = invert ? d <= 0 : d >= 0;
+  if (good) return { d, tone: 'pos' };
+  return { d, tone: ad <= 10 ? 'warn' : 'neg' };
+}
 export function setCmpMode(m: 'meta' | 'hist'): void {
   cmpMode = m;
   document.querySelectorAll<HTMLElement>('.pill.kc-cmp').forEach((p) => {
@@ -281,6 +297,11 @@ export function setCmpMode(m: 'meta' | 'hist'): void {
       valEl.className = `kc-goal-val kg-${st}`;
     }
   });
+  for (let i = cmpListeners.length - 1; i >= 0; i--) {
+    const L = cmpListeners[i];
+    if (!L.el.isConnected) { cmpListeners.splice(i, 1); continue; }
+    try { L.cb(m); } catch { /* repaint resiliente: um widget não derruba os outros */ }
+  }
 }
 export function getCmpMode(): 'meta' | 'hist' { return cmpMode; }
 
@@ -884,39 +905,51 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
   const wrap = el('div', 'funnel-card');
   if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
   if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
-  const body = el('div', 'funnel-body');
-  const n = w.steps.length;
-  w.steps.forEach((s, i) => {
-    const bar = el('div', 'funnel-bar');
-    bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
-    // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
-    bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
-    bar.appendChild(el('span', 'funnel-bar-l', s.label));
-    bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
-    body.appendChild(bar);
-    const t = w.transitions?.[i];
-    if (t && i < n - 1) {
-      body.appendChild(el('div', 'funnel-conn'));
-      const pills = el('div', 'funnel-pills');
-      if (t.invalid) {
-        pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
-      } else {
-        // 2 tags: ▼ perda (MAIOR FURO na pior) + taxa de passagem. A passagem é ✓ verde
-        // quando está no/acima do benchmark e ⚠ âmbar quando ABAIXO do recomendado —
-        // aí a meta entra inline (ex.: connect rate 60% abaixo do recomendado 80%).
-        const below = t.gap != null && t.gap > 0;
-        if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
-          `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
-        if (t.migrate != null) {
-          const meta = below && t.bench != null ? ` · meta ${t.bench.toFixed(t.bench % 1 ? 1 : 0)}%` : '';
-          pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
-            `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${meta}`));
+  const hasHist = (w.transitions || []).some(t => t && t.benchHist != null);
+  let body: HTMLElement | null = null;
+
+  function paint(mode: 'meta' | 'hist'): void {
+    const useHist = mode === 'hist' && hasHist;
+    const baseWord = useHist ? 'hist' : 'meta';
+    if (body) body.remove();
+    body = el('div', 'funnel-body');
+    const n = w.steps.length;
+    w.steps.forEach((s, i) => {
+      const bar = el('div', 'funnel-bar');
+      bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
+      // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
+      bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
+      bar.appendChild(el('span', 'funnel-bar-l', s.label));
+      bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
+      body!.appendChild(bar);
+      const t = w.transitions?.[i];
+      if (t && i < n - 1) {
+        body!.appendChild(el('div', 'funnel-conn'));
+        const pills = el('div', 'funnel-pills');
+        if (t.invalid) {
+          pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
+        } else {
+          // base = meta ou histórico (toggle). ✓ verde quando ≥ base; ⚠ âmbar quando
+          // ABAIXO — aí a base entra inline (ex.: connect 60% · meta 80% / · hist 72%).
+          const bench = useHist ? t.benchHist : t.bench;
+          const gap = useHist ? t.gapHist : t.gap;
+          const below = gap != null && gap > 0;
+          if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
+            `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
+          if (t.migrate != null) {
+            const baseTxt = below && bench != null ? ` · ${baseWord} ${bench.toFixed(bench % 1 ? 1 : 0)}%` : '';
+            pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
+              `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${baseTxt}`));
+          }
         }
+        body!.appendChild(pills);
       }
-      body.appendChild(pills);
-    }
-  });
-  wrap.appendChild(body);
+    });
+    wrap.appendChild(body);
+  }
+
+  paint(getCmpMode());
+  if (hasHist) onCmpChange(wrap, paint);
   return wrap;
 }
 
@@ -1053,13 +1086,15 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
 function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
   const wrap = el('div', 'card bullet-groups');
   let active = w.toggle[0]?.key || '';
+  const hasHist = w.channels.some(ch => Object.values(ch.metrics).some(e => !!(e && e.bases.hist)));
 
   const top = el('div', 'blt-top');
   const legend = el('div', 'blt-legend');
   legend.appendChild(el('span', 'blt-lg-bar'));
   legend.appendChild(el('span', '', 'Realizado'));
   legend.appendChild(el('span', 'blt-lg-mk'));
-  legend.appendChild(el('span', '', 'Meta'));
+  const baseLbl = el('span', '', 'Meta');
+  legend.appendChild(baseLbl);
   top.appendChild(legend);
 
   const toggle = el('div', 'blt-toggle');
@@ -1082,17 +1117,22 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
   wrap.appendChild(cols);
 
   function paint(): void {
+    const mode: 'meta' | 'hist' = (getCmpMode() === 'hist' && hasHist) ? 'hist' : 'meta';
+    baseLbl.textContent = mode === 'hist' ? 'Histórico' : 'Meta';
     cols.innerHTML = '';
-    type Row = { name: string; value: number; meta: number; vlabel: string; mlabel: string };
+    type Row = { name: string; value: number; base: number; vlabel: string; blabel: string };
     const buckets: Record<string, Row[]> = {};
     for (const g of w.groups) buckets[g.key] = [];
     for (const ch of w.channels) {
       const e = ch.metrics[active];
-      if (!e || !e.meta) continue;
-      const dv = (e.value - e.meta) / e.meta * 100;
+      if (!e) continue;
+      const b = e.bases[mode];
+      if (!b || !b.v) continue;
+      const dv = (e.value - b.v) / b.v * 100;
       const k = dv > 5 ? 'acima' : dv >= -5 ? 'prox' : 'abaixo';
-      if (buckets[k]) buckets[k].push({ name: ch.name, value: e.value, meta: e.meta, vlabel: e.vlabel, mlabel: e.mlabel });
+      if (buckets[k]) buckets[k].push({ name: ch.name, value: e.value, base: b.v, vlabel: e.vlabel, blabel: b.label });
     }
+    const baseWord = mode === 'hist' ? 'hist' : 'meta';
     for (const g of w.groups) {
       const list = (buckets[g.key] || []).sort((a, b) => b.value - a.value);
       const col = el('div', `blt-group blt-group--${g.tone}`);
@@ -1109,7 +1149,7 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
         cols.appendChild(col);
         continue;
       }
-      const scale = Math.max(...list.map(r => Math.max(r.value, r.meta))) * 1.12 || 1;
+      const scale = Math.max(...list.map(r => Math.max(r.value, r.base))) * 1.12 || 1;
       for (const r of list) {
         const row = el('div', 'blt-row');
         const rhead = el('div', 'blt-row-head');
@@ -1122,11 +1162,11 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
         fill.style.width = `${Math.max(2, r.value / scale * 100)}%`;
         track.appendChild(fill);
         const mk = el('div', 'blt-marker');
-        mk.style.left = `${Math.min(100, r.meta / scale * 100)}%`;
-        mk.title = `Meta ${r.mlabel}`;
+        mk.style.left = `${Math.min(100, r.base / scale * 100)}%`;
+        mk.title = `${mode === 'hist' ? 'Histórico' : 'Meta'} ${r.blabel}`;
         track.appendChild(mk);
         barline.appendChild(track);
-        barline.appendChild(el('span', 'blt-metatxt', `meta ${r.mlabel}`));
+        barline.appendChild(el('span', 'blt-metatxt', `${baseWord} ${r.blabel}`));
         row.appendChild(barline);
         col.appendChild(row);
       }
@@ -1134,80 +1174,126 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
     }
   }
   paint();
+  if (hasHist) onCmpChange(wrap, paint);
   return wrap;
 }
 
-/* ── quadrant-scatter ── mapa 2×2 dos canais: x = conversão vs meta, y = leads vs
- *  meta, cor = vendas vs meta (4 níveis). Renderizado como SVG auto-contido. */
+/* ── quadrant-scatter ── mapa 2×2 dos canais: x = conversão vs base, y = leads vs
+ *  base, cor = vendas vs base (4 níveis), tamanho = % de leads. A base (planejado/
+ *  meta ou lançamento anterior) segue o toggle de plataforma; tudo recomputa no client. */
 function renderQuadrantScatter(w: QuadrantScatterWidget): HTMLElement {
   const wrap = el('div', 'card quad-scatter');
   const E = (s: string) => String(s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] || c));
+  const pf = (d: number) => `${d >= 0 ? '+' : ''}${d.toFixed(0)}%`;
+  const hasHist = !!w.modes.hist && (w.points || []).some(p => !!p.hist);
 
-  const top = el('div', 'qs-top');
-  const capTxt = `Cor = ${w.axes.heat}` + (w.axes.size ? ` · Tamanho = ${w.axes.size}` : '');
-  top.appendChild(el('div', 'qs-cap', capTxt));
-  const leg = el('div', 'qs-legend');
-  const tiers: [string, string][] = [['neg', 'Abaixo'], ['warn', 'Atenção'], ['neutral', 'Na meta'], ['pos', 'Acima']];
-  for (const [t, lab] of tiers) {
-    const it = el('span', 'qs-lg-item');
-    it.appendChild(el('span', `qs-lg-dot qs-lg-dot--${t}`));
-    it.appendChild(el('span', '', lab));
-    leg.appendChild(it);
+  function paint(mode: 'meta' | 'hist'): void {
+    const m: 'meta' | 'hist' = (mode === 'hist' && hasHist) ? 'hist' : 'meta';
+    const frame = (m === 'hist' && w.modes.hist) ? w.modes.hist : w.modes.meta;
+    wrap.innerHTML = '';
+
+    const top = el('div', 'qs-top');
+    top.appendChild(el('div', 'qs-cap', `Cor = ${frame.axes.heat}` + (w.size ? ` · Tamanho = ${w.size}` : '')));
+    const leg = el('div', 'qs-legend');
+    const neutralLbl = m === 'hist' ? 'Igual' : 'Na meta';
+    const tiers: [string, string][] = [['neg', 'Abaixo'], ['warn', 'Atenção'], ['neutral', neutralLbl], ['pos', 'Acima']];
+    for (const [t, lab] of tiers) {
+      const it = el('span', 'qs-lg-item');
+      it.appendChild(el('span', `qs-lg-dot qs-lg-dot--${t}`));
+      it.appendChild(el('span', '', lab));
+      leg.appendChild(it);
+    }
+    top.appendChild(leg);
+    wrap.appendChild(top);
+
+    // computa desvios do modo ativo; pontos sem base no modo ficam de fora.
+    const pts = (w.points || []).map(p => {
+      const base = m === 'hist' ? p.hist : p.meta;
+      if (!base) return null;
+      const dx = devTone(p.conv, base.conv).d;
+      const dy = devTone(p.leads, base.leads).d;
+      const dv = devTone(p.vendas, base.vendas);
+      if (dx == null || dy == null) return null;
+      return { name: p.name, size: p.size, x: dx, y: dy, tone: dv.tone,
+        xlabel: `conv ${pf(dx)}`, ylabel: `leads ${pf(dy)}`,
+        vlabel: dv.d == null ? '' : `vendas ${pf(dv.d)}`, slabel: p.slabel };
+    }).filter((p): p is NonNullable<typeof p> => p !== null);
+
+    const maxAbs = Math.max(10, ...pts.map(p => Math.max(Math.abs(p.x), Math.abs(p.y))));
+    const R = Math.ceil(maxAbs / 10) * 10;
+    const PL = 96, PR = 716, PT = 28, PB = 416, cx = (PL + PR) / 2, cy = (PT + PB) / 2;
+    const sx = (v: number) => cx + (Math.max(-R, Math.min(R, v)) / R) * ((PR - PL) / 2);
+    const sy = (v: number) => cy - (Math.max(-R, Math.min(R, v)) / R) * ((PB - PT) / 2);
+
+    const qpos: Record<string, [number, number, string]> = {
+      tr: [PR - 12, PT + 18, 'end'], tl: [PL + 12, PT + 18, 'start'],
+      br: [PR - 12, PB - 12, 'end'], bl: [PL + 12, PB - 12, 'start'],
+    };
+    let quadSvg = '';
+    for (const q of frame.quadrants || []) {
+      const [qx, qy, anch] = qpos[q.pos] || qpos.tr;
+      quadSvg += `<text x="${qx}" y="${qy}" class="qs-qlbl" text-anchor="${anch}">${E(q.label)}</text>`;
+    }
+
+    const maxSize = Math.max(1, ...pts.map(p => p.size || 0));
+    const hasSize = pts.some(p => p.size != null);
+    const rOf = (s?: number) => (hasSize ? Math.max(5, 17 * Math.sqrt((s || 0) / maxSize)) : 7);
+    let ptsSvg = '';
+    for (const p of pts) {
+      const x = sx(p.x), y = sy(p.y), r = rOf(p.size);
+      const right = x > cx;
+      const lx = right ? x - (r + 5) : x + (r + 5);
+      const anch = right ? 'end' : 'start';
+      const title = [p.name, p.vlabel, p.xlabel, p.ylabel, p.slabel].filter(Boolean).join(' · ');
+      ptsSvg += `<g class="qs-pt-g"><title>${E(title)}</title>`
+        + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" class="qs-pt qs-pt--${p.tone}"/>`
+        + `<text x="${lx.toFixed(1)}" y="${(y + 3.5).toFixed(1)}" class="qs-ptlbl" text-anchor="${anch}">${E(p.name)}</text></g>`;
+    }
+
+    const svg = `<svg viewBox="0 0 760 500" class="qs-svg" role="img" aria-label="Mapa de canais">`
+      + `<rect x="${cx}" y="${PT}" width="${PR - cx}" height="${cy - PT}" class="qs-q qs-q--good"/>`
+      + `<rect x="${PL}" y="${PT}" width="${cx - PL}" height="${cy - PT}" class="qs-q qs-q--warn"/>`
+      + `<rect x="${cx}" y="${cy}" width="${PR - cx}" height="${PB - cy}" class="qs-q qs-q--neutral"/>`
+      + `<rect x="${PL}" y="${cy}" width="${cx - PL}" height="${PB - cy}" class="qs-q qs-q--bad"/>`
+      + `<rect x="${PL}" y="${PT}" width="${PR - PL}" height="${PB - PT}" class="qs-frame"/>`
+      + `<line x1="${cx}" y1="${PT}" x2="${cx}" y2="${PB}" class="qs-axis"/>`
+      + `<line x1="${PL}" y1="${cy}" x2="${PR}" y2="${cy}" class="qs-axis"/>`
+      + quadSvg
+      + `<text x="${PL}" y="${PB + 22}" class="qs-tick" text-anchor="start">−${R}%</text>`
+      + `<text x="${PR}" y="${PB + 22}" class="qs-tick" text-anchor="end">+${R}%</text>`
+      + `<text x="${cx}" y="${PB + 36}" class="qs-axttl" text-anchor="middle">${E(frame.axes.x)} →</text>`
+      + `<text x="${PL - 14}" y="${PT + 5}" class="qs-tick" text-anchor="end">+${R}%</text>`
+      + `<text x="${PL - 14}" y="${PB}" class="qs-tick" text-anchor="end">−${R}%</text>`
+      + `<text transform="translate(${PL - 56},${cy}) rotate(-90)" class="qs-axttl" text-anchor="middle">${E(frame.axes.y)} →</text>`
+      + ptsSvg
+      + `</svg>`;
+    const body = el('div', 'qs-body');
+    const holder = el('div', 'qs-plot');
+    holder.innerHTML = svg;
+    body.appendChild(holder);
+
+    if (frame.quadrants && frame.quadrants.length) {
+      const guide = el('div', 'qs-guide');
+      guide.appendChild(el('div', 'qs-guide-h', 'Como analisar'));
+      const order = ['tr', 'tl', 'br', 'bl'];
+      const sorted = [...frame.quadrants].sort((a, b) => order.indexOf(a.pos) - order.indexOf(b.pos));
+      for (const q of sorted) {
+        const it = el('div', 'qs-guide-item');
+        it.appendChild(el('span', `qs-guide-sw qs-guide-sw--${q.tone || 'neutral'}`));
+        const tx = el('div', 'qs-guide-tx');
+        tx.appendChild(el('div', 'qs-guide-lbl', q.label));
+        if (q.desc) tx.appendChild(el('div', 'qs-guide-desc', q.desc));
+        it.appendChild(tx);
+        guide.appendChild(it);
+      }
+      if (frame.note) guide.appendChild(el('div', 'qs-guide-note', frame.note));
+      body.appendChild(guide);
+    }
+    wrap.appendChild(body);
   }
-  top.appendChild(leg);
-  wrap.appendChild(top);
 
-  const pts = w.points || [];
-  const maxAbs = Math.max(10, ...pts.map(p => Math.max(Math.abs(p.x), Math.abs(p.y))));
-  const R = Math.ceil(maxAbs / 10) * 10;
-  const PL = 96, PR = 716, PT = 28, PB = 416, cx = (PL + PR) / 2, cy = (PT + PB) / 2;
-  const sx = (v: number) => cx + (Math.max(-R, Math.min(R, v)) / R) * ((PR - PL) / 2);
-  const sy = (v: number) => cy - (Math.max(-R, Math.min(R, v)) / R) * ((PB - PT) / 2);
-
-  const qpos: Record<string, [number, number, string]> = {
-    tr: [PR - 12, PT + 18, 'end'], tl: [PL + 12, PT + 18, 'start'],
-    br: [PR - 12, PB - 12, 'end'], bl: [PL + 12, PB - 12, 'start'],
-  };
-  let quadSvg = '';
-  for (const q of w.quadrants || []) {
-    const [qx, qy, anch] = qpos[q.pos] || qpos.tr;
-    quadSvg += `<text x="${qx}" y="${qy}" class="qs-qlbl" text-anchor="${anch}">${E(q.label)}</text>`;
-  }
-
-  const maxSize = Math.max(1, ...pts.map(p => p.size || 0));
-  const rOf = (s?: number) => (pts.some(p => p.size != null) ? Math.max(5, 17 * Math.sqrt((s || 0) / maxSize)) : 7);
-  let ptsSvg = '';
-  for (const p of pts) {
-    const x = sx(p.x), y = sy(p.y), r = rOf(p.size);
-    const right = x > cx;
-    const lx = right ? x - (r + 5) : x + (r + 5);
-    const anch = right ? 'end' : 'start';
-    const title = [p.name, p.vlabel, p.xlabel, p.ylabel, p.slabel].filter(Boolean).join(' · ');
-    ptsSvg += `<g class="qs-pt-g"><title>${E(title)}</title>`
-      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" class="qs-pt qs-pt--${p.tone}"/>`
-      + `<text x="${lx.toFixed(1)}" y="${(y + 3.5).toFixed(1)}" class="qs-ptlbl" text-anchor="${anch}">${E(p.name)}</text></g>`;
-  }
-
-  const svg = `<svg viewBox="0 0 760 500" class="qs-svg" role="img" aria-label="Mapa de canais">`
-    + `<rect x="${cx}" y="${PT}" width="${PR - cx}" height="${cy - PT}" class="qs-q qs-q--good"/>`
-    + `<rect x="${PL}" y="${PT}" width="${cx - PL}" height="${cy - PT}" class="qs-q qs-q--warn"/>`
-    + `<rect x="${cx}" y="${cy}" width="${PR - cx}" height="${PB - cy}" class="qs-q qs-q--neutral"/>`
-    + `<rect x="${PL}" y="${cy}" width="${cx - PL}" height="${PB - cy}" class="qs-q qs-q--bad"/>`
-    + `<rect x="${PL}" y="${PT}" width="${PR - PL}" height="${PB - PT}" class="qs-frame"/>`
-    + `<line x1="${cx}" y1="${PT}" x2="${cx}" y2="${PB}" class="qs-axis"/>`
-    + `<line x1="${PL}" y1="${cy}" x2="${PR}" y2="${cy}" class="qs-axis"/>`
-    + quadSvg
-    + `<text x="${PL}" y="${PB + 22}" class="qs-tick" text-anchor="start">−${R}%</text>`
-    + `<text x="${PR}" y="${PB + 22}" class="qs-tick" text-anchor="end">+${R}%</text>`
-    + `<text x="${cx}" y="${PB + 36}" class="qs-axttl" text-anchor="middle">${E(w.axes.x)} →</text>`
-    + `<text x="${PL - 14}" y="${PT + 5}" class="qs-tick" text-anchor="end">+${R}%</text>`
-    + `<text x="${PL - 14}" y="${PB}" class="qs-tick" text-anchor="end">−${R}%</text>`
-    + `<text transform="translate(${PL - 56},${cy}) rotate(-90)" class="qs-axttl" text-anchor="middle">${E(w.axes.y)} →</text>`
-    + ptsSvg
-    + `</svg>`;
-  const holder = el('div', 'qs-plot');
-  holder.innerHTML = svg;
-  wrap.appendChild(holder);
+  paint(getCmpMode());
+  if (hasHist) onCmpChange(wrap, paint);
   return wrap;
 }
 
@@ -1215,6 +1301,8 @@ function renderQuadrantScatter(w: QuadrantScatterWidget): HTMLElement {
  *  com número grande (leads) + sub e mini-cards coloridos do breakdown. */
 function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
   const wrap = el('div', 'escopo-cards');
+  const chips: { span: HTMLElement; c: EscopoCardsWidget['cards'][number] }[] = [];
+  const hasHist = w.cards.some(c => !!c.chipHist);
   for (const c of w.cards) {
     const card = el('div', `card esc-card esc--${c.tone || 'purple'}`);
     card.appendChild(el('div', 'esc-eyebrow', c.label));
@@ -1222,7 +1310,11 @@ function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
     const num = el('span', 'esc-num', c.value);
     if (c.unit) num.appendChild(el('span', 'esc-unit', c.unit));
     val.appendChild(num);
-    if (c.chip) val.appendChild(el('span', `pill ${PILL_TONE[c.chip.tone || 'neutral']} esc-chip`, c.chip.text));
+    if (c.chip || c.chipHist) {
+      const span = el('span', 'esc-chip');
+      val.appendChild(span);
+      chips.push({ span, c });
+    }
     card.appendChild(val);
     if (c.sub) card.appendChild(el('div', 'esc-sub', c.sub));
     const minis = el('div', 'esc-minis');
@@ -1236,6 +1328,17 @@ function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
     card.appendChild(minis);
     wrap.appendChild(card);
   }
+  function applyChips(mode: 'meta' | 'hist'): void {
+    for (const { span, c } of chips) {
+      const ch = (mode === 'hist' && c.chipHist) ? c.chipHist : c.chip;
+      if (!ch) { span.style.display = 'none'; continue; }
+      span.style.display = '';
+      span.className = `pill ${PILL_TONE[ch.tone || 'neutral']} esc-chip`;
+      span.textContent = ch.text;
+    }
+  }
+  applyChips(getCmpMode());
+  if (hasHist) onCmpChange(wrap, applyChips);
   return wrap;
 }
 
@@ -1244,24 +1347,33 @@ function renderEscopoCards(w: EscopoCardsWidget): HTMLElement {
 function renderChannelTable(w: ChannelTableWidget): HTMLElement {
   const wrap = el('div', 'card ch-table');
   if (w.title) wrap.appendChild(el('div', 'ch-title', w.title));
-  const grid = el('div', 'ch-grid');
-  grid.style.setProperty('--ch-ncols', String(Math.max(1, w.cols.length - 1)));
-  const head = el('div', 'ch-row ch-head');
-  w.cols.forEach((c, i) => head.appendChild(el('span', `ch-th ch-a-${c.align || (i === 0 ? 'left' : 'right')}`, c.label)));
-  grid.appendChild(head);
-  for (const r of w.rows) {
-    const row = el('div', 'ch-row');
-    row.appendChild(el('span', 'ch-name', r.name));
-    r.cells.forEach((cell, i) => {
-      const al = cell.align || w.cols[i + 1]?.align || 'right';
-      const td = el('span', `ch-td ch-a-${al}${cell.tone ? ` ch-t-${cell.tone}` : ''}`);
-      if (cell.pill) td.appendChild(el('span', `pill ${PILL_TONE[cell.tone || 'neutral'] || PILL_TONE.neutral}`, cell.value));
-      else td.textContent = cell.value;
-      row.appendChild(td);
-    });
-    grid.appendChild(row);
+  const cmp = w.cmp;
+  const hasHist = !!(cmp && cmp.hist);
+  let grid: HTMLElement | null = null;
+  function paint(mode: 'meta' | 'hist'): void {
+    const view = cmp ? ((mode === 'hist' && cmp.hist) ? cmp.hist : cmp.meta) : { cols: w.cols, rows: w.rows };
+    if (grid) grid.remove();
+    grid = el('div', 'ch-grid');
+    grid.style.setProperty('--ch-ncols', String(Math.max(1, view.cols.length - 1)));
+    const head = el('div', 'ch-row ch-head');
+    view.cols.forEach((c, i) => head.appendChild(el('span', `ch-th ch-a-${c.align || (i === 0 ? 'left' : 'right')}`, c.label)));
+    grid.appendChild(head);
+    for (const r of view.rows) {
+      const row = el('div', 'ch-row');
+      row.appendChild(el('span', 'ch-name', r.name));
+      r.cells.forEach((cell, i) => {
+        const al = cell.align || view.cols[i + 1]?.align || 'right';
+        const td = el('span', `ch-td ch-a-${al}${cell.tone ? ` ch-t-${cell.tone}` : ''}`);
+        if (cell.pill) td.appendChild(el('span', `pill ${PILL_TONE[cell.tone || 'neutral'] || PILL_TONE.neutral}`, cell.value));
+        else td.textContent = cell.value;
+        row.appendChild(td);
+      });
+      grid!.appendChild(row);
+    }
+    wrap.appendChild(grid);
   }
-  wrap.appendChild(grid);
+  paint(getCmpMode());
+  if (hasHist) onCmpChange(wrap, paint);
   return wrap;
 }
 

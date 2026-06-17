@@ -334,11 +334,12 @@ def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
         src = (r.get('utm_source') or '').strip()
         if not src:
             continue
-        c = by_canal.setdefault(src, {'meta_leads': 0.0, 'meta_vendas': 0.0, 'meta_cpl': [],
+        c = by_canal.setdefault(src, {'meta_leads': 0.0, 'meta_vendas': 0.0, 'meta_fat': 0.0, 'meta_cpl': [],
                                       'resp_w': 0.0, 'qual_w': 0.0})
         ml = fnum(r.get('meta_leads'))
         c['meta_leads'] += ml
         c['meta_vendas'] += fnum(r.get('meta_vendas'))
+        c['meta_fat'] += fnum(r.get('meta_receita'))
         # taxas de resp/qualif ponderadas por meta_leads (p/ meta por escopo no funil).
         c['resp_w'] += fnum(r.get('meta_taxa_resp')) * ml
         c['qual_w'] += fnum(r.get('meta_taxa_qual')) * ml
@@ -643,7 +644,20 @@ def build(rows, config=None):
     # lê campos nomeados de M, nunca serializa M inteiro, então não vaza p/ o dataset.
     M['_rows'] = rows
     M['_hist_rows'] = hist_rows   # linhas do lançamento anterior (vazio se sem hist_csv)
+    # histórico por canal (leads/vendas/conv do lançamento anterior) p/ o toggle meta↔hist.
+    M['chan_hist'] = {c['canal']: c for c in _chan(hist_rows, config)} if hist_rows else {}
+    # histórico do funil por escopo (leads→respostas→MQLs→vendas) p/ o toggle nos funis/cards.
+    M['hist_funnel'] = _hist_funnel(hist_rows) if hist_rows else {}
     return M
+
+
+def _hist_funnel(rows):
+    def tot(sub):
+        return {'leads': int(soma(sub, 'leads')), 'resps': int(soma(sub, 'respostas')),
+                'mqls': int(soma(sub, 'leads_mqls')), 'vendas': int(soma(sub, 'vendas'))}
+    pago = [r for r in rows if r.get('_tipo') == 'pago']
+    org = [r for r in rows if r.get('_tipo') != 'pago']
+    return {'geral': tot(rows), 'pago': tot(pago), 'org': tot(org)}
 
 
 def _hist_meta(rows):
