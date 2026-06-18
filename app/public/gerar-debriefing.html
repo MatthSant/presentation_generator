@@ -18,8 +18,9 @@
       <a href="#sec-cliente"><span class="n">1</span> Cliente e campanha</a>
       <a href="#sec-periodo"><span class="n">2</span> Período de captação</a>
       <a href="#sec-class"><span class="n">3</span> Classificação</a>
-      <a href="#sec-temp"><span class="n">4</span> Temperatura</a>
-      <a href="#sec-files"><span class="n">5</span> Arquivos</a>
+      <a href="#sec-bench"><span class="n">4</span> Benchmarks de tráfego</a>
+      <a href="#sec-temp"><span class="n">5</span> Temperatura</a>
+      <a href="#sec-files"><span class="n">6</span> Arquivos</a>
     </aside>
 
     <main class="cr-main">
@@ -62,6 +63,22 @@
         <div class="field col2"><label class="label" for="c-paid">Fontes pagas <span class="hint">utm_source contém</span></label><input id="c-paid" class="ctrl" value="facebook, meta, google, fb" /></div>
         <div class="field col2" style="margin-top:16px"><label class="label" for="c-cpt">Padrão de captação <span class="hint">campanha contém</span></label><input id="c-cpt" class="ctrl" value="cadastro-, google-search-, -cpt]" /></div>
         <div class="field col2" style="margin-top:16px"><label class="label" for="c-vnd">Padrão de vendas <span class="hint">campanha contém</span></label><input id="c-vnd" class="ctrl" value="venda-, -vnd]" /><small class="help">se não há campanha de vendas, deixe um padrão que não casa</small></div>
+      </section>
+
+      <section class="card" id="sec-bench">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>
+          <span class="t"><b>Benchmarks de tráfego</b><small>Taxas esperadas do funil de captação (CTR e conversão clicks→leads). Prefill por tipo de funil; ajuste se quiser.</small></span>
+        </div>
+        <div class="field col2" style="margin-bottom:16px">
+          <label class="label" for="b-tipo">Tipo de funil <span class="hint">prefill — gerencie em <a href="/benchmarks.html">Benchmarks</a></span></label>
+          <select id="b-tipo" class="ctrl"></select>
+        </div>
+        <div class="grid3">
+          <div class="field with-suffix"><label class="label" for="b-ctr">CTR</label><input id="b-ctr" class="ctrl" type="number" step="0.1" value="1.5" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-connect">Connect Rate</label><input id="b-connect" class="ctrl" type="number" step="1" value="80" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-conv">Conv. de Página</label><input id="b-conv" class="ctrl" type="number" step="1" value="40" /><span class="sfx">%</span></div>
+        </div>
       </section>
 
       <section class="card" id="sec-temp">
@@ -133,6 +150,21 @@
     $('f-client').addEventListener('change', applyClientTemp);
     applyClientTemp();
 
+    // Tipo de funil → prefill dos benchmarks de tráfego (registro central /benchmarks.html);
+    // o motor cai no FUNNEL_BENCH padrão se nada for enviado.
+    let BENCH = [];
+    const prefillBench = () => {
+      const b = BENCH.find((x) => x.tipo === $('b-tipo').value);
+      if (!b) return;
+      $('b-ctr').value = b.ctr; $('b-connect').value = b.connect; $('b-conv').value = b.conv_pag;
+    };
+    $('b-tipo').addEventListener('change', prefillBench);
+    fetch('/api/benchmarks').then((r) => r.json()).then((d) => {
+      BENCH = d.benchmarks || [];
+      $('b-tipo').innerHTML = BENCH.map((b) => `<option value="${b.tipo}">${b.label}</option>`).join('');
+      prefillBench();
+    }).catch(() => {});
+
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-goals').addEventListener('change', (e) => { GOALS = e.target.files[0] || null; $('f-goals-name').textContent = GOALS ? GOALS.name : 'nenhum arquivo'; });
     $('f-hist').addEventListener('change', (e) => { HIST = e.target.files[0] || null; $('f-hist-name').textContent = HIST ? HIST.name : 'nenhum arquivo'; });
@@ -143,12 +175,17 @@
       if (!CSV) { show('err', 'Escolha o CSV do lançamento.'); return; }
       if (!GOALS) { show('err', 'O CSV de metas (goals) é obrigatório no debriefing.'); return; }
 
+      const funnel_bench = {};
+      [['ctr', 'b-ctr'], ['connect', 'b-connect'], ['conv_pag', 'b-conv']].forEach(([k, id]) => {
+        const v = Number($(id).value); if (Number.isFinite(v)) funnel_bench[k] = v;
+      });
       const cfg = { type: 'debriefing-lancamento',
         campaign_label: $('f-camp').value.trim() || undefined,
         field_conversion: $('f-fc').value.trim() || undefined,
         captacao_inicio: $('f-cpt-ini').value || undefined,
         captacao_fim: $('f-cpt-fim').value || undefined,
         paid_sources: list('c-paid'), cpt_pattern: list('c-cpt'), vnd_pattern: list('c-vnd'),
+        funnel_bench,
         temp_rules: tctl.getRules(), temp_overwrite: tctl.getOverwrite() };
       $('go').disabled = true;
       show('work', 'Gerando o debriefing no servidor (pode levar alguns segundos)…');

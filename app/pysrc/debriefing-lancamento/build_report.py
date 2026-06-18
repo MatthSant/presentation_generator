@@ -47,15 +47,15 @@ def assemble(rows, config, content, opts=None):
     def _gstatus(tone):
         return 'ok' if tone == 'pos' else ('bad' if tone == 'neg' else 'warn')
 
-    def _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt):
+    def _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt, glabel='Meta'):
         """Rodapé de meta toggleável Meta↔Hist (substitui o pill — a base já mostra o
-        desvio). None quando não há meta formatada."""
+        desvio). glabel = 'Meta' ou 'Bench'. None quando não há meta formatada."""
         if real is None or not meta or not meta_fmt:
             return None
         d, tone = _dev(real, meta, invert)
         if d is None:
             return None
-        mg = {'label': f'Meta {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
+        mg = {'label': f'{glabel} {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
         dh, th = _dev(real, hist, invert) if hist else (None, 'neutral')
         if dh is not None and hist_fmt:
             hg = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
@@ -63,8 +63,8 @@ def assemble(rows, config, content, opts=None):
             hg = {'label': 'Hist —', 'delta': '', 'status': 'neutral'}
         return {'meta': mg, 'hist': hg}
 
-    def _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt):
-        gc = _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt)
+    def _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt, glabel='Meta'):
+        gc = _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt, glabel)
         if gc:
             card['goalCmp'] = gc
         elif real is not None and hist and hist_fmt:
@@ -73,10 +73,10 @@ def assemble(rows, config, content, opts=None):
             if dh is not None:
                 card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
 
-    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None, x=None, y=None):
+    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None, x=None, y=None, glabel='Meta'):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
                 'sub': sub, 'icon': icon, 'iconColor': color}
-        _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt)
+        _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt, glabel)
         arr.append(card)
         if x is not None: pg.at(wid, 'kpi-card', x, y, w, h)
         else: pg.add(wid, 'kpi-card', w, h)
@@ -619,14 +619,140 @@ def assemble(rows, config, content, opts=None):
     tra[-1]['info'] = 'Indicador calculado: (faturamento pago − investimento de captação) ÷ investimento de captação. Retorno sobre a mídia de captação.'
     tg.cursor_to(5)
 
-    eb(tra, tg, 'tra-eb', 'INDICADORES DE MÍDIA', '6 métricas (só captação)')
-    ks(tra, tg, 'tra-qual', 'Qualificação', pctf(M['qual_pago']), f"meta {pctf(G.get('qual'))}" if G.get('qual') else 'MQLs / respostas (pago)',
-       'circle-check', '#534AB7', real=M['qual_pago'], meta=G.get('qual'))
-    ks(tra, tg, 'tra-ctr', 'CTR', pctf(M['ctr']), 'clicks / impressões', 'trending-up', '#3B6D11')
-    ks(tra, tg, 'tra-cpm', 'CPM', money(M['cpm']), 'invest. cpt×1000 / impressões', 'database', '#534AB7')
-    ks(tra, tg, 'tra-cpc', 'CPC', money(M['cpc']), 'invest. cpt / clicks', 'coin', '#185FA5')
-    ks(tra, tg, 'tra-txpag', 'Taxa de Página', pctf(M['tx_pag']), 'leads tráfego / clicks', 'target', '#3B6D11')
-    ks(tra, tg, 'tra-cac', 'CAC', money(M['cac']), 'invest. cpt / vendas pago', 'shopping-cart', '#A32D2D')
+    eb(tra, tg, 'tra-eb', 'INDICADORES DE CAPTURA', 'funil de captação (impressão → MQL) + métricas vs bench/meta, na ordem do funil')
+    # esquerda: funil de captação paga (impressões → clicks → [pageviews] → leads → MQLs).
+    # remove etapas sem dado (ex.: pageviews zerado neste dump) p/ não quebrar o funil.
+    # CTR e a conversão clicks→leads (conv. de página) usam BENCHMARK: default do app
+    # (FUNNEL_BENCH) sobrescrito por config['funnel_bench'] (editável na criação).
+    _fb = {'ctr': 1.5, 'connect': 80.0, 'conv_pag': 40.0}
+    _fb.update(config.get('funnel_bench') or {})
+    # benchs derivados (usados no funil e nos cards): CPM = CPL × CTR × (clk→lead) ÷ 10.
+    _ctrb = _fb.get('ctr') or 0
+    _clb = (_fb.get('connect', 0) / 100.0) * _fb.get('conv_pag', 0)      # clicks→leads bench (%)
+    _cplm = G.get('cpl')
+    _cpmb = (_cplm * _ctrb * _clb / 10.0) if (_cplm and _ctrb and _clb) else None
+    _cpcb = (_cpmb / (10.0 * _ctrb)) if (_cpmb and _ctrb) else None
+    _trp = (M['resps_pago'] / M['leads_pago'] * 100) if M.get('leads_pago') else 0.0
+    # etapa inicial = Investimento (verba que origina o funil; rótulo em R$). A transição
+    # Investimento→Impressões mostra o CPM (custo), não uma taxa de passagem.
+    _fv = [(l, v, vl) for l, v, vl in [
+           ('Investimento', M['invest_cpt'], money(M['invest_cpt'])),
+           ('Impressões', M['impressoes'], None), ('Clicks', M['clicks'], None),
+           ('Pageviews', M['pageviews'], None), ('Leads', M['leads_traf'], None),
+           ('Respostas', M['resps_pago'], None), ('MQLs', M['mqls_pago'], None)] if v]
+    _fmig = lambda a, b: round(b / a * 100, 2) if a else 0.0   # 2 casas (display controla as casas mostradas)
+
+    def _tbench(frm, to):
+        if frm == 'Impressões' and to == 'Clicks':
+            return _fb.get('ctr')
+        if frm == 'Clicks' and to == 'Pageviews':
+            return _fb.get('connect')
+        if frm == 'Pageviews' and to == 'Leads':
+            return _fb.get('conv_pag')
+        if frm == 'Clicks' and to == 'Leads':   # sem pageviews: bench = connect × conv. de página
+            return (_fb.get('connect', 0) / 100.0 * _fb.get('conv_pag', 0)) or None
+        if frm == 'Leads' and to == 'Respostas':    # taxa de resposta (meta da campanha)
+            return G.get('taxa_resp')
+        if frm == 'Respostas' and to == 'MQLs':     # qualificação (meta da campanha)
+            return G.get('qual')
+        return None
+
+    def _thist(frm, to):   # taxa da MESMA transição no lançamento anterior (toggle histórico)
+        if frm == 'Impressões' and to == 'Clicks':
+            return H.get('ctr')
+        if frm == 'Clicks' and to == 'Leads':
+            return H.get('tx_pag')
+        if frm == 'Leads' and to == 'Respostas':
+            return H.get('taxa_resp')
+        if frm == 'Respostas' and to == 'MQLs':
+            return H.get('qual')
+        return None
+
+    _ftr = []
+    for i in range(len(_fv) - 1):
+        frm, to = _fv[i][0], _fv[i + 1][0]
+        if frm == 'Investimento':   # custo: CPM vs bench (não taxa de passagem)
+            if _cpmb:
+                _dc, _tc = _dev(M['cpm'], _cpmb, invert=True)
+                _bad = _tc in ('warn', 'neg')
+                _sym = '⚠' if _tc == 'warn' else ('✕' if _tc == 'neg' else '✓')
+                _ftr.append({'note': f"{_sym} CPM {money(M['cpm'])}" + (f" · bench {money(_cpmb)}" if _bad else ''),
+                             'noteTone': _tc})
+            else:
+                _ftr.append({'note': f"CPM {money(M['cpm'])}"})
+            continue
+        m = _fmig(_fv[i][1], _fv[i + 1][1])
+        tr = {'migrate': m, 'loss': round(100 - m, 1)}
+        b = _tbench(frm, to)
+        if b:
+            tr['bench'] = round(b, 1)
+            if m < b:
+                tr['gap'] = round(b - m, 1)
+            if frm in ('Leads', 'Respostas'):   # taxa de resposta / qualificação = meta da campanha
+                tr['baseLabel'] = 'meta'
+        bh = _thist(frm, to)
+        if bh:
+            tr['benchHist'] = round(bh, 1)
+            if m < bh:
+                tr['gapHist'] = round(bh - m, 1)
+        if frm == 'Impressões' and to == 'Clicks':   # CTR mostra 2 casas decimais
+            tr['decimals'] = 2
+        _ftr.append(tr)
+    # MAIOR FURO = transição com maior queda RELATIVA ao bench (gap ÷ bench).
+    _wi, _wr = None, 0.0
+    for i, tr in enumerate(_ftr):
+        if tr.get('gap') and tr.get('bench'):
+            rel = tr['gap'] / tr['bench']
+            if rel > _wr:
+                _wr, _wi = rel, i
+    if _wi is not None:
+        _ftr[_wi]['worst'] = True
+    tra.append({'id': 'tra-funil-cpt', 'type': 'funnel', 'title': 'Funil de Captação (pago)',
+                'sub': 'do investimento ao lead qualificado · taxas vs bench', 'baseLabel': 'bench', 'hideLoss': True,
+                'steps': [{'label': l, 'value': v, **({'vlabel': vl} if vl else {})} for l, v, vl in _fv],
+                'transitions': _ftr})
+    tg.at('tra-funil-cpt', 'funnel', 0, 6, 6, 8)
+
+    # direita: 2 indicadores por linha, na ORDEM DO FUNIL (CPM·CTR / CPC·Taxa Página /
+    # CPL·Taxa Resposta / Qualif·CPMQL). Cada um vs bench (CPM/CTR/CPC/Taxa Página) ou
+    # meta (CPL/Taxa Resp/Qualif/CPMQL). CPL e CPMQL (custos-chave) em roxo (emph).
+    km(tra, tg, 'tra-cpm', 'CPM', money(M['cpm']), '', 'database', '#534AB7', w=3, h=2, x=6, y=6,
+       real=M['cpm'], meta=_cpmb, invert=True, glabel='Bench', meta_fmt=(money(_cpmb) if _cpmb else None),
+       hist=H.get('cpm'), hist_fmt=(money(H.get('cpm')) if H.get('cpm') else None))
+    tra[-1]['info'] = 'Investimento de captação × 1000 ÷ impressões. Bench derivado da meta de CPL × benchs de CTR e clicks→leads.'
+    _p2 = lambda x: (f'{x:.2f}%' if x is not None else None)   # CTR em 2 casas decimais
+    km(tra, tg, 'tra-ctr', 'CTR', _p2(M['ctr']), '', 'trending-up', '#3B6D11', w=3, h=2, x=9, y=6,
+       real=M['ctr'], meta=(_ctrb or None), glabel='Bench', meta_fmt=_p2(_ctrb or None),
+       hist=H.get('ctr'), hist_fmt=_p2(H.get('ctr')))
+    tra[-1]['info'] = 'Clicks ÷ impressões.'
+    km(tra, tg, 'tra-cpc', 'CPC', money(M['cpc']), '', 'coin', '#185FA5', w=3, h=2, x=6, y=8,
+       real=M['cpc'], meta=_cpcb, invert=True, glabel='Bench', meta_fmt=(money(_cpcb) if _cpcb else None),
+       hist=H.get('cpc'), hist_fmt=(money(H.get('cpc')) if H.get('cpc') else None))
+    tra[-1]['info'] = 'Investimento de captação ÷ clicks. Bench = CPM-bench ÷ (10 × CTR-bench).'
+    km(tra, tg, 'tra-txpag', 'Taxa de Página', pctf(M['tx_pag']), '', 'target', '#3B6D11', w=3, h=2, x=9, y=8,
+       real=M['tx_pag'], meta=(_clb or None), glabel='Bench', meta_fmt=(pctf(_clb) if _clb else None),
+       hist=H.get('tx_pag'), hist_fmt=(pctf(H.get('tx_pag')) if H.get('tx_pag') else None))
+    tra[-1]['info'] = 'Leads de tráfego ÷ clicks (quem clicou e virou lead). Bench = Connect × Conv. de Página.'
+    km(tra, tg, 'tra-cap-cpl', 'CPL', money(M['cpl']), '', 'users', '#185FA5', w=3, h=2, x=6, y=10,
+       real=M['cpl'], meta=G.get('cpl'), invert=True, meta_fmt=(money(G.get('cpl')) if G.get('cpl') else None),
+       hist=H.get('cpl'), hist_fmt=(money(H.get('cpl')) if H.get('cpl') else None))
+    tra[-1]['emph'] = True
+    tra[-1]['info'] = 'Investimento de captação ÷ leads de tráfego. Custo por lead.'
+    km(tra, tg, 'tra-txresp', 'Taxa de Resposta', pctf(_trp), '', 'message', '#185FA5', w=3, h=2, x=9, y=10,
+       real=_trp, meta=G.get('taxa_resp'), meta_fmt=(pctf(G.get('taxa_resp')) if G.get('taxa_resp') else None),
+       hist=H.get('taxa_resp'), hist_fmt=(pctf(H.get('taxa_resp')) if H.get('taxa_resp') else None))
+    tra[-1]['info'] = 'Respostas ÷ leads (mídia paga).'
+    km(tra, tg, 'tra-qual', 'Qualificação', pctf(M['qual_pago']), '', 'circle-check', '#534AB7', w=3, h=2, x=6, y=12,
+       real=M['qual_pago'], meta=G.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None),
+       hist=H.get('qual'), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
+    tra[-1]['info'] = 'MQLs ÷ respostas (mídia paga).'
+    km(tra, tg, 'tra-cap-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', w=3, h=2, x=9, y=12,
+       real=M['cpmql'], meta=G.get('cpmql'), invert=True, meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None),
+       hist=H.get('cpmql'), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
+    tra[-1]['emph'] = True
+    tra[-1]['info'] = 'CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
+    tg.cursor_to(14)
+
     eb(tra, tg, 'tra-eb-d', 'CAPTAÇÃO PAGA POR DIA')
     tra.append({'id': 'tra-daily', 'type': 'chart', 'chartType': 'bar', 'title': 'Leads pagos por dia', 'height': 280,
                 'colors': ['#534AB7'], 'bind': {'dataset': 'deb_daily', 'x': 'data', 'y': 'l_pago'}}); tg.add('tra-daily', 'chart', 12, 4)

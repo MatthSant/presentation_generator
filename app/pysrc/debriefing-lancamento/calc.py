@@ -424,6 +424,8 @@ def metrics(rows, config=None, goals=None, hist=None):
         'cpl': cpl, 'cpmql': (div(cpl * 100, qual_pago) if qual_pago else 0.0),
         'ctr': pct(clicks, impr), 'cpm': div(invest_cpt * 1000, impr), 'cpc': div(invest_cpt, clicks),
         'tx_pag': pct(leads_traf, clicks), 'cac': div(invest_cpt, vendas_pago),
+        # funil de captação paga: impressões → clicks → pageviews → leads → MQLs
+        'impressoes': int(impr), 'clicks': int(clicks), 'pageviews': int(s('pageviews')),
     }
     # atingimento vs metas
     G = goals or {}
@@ -669,7 +671,14 @@ def _hist_meta(rows):
     qual = pct(mqls_p, resps_p)
     cpl = div(inv_cpt, leads_traf)
     fat = soma(rows, 'faturamento'); fat_pago = soma(pago, 'faturamento')
+    # métricas de captação (mídia paga) do lançamento anterior — p/ o toggle histórico.
+    impr, clicks = soma(rows, 'impressoes'), soma(rows, 'link_clicks')
+    leads_pago = soma(pago, 'leads')
     return {'fat': round(fat, 2), 'leads': int(soma(rows, 'leads')), 'vendas': int(soma(rows, 'vendas')),
             'invest': round(soma(rows, 'invest_total'), 2), 'invest_cpt': round(inv_cpt, 2),
             'cpl': cpl, 'qual': qual, 'cpmql': (div(cpl * 100, qual) if qual else 0.0),
-            'roas': div(fat_pago - inv_cpt, inv_cpt)}
+            'roas': div(fat_pago - inv_cpt, inv_cpt),
+            'cpm': (div(inv_cpt * 1000, impr) if impr else None),
+            'ctr': (pct(clicks, impr) if impr else None), 'cpc': div(inv_cpt, clicks),
+            'tx_pag': (pct(leads_traf, clicks) if clicks else None),
+            'taxa_resp': (pct(resps_p, leads_pago) if leads_pago else None)}

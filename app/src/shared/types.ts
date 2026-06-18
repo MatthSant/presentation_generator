@@ -561,10 +561,22 @@ export interface FunnelWidget extends WidgetBase {
   type: 'funnel';
   title?: string;
   sub?: string;
-  steps: { label: string; value: number }[];
+  /** palavra da base na tag de passagem (default "meta"; ex.: "bench" p/ funil de captação). */
+  baseLabel?: string;
+  /** esconde a tag de perda (▼ X%) — só mostra a taxa de passagem vs bench + MAIOR FURO. */
+  hideLoss?: boolean;
+  /** vlabel = rótulo do valor (ex.: "R$ 151k" p/ uma etapa em dinheiro); default = value formatado. */
+  steps: { label: string; value: number; vlabel?: string }[];
   /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido.
-   *  bench/gap = comparação vs meta; benchHist/gapHist = vs histórico (toggle de plataforma). */
+   *  bench/gap = comparação vs meta; benchHist/gapHist = vs histórico (toggle de plataforma).
+   *  note = tag (ex.: "CPM R$ 56,15 · bench R$ 60") quando a transição não é taxa de passagem;
+   *  noteTone colore a tag (pos/warn/neg/neutral). */
   transitions?: { loss?: number; migrate?: number; bench?: number; gap?: number;
+                  note?: string; noteTone?: 'pos' | 'warn' | 'neg' | 'neutral';
+                  /** sobrescreve o baseLabel do widget nesta transição (ex.: "meta" p/ qualificação). */
+                  baseLabel?: string;
+                  /** casas decimais da taxa nesta transição (default 1; ex.: 2 p/ CTR). */
+                  decimals?: number;
                   benchHist?: number; gapHist?: number; worst?: boolean; invalid?: boolean }[];
 }
 

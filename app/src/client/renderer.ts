@@ -910,7 +910,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
 
   function paint(mode: 'meta' | 'hist'): void {
     const useHist = mode === 'hist' && hasHist;
-    const baseWord = useHist ? 'hist' : 'meta';
+    const baseWord = useHist ? 'hist' : (w.baseLabel || 'meta');
     if (body) body.remove();
     body = el('div', 'funnel-body');
     const n = w.steps.length;
@@ -920,7 +920,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
       bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
       bar.appendChild(el('span', 'funnel-bar-l', s.label));
-      bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
+      bar.appendChild(el('span', 'funnel-bar-v', s.vlabel ?? (s.value ?? 0).toLocaleString('pt-BR')));
       body!.appendChild(bar);
       const t = w.transitions?.[i];
       if (t && i < n - 1) {
@@ -928,18 +928,28 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
         const pills = el('div', 'funnel-pills');
         if (t.invalid) {
           pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
+        } else if (t.note) {
+          // transição com nota (ex.: CPM na etapa investimento → impressões), colorida por noteTone.
+          const noteCls = t.noteTone === 'pos' ? 'funnel-pill--migrate'
+            : t.noteTone === 'neg' ? 'funnel-pill--worst'
+              : t.noteTone === 'warn' ? 'funnel-pill--alert' : 'funnel-pill--bench';
+          pills.appendChild(el('span', `funnel-pill ${noteCls}`, t.note));
         } else {
           // base = meta ou histórico (toggle). ✓ verde quando ≥ base; ⚠ âmbar quando
           // ABAIXO — aí a base entra inline (ex.: connect 60% · meta 80% / · hist 72%).
           const bench = useHist ? t.benchHist : t.bench;
           const gap = useHist ? t.gapHist : t.gap;
           const below = gap != null && gap > 0;
-          if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
+          if (!w.hideLoss && t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
             `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
           if (t.migrate != null) {
-            const baseTxt = below && bench != null ? ` · ${baseWord} ${bench.toFixed(bench % 1 ? 1 : 0)}%` : '';
+            const word = useHist ? baseWord : (t.baseLabel || baseWord);   // per-transição (ex.: "meta" p/ qualificação)
+            const dec = t.decimals ?? 1;
+            const baseTxt = below && bench != null ? ` · ${word} ${bench.toFixed(t.decimals ?? (bench % 1 ? 1 : 0))}%` : '';
+            // com hideLoss o MAIOR FURO migra p/ a tag de passagem (a de perda some).
+            const furoTxt = (w.hideLoss && t.worst) ? ' · MAIOR FURO' : '';
             pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
-              `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${baseTxt}`));
+              `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(dec)}%${baseTxt}${furoTxt}`));
           }
         }
         body!.appendChild(pills);
