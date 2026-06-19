@@ -253,7 +253,7 @@ html, body {
 
 /* Right zone */
 .cmp-toggle { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; margin-right: 4px; }
-.cmp-btn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--gray); background: transparent; border: none; border-radius: 6px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.cmp-btn { font-family: inherit; font-size: 11px; font-weight: 600; color: var(--gray); background: transparent; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
 .cmp-btn.on { background: var(--purple); color: #fff; }
 
 /* ── qa-card (Análise 360°) ── */
@@ -736,7 +736,18 @@ body[data-nav="sidebar"] #sidenav {
 .sn-brand { display: flex; align-items: center; gap: 11px; padding: 2px 4px; margin: 2px 0 12px; text-decoration: none; }
 .sn-logo-box { display: grid; place-items: center; background: #fff; border-radius: 11px; padding: 7px; flex-shrink: 0; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); }
 .sn-logo { height: 24px; width: auto; display: block; }
-.sn-brand-name { font-size: 18px; font-weight: 800; letter-spacing: -.02em; color: #fff; white-space: nowrap; }
+.sn-brand-name { font-size: 15.5px; font-weight: 800; letter-spacing: -.02em; color: #fff; white-space: nowrap; }
+/* header da sidebar: marca + botão de minimizar */
+.sn-head { display: flex; align-items: center; gap: 6px; margin: 2px 0 12px; }
+.sn-head .sn-brand { flex: 1; min-width: 0; margin: 0; }
+.sn-collapse { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.10); color: rgba(255,255,255,.6); cursor: pointer; transition: background .15s, color .15s; }
+.sn-collapse:hover { background: rgba(255,255,255,.15); color: #fff; }
+.sn-collapse svg { width: 16px; height: 16px; }
+/* botão flutuante p/ reabrir a sidebar (só quando minimizada) */
+.sn-expand { display: none; position: fixed; top: 12px; left: 14px; z-index: 200; width: 38px; height: 38px; border-radius: 10px; background: var(--plum); color: #fff; border: none; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 8px 18px -8px rgba(0,0,0,.5); }
+.sn-expand:hover { filter: brightness(1.12); }
+.sn-expand svg { width: 18px; height: 18px; }
+body[data-nav-collapsed="1"] .sn-expand { display: inline-flex; }
 /* switcher de análise — card escuro com avatar + título */
 .sn-switcher { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--r-md); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); text-decoration: none; transition: background .15s; margin-bottom: 10px; }
 .sn-switcher:hover { background: rgba(255,255,255,.11); }
@@ -748,19 +759,24 @@ body[data-nav="sidebar"] #sidenav {
 /* busca — ícone + input + ⌘K */
 .sn-searchbox { position: relative; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--r-md); background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.08); margin-bottom: 12px; }
 .sn-search-ic { width: 15px; height: 15px; color: rgba(255,255,255,.5); flex-shrink: 0; }
-.sn-search { flex: 1; min-width: 0; background: none; border: none; outline: none; color: #fff; font-size: 13px; padding: 0; }
+.sn-search { flex: 1; min-width: 0; background: none; border: none; outline: none; color: #fff; font-size: 12px; padding: 0; }
 .sn-search::placeholder { color: rgba(255,255,255,.45); }
 .sn-kbd { font-size: 10px; color: rgba(255,255,255,.5); background: rgba(255,255,255,.09); border-radius: 5px; padding: 2px 6px; flex-shrink: 0; }
 /* rótulo de grupo (RELATÓRIO / APROFUNDAMENTOS) */
-.sn-label { font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: rgba(255,255,255,.4); padding: 14px 12px 6px; }
+.sn-label { font-size: 9px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: rgba(255,255,255,.4); padding: 14px 12px 6px; }
 .sn-group { display: flex; flex-direction: column; }
 /* nav-item (página ou detalhamento); ativo = roxo com sombra. nowrap p/ não quebrar
    em 2 linhas (Poppins é mais larga que a fonte do mock — fonte um pouco menor). */
-.sn-page, .sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.74); padding: 9px 12px; border-radius: var(--r-md); transition: background .15s, color .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sn-page, .sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.74); padding: 8px 12px; border-radius: var(--r-md); transition: background .15s, color .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sn-page:hover, .sn-sec:hover { background: rgba(124,58,237,.32); color: #fff; }
 .sn-page-active, .sn-sec-active { background: var(--purple); color: #fff; }
 .sn-page-active:hover, .sn-sec-active:hover { background: var(--purple); }
 .sn-sec-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* badge numerada (1,2,3…) antes do nome da página no menu lateral */
+.sn-num { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; background: rgba(255,255,255,.10); color: rgba(255,255,255,.72); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sn-page-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sn-page:hover .sn-num { background: rgba(255,255,255,.18); color: #fff; }
+.sn-page-active .sn-num, .sn-page-active:hover .sn-num { background: rgba(255,255,255,.24); color: #fff; }
 .sn-pill { flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 20px; background: rgba(255,255,255,.16); color: #fff; }
 .sn-pill-g { background: rgba(5,150,105,.55); color: #fff; }
 .sn-pill-r { background: rgba(220,38,38,.55); color: #fff; }
@@ -775,13 +791,21 @@ body[data-nav="sidebar"] #sidenav {
 /* Modo sidebar: sem section-bar (seções viram itens da árvore); navbar começa após a
    sidebar (só sobre o conteúdo) e mantém só as AÇÕES (logo já está na sidebar). */
 body[data-nav="sidebar"] #section-bar { display: none; }
-body[data-nav="sidebar"] #topnav { left: 264px; background: #fff; padding: 0 24px; gap: 14px; }
+body[data-nav="sidebar"] #topnav { left: 264px; background: #fff; padding: 0 24px; gap: 14px; transition: left .2s ease, padding-left .2s ease; }
 body[data-nav="sidebar"] .tn-logo-link { display: none; }
-body[data-nav="sidebar"] #main { margin-top: 60px; margin-left: 264px; min-height: calc(100vh - 60px); }
+/* área de scroll própria (abaixo da navbar fixa): LARGURA MÍNIMA do relatório com
+   scroll horizontal em telas estreitas, sem espremer os cards. */
+body[data-nav="sidebar"] #main { margin-top: 60px; margin-left: 264px; height: calc(100vh - 60px); overflow: auto; transition: margin-left .2s ease; }
+body[data-nav="sidebar"] #export-root { min-width: 1180px; box-sizing: border-box; }
+/* ── sidebar minimizável ── */
+body[data-nav="sidebar"] #sidenav { transition: transform .2s ease; }
+body[data-nav-collapsed="1"] #sidenav { transform: translateX(-100%); }
+body[data-nav-collapsed="1"] #topnav { left: 0; padding-left: 64px; }
+body[data-nav-collapsed="1"] #main { margin-left: 0; }
 /* navbar DS Witly (modo sidebar) — back square, breadcrumb, botões pill */
 body[data-nav="sidebar"] .tn-home { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); }
 body[data-nav="sidebar"] .tn-brand { border-right: none; padding-right: 0; margin-right: 0; height: auto; }
-body[data-nav="sidebar"] .tn-client { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; color: var(--gray2); max-width: none; }
+body[data-nav="sidebar"] .tn-client { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600; color: var(--gray2); max-width: none; }
 .tn-sep { color: var(--faint); font-weight: 400; }
 .tn-cur { color: var(--fg); font-weight: 700; }
 body[data-nav="sidebar"] .tn-pages { flex: 1; }   /* empurra as ações p/ a direita */
@@ -790,8 +814,8 @@ body[data-nav="sidebar"] #layout-edit-btn,
 body[data-nav="sidebar"] #update-btn,
 body[data-nav="sidebar"] #export-html-btn {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 9px 15px; border-radius: var(--r-pill);
-  font-size: 13.5px; font-weight: 700; letter-spacing: 0; text-transform: none;
+  padding: 8px 14px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none;
   border: 1px solid var(--border-strong); background: #fff; color: var(--fg);
   transition: background .15s, border-color .15s, box-shadow .15s, transform .12s;
 }
