@@ -15,6 +15,7 @@ import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
 import { HistoricoFilters } from './historico-controls.js';
 import { CriativosControls } from './criativos-controls.js';
+import { DebriefingControls, type DebFilters } from './debriefing-controls.js';
 import { resolveBind } from '../shared/bind.js';
 import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
 
@@ -46,6 +47,9 @@ class App {
   private histMinInvest: number | undefined;
   private histTemp: string | null = null;
   private criativos: CriativosControls | null = null;
+  /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
+  private debrief: DebriefingControls | null = null;
+  private debFilters: DebFilters | null = null;
   private busyEl: HTMLElement | null = null;
 
   constructor(private client: string, private slug: string) {
@@ -111,7 +115,7 @@ class App {
     });
 
     this.nav.build();
-    if (!this.hist && !this.criativos) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
+    if (!this.hist && !this.criativos && !this.debrief) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
     this.watch();
 
     const first = this.store.allSections()[0];
@@ -184,6 +188,7 @@ class App {
 
     this.hist?.setPage(pageId);
     this.criativos?.setPage(pageId);
+    this.debrief?.setPage(pageId);
 
     if (this.store.page(pageId)?.kind === 'perguntas') {
       await this.renderPerguntas();
@@ -315,6 +320,14 @@ class App {
       });
       return;
     }
+    // Debriefing: filtro nível-relatório no FAB (multi-seleção por dimensão) → recompute.
+    if (controls.kind === 'debriefing-lancamento') {
+      if (!(controls as { filters?: unknown[] }).filters?.length) return;
+      this.debrief = new DebriefingControls(controls, {
+        apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
+      });
+      return;
+    }
     if (controls.kind !== 'historico-lancamentos') return;
     this.histMetric = controls.metrics[0]?.id || 'conv';
     const total = controls.launches.length;
@@ -358,7 +371,9 @@ class App {
       const kind = (this.store.data?.meta?.controls as { kind?: string } | undefined)?.kind;
       const body = kind === 'criativos'
         ? { mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }
-        : { launches: this.histLaunches, metric: this.histMetric };
+        : kind === 'debriefing-lancamento'
+          ? { filters: this.debFilters || {} }
+          : { launches: this.histLaunches, metric: this.histMetric };
       const r = await this.api.renderView(body);
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);

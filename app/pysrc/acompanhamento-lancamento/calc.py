@@ -449,6 +449,11 @@ def build(rows, config=None):
             metas.setdefault(k, fb[k])
     if not has_pageviews:
         metas['conv_pag'] = fb['conv_pag']   # leads/clicks usa o bench combinado, não a meta de página
+    # CPM-bench derivado (ao contrário da meta de CPL): CPM = CPL × CTR × (clicks→leads) ÷ 10.
+    _clb = fb['conv_pag'] if not has_pageviews else (fb.get('connect', 0) / 100.0 * fb.get('conv_pag', 0))
+    _cplm = metas.get('cpl')
+    if _cplm and fb.get('ctr') and _clb:
+        metas.setdefault('cpm', round(_cplm * fb['ctr'] * _clb / 10.0, 2))
     # leads (KPI macro) usa a meta to-date como referência do semáforo
     metas.setdefault('leads', metas.get('_leads_td'))
     # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos

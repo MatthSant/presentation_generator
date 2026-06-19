@@ -23,7 +23,7 @@ from common.preserve import preserve, preserve_dataset
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
 INT = {'leads'}  # contagem — nem % nem dinheiro
 # Métricas de funil/mídia cujo alvo é um BENCHMARK (não uma meta da campanha).
-BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag'}
+BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag', 'cpm'}
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
 FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).

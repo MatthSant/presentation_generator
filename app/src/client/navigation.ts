@@ -72,6 +72,12 @@ export class Navigation {
   }
 
   /** Espelha páginas+seções numa árvore vertical no #sidenav (modo sidebar). */
+  /** Minimiza/expande a sidebar (estado em body[data-nav-collapsed] + localStorage). */
+  private setNavCollapsed(collapsed: boolean): void {
+    document.body.dataset.navCollapsed = collapsed ? '1' : '';
+    try { localStorage.setItem('nav-collapsed', collapsed ? '1' : '0'); } catch { /* sem storage */ }
+  }
+
   private buildSide(): void {
     if (!this.sideHost) return;
     this.sideHost.replaceChildren();
@@ -93,7 +99,35 @@ export class Navigation {
     name.className = 'sn-brand-name';
     name.textContent = 'Witly Grimório';
     brand.append(logoBox, name);
-    this.sideHost.appendChild(brand);
+
+    // Header: marca + botão de minimizar a sidebar (estado persistido em localStorage).
+    const head = document.createElement('div');
+    head.className = 'sn-head';
+    const collapseBtn = document.createElement('button');
+    collapseBtn.type = 'button';
+    collapseBtn.className = 'sn-collapse';
+    collapseBtn.title = 'Minimizar menu';
+    collapseBtn.setAttribute('aria-label', 'Minimizar menu');
+    collapseBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
+    collapseBtn.addEventListener('click', () => this.setNavCollapsed(true));
+    head.append(brand, collapseBtn);
+    this.sideHost.appendChild(head);
+
+    // Botão flutuante p/ reabrir (criado uma vez, fora do sideHost que é recriado).
+    if (!document.getElementById('sn-expand')) {
+      const exp = document.createElement('button');
+      exp.id = 'sn-expand';
+      exp.type = 'button';
+      exp.className = 'sn-expand';
+      exp.title = 'Expandir menu';
+      exp.setAttribute('aria-label', 'Expandir menu');
+      exp.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
+      exp.addEventListener('click', () => this.setNavCollapsed(false));
+      document.body.appendChild(exp);
+    }
+    let startCollapsed = false;
+    try { startCollapsed = localStorage.getItem('nav-collapsed') === '1'; } catch { /* sem storage */ }
+    this.setNavCollapsed(startCollapsed);
 
     // Switcher (visual): avatar com iniciais do cliente + título do relatório.
     const meta = (this.store.data?.meta || {}) as { client?: string; client_name?: string; title?: string };
@@ -177,14 +211,20 @@ export class Navigation {
       d.textContent = txt;
       this.sideHost!.appendChild(d);
     };
-    const pageItem = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }): void => {
+    const pageItem = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }, n: number): void => {
       const grp = document.createElement('div');
       grp.className = 'sn-group';
       grp.dataset.group = page.id;
       const pBtn = document.createElement('button');
       pBtn.className = 'sn-page';
       pBtn.dataset.pageId = page.id;
-      pBtn.textContent = page.label;
+      const num = document.createElement('span');
+      num.className = 'sn-num';
+      num.textContent = String(n);
+      const lbl = document.createElement('span');
+      lbl.className = 'sn-page-lbl';
+      lbl.textContent = page.label;
+      pBtn.append(num, lbl);
       pBtn.addEventListener('click', () => { const f = page.sections[0]; if (f) this.onSelect(page.id, f.id); });
       grp.appendChild(pBtn);
       if (page.sections.length > 1) for (const sec of page.sections) this.appendSec(grp, page.id, sec);
@@ -195,7 +235,7 @@ export class Navigation {
     const report = this.store.pages.filter((p) => p.id !== 'detalhamentos');
 
     label('Relatório');
-    for (const page of report) pageItem(page);
+    report.forEach((page, i) => pageItem(page, i + 1));
 
     if (det && det.sections.length) {
       label('Aprofundamentos');

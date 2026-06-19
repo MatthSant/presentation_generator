@@ -9,11 +9,14 @@ import type {
   HeatmapWidget, HeatRow, HeatCell, FindBlockWidget, FindNoteWidget, HighlightWidget, NiWidget,
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
-  EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, QuadrantScatterWidget,
+  EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, HeatmapTab, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
+import { trendR2, bestFit, type TrendType } from './trend.js';
+
+const FIT_LBL: Record<string, string> = { linear: 'Linear', log: 'Log', exp: 'Exp', pow: 'Potência' };
 
 export interface RenderCtx {
   /** Resolve a bind against the loaded datasets + active filters, or null if unbound/error. */
@@ -204,6 +207,7 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
   const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
+  if (w.info) wrap.appendChild(infoBadge(w.info));
   if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
   wrap.appendChild(el('span', 'ge-rule'));
   return wrap;
@@ -265,6 +269,18 @@ const cmpListeners: { el: HTMLElement; cb: (m: 'meta' | 'hist') => void }[] = []
 export function onCmpChange(el: HTMLElement, cb: (m: 'meta' | 'hist') => void): void {
   cmpListeners.push({ el, cb });
 }
+/* Estado de UI dos widgets interativos (aba do heatmap, métrica/dimensão do bullet,
+ * seletores dos pickers), keyed pelo id do widget — sobrevive ao re-render que o filtro
+ * dispara, então a seleção do usuário não volta ao default. */
+const uiState = new Map<string, Record<string, string | number>>();
+function uiGet(id: string | undefined, key: string): string | number | undefined {
+  return id ? uiState.get(id)?.[key] : undefined;
+}
+function uiSet(id: string | undefined, key: string, val: string | number): void {
+  if (!id) return;
+  const s = uiState.get(id) || {};
+  s[key] = val; uiState.set(id, s);
+}
 /* Δ% + tom de avaliação (verde/âmbar/cinza/vermelho) — espelha `_dev` do motor. */
 export function devTone(real: number | null | undefined, base: number | null | undefined, invert = false): { d: number | null; tone: 'pos' | 'warn' | 'neutral' | 'neg' } {
   if (real == null || !base) return { d: null, tone: 'neutral' };
@@ -285,14 +301,16 @@ export function setCmpMode(m: 'meta' | 'hist'): void {
   });
   // rodapés de meta toggleáveis (goalCmp): troca Meta ↔ Histórico ao vivo
   document.querySelectorAll<HTMLElement>('.kc-goal.kc-goal-cmp').forEach((g) => {
-    const lbl = g.dataset[`${m}Lbl`];
+    // bench-cards (sem hist) caem no meta/bench quando o hist não tem delta.
+    const eff = (m === 'hist' && !g.dataset.histDelta) ? 'meta' : m;
+    const lbl = g.dataset[`${eff}Lbl`];
     if (lbl === undefined) return;
     const lblEl = g.querySelector('.kc-goal-lbl');
     if (lblEl) lblEl.textContent = lbl;
     const valEl = g.querySelector<HTMLElement>('.kc-goal-val');
     if (valEl) {
-      const delta = g.dataset[`${m}Delta`] ?? '';
-      const st = g.dataset[`${m}Status`] ?? 'warn';
+      const delta = g.dataset[`${eff}Delta`] ?? '';
+      const st = g.dataset[`${eff}Status`] ?? 'warn';
       valEl.textContent = goalSym(st) ? `${delta} ${goalSym(st)}` : delta;
       valEl.className = `kc-goal-val kg-${st}`;
     }
@@ -412,7 +430,10 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
       if (w.d3.dir) dd.appendChild(el('span', 'kc-d3-arr', w.d3.dir === 'up' ? ' ↑' : ' ↓'));
       card.appendChild(dd);
     }
-    const goalSrc = w.goalCmp ? (w.goalCmp[cmpMode] || w.goalCmp.meta) : w.goal;
+    // bench-cards (sem histórico) NÃO togglam: ficam no bench/meta mesmo em modo hist
+    // (assim fica claro o que compara a histórico vs a bench).
+    const gcMode: 'meta' | 'hist' = (w.goalCmp && cmpMode === 'hist' && !(w.goalCmp.hist && w.goalCmp.hist.delta)) ? 'meta' : cmpMode;
+    const goalSrc = w.goalCmp ? (w.goalCmp[gcMode] || w.goalCmp.meta) : w.goal;
     if (goalSrc) {
       const g = el('div', 'kc-goal');
       g.appendChild(el('span', 'kc-goal-lbl', goalSrc.label));
@@ -640,23 +661,34 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
 
 /* ── heatmap ── inline rows, or bound (pivot a long-format table so the channel
  *  toggle re-filters it: one dataset row per cell → grid). */
-interface HeatSpec { bind?: Bind; rowKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string }
+interface HeatSpec { bind?: Bind; rowKey?: string; rowLabelKey?: string; rowTitleKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string; clsHistKey?: string; titleHistKey?: string }
 function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: HeatRow[] } | null {
   const r = ctx.resolve(w.bind);
   if (!r || r.rows.length === 0) return null;
   const rowKey = w.rowKey || 'grupo';
   const colKey = w.colKey || 'lancamento';
   const valKey = w.valKey || 'valor';
-  const clsKey = w.clsKey || 'cls';
-  const titleKey = w.titleKey;
+  // toggle vs Histórico: usa as colunas *Hist quando existem (senão mantém a vs meta).
+  const histMode = getCmpMode() === 'hist';
+  const clsKey = (histMode && w.clsHistKey) || w.clsKey || 'cls';
+  const titleKey = (histMode && w.titleHistKey) || w.titleKey;
   const cols: string[] = [];
   const rowOrder: string[] = [];
+  // identidade da linha = rowKey (nome completo, único); rótulo exibido e tooltip opcionais.
   const byRow = new Map<string, Map<string, HeatCell>>();
+  const rowMeta = new Map<string, { label: string; title?: string }>();
   for (const row of r.rows) {
     const rk = String(row[rowKey] ?? '');
     const ck = String(row[colKey] ?? '');
     if (!cols.includes(ck)) cols.push(ck);
-    if (!byRow.has(rk)) { byRow.set(rk, new Map()); rowOrder.push(rk); }
+    if (!byRow.has(rk)) {
+      byRow.set(rk, new Map());
+      rowOrder.push(rk);
+      rowMeta.set(rk, {
+        label: w.rowLabelKey && row[w.rowLabelKey] != null ? String(row[w.rowLabelKey]) : rk,
+        title: w.rowTitleKey && row[w.rowTitleKey] != null ? String(row[w.rowTitleKey]) : undefined,
+      });
+    }
     byRow.get(rk)!.set(ck, {
       value: row[valKey] as string | number,
       cls: row[clsKey] != null ? String(row[clsKey]) : undefined,
@@ -664,7 +696,8 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
     });
   }
   const rows: HeatRow[] = rowOrder.map(rk => ({
-    label: rk,
+    label: rowMeta.get(rk)!.label,
+    title: rowMeta.get(rk)!.title,
     cells: cols.map(ck => byRow.get(rk)!.get(ck) ?? { value: '—' }),
   }));
   return { cols, rows };
@@ -677,7 +710,9 @@ function buildHeatGrid(cols: string[], rows: HeatRow[]): HTMLElement {
   grid.appendChild(el('div'));
   for (const c of cols) grid.appendChild(el('div', 'hm-th', c));
   for (const r of rows) {
-    grid.appendChild(el('div', 'hm-rh', r.label));
+    const rh = el('div', 'hm-rh', r.label);
+    if (r.title && r.title !== r.label) rh.title = r.title;
+    grid.appendChild(rh);
     for (const cell of r.cells || []) {
       const td = el('div', `hm-cell ${cell.cls || 'hm-n'}`, formatValue(cell.value));
       if (cell.title) td.title = cell.title;
@@ -705,34 +740,71 @@ function renderHeatmap(w: HeatmapWidget, ctx: RenderCtx): HTMLElement {
 /* ── heatmap-toggle ── one card, N tabs, each a bound heatmap dataset. The tab
  *  count is data-driven; clicking a tab re-pivots with the current filters. */
 function renderHeatmapToggle(w: HeatmapToggleWidget, ctx: RenderCtx): HTMLElement {
-  const tabs = w.tabs || [];
+  // Dois modos: `tabs` (toggle único de dimensão) ou `scopes` (toggle de escopo
+  // à esquerda — ex.: Pago/Orgânico — + as dimensões daquele escopo à direita).
+  const scopes = w.scopes && w.scopes.length ? w.scopes : null;
   const card = el('div', 'card hm-card');
   const hd = el('div', 'hm-card-hd');
   const tt = el('div', 'tbl-title');
   const name = el('span', 'tt-name');
   const sub = el('span', 'tt-sub');
   tt.append(name, sub);
+  const toggles = el('div', 'hm-toggles');
+  const scopeSeg = el('div', 'seg seg--soft hm-scope');
   const toggle = el('div', 'seg seg--soft');
-  hd.append(tt, toggle);
+  if (scopes) toggles.appendChild(scopeSeg);
+  toggles.appendChild(toggle);
+  hd.append(tt, toggles);
   const host = el('div', 'hm-host');
   card.append(hd, host);
+
+  let scopeIdx = scopes ? Math.min(Number(uiGet(w.id, 'scope') ?? 0), scopes.length - 1) : 0;
+  let tabs: HeatmapTab[] = scopes ? scopes[Math.max(scopeIdx, 0)].tabs : (w.tabs || []);
+  let cur = Math.min(Number(uiGet(w.id, 'tab') ?? 0), tabs.length - 1);
 
   const show = (idx: number) => {
     const tab = tabs[idx];
     if (!tab) return;
+    cur = idx; uiSet(w.id, 'tab', idx);
     name.textContent = w.title || tab.label;
     sub.textContent = tab.sub || '';
     const piv = pivotHeatmap(tab, ctx);
     host.replaceChildren(piv ? buildHeatGrid(piv.cols, piv.rows) : empty());
     [...toggle.children].forEach((b, i) => b.classList.toggle('active', i === idx));
   };
-  tabs.forEach((tab, i) => {
-    const b = el('button', 'seg-opt', tab.label) as HTMLButtonElement;
-    b.type = 'button';
-    b.addEventListener('click', () => show(i));
-    toggle.appendChild(b);
-  });
-  show(0);
+  const buildTabs = () => {
+    toggle.replaceChildren();
+    tabs.forEach((tab, i) => {
+      const b = el('button', 'seg-opt', tab.label) as HTMLButtonElement;
+      b.type = 'button';
+      b.addEventListener('click', () => show(i));
+      toggle.appendChild(b);
+    });
+  };
+  const setScope = (sIdx: number) => {
+    if (!scopes) return;
+    scopeIdx = sIdx; uiSet(w.id, 'scope', sIdx);
+    tabs = scopes[sIdx].tabs;
+    cur = Math.min(Math.max(cur, 0), tabs.length - 1);
+    [...scopeSeg.children].forEach((b, i) => b.classList.toggle('active', i === sIdx));
+    buildTabs();
+    show(cur < 0 ? 0 : cur);
+  };
+  if (scopes) {
+    scopes.forEach((sc, i) => {
+      const b = el('button', 'seg-opt', sc.label) as HTMLButtonElement;
+      b.type = 'button';
+      b.addEventListener('click', () => setScope(i));
+      scopeSeg.appendChild(b);
+    });
+    setScope(scopeIdx < 0 ? 0 : scopeIdx);
+  } else {
+    buildTabs();
+    show(cur < 0 ? 0 : cur);
+  }
+  // re-pinta a aba ativa quando o toggle vs Meta/Histórico muda (só se algum tab tem hist).
+  const allTabs = scopes ? scopes.flatMap(s => s.tabs) : tabs;
+  if (allTabs.some(t => t.clsHistKey)) onCmpChange(card, () => show(cur));
   return card;
 }
 
@@ -910,7 +982,6 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
 
   function paint(mode: 'meta' | 'hist'): void {
     const useHist = mode === 'hist' && hasHist;
-    const baseWord = useHist ? 'hist' : 'meta';
     if (body) body.remove();
     body = el('div', 'funnel-body');
     const n = w.steps.length;
@@ -920,7 +991,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
       bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
       bar.appendChild(el('span', 'funnel-bar-l', s.label));
-      bar.appendChild(el('span', 'funnel-bar-v', (s.value ?? 0).toLocaleString('pt-BR')));
+      bar.appendChild(el('span', 'funnel-bar-v', s.vlabel ?? (s.value ?? 0).toLocaleString('pt-BR')));
       body!.appendChild(bar);
       const t = w.transitions?.[i];
       if (t && i < n - 1) {
@@ -928,18 +999,30 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
         const pills = el('div', 'funnel-pills');
         if (t.invalid) {
           pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
+        } else if (t.note) {
+          // transição com nota (ex.: CPM na etapa investimento → impressões), colorida por noteTone.
+          const noteCls = t.noteTone === 'pos' ? 'funnel-pill--migrate'
+            : t.noteTone === 'neg' ? 'funnel-pill--worst'
+              : t.noteTone === 'warn' ? 'funnel-pill--alert' : 'funnel-pill--bench';
+          pills.appendChild(el('span', `funnel-pill ${noteCls}`, t.note));
         } else {
           // base = meta ou histórico (toggle). ✓ verde quando ≥ base; ⚠ âmbar quando
           // ABAIXO — aí a base entra inline (ex.: connect 60% · meta 80% / · hist 72%).
-          const bench = useHist ? t.benchHist : t.bench;
-          const gap = useHist ? t.gapHist : t.gap;
+          // só transições COM benchHist togglam p/ histórico; as de bench fixo ficam no bench.
+          const useHistT = useHist && t.benchHist != null;
+          const bench = useHistT ? t.benchHist : t.bench;
+          const gap = useHistT ? t.gapHist : t.gap;
           const below = gap != null && gap > 0;
-          if (t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
+          if (!w.hideLoss && t.loss != null) pills.appendChild(el('span', `funnel-pill ${t.worst ? 'funnel-pill--worst' : 'funnel-pill--loss'}`,
             `${t.worst ? '⚠ ' : '▼ '}${t.loss.toFixed(1)}%${t.worst ? ' · MAIOR FURO' : ''}`));
           if (t.migrate != null) {
-            const baseTxt = below && bench != null ? ` · ${baseWord} ${bench.toFixed(bench % 1 ? 1 : 0)}%` : '';
+            const word = useHistT ? 'hist' : (t.baseLabel || w.baseLabel || 'meta');   // per-transição
+            const dec = t.decimals ?? 1;
+            const baseTxt = below && bench != null ? ` · ${word} ${bench.toFixed(t.decimals ?? (bench % 1 ? 1 : 0))}%` : '';
+            // com hideLoss o MAIOR FURO migra p/ a tag de passagem (a de perda some).
+            const furoTxt = (w.hideLoss && t.worst) ? ' · MAIOR FURO' : '';
             pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
-              `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(1)}%${baseTxt}`));
+              `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(dec)}%${baseTxt}${furoTxt}`));
           }
         }
         body!.appendChild(pills);
@@ -1085,17 +1168,36 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
  *  (>5% acima · ±5% próximo · <−5% abaixo). */
 function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
   const wrap = el('div', 'card bullet-groups');
-  let active = w.toggle[0]?.key || '';
-  const hasHist = w.channels.some(ch => Object.values(ch.metrics).some(e => !!(e && e.bases.hist)));
+  const dimKeys = (w.dimToggle && w.dims) ? w.dimToggle : null;
+  const _sm = String(uiGet(w.id, 'metric') ?? '');
+  let active = (w.toggle.some(t => t.key === _sm) ? _sm : '') || w.toggle[0]?.key || '';
+  const _sd = String(uiGet(w.id, 'dim') ?? '');
+  let activeDim = (dimKeys?.some(d => d.key === _sd) ? _sd : '') || dimKeys?.[0]?.key || '';
+  const chansOf = (): BulletChannel[] => (w.dims ? (w.dims[activeDim] || []) : (w.channels || []));
+  const allChans = w.dims ? Object.values(w.dims).flat() : (w.channels || []);
+  const hasHist = allChans.some(ch => Object.values(ch.metrics).some(e => !!(e && e.bases.hist)));
+  const invertOf = (k: string) => !!w.toggle.find(t => t.key === k)?.invert;
 
   const top = el('div', 'blt-top');
-  const legend = el('div', 'blt-legend');
-  legend.appendChild(el('span', 'blt-lg-bar'));
-  legend.appendChild(el('span', '', 'Realizado'));
-  legend.appendChild(el('span', 'blt-lg-mk'));
-  const baseLbl = el('span', '', 'Meta');
-  legend.appendChild(baseLbl);
-  top.appendChild(legend);
+
+  // Os dois toggles lado a lado, à direita: DIMENSÃO (se houver) + MÉTRICA.
+  const toggles = el('div', 'blt-toggles');
+  if (dimKeys) {
+    const dt = el('div', 'blt-toggle');
+    const dtabs: HTMLElement[] = [];
+    for (const d of dimKeys) {
+      const b = el('button', 'blt-tab', d.label);
+      if (d.key === activeDim) b.classList.add('is-active');
+      b.addEventListener('click', () => {
+        if (d.key === activeDim) return;
+        activeDim = d.key; uiSet(w.id, 'dim', d.key);
+        for (const x of dtabs) x.classList.toggle('is-active', x === b);
+        paint();
+      });
+      dtabs.push(b); dt.appendChild(b);
+    }
+    toggles.appendChild(dt);
+  }
 
   const toggle = el('div', 'blt-toggle');
   const tabs: HTMLElement[] = [];
@@ -1104,14 +1206,24 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
     if (m.key === active) t.classList.add('is-active');
     t.addEventListener('click', () => {
       if (m.key === active) return;
-      active = m.key;
+      active = m.key; uiSet(w.id, 'metric', m.key);
       for (const x of tabs) x.classList.toggle('is-active', x === t);
       paint();
     });
     tabs.push(t); toggle.appendChild(t);
   }
-  top.appendChild(toggle);
+  toggles.appendChild(toggle);
+  top.appendChild(toggles);
   wrap.appendChild(top);
+
+  // Legenda abaixo dos toggles.
+  const legend = el('div', 'blt-legend');
+  legend.appendChild(el('span', 'blt-lg-bar'));
+  legend.appendChild(el('span', '', 'Realizado'));
+  legend.appendChild(el('span', 'blt-lg-mk'));
+  const baseLbl = el('span', '', 'Meta');
+  legend.appendChild(baseLbl);
+  wrap.appendChild(legend);
 
   const cols = el('div', 'blt-cols');
   wrap.appendChild(cols);
@@ -1119,22 +1231,24 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
   function paint(): void {
     const mode: 'meta' | 'hist' = (getCmpMode() === 'hist' && hasHist) ? 'hist' : 'meta';
     baseLbl.textContent = mode === 'hist' ? 'Histórico' : 'Meta';
+    const invert = invertOf(active);
     cols.innerHTML = '';
-    type Row = { name: string; value: number; base: number; vlabel: string; blabel: string };
+    type Row = { name: string; full: string; value: number; base: number; dv: number; vlabel: string; blabel: string };
     const buckets: Record<string, Row[]> = {};
     for (const g of w.groups) buckets[g.key] = [];
-    for (const ch of w.channels) {
+    for (const ch of chansOf()) {
       const e = ch.metrics[active];
       if (!e) continue;
-      const b = e.bases[mode];
+      const b = e.bases[mode] || e.bases.hist || e.bases.meta;   // sem a base do modo → cai p/ a que existir
       if (!b || !b.v) continue;
       const dv = (e.value - b.v) / b.v * 100;
-      const k = dv > 5 ? 'acima' : dv >= -5 ? 'prox' : 'abaixo';
-      if (buckets[k]) buckets[k].push({ name: ch.name, value: e.value, base: b.v, vlabel: e.vlabel, blabel: b.label });
+      const eff = invert ? -dv : dv;   // custo: acima da base é PIOR
+      const k = eff > 5 ? 'acima' : eff >= -5 ? 'prox' : 'abaixo';
+      if (buckets[k]) buckets[k].push({ name: ch.name, full: ch.nameFull || ch.name, value: e.value, base: b.v, dv, vlabel: e.vlabel, blabel: b.label });
     }
     const baseWord = mode === 'hist' ? 'hist' : 'meta';
     for (const g of w.groups) {
-      const list = (buckets[g.key] || []).sort((a, b) => b.value - a.value);
+      const list = (buckets[g.key] || []).sort((a, b) => invert ? a.value - b.value : b.value - a.value);
       const col = el('div', `blt-group blt-group--${g.tone}`);
       const head = el('div', 'blt-group-head');
       head.appendChild(el('span', 'blt-dot'));
@@ -1144,7 +1258,7 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
       if (!list.length) {
         const empty = el('div', 'blt-empty');
         empty.appendChild(el('span', 'blt-empty-ic', '—'));
-        empty.appendChild(el('span', '', 'Nenhum canal nesta faixa'));
+        empty.appendChild(el('span', '', 'Nenhum segmento nesta faixa'));
         col.appendChild(empty);
         cols.appendChild(col);
         continue;
@@ -1153,7 +1267,8 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
       for (const r of list) {
         const row = el('div', 'blt-row');
         const rhead = el('div', 'blt-row-head');
-        rhead.appendChild(el('span', 'blt-name', r.name));
+        const nm = el('span', 'blt-name', r.name); nm.title = r.full;
+        rhead.appendChild(nm);
         rhead.appendChild(el('span', `blt-val blt-val--${g.tone}`, r.vlabel));
         row.appendChild(rhead);
         const barline = el('div', 'blt-barline');
@@ -1161,6 +1276,9 @@ function renderBulletGroups(w: BulletGroupsWidget): HTMLElement {
         const fill = el('div', `blt-fill blt-fill--${g.tone}`);
         fill.style.width = `${Math.max(2, r.value / scale * 100)}%`;
         track.appendChild(fill);
+        // % vs base, dentro da barra (à esquerda)
+        const pct = el('span', 'blt-pct', `${r.dv >= 0 ? '+' : ''}${r.dv.toFixed(0)}%`);
+        track.appendChild(pct);
         const mk = el('div', 'blt-marker');
         mk.style.left = `${Math.min(100, r.base / scale * 100)}%`;
         mk.title = `${mode === 'hist' ? 'Histórico' : 'Meta'} ${r.blabel}`;
@@ -1649,12 +1767,38 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
     }
     return s;
   };
-  const xSel = mkSel(w.x || w.metrics[0]?.id || '');
-  const ySel = mkSel(w.y || w.metrics[1]?.id || w.metrics[0]?.id || '');
+  const xSel = mkSel(String(uiGet(w.id, 'x') ?? '') || w.x || w.metrics[0]?.id || '');
+  const ySel = mkSel(String(uiGet(w.id, 'y') ?? '') || w.y || w.metrics[1]?.id || w.metrics[0]?.id || '');
   const ctrls = el('div', 'sp-ctrls');
+  // Toggle de DIMENSÃO opcional (ex.: público/criativo) — troca o conjunto de pontos.
+  const dimKeys = (w.dimToggle && w.dims) ? w.dimToggle : null;
+  const _spd = String(uiGet(w.id, 'dim') ?? '');
+  let activeDim = (dimKeys?.some(d => d.key === _spd) ? _spd : '') || dimKeys?.[0]?.key || '';
+  const pointsOf = (): ScatterPoint[] => (w.dims ? (w.dims[activeDim] || []) : (w.points || []));
+  if (dimKeys) {
+    const dt = el('div', 'sp-dimtog');
+    const dtabs: HTMLElement[] = [];
+    for (const d of dimKeys) {
+      const b = el('button', 'sp-dimtab' + (d.key === activeDim ? ' is-active' : ''));
+      (b as HTMLButtonElement).type = 'button'; b.textContent = d.label;
+      b.addEventListener('click', () => { if (d.key === activeDim) return; activeDim = d.key; uiSet(w.id, 'dim', d.key); for (const x of dtabs) x.classList.toggle('is-active', x === b); build(); });
+      dtabs.push(b); dt.appendChild(b);
+    }
+    ctrls.appendChild(dt);
+  }
   ctrls.append(el('span', 'sp-lbl', 'X'), xSel, el('span', 'sp-lbl', 'Y'), ySel);
   hd.appendChild(ctrls);
   wrap.appendChild(hd);
+  // Badge de R² em evidência, abaixo do seletor Y (alinhado à direita) + nº de pontos.
+  const r2Badge = w.trend ? el('span', 'sp-r2') : null;
+  const r2note = w.trend ? el('span', 'sp-r2note') : null;
+  if (r2Badge && r2note) {
+    r2Badge.title = 'R² (0 a 1): quanto a métrica X explica a Y. Perto de 1 = relação forte; perto de 0 = sem relação. O motor testa reta, log e exp e mostra o melhor ajuste.';
+    r2note.title = 'Nº de pontos no ajuste. Com poucos pontos, um R² alto pode ser ilusório — trate como sinal, não prova.';
+    const r2row = el('div', 'sp-r2row');
+    r2row.append(r2note, r2Badge);
+    wrap.appendChild(r2row);
+  }
   const host = el('div', 'sp-chart');
   wrap.appendChild(host);
 
@@ -1662,11 +1806,37 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
   const build = (): void => {
     const xk = xSel.value, yk = ySel.value;
     const xm = w.metrics.find(m => m.id === xk), ym = w.metrics.find(m => m.id === yk);
-    const series = (w.points || [])
-      .filter(p => p.vals[xk] != null && p.vals[yk] != null)
-      .map(p => ({ name: p.name, data: [{ x: p.vals[xk], y: p.vals[yk] }] }));
+    // Pares [x,y] (não {x,y}) p/ compatibilizar com a linha de tendência (Point = [x,y]).
+    const fpts = (pointsOf()).filter(p => p.vals[xk] != null && p.vals[yk] != null);
+    const pairs = fpts.map(p => [p.vals[xk] as number, p.vals[yk] as number] as [number, number]);
+    const series = fpts.map(p => ({ name: p.name, data: [[p.vals[xk] as number, p.vals[yk] as number]] }));
+    // Tamanho do ponto (bolha) por uma métrica — raio ∝ √valor (área proporcional).
+    let markerSizes: number[] | undefined;
+    if (w.sizeBy) {
+      const sv = fpts.map(p => Math.max(0, (p.vals[w.sizeBy as string] as number) ?? 0));
+      const mx = Math.max(...sv, 1);
+      markerSizes = sv.map(v => 4 + Math.sqrt(v / mx) * 15);
+    }
+    // 'best' → escolhe reta/log/exp pelo maior R²; senão usa o ajuste fixo.
+    let resolvedTrend: TrendType | undefined;
+    if (w.trend) {
+      const fit = w.trend === 'best'
+        ? bestFit(pairs)
+        : (() => { const r2 = trendR2(pairs, w.trend as TrendType); return r2 == null ? null : { type: w.trend as TrendType, r2 }; })();
+      resolvedTrend = fit?.type;
+      if (r2Badge) {
+        r2Badge.textContent = fit ? `${FIT_LBL[fit.type] || fit.type} · R² ${fit.r2.toFixed(2)}` : '';
+        r2Badge.classList.toggle('sp-r2--strong', !!fit && fit.r2 >= 0.5);
+      }
+      if (r2note) {
+        const n = pairs.length;
+        const few = n > 0 && n < 10;   // poucos pontos → tendência pouco confiável
+        r2note.textContent = n ? (few ? `n=${n} · poucos pontos` : `n=${n}`) : '';
+        r2note.classList.toggle('sp-r2note--warn', few);
+      }
+    }
     const def = {
-      type: 'scatter', series, height: w.height ?? 320, colors: ['#7C3AED'],
+      type: 'scatter', series, height: w.height ?? 320, colors: ['#7C3AED'], trend: resolvedTrend, markerSizes,
       options: { legend: { show: false }, tooltip: { shared: false },
         xaxis: { type: 'numeric', title: { text: xm?.label } }, yaxis: { title: { text: ym?.label } } },
     } as unknown as ChartDef;
@@ -1676,8 +1846,8 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
     chart = new ApexCharts(host, opts);
     void chart.render();
   };
-  xSel.addEventListener('change', build);
-  ySel.addEventListener('change', build);
+  xSel.addEventListener('change', () => { uiSet(w.id, 'x', xSel.value); build(); });
+  ySel.addEventListener('change', () => { uiSet(w.id, 'y', ySel.value); build(); });
   requestAnimationFrame(build);
   return wrap;
 }
@@ -1701,8 +1871,8 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
     }
     return s;
   };
-  const sel = mkSel(w.current || w.metrics[0]?.id || '');
-  const sel2 = dual ? mkSel(w.current2 || w.metrics[1]?.id || w.metrics[0]?.id || '') : null;
+  const sel = mkSel(String(uiGet(w.id, 'm1') ?? '') || w.current || w.metrics[0]?.id || '');
+  const sel2 = dual ? mkSel(String(uiGet(w.id, 'm2') ?? '') || w.current2 || w.metrics[1]?.id || w.metrics[0]?.id || '') : null;
   const ctrls = el('div', 'sp-ctrls');
   if (dual && sel2) ctrls.append(el('span', 'sp-lbl', 'Esq.'), sel, el('span', 'sp-lbl', 'Dir.'), sel2);
   else ctrls.append(el('span', 'sp-lbl', 'Métrica'), sel);
@@ -1723,10 +1893,13 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
       const m2 = w.metrics.find(x => x.id === mk2);
       const data2 = (w.points || []).map(p => (p.vals[mk2] ?? null));
       const f1 = valueFmt(m?.fmt), f2 = valueFmt(m2?.fmt);
+      const combo = !!w.combo;   // 1ª métrica em barras, 2ª em linha
       def = {
-        type: 'line', categories: cats, height: w.height ?? 320,
+        type: combo ? 'mixed' : 'line', categories: cats, height: w.height ?? 320,
         colors: ['#7C3AED', '#059669'], secondaryAxis: [1],
-        series: [{ name: m?.label || mk, data }, { name: m2?.label || mk2, data: data2 }],
+        series: combo
+          ? [{ name: m?.label || mk, type: 'column', data }, { name: m2?.label || mk2, type: 'line', data: data2 }]
+          : [{ name: m?.label || mk, data }, { name: m2?.label || mk2, data: data2 }],
         // Eixos de escalas distintas: cada um formata no seu próprio padrão (R$/%/int),
         // e o tooltip usa o formato da série correspondente.
         options: {
@@ -1746,8 +1919,8 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
     chart = new ApexCharts(host, opts);
     void chart.render();
   };
-  sel.addEventListener('change', build);
-  sel2?.addEventListener('change', build);
+  sel.addEventListener('change', () => { uiSet(w.id, 'm1', sel.value); build(); });
+  sel2?.addEventListener('change', () => { uiSet(w.id, 'm2', sel2.value); build(); });
   requestAnimationFrame(build);
   return wrap;
 }

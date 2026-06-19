@@ -256,9 +256,11 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     const cfg = readJson<Record<string, unknown>>(path.join(baseDir, 'config.json'));
     const hasBase = !!cfg && fs.existsSync(path.join(baseDir, 'dump.csv'));
     if (!hasBase) { res.json({ hasBase: false }); return; }
-    // Esconde os caminhos internos dos auxiliares (são re-resolvidos no servidor).
+    // Esconde os CAMINHOS internos dos auxiliares (re-resolvidos no servidor), mas
+    // expõe a PRESENÇA como booleano — a UI de atualização precisa saber que um
+    // launch goals / dicionário já foi usado p/ mostrar "mantém o atual" (pré-carregado).
     const clean: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(cfg!)) { if (!/_csv$/.test(k)) clean[k] = v; }
+    for (const [k, v] of Object.entries(cfg!)) { clean[k] = /_csv$/.test(k) ? !!v : v; }
     res.json({ hasBase: true, config: clean, type: cfg!.type });
   });
 
