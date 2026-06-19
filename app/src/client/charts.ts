@@ -28,6 +28,8 @@ export interface ChartDef {
   options?: Record<string, unknown>;
   /** Scatter only: overlay a regression line of this kind, fitted from points. */
   trend?: TrendType;
+  /** Scatter only: raio de cada ponto-série (bolha). A reta de tendência ignora. */
+  markerSizes?: number[];
   /** Donut/pie: show the summed total in the center hole. */
   donutTotal?: boolean;
   /** Caption under the donut center total (defaults to "Total"). */
@@ -337,12 +339,18 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   }
   if (def.type === 'scatter') {
     chart.type = def.trend ? 'line' : 'scatter';
-    opts.markers = { size: def.trend ? 6 : 5, strokeWidth: 0 };
     opts.xaxis = { ...b.xaxis, type: 'numeric' };
+    const psz = def.markerSizes;   // raio por ponto (bolha) quando fornecido
+    const dot = (Array.isArray(def.colors) && def.colors[0]) || '#7C3AED';
+    // bolha = markers.discrete (1 ponto por série) — o array markers.size não é respeitado.
+    const discrete = psz ? psz.map((sz, i) => ({ seriesIndex: i, dataPointIndex: 0, size: sz, fillColor: dot, strokeColor: dot })) : null;
     if (def.trend) {
-      // scatter point-series get no connecting stroke; the trend line gets one.
+      // pontos = marcadores (sem traço); a reta de tendência = traço SEM marcadores.
       const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
+      opts.markers = discrete ? { size: 0, strokeWidth: 0, discrete } : { size: arr.map(s => (s.type === 'line' ? 0 : 6)), strokeWidth: 0 };
       opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)), curve: 'smooth' };
+    } else {
+      opts.markers = discrete ? { size: 0, strokeWidth: 0, discrete } : { size: 5, strokeWidth: 0 };
     }
   }
   if (def.type === 'radar') {

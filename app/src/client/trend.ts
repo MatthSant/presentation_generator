@@ -49,6 +49,26 @@ export function calcR2(pts: Point[], fn: (x: number) => number): number {
 
 export interface TrendSeries { name: string; type: 'line'; data: Point[]; }
 
+/** R² de um ajuste sobre os pontos (p/ exibir em evidência). null se < 2 pontos. */
+export function trendR2(pts: Point[], type: TrendType = 'linear'): number | null {
+  if (!pts || pts.length < 2) return null;
+  const { fn } = (FITS[type] || linear)(pts);
+  return calcR2(pts, fn);
+}
+
+export interface FitResult { type: TrendType; r2: number; }
+/** Testa vários ajustes e devolve o de MAIOR R² (default: reta/log/exp). */
+export function bestFit(pts: Point[], types: TrendType[] = ['linear', 'log', 'exp']): FitResult | null {
+  if (!pts || pts.length < 2) return null;
+  let best: FitResult | null = null;
+  for (const t of types) {
+    const { fn } = (FITS[t] || linear)(pts);
+    const r2 = calcR2(pts, fn);
+    if (Number.isFinite(r2) && (!best || r2 > best.r2)) best = { type: t, r2 };
+  }
+  return best;
+}
+
 /** Sample a fitted curve across the x-range into an ApexCharts line series,
  *  labelled with the fit name and its R². Returns null when there aren't enough
  *  points to fit (fewer than 2). */

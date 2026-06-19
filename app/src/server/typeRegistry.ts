@@ -205,6 +205,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     pysrcDir: 'debriefing-lancamento',
     supportsInsights: false,
     queryScript: 'query_api.py',          // modo FUNDO: frames + decomposição + drill-down por escopo/canal/temperatura/campanha/criativo/publico/semana
+    renderScript: 'render_view.py',       // FAB: filtro nível-relatório por tipo/canal/temp/campanha/publico/criativo
     gerarPage: 'gerar-debriefing.html',
     montadorPage: 'montador-debriefing.html',
     requiredFiles: ['goals'],             // metas são obrigatórias (atingimento, comparativo, Δ vs meta)

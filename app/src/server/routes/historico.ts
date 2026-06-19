@@ -23,6 +23,8 @@ export function registerHistorico(app: Express, _ctx: Ctx): void {
       mode: typeof body.mode === 'string' ? body.mode : undefined,   // criativos: resultado × captação
       min_invest: typeof body.min_invest === 'number' ? body.min_invest : undefined,
       temp: typeof body.temp === 'string' ? body.temp : undefined,
+      // debriefing: filtro nível-relatório multi-dimensão {tipo,canal,temp,campanha,publico,criativo}
+      filters: (body.filters && typeof body.filters === 'object') ? body.filters : undefined,
     };
     const r = await runRenderView(client, slug, opts);
     if (!r) { res.status(404).json({ error: 'análise sem base retida ou tipo sem recompute' }); return; }

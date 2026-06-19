@@ -199,7 +199,7 @@ export interface TableWidget extends WidgetBase {
 }
 
 export interface HeatCell { value: string | number; cls?: string; title?: string }
-export interface HeatRow { label: string; cells: HeatCell[] }
+export interface HeatRow { label: string; cells: HeatCell[]; title?: string }
 export interface HeatmapWidget extends WidgetBase {
   type: 'heatmap';
   /** Column headers. Optional when bound — derived from the `colKey` column. */
@@ -228,14 +228,24 @@ export interface HeatmapTab {
   valKey?: string;
   clsKey?: string;
   titleKey?: string;
+  /** Optional per-cell class/tooltip used when the platform toggle is in 'hist' mode
+   *  (comparação vs lançamento anterior). Ausente → a célula não muda no toggle. */
+  clsHistKey?: string;
+  titleHistKey?: string;
 }
 /** A single heatmap card whose content switches between N bound datasets via a
  *  segmented toggle. The tab count is data-driven (add/remove tabs in the JSON). */
+/** Optional second-level toggle: each scope carries its own dimension tabs
+ *  (e.g. Pago vs Orgânico, each with Canal/Campanha/…). */
+export interface HeatmapScope { label: string; tabs: HeatmapTab[]; }
 export interface HeatmapToggleWidget extends WidgetBase {
   type: 'heatmap-toggle';
   /** Fixed card title; if omitted, the active tab's label is shown. */
   title?: string;
-  tabs: HeatmapTab[];
+  /** Single-toggle form: the dimension tabs directly. */
+  tabs?: HeatmapTab[];
+  /** Two-toggle form: a scope toggle on the left + dimension tabs on the right. */
+  scopes?: HeatmapScope[];
 }
 
 /** One tab of a chart-toggle: a full chart config (minus type/id). */
@@ -396,6 +406,8 @@ export interface EyebrowWidget extends WidgetBase {
   /** Divisor de grupo (cabeçalho de seção): estilo mais forte que um eyebrow comum,
    *  para abrir um bloco que contém sub-seções (que usam eyebrows normais). */
   divider?: boolean;
+  /** Tooltip (i) ao lado do título — ex.: critérios de cor/marcação de um widget. */
+  info?: string;
 }
 export interface KpiStripItem {
   value: string; label: string; sub?: string; small?: boolean;
@@ -517,6 +529,13 @@ export interface ScatterPickerWidget extends WidgetBase {
   points: ScatterPoint[];
   x?: string;
   y?: string;
+  /** Opt-in: toggle de DIMENSÃO (ex.: público/criativo) — troca o conjunto de pontos. */
+  dimToggle?: { key: string; label: string }[];
+  dims?: { [dimKey: string]: ScatterPoint[] };
+  /** Opt-in: linha de tendência (regressão). 'best' = escolhe o melhor R² entre reta/log/exp. */
+  trend?: 'linear' | 'exp' | 'log' | 'pow' | 'best';
+  /** Opt-in: id de métrica que dimensiona o tamanho do ponto (bolha) — ex.: 'inv'. */
+  sizeBy?: string;
 }
 
 /** Evolução no tempo com seletor de métrica: um dropdown reconstrói a linha
@@ -532,6 +551,8 @@ export interface EvolutionPickerWidget extends WidgetBase {
   /** Opt-in DUAL mode: quando presente, um 2º seletor escolhe uma segunda métrica
    *  plotada no eixo da direita (escalas independentes). Sem ele, mono-métrica. */
   current2?: string;
+  /** Opt-in COMBO (requer DUAL): 1ª métrica em BARRAS, 2ª em LINHA (eixos independentes). */
+  combo?: boolean;
 }
 
 /** Gráfico embutido dentro de outro widget (qa-card) — subconjunto de ChartWidget. */
@@ -684,19 +705,26 @@ export interface BulletGroupsWidget extends WidgetBase {
   type: 'bullet-groups';
   /** rótulo do bloco (usado no compositor de detalhamento; não renderiza — a eyebrow é separada). */
   title?: string;
-  /** botões do toggle de métrica; o 1º é o default. */
-  toggle: { key: string; label: string }[];
+  /** botões do toggle de métrica; o 1º é o default. `invert` = custo (acima da base é PIOR). */
+  toggle: { key: string; label: string; invert?: boolean }[];
   /** definição visual dos 3 grupos (a regra de bucket é fixa: >5% · ±5% · <−5%). */
   groups: { key: 'acima' | 'prox' | 'abaixo'; label: string; tone: 'pos' | 'warn' | 'neg' }[];
   /** canais com valor + base(s) por métrica. A base segue o toggle de plataforma
    *  (meta/planejado ou histórico); entrada nula = canal omitido para a métrica. */
-  channels: {
-    name: string;
-    metrics: { [metricKey: string]: {
-      value: number; vlabel: string;
-      bases: { meta?: { v: number; label: string }; hist?: { v: number; label: string } };
-    } | null };
-  }[];
+  channels?: BulletChannel[];
+  /** Opcional: toggle de DIMENSÃO (canal/temp/público/criativo). Quando presente,
+   *  `dims[key]` traz os canais daquela dimensão e `channels` é ignorado. */
+  dimToggle?: { key: string; label: string }[];
+  dims?: { [dimKey: string]: BulletChannel[] };
+}
+export interface BulletChannel {
+  name: string;
+  /** nome completo p/ tooltip quando `name` vem truncado. */
+  nameFull?: string;
+  metrics: { [metricKey: string]: {
+    value: number; vlabel: string;
+    bases: { meta?: { v: number; label: string }; hist?: { v: number; label: string } };
+  } | null };
 }
 
 /** quadrant-scatter — mapa 2×2 dos canais: x = desvio % vs meta de conversão, y =

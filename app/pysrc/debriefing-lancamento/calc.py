@@ -437,11 +437,17 @@ def metrics(rows, config=None, goals=None, hist=None):
     M['hist'] = hist or {}
     M['chan'] = _chan(rows, config)
     M['temp'] = _temp(rows, G)
+    M['publico'] = _publico(rows)
+    M['canal_pago'] = _canal_pago(rows)
+    M['criativo_pago'] = _criativo_pago(rows)
     M['camp_roas'] = _camp_roas(rows)
     M['weekly'] = _weekly(rows)
     win = _cpt_window(rows, config)
     M['cpt_window'] = win
     M['daily'] = _daily(rows, win)
+    M['daily_traf'] = _daily_traf(rows, win)
+    M['daily_org'] = _daily_org(rows, win)
+    M['daily_all'] = _daily_all(rows, win)
     M['best_week'] = _best_week(M['weekly'])
     return M
 
@@ -488,13 +494,15 @@ def _temp(rows, goals):
     by = {}
     for r in rows:
         t = r.get('_temp')
-        c = by.setdefault(t, {'temp': t, 'inv': 0.0, 'fat': 0.0, 'leads': 0, 'vendas': 0, 'mqls': 0, 'resps': 0})
+        c = by.setdefault(t, {'temp': t, 'inv': 0.0, 'fat': 0.0, 'leads': 0, 'vendas': 0, 'mqls': 0,
+                              'resps': 0, 'impr': 0.0, 'clk': 0.0, 'pv': 0.0})
         if r.get('_camp') == 'captacao':
             c['inv'] += fnum(r.get('invest_total'))
         if r.get('_tipo') == 'pago':
             c['fat'] += fnum(r.get('faturamento')); c['leads'] += int(fnum(r.get('leads')))
             c['vendas'] += int(fnum(r.get('vendas'))); c['mqls'] += int(fnum(r.get('leads_mqls')))
             c['resps'] += int(fnum(r.get('respostas')))
+            c['impr'] += fnum(r.get('impressoes')); c['clk'] += fnum(r.get('link_clicks')); c['pv'] += fnum(r.get('pageviews'))
     out = []
     for c in by.values():
         if c['leads'] == 0 and c['inv'] == 0:
@@ -502,10 +510,69 @@ def _temp(rows, goals):
         c['inv'] = round(c['inv'], 2); c['fat'] = round(c['fat'], 2)
         c['roas'] = div(c['fat'] - c['inv'], c['inv']); c['conv'] = pct(c['vendas'], c['leads'])
         c['qual'] = pct(c['mqls'], c['resps']); c['meta_vendas'] = mvt.get(c['temp'], 0)
+        c['taxa_resp'] = pct(c['resps'], c['leads'])
         c['cpl'] = div(c['inv'], c['leads'])
         c['cpmql'] = div(c['cpl'] * 100, c['qual']) if c['qual'] else 0.0
+        _media_metrics(c)
         out.append(c)
     return sorted(out, key=lambda c: -c['inv'])
+
+
+def _media_metrics(c):
+    """Métricas de mídia derivadas de impressões/clicks/pageviews (in-place)."""
+    c['cpm'] = div(c['inv'] * 1000, c['impr']) if c.get('impr') else 0.0
+    c['ctr'] = pct(c['clk'], c['impr']) if c.get('impr') else 0.0
+    c['connect'] = pct(c['pv'], c['clk']) if c.get('clk') else 0.0
+    c['tx_pag'] = pct(c['leads'], c['clk']) if c.get('clk') else 0.0
+
+
+def _seg_pago(rows, keyfn, namekey, top=None, min_inv=0.0):
+    """Agrega o funil pago por uma dimensão (público/canal): mesmas métricas do _temp,
+    sem meta. inv só de captação; ordena por leads; top N opcional. `min_inv` descarta
+    segmentos com investimento abaixo do piso (ex.: canal sem verba = ruído de UTM)."""
+    by = {}
+    for r in rows:
+        if r.get('_tipo') != 'pago':
+            continue
+        k = keyfn(r)
+        c = by.setdefault(k, {namekey: k, 'inv': 0.0, 'fat': 0.0, 'leads': 0, 'vendas': 0, 'mqls': 0,
+                              'resps': 0, 'impr': 0.0, 'clk': 0.0, 'pv': 0.0})
+        if r.get('_camp') == 'captacao':
+            c['inv'] += fnum(r.get('invest_total'))
+        c['fat'] += fnum(r.get('faturamento')); c['leads'] += int(fnum(r.get('leads')))
+        c['vendas'] += int(fnum(r.get('vendas'))); c['mqls'] += int(fnum(r.get('leads_mqls')))
+        c['resps'] += int(fnum(r.get('respostas')))
+        c['impr'] += fnum(r.get('impressoes')); c['clk'] += fnum(r.get('link_clicks')); c['pv'] += fnum(r.get('pageviews'))
+    out = []
+    for c in by.values():
+        if c['inv'] <= min_inv and c['leads'] == 0:
+            continue
+        if min_inv and c['inv'] <= min_inv:
+            continue
+        c['inv'] = round(c['inv'], 2); c['fat'] = round(c['fat'], 2)
+        c['roas'] = div(c['fat'] - c['inv'], c['inv']); c['conv'] = pct(c['vendas'], c['leads'])
+        c['qual'] = pct(c['mqls'], c['resps']); c['taxa_resp'] = pct(c['resps'], c['leads'])
+        c['cpl'] = div(c['inv'], c['leads'])
+        c['cpmql'] = div(c['cpl'] * 100, c['qual']) if c['qual'] else 0.0
+        _media_metrics(c)
+        out.append(c)
+    out.sort(key=lambda c: -c['leads'])
+    return out[:top] if top else out
+
+
+def _publico(rows, top=6):
+    """Funil pago por público (adset), sem meta por público. Top N por leads."""
+    return _seg_pago(rows, adset_name, 'publico', top)
+
+
+def _canal_pago(rows, top=8):
+    """Funil pago por canal (utm_source normalizado). Top N por leads; exige verba > 0."""
+    return _seg_pago(rows, lambda r: norm_source(r.get('utm_source')), 'canal', top, min_inv=1.0)
+
+
+def _criativo_pago(rows, top=8):
+    """Funil pago por criativo (field_ad_name). Top N por leads."""
+    return _seg_pago(rows, ad_name, 'criativo', top)
 
 
 def _camp_roas(rows):
@@ -515,10 +582,11 @@ def _camp_roas(rows):
             continue
         c = by.setdefault(r.get('field_campaign_name') or '(vazio)',
                           {'campanha': r.get('field_campaign_name') or '(vazio)', 'inv': 0.0, 'fat': 0.0,
-                           'leads': 0, 'vendas': 0, 'mqls': 0, 'resps': 0})
+                           'leads': 0, 'vendas': 0, 'mqls': 0, 'resps': 0, 'impr': 0.0, 'clk': 0.0, 'pv': 0.0})
         c['inv'] += fnum(r.get('invest_total')); c['fat'] += fnum(r.get('faturamento'))
         c['leads'] += int(fnum(r.get('leads'))); c['vendas'] += int(fnum(r.get('vendas')))
         c['mqls'] += int(fnum(r.get('leads_mqls'))); c['resps'] += int(fnum(r.get('respostas')))
+        c['impr'] += fnum(r.get('impressoes')); c['clk'] += fnum(r.get('link_clicks')); c['pv'] += fnum(r.get('pageviews'))
     out = []
     for c in by.values():
         if c['inv'] <= 0:
@@ -526,8 +594,9 @@ def _camp_roas(rows):
         c['inv'] = round(c['inv'], 2); c['fat'] = round(c['fat'], 2)
         c['roas'] = div(c['fat'] - c['inv'], c['inv']); c['conv'] = pct(c['vendas'], c['leads'])
         c['cpl'] = div(c['inv'], c['leads'])
-        c['qual'] = pct(c['mqls'], c['resps'])
+        c['qual'] = pct(c['mqls'], c['resps']); c['taxa_resp'] = pct(c['resps'], c['leads'])
         c['cpmql'] = div(c['cpl'] * 100, c['qual']) if c['qual'] else 0.0
+        _media_metrics(c)
         out.append(c)
     return sorted(out, key=lambda c: -c['roas'])
 
@@ -595,6 +664,102 @@ def _daily(rows, window=None):
     return out
 
 
+def _daily_traf(rows, window=None):
+    """Pontos diários da mídia PAGA com todas as métricas de tráfego (p/ o combo no tempo)."""
+    ini, fim = window or (None, None)
+    by = {}
+    for r in rows:
+        if r.get('_tipo') != 'pago':
+            continue
+        d = _date(r)
+        if not d or (ini and d < ini) or (fim and d > fim):
+            continue
+        c = by.setdefault(d, {'inv': 0.0, 'fat': 0.0, 'leads': 0, 'vendas': 0, 'mqls': 0,
+                              'resps': 0, 'impr': 0.0, 'clk': 0.0, 'pv': 0.0})
+        if r.get('_camp') == 'captacao':
+            c['inv'] += fnum(r.get('invest_total'))
+        c['fat'] += fnum(r.get('faturamento')); c['leads'] += int(fnum(r.get('leads')))
+        c['vendas'] += int(fnum(r.get('vendas'))); c['mqls'] += int(fnum(r.get('leads_mqls')))
+        c['resps'] += int(fnum(r.get('respostas')))
+        c['impr'] += fnum(r.get('impressoes')); c['clk'] += fnum(r.get('link_clicks')); c['pv'] += fnum(r.get('pageviews'))
+    out = []
+    for d in sorted(by):
+        c = by[d]
+        cpl = div(c['inv'], c['leads']); qual = pct(c['mqls'], c['resps'])
+        c['cpm'] = div(c['inv'] * 1000, c['impr']) if c['impr'] else 0.0
+        c['ctr'] = pct(c['clk'], c['impr']) if c['impr'] else 0.0
+        out.append({'name': d[8:10] + '/' + d[5:7], 'vals': {
+            'inv': round(c['inv'], 2), 'fat': round(c['fat'], 2), 'retorno': round(c['fat'] - c['inv'], 2),
+            'leads': c['leads'], 'vendas': c['vendas'], 'cpl': round(cpl, 2),
+            'cpmql': round(div(cpl * 100, qual), 2) if qual else 0.0,
+            'cpm': round(c['cpm'], 2), 'ctr': c['ctr'], 'conv': pct(c['vendas'], c['leads']),
+            'qual': qual, 'taxa_resp': pct(c['resps'], c['leads']),
+            'roas': div(c['fat'] - c['inv'], c['inv'])}})
+    # poda a cauda pós-captação: dias finais com investimento desprezível (< 2% do pico)
+    # achatam o fim do gráfico em ~0 — corta enquanto sobrar ao menos alguns dias.
+    if out:
+        thr = max((p['vals'].get('inv') or 0) for p in out) * 0.02
+        while len(out) > 3 and (out[-1]['vals'].get('inv') or 0) <= thr:
+            out.pop()
+    return out
+
+
+def _daily_all(rows, window=None):
+    """Pontos diários da CAMPANHA INTEIRA (pago + orgânico) com as métricas de resultado."""
+    ini, fim = window or (None, None)
+    by = {}
+    for r in rows:
+        d = _date(r)
+        if not d or (ini and d < ini) or (fim and d > fim):
+            continue
+        c = by.setdefault(d, {'inv': 0.0, 'fat': 0.0, 'leads': 0, 'lpago': 0, 'vendas': 0, 'mqls': 0, 'resps': 0})
+        if r.get('_camp') == 'captacao':
+            c['inv'] += fnum(r.get('invest_total'))
+        c['fat'] += fnum(r.get('faturamento')); c['leads'] += int(fnum(r.get('leads')))
+        if r.get('_tipo') == 'pago':
+            c['lpago'] += int(fnum(r.get('leads')))
+        c['vendas'] += int(fnum(r.get('vendas'))); c['mqls'] += int(fnum(r.get('leads_mqls'))); c['resps'] += int(fnum(r.get('respostas')))
+    out = []
+    for d in sorted(by):
+        c = by[d]
+        out.append({'name': d[8:10] + '/' + d[5:7], 'vals': {
+            'leads': c['leads'], 'vendas': c['vendas'], 'fat': round(c['fat'], 2),
+            'inv': round(c['inv'], 2), 'retorno': round(c['fat'] - c['inv'], 2),
+            'roas': div(c['fat'] - c['inv'], c['inv']), 'cpl': div(c['inv'], c['lpago']),
+            'conv': pct(c['vendas'], c['leads']), 'qual': pct(c['mqls'], c['resps']),
+            'taxa_resp': pct(c['resps'], c['leads']), 'ticket': div(c['fat'], c['vendas']), 'mqls': c['mqls']}})
+    while len(out) > 3 and (out[-1]['vals'].get('leads') or 0) <= 0:
+        out.pop()
+    return out
+
+
+def _daily_org(rows, window=None):
+    """Pontos diários dos canais ORGÂNICOS com as métricas de resultado (p/ o combo no tempo)."""
+    ini, fim = window or (None, None)
+    by = {}
+    for r in rows:
+        if r.get('_tipo') != 'organico':
+            continue
+        d = _date(r)
+        if not d or (ini and d < ini) or (fim and d > fim):
+            continue
+        c = by.setdefault(d, {'fat': 0.0, 'leads': 0, 'vendas': 0, 'mqls': 0, 'resps': 0})
+        c['fat'] += fnum(r.get('faturamento')); c['leads'] += int(fnum(r.get('leads')))
+        c['vendas'] += int(fnum(r.get('vendas'))); c['mqls'] += int(fnum(r.get('leads_mqls')))
+        c['resps'] += int(fnum(r.get('respostas')))
+    out = []
+    for d in sorted(by):
+        c = by[d]
+        out.append({'name': d[8:10] + '/' + d[5:7], 'vals': {
+            'fat': round(c['fat'], 2), 'leads': c['leads'], 'vendas': c['vendas'],
+            'conv': pct(c['vendas'], c['leads']), 'qual': pct(c['mqls'], c['resps']),
+            'taxa_resp': pct(c['resps'], c['leads']),
+            'ticket': div(c['fat'], c['vendas']), 'mqls': c['mqls']}})
+    while len(out) > 3 and (out[-1]['vals'].get('leads') or 0) <= 0:
+        out.pop()
+    return out
+
+
 def _best_week(weekly):
     if not weekly:
         return {}
@@ -650,7 +815,34 @@ def build(rows, config=None):
     M['chan_hist'] = {c['canal']: c for c in _chan(hist_rows, config)} if hist_rows else {}
     # histórico do funil por escopo (leads→respostas→MQLs→vendas) p/ o toggle nos funis/cards.
     M['hist_funnel'] = _hist_funnel(hist_rows) if hist_rows else {}
+    # histórico por TEMPERATURA (eixo estável entre lançamentos) p/ comparar a cauda do Tráfego.
+    M['hist_temp'] = _hist_temp(hist_rows) if hist_rows else {}
+    # funil pago do lançamento anterior por segmento (temp/canal) p/ o toggle vs Histórico
+    # no heatmap de gargalos — mesmas métricas do _seg_pago, indexadas pela chave do segmento.
+    M['hist_temp_seg'] = {s['temp']: s for s in _seg_pago(hist_rows, lambda r: r.get('_temp'), 'temp')} if hist_rows else {}
+    M['hist_canal_seg'] = {s['canal']: s for s in _seg_pago(hist_rows, lambda r: norm_source(r.get('utm_source')), 'canal')} if hist_rows else {}
     return M
+
+
+def _hist_temp(rows):
+    """Lançamento anterior agregado por temperatura (pago) → roas/conv/qual/cpl/vendas/leads."""
+    by = {}
+    for r in rows:
+        if r.get('_tipo') != 'pago':
+            continue
+        t = r.get('_temp')
+        c = by.setdefault(t, {'inv': 0.0, 'fat': 0.0, 'leads': 0, 'vendas': 0, 'mqls': 0, 'resps': 0})
+        if r.get('_camp') == 'captacao':
+            c['inv'] += fnum(r.get('invest_total'))
+        c['fat'] += fnum(r.get('faturamento')); c['leads'] += int(fnum(r.get('leads')))
+        c['vendas'] += int(fnum(r.get('vendas'))); c['mqls'] += int(fnum(r.get('leads_mqls')))
+        c['resps'] += int(fnum(r.get('respostas')))
+    out = {}
+    for t, c in by.items():
+        out[t] = {'roas': div(c['fat'] - c['inv'], c['inv']), 'conv': pct(c['vendas'], c['leads']),
+                  'qual': pct(c['mqls'], c['resps']), 'cpl': div(c['inv'], c['leads']),
+                  'vendas': c['vendas'], 'leads': c['leads']}
+    return out
 
 
 def _hist_funnel(rows):

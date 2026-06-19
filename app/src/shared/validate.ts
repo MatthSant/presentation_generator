@@ -252,7 +252,7 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'bullet-groups':
       if (!Array.isArray(w.toggle) || w.toggle.length === 0) c.err(`${path}.toggle`, 'bullet-groups requires a toggle array');
       if (!Array.isArray(w.groups) || w.groups.length === 0) c.err(`${path}.groups`, 'bullet-groups requires a groups array');
-      if (!Array.isArray(w.channels)) c.err(`${path}.channels`, 'bullet-groups requires a channels array');
+      if (!Array.isArray(w.channels) && !(w.dims && typeof w.dims === 'object')) c.err(`${path}.channels`, 'bullet-groups requires a channels array or dims map');
       break;
     case 'quadrant-scatter':
       if (!Array.isArray(w.points)) c.err(`${path}.points`, 'quadrant-scatter requires a points array');
