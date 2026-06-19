@@ -30,12 +30,9 @@ tipos: skill `/integrar-analise` (`.claude/skills/integrar-analise/`).
 ## Pendente
 
 ### Tarefa nova — KPI cards com casas decimais
-- [ ] **KPIs/strip com valores decimais.** Métricas monetárias (ex.: **CPM**) devem mostrar
-      sempre **2 casas** (`R$ 14,32`, não `R$ 14`). Hoje `money()` abrevia/trunca.
-      - Ajustar o formatador em `pysrc/criativos/build_report.py` (e/ou `pysrc/common/fmt.py`)
-        para que KPIs monetários de baixo valor (CPM, CPL, CPC, CPMQL, CAC) usem 2 casas.
-      - Conferir o catálogo `METRICS` em `calc.py` (campo `fmt`) — garantir precisão por métrica.
-      - Não quebrar os valores grandes (faturamento/investimento) que abreviam de propósito.
+- [x] **KPIs/strip com valores decimais.** ✅ Resolvido em `pysrc/common/fmt.py:9-16` —
+      `money()` usa 2 casas para custos unitários de baixo valor (`R$ 14,27`) e mantém
+      a abreviação M/k para valores grandes. Vale para todos os tipos (formatador único).
 
 ### #13 — Reestruturar navegação (3 grupos)
 - [ ] Agrupar como **"Ficha de Criativos"**: Panorama + fichas individuais (navegação pela sidebar).
@@ -45,7 +42,7 @@ tipos: skill `/integrar-analise` (`.claude/skills/integrar-analise/`).
       - "Tem época que vende melhor?"
       - "Faturar mais dependeu de investir mais?"
       - "Lead mais qualificado converte mais?"
-      - Criar `pysrc/perguntas/banks/criativos.py` (`TYPE`/`detect`/`evaluate_all`) + registrar em `banks/__init__.py`.
+      - [x] `pysrc/perguntas/banks/criativos.py` criado e registrado em `banks/__init__.py` (revisar cobertura/relevância via `/verificar-motor`).
 - [ ] Corrigir a página de topo que hoje está quebrada.
 
 ### #14 — Completar as fichas individuais

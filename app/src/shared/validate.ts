@@ -258,6 +258,20 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       if (!Array.isArray(w.points)) c.err(`${path}.points`, 'quadrant-scatter requires a points array');
       if (!w.modes || typeof w.modes !== 'object' || !(w.modes as { meta?: unknown }).meta) c.err(`${path}.modes`, 'quadrant-scatter requires modes.meta');
       break;
+    case 'heatmap-toggle': {
+      // Duas formas: `tabs[]` (toggle único de dimensão) ou `scopes[].tabs[]`
+      // (toggle de escopo + dimensão). Exige pelo menos uma; cada aba precisa de bind.
+      const tabs = Array.isArray(w.tabs) ? w.tabs : [];
+      const scopes = Array.isArray(w.scopes) ? w.scopes : [];
+      if (tabs.length === 0 && scopes.length === 0) {
+        c.err(`${path}.tabs`, 'heatmap-toggle requires tabs[] or scopes[]');
+      }
+      const allTabs = [...tabs, ...scopes.flatMap((s) => (isObj(s) && Array.isArray((s as Obj).tabs) ? (s as Obj).tabs as unknown[] : []))];
+      allTabs.forEach((t, i) => {
+        if (!isObj(t) || !isObj((t as Obj).bind)) c.err(`${path}.tabs[${i}].bind`, 'heatmap-toggle tab requires a bind');
+      });
+      break;
+    }
   }
 }
 

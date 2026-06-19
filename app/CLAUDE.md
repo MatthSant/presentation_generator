@@ -67,7 +67,11 @@ Adicionar um tipo = **uma entrada em `TYPES`** + a pasta `pysrc/<tipo>/`. Campos
 `queryScript?`, `renderScript?`, `gerarPage`, `montadorPage`, `controlsKind?`,
 `buildDeepenMeta()`. `buildDeepenMeta` retorna `null` → deepen roda no **modo raso** (catálogo).
 
-Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`.
+Campos opcionais de capacidade (fonte única p/ os forms de criação/atualização, evitando
+Sets hardcoded por tipo): `supportsTemperature`, `supportsGoals`, `supportsDict`.
+
+Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`,
+`acompanhamento-lancamento`, `debriefing-lancamento`.
 
 ---
 
@@ -84,8 +88,11 @@ Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`.
 
 **Widgets** (`src/shared/`): registrar em `types.ts` (`WIDGET_TYPES` + união `Widget`),
 validar em `validate.ts` (`validateWidget` switch), renderizar em `renderer.ts`, estilizar
-em `public/style.css`. Widgets de plataforma incluem: kpi-row, chart, heatmap, find-block,
-embed, link-card, scatter-picker.
+em `public/style.css`. Widgets de plataforma incluem: kpi-card (tier `feature` com
+`goalCmp` = toggle Meta×Histórico, `band`, `emph`, `info`), chart, table, heatmap,
+heatmap-toggle (com `scopes` = 2º toggle de escopo), find-block, embed, link-card,
+scatter-picker (`sizeBy`/`dimToggle`), evolution-picker (`combo` barras+linha), funnel,
+meta-bars, escopo-cards, channel-table, bullet-groups, quadrant-scatter, qa-card, strat-grid.
 
 ---
 
@@ -107,9 +114,8 @@ Regra dura: **toda feature nova entra como recurso reutilizável**, nunca `if ti
 
 ## Formatação numérica — `pysrc/common/fmt.py`
 
-`money` (abrevia: M/k/inteiro), `pctf` (`12,3%`), `xf` (`1,42×`), `intf`, `fmtval(fmt,x)`.
-⚠️ `money()` hoje arredonda valores baixos para inteiro (`R$ 14`) — métricas como **CPM/CPL
-precisam de 2 casas** (ver tarefa #16 em [TAREFAS.md](TAREFAS.md)).
+`money` (abrevia: M/k; **2 casas para custos unitários** — `R$ 14,27` em CPM/CPL/CPC/CPMQL/CAC),
+`pctf` (`12,3%`), `xf` (`1,42×`), `intf`, `fmtval(fmt,x)`.
 
 ---
 

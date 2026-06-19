@@ -112,6 +112,7 @@
     let TEMP_CTL = null;  // editor de regras de temperatura (substitui o JSON avançado)
     let GOALS_FILE = null; // CSV de launch goals re-enviado (opcional)
     let DICT_FILE = null;  // CSV de dicionário de criativos re-enviado (opcional)
+    let CAPS = null;       // capacidades de auxiliares vindas do registry (base-config)
     // Tipos cuja temperatura é classificada por regras (espelha o servidor).
     const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
     // Tipos que aceitam launch goals (metas por utm_source × dia).
@@ -132,6 +133,7 @@
         $('loading').hidden = true;
         if (!d.hasBase) { $('nobase').hidden = false; return; }
         RETAINED = d.config;
+        CAPS = d.caps || null;   // registry: { temperature, goals, dict } (fallback p/ os Sets se ausente)
         $('form').hidden = false;
         buildForm(d.config);
         setupTempEditor(d.config);
@@ -208,7 +210,7 @@
     // Editor de regras de temperatura: começa com as da ANÁLISE ATUAL; botão puxa as
     // do cliente (com fallback pro padrão geral do app). Substitui o JSON avançado.
     function setupTempEditor(cfg) {
-      if (!TEMP_TYPES.has(cfg.type)) return;
+      if (!(CAPS ? CAPS.temperature : TEMP_TYPES.has(cfg.type))) return;
       const card = document.createElement('div');
       card.className = 'u-card';
       card.innerHTML =
@@ -291,7 +293,7 @@
     // Dicionário de criativos na atualização: upload opcional de um novo CSV
     // (field_ad_name → link). Se enviado, substitui o dicionário retido.
     function setupDict(cfg) {
-      if (!DICT_TYPES.has(cfg.type)) return;
+      if (!(CAPS ? CAPS.dict : DICT_TYPES.has(cfg.type))) return;
       const card = document.createElement('div');
       card.className = 'u-card';
       const hasDict = !!cfg.dict_csv;
