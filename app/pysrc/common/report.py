@@ -84,9 +84,15 @@ def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None):
     arr.append(b); pg.add(wid, 'eyebrow', 12, 1)
 
 
-def fb(arr, pg, wid, tag, tagColor, title, detail, w=4, h=3):
-    arr.append({'id': wid, 'type': 'find-block', 'card': True, 'tag': tag, 'tagColor': tagColor,
-                'title': title, 'detail': detail}); pg.add(wid, 'find-block', w, h)
+def fb(arr, pg, wid, tag, tagColor, title, detail, w=4, h=3, stat=None, x=None, y=None):
+    b = {'id': wid, 'type': 'find-block', 'card': True, 'tag': tag, 'tagColor': tagColor,
+         'title': title}
+    if stat:                    # linha de métrica estruturada (valor + chip de desvio)
+        b['stat'] = stat
+    b['detail'] = detail
+    arr.append(b)
+    if x is not None: pg.at(wid, 'find-block', x, y, w, h)
+    else: pg.add(wid, 'find-block', w, h)
 
 
 def table(arr, pg, wid, title, cols, rows_, w=12, h=4):

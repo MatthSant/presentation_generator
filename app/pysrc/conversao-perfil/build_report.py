@@ -27,6 +27,9 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import conv_calc as cc
 from common.layout import Grid
 from common.preserve import preserve, preserve_dataset
+# Builder de eyebrow compartilhado (só onde há Grid; as seções por critério usam
+# layout manual e widgets tipo-específicos — rank-card/heatmap-toggle — ficam inline).
+from common.report import eb
 
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 def lcto_label(slug):
@@ -233,21 +236,18 @@ def assemble(rows, config, content, opts=None):
         {'value': str(N), 'label': 'Lançamentos analisados'}, {'value': str(len(CIDS)), 'label': 'Critérios de perfil'},
         {'value': f'{win_lbl.get(WINDOW, WINDOW)} / {win_lbl.get(LONG, LONG)}', 'label': 'Janelas de conversão', 'small': True}]})
     pg.add('pan-kpi', 'kpi-strip', 12, 2)
-    pan.append({'id': 'pan-eb1', 'type': 'eyebrow', 'title': 'PERFIL DA BASE', 'caption': 'variação vs. benchmark por grupo, em cada critério — verde acima, vermelho abaixo'})
-    pg.add('pan-eb1', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb1', 'PERFIL DA BASE', 'variação vs. benchmark por grupo, em cada critério — verde acima, vermelho abaixo')
     for cid in CIDS:
         pan.append({'id': f'pan-{cid}', 'type': 'chart', 'chartType': 'bar-horizontal', 'diverging': True, 'title': LABEL[cid],
                     'height': 260, 'showLabels': True, 'axisMin': -120, 'axisMax': 120, 'bind': {'dataset': f'crit_{cid}_grp', 'x': 'grupo', 'y': 'diff_lcto', 'agg': 'avg'}})
         pg.add(f'pan-{cid}', 'chart', 4, 4)   # w:4 → 3 gráficos por linha (largura legível p/ barras + rótulos)
     pg.newrow()
-    pan.append({'id': 'pan-eb2', 'type': 'eyebrow', 'title': 'COMPARATIVO POR CRITÉRIO', 'caption': 'melhor e pior grupo de cada perfil frente ao benchmark'})
-    pg.add('pan-eb2', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb2', 'COMPARATIVO POR CRITÉRIO', 'melhor e pior grupo de cada perfil frente ao benchmark')
     pan.append({'id': 'pan-comp', 'type': 'table', 'title': 'Comparativo por Critério',
                 'cols': ['Critério', 'Melhor grupo', 'Diff melhor', 'Pior grupo', 'Diff pior', 'Positivos', 'Uplift méd.'],
                 'colorScale': {'Diff melhor': 'diff', 'Diff pior': 'diff', 'Uplift méd.': 'uplift'}, 'bind': {'dataset': 'panorama_comp'}})
     pg.add('pan-comp', 'table', 12, 4)
-    pan.append({'id': 'pan-eb3', 'type': 'eyebrow', 'title': 'DETALHE POR GRUPO', 'caption': 'cada critério, todos os grupos — passe o cursor sobre ⓘ para a definição da métrica'})
-    pg.add('pan-eb3', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb3', 'DETALHE POR GRUPO', 'cada critério, todos os grupos — passe o cursor sobre ⓘ para a definição da métrica')
     DEFS = {'Conv. 60d': 'Taxa de conversão na janela de lançamento (60 dias).',
             'Diff 60d': 'Variação da conversão do grupo vs. o benchmark dos respondentes da pesquisa.',
             'Conv. 12m': 'Conversão acumulada em 12 meses.', 'Diff 12m': 'Variação do 12m vs. o benchmark da pesquisa.',

@@ -733,19 +733,17 @@ def assemble(rows, config, content, opts=None):
                     'metrics': _mjson, 'dimToggle': _scdt, 'dims': _scdims, 'points': _scdims[_first],
                     'x': 'cpmql', 'y': 'roas', 'trend': 'best', 'sizeBy': 'inv'})
         tg.at('tra-corr', 'scatter-picker', 0, 20, 8, 6)
-        tra.append({'id': 'tra-corr-help', 'type': 'find-block', 'card': True, 'tag': 'COMO USAR', 'tagColor': 'p',
-                    'title': 'Correlação & R²',
-                    'detail': ('O <strong>R²</strong> (0 a 1) mede o quanto uma métrica explica a outra: perto de '
-                               '<strong>1</strong>, relação forte; perto de <strong>0</strong>, sem relação. O motor testa '
-                               '<strong>reta, log e exp</strong> e plota o melhor ajuste.<br><br>'
-                               '<strong>Como usar:</strong> troque X e Y para comparar pares — ex.: <strong>CPMQL × ROAS</strong> '
-                               'vs <strong>CPL × ROAS</strong>. O par com maior R² é o que mais <strong>explica o retorno</strong> '
-                               'da mídia paga; é nele que vale focar pra otimizar. Alterne <strong>Público / Criativo / '
-                               'Campanha</strong> pra ver onde a relação é mais forte. O <strong>tamanho do ponto</strong> '
-                               '= investimento.<br><br>'
-                               '<strong>Cuidado:</strong> com <strong>poucos pontos</strong> (n baixo), um R² alto pode ser '
-                               'ilusório — trate como sinal, não prova.')})
-        tg.at('tra-corr-help', 'find-block', 8, 20, 4, 6)
+        fb(tra, tg, 'tra-corr-help', 'COMO USAR', 'p', 'Correlação & R²',
+           ('O <strong>R²</strong> (0 a 1) mede o quanto uma métrica explica a outra: perto de '
+            '<strong>1</strong>, relação forte; perto de <strong>0</strong>, sem relação. O motor testa '
+            '<strong>reta, log e exp</strong> e plota o melhor ajuste.<br><br>'
+            '<strong>Como usar:</strong> troque X e Y para comparar pares — ex.: <strong>CPMQL × ROAS</strong> '
+            'vs <strong>CPL × ROAS</strong>. O par com maior R² é o que mais <strong>explica o retorno</strong> '
+            'da mídia paga; é nele que vale focar pra otimizar. Alterne <strong>Público / Criativo / '
+            'Campanha</strong> pra ver onde a relação é mais forte. O <strong>tamanho do ponto</strong> '
+            '= investimento.<br><br>'
+            '<strong>Cuidado:</strong> com <strong>poucos pontos</strong> (n baixo), um R² alto pode ser '
+            'ilusório — trate como sinal, não prova.'), w=4, h=6, x=8, y=20)
     tg.cursor_to(26)
 
     # ── GARGALOS NO FUNIL — heatmap (Temperatura · Campanha · Público) ──────────

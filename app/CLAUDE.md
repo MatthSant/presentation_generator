@@ -60,6 +60,15 @@ CSV  →  pysrc/<tipo>/calc.py        (stdlib pura: agrega, calcula indicadores)
   por tipo. As genéricas expostas no motor devem ser as MESMAS anunciadas em
   `buildDeepenMeta` (registry) — divergência = o modelo pede uma fn que o motor rejeita.
 
+**Builders de seção — `pysrc/common/report.py`** (`eb`/`fb`/`table` + `km`/`ks` e o motor
+`dev`/`goalcmp`/`apply_goal`): widget de seção novo usa os builders, nunca dict inline —
+exceto quando precisa de coords manuais (`pg.at`/lista own) ou de campo que o builder não
+tem (ex.: eyebrow `divider`). KPI cards por tipo (decisão documentada):
+- **debriefing** → `km`/`ks` (goalCmp Meta×Histórico, ±10%) — referência.
+- **acompanhamento** → `kcard()` local: semáforo tático 5/15% (`calc.meta_status`) + flag 3d — semântica ≠ goalCmp.
+- **historico** → `card()` local: spark + delta vs. anterior, sem meta.
+- **criativos/conversao-perfil** → `kpi-strip` (widget diferente de kpi-card).
+
 **Encoding (regra dura):** saída JSON p/ stdout sempre via
 `sys.stdout.buffer.write(json.dumps(..., ensure_ascii=False).encode('utf-8'))` — nunca
 `print()` (o console Windows cp1252 quebra ★/→/± fora do pygen); arquivo sempre com
