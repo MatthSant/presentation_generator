@@ -27,6 +27,9 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import conv_calc as cc
 from common.layout import Grid
 from common.preserve import preserve, preserve_dataset
+# Builder de eyebrow compartilhado (só onde há Grid; as seções por critério usam
+# layout manual e widgets tipo-específicos — rank-card/heatmap-toggle — ficam inline).
+from common.report import eb
 
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 def lcto_label(slug):
@@ -51,9 +54,7 @@ def assoc_cls(v):
     if v > 0.08: return 'cup4'
     return 'cn0'
 
-def build(csv_path, config, content, out_dir):
-    os.makedirs(out_dir, exist_ok=True)
-    rows = cc.load_dump(csv_path)
+def assemble(rows, config, content, opts=None):
     dims = cc.dim_columns(rows)
     LCTOS_ID = cc.ordered_lancamentos(rows)
     LBL = [lcto_label(s) for s in LCTOS_ID]
@@ -235,21 +236,18 @@ def build(csv_path, config, content, out_dir):
         {'value': str(N), 'label': 'Lançamentos analisados'}, {'value': str(len(CIDS)), 'label': 'Critérios de perfil'},
         {'value': f'{win_lbl.get(WINDOW, WINDOW)} / {win_lbl.get(LONG, LONG)}', 'label': 'Janelas de conversão', 'small': True}]})
     pg.add('pan-kpi', 'kpi-strip', 12, 2)
-    pan.append({'id': 'pan-eb1', 'type': 'eyebrow', 'title': 'PERFIL DA BASE', 'caption': 'variação vs. benchmark por grupo, em cada critério — verde acima, vermelho abaixo'})
-    pg.add('pan-eb1', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb1', 'PERFIL DA BASE', 'variação vs. benchmark por grupo, em cada critério — verde acima, vermelho abaixo')
     for cid in CIDS:
         pan.append({'id': f'pan-{cid}', 'type': 'chart', 'chartType': 'bar-horizontal', 'diverging': True, 'title': LABEL[cid],
                     'height': 260, 'showLabels': True, 'axisMin': -120, 'axisMax': 120, 'bind': {'dataset': f'crit_{cid}_grp', 'x': 'grupo', 'y': 'diff_lcto', 'agg': 'avg'}})
         pg.add(f'pan-{cid}', 'chart', 4, 4)   # w:4 → 3 gráficos por linha (largura legível p/ barras + rótulos)
     pg.newrow()
-    pan.append({'id': 'pan-eb2', 'type': 'eyebrow', 'title': 'COMPARATIVO POR CRITÉRIO', 'caption': 'melhor e pior grupo de cada perfil frente ao benchmark'})
-    pg.add('pan-eb2', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb2', 'COMPARATIVO POR CRITÉRIO', 'melhor e pior grupo de cada perfil frente ao benchmark')
     pan.append({'id': 'pan-comp', 'type': 'table', 'title': 'Comparativo por Critério',
                 'cols': ['Critério', 'Melhor grupo', 'Diff melhor', 'Pior grupo', 'Diff pior', 'Positivos', 'Uplift méd.'],
                 'colorScale': {'Diff melhor': 'diff', 'Diff pior': 'diff', 'Uplift méd.': 'uplift'}, 'bind': {'dataset': 'panorama_comp'}})
     pg.add('pan-comp', 'table', 12, 4)
-    pan.append({'id': 'pan-eb3', 'type': 'eyebrow', 'title': 'DETALHE POR GRUPO', 'caption': 'cada critério, todos os grupos — passe o cursor sobre ⓘ para a definição da métrica'})
-    pg.add('pan-eb3', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb3', 'DETALHE POR GRUPO', 'cada critério, todos os grupos — passe o cursor sobre ⓘ para a definição da métrica')
     DEFS = {'Conv. 60d': 'Taxa de conversão na janela de lançamento (60 dias).',
             'Diff 60d': 'Variação da conversão do grupo vs. o benchmark dos respondentes da pesquisa.',
             'Conv. 12m': 'Conversão acumulada em 12 meses.', 'Diff 12m': 'Variação do 12m vs. o benchmark da pesquisa.',
@@ -396,16 +394,27 @@ def build(csv_path, config, content, out_dir):
                           'nav': 'sidebar'},
                  'pages': all_pages}
 
-    preserve(out_dir, data_json, sections)   # detalhamentos, perguntas e modais sobrevivem à regeneração
-    preserve_dataset(out_dir, dataset)       # tabelas q-* dos detalhamentos sobrevivem
+    return {'dataset': dataset, 'data': data_json,
+            'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'},
+            'sections': sections,
+            '_cod': {k: v['papel'] for k, v in cod['fatores'].items()}}  # só p/ o summary do build
+
+
+def build(csv_path, config, content, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    rows = cc.load_dump(csv_path)
+    r = assemble(rows, config, content)
+    # preserve FORA do assemble (padrão dos demais tipos): assemble é puro.
+    preserve(out_dir, r['data'], r['sections'])   # detalhamentos, perguntas e modais sobrevivem à regeneração
+    preserve_dataset(out_dir, r['dataset'])       # tabelas q-* dos detalhamentos sobrevivem
 
     def dump(name, obj): json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
-    dump('dataset.json', dataset); dump('data.json', data_json)
-    dump('layout.json', {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'})
-    for sid, sec in sections.items(): dump(f'{sid}.json', sec)
+    dump('dataset.json', r['dataset']); dump('data.json', r['data'])
+    dump('layout.json', r['layout'])
+    for sid, sec in r['sections'].items(): dump(f'{sid}.json', sec)
 
-    return {'tables': len(dataset), 'sections': len(sections), 'pages': len(all_pages),
-            'codependencia': {k: v['papel'] for k, v in cod['fatores'].items()}, 'out_dir': out_dir}
+    return {'tables': len(r['dataset']), 'sections': len(r['sections']), 'pages': len(r['data']['pages']),
+            'codependencia': r['_cod'], 'out_dir': out_dir}
 
 
 if __name__ == '__main__':

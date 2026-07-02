@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ -> pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf
+from common.report import eb   # builder de eyebrow compartilhado (KPIs ficam no kpi-strip local)
 
 # modo -> KPIs Macro (ordem da fonte). ★ = indicador principal do modo.
 KPIS_RESULTADO = ['invest', 'roas', 'retorno', 'leads', 'vendas', 'conv', 'cac', 'qualidade']
@@ -146,10 +147,6 @@ def assemble(rows, config, content, opts=None):
     pan, pg = [], Grid()
     total, avg = B['total'], B['avg']
 
-    def eb(wid, title, caption=''):
-        pan.append({'id': wid, 'type': 'eyebrow', 'title': title, 'caption': caption})
-        pg.add(wid, 'eyebrow', 12, 1)
-
     def kcards(prefix, keys):
         for k in keys:
             star = k in STAR
@@ -162,7 +159,7 @@ def assemble(rows, config, content, opts=None):
             pg.add(f'{prefix}-{k}', 'kpi-card', 3, 2)
 
     # Modo (Resultado × Captação) e filtros vivem no FAB (nível-relatório), não na página.
-    eb('cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
+    eb(pan, pg, 'cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
     # KPIs Macro numa LINHA só (kpi-strip), como no original.
     pan.append({'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [
         {'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''),
@@ -173,7 +170,7 @@ def assemble(rows, config, content, opts=None):
     # Captação: qualidade do criativo (vídeo/página) com comparação ao BENCHMARK
     # (Hook 30% / Hold 25%) ou à MÉDIA do lançamento (CTR/Connect/Conv. de Página).
     if mode == 'captacao':
-        eb('cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · comparação com benchmark (↑ acima / ↓ abaixo)')
+        eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · comparação com benchmark (↑ acima / ↓ abaixo)')
         qitems = []
         for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
             v = total.get(k)
@@ -188,7 +185,7 @@ def assemble(rows, config, content, opts=None):
         pan.append({'id': 'cr-qual', 'type': 'kpi-strip', 'items': qitems})
         pg.add('cr-qual', 'kpi-strip', 12, 2)
 
-    eb('cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
+    eb(pan, pg, 'cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
 
     # Evolução diária DUAL (evolution-picker): dois seletores — esquerda = volume,
     # direita = métrica-chave do modo, no eixo secundário (escalas distintas). Embute
@@ -216,7 +213,7 @@ def assemble(rows, config, content, opts=None):
                 'x': 'invest', 'y': ('retorno' if mode == 'resultado' else 'cpmql')})
     pg.add('cr-scatter', 'scatter-picker', 6, 5)
 
-    eb('cr-eb-rank', 'CRIATIVOS POR DESEMPENHO', f'{len(valid)} criativos · clique no card para abrir a ficha · ordenado por {main_lbl}')
+    eb(pan, pg, 'cr-eb-rank', 'CRIATIVOS POR DESEMPENHO', f'{len(valid)} criativos · clique no card para abrir a ficha · ordenado por {main_lbl}')
     pan.append({'id': 'cr-rank', 'type': 'link-card', 'cards': rank_cards})
     pg.add('cr-rank', 'link-card', 12, 8)
     pan.append({'id': 'cr-note', 'type': 'find-note',
@@ -289,8 +286,7 @@ def assemble(rows, config, content, opts=None):
         if m.get('is_video'):
             vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
             vitems = [{'label': calc.METRICS[k]['label'], 'value': fmtm(k, m.get(k))} for k in vid_keys]
-            fw.append({'id': f'{sid}-eb-vid', 'type': 'eyebrow', 'title': 'DADOS DO CRIATIVO', 'caption': 'retenção do vídeo'})
-            fg.add(f'{sid}-eb-vid', 'eyebrow', 12, 1)
+            eb(fw, fg, f'{sid}-eb-vid', 'DADOS DO CRIATIVO', 'retenção do vídeo')
             fw.append({'id': f'{sid}-vid', 'type': 'kpi-strip', 'items': vitems})
             fg.add(f'{sid}-vid', 'kpi-strip', 12, 2)
         for prefix, lbl, by, title in [('temp', 'Temperatura', c['by_temp'], 'Por temperatura'),
@@ -298,8 +294,7 @@ def assemble(rows, config, content, opts=None):
                                        ('pub', 'Público', c['by_publico'], 'Por público')]:
             cols, dsname = br_table(prefix, lbl, by, i)
             if cols:
-                fw.append({'id': f'{sid}-eb-{prefix}', 'type': 'eyebrow', 'title': title.upper(), 'caption': ''})
-                fg.add(f'{sid}-eb-{prefix}', 'eyebrow', 12, 1)
+                eb(fw, fg, f'{sid}-eb-{prefix}', title.upper())
                 fw.append({'id': f'{sid}-{prefix}', 'type': 'table', 'title': title, 'cols': cols, 'bind': {'dataset': dsname}})
                 fg.add(f'{sid}-{prefix}', 'table', 12, 4)
         if c['daily']:
@@ -309,8 +304,7 @@ def assemble(rows, config, content, opts=None):
             fdef = 'leads' if 'leads' in fkeys else (fkeys[0] if fkeys else 'leads')
             fmetrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in fkeys]
             fpoints = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in fkeys}} for d in c['daily']]
-            fw.append({'id': f'{sid}-eb-evo', 'type': 'eyebrow', 'title': 'EVOLUÇÃO NO TEMPO', 'caption': 'escolha a métrica'})
-            fg.add(f'{sid}-eb-evo', 'eyebrow', 12, 1)
+            eb(fw, fg, f'{sid}-eb-evo', 'EVOLUÇÃO NO TEMPO', 'escolha a métrica')
             fw.append({'id': f'{sid}-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 260,
                        'metrics': fmetrics, 'points': fpoints, 'current': fdef})
             fg.add(f'{sid}-evo', 'evolution-picker', 12, 4)

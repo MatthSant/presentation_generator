@@ -45,15 +45,44 @@ CSV  →  pysrc/<tipo>/calc.py        (stdlib pura: agrega, calcula indicadores)
   Usa `common/layout.Grid` (packer de **linha única** — sem auto-wrap; layout multi-linha
   precisa de coords manuais `x/y`), `common/fmt` (formatadores pt-BR) e
   `common/preserve.preserve()` (não perde trabalho do consultor numa regeração).
+  **`preserve()`/`preserve_dataset()` são chamados no `build()`, nunca dentro do
+  `assemble()`** — o assemble é puro e reutilizado pelo `render_view.py`.
 - **`render_view.py`** *(opcional)* — recompute da vista quando há **controles interativos**
-  (toggles/filtros). Rota genérica `POST /api/:client/:slug/render`.
+  (toggles/filtros). Rota genérica `POST /api/:client/:slug/render`. Só existe junto com
+  `renderScript` + `controlsKind` no registry + classe de controls no client (os três andam juntos).
 - **`query_api.py`** *(opcional)* — cruzamentos sob demanda do **deep deepen**. As
   consultas genéricas (`series`/`correlacao`/`trend`/`ranking`) vivem em
   **`common/query_core.py`** e operam sobre um FRAME uniforme (`{axis, rows:[{key,m}],
-  labels, cost}`); cada tipo só fornece um `build_frame(ctx,args)→frame` + suas funções
-  específicas e roteia com `qc.run(build_frame, EXTRA, ctx, fn, args)`. **Consulta
-  genérica nova = editar só `query_core.py`** + listá-la em `genericFuncoes()` no
-  registry — nunca reimplementar por tipo.
+  labels, cost}`); cada tipo só fornece um `build_frame(ctx, a)→frame` — **1º arg sempre
+  `ctx`** (o resultado do calc do tipo) — + suas funções específicas e roteia com
+  `qc.run(build_frame, EXTRA, ctx, fn, args)`. **Consulta genérica nova = editar só
+  `query_core.py`** + listá-la em `genericFuncoes()` no registry — nunca reimplementar
+  por tipo. As genéricas expostas no motor devem ser as MESMAS anunciadas em
+  `buildDeepenMeta` (registry) — divergência = o modelo pede uma fn que o motor rejeita.
+
+**Builders de seção — `pysrc/common/report.py`** (`eb`/`fb`/`table` + `km`/`ks` e o motor
+`dev`/`goalcmp`/`apply_goal`): widget de seção novo usa os builders, nunca dict inline —
+exceto quando precisa de coords manuais (`pg.at`/lista own) ou de campo que o builder não
+tem (ex.: eyebrow `divider`). KPI cards por tipo (decisão documentada):
+- **debriefing** → `km`/`ks` (goalCmp Meta×Histórico, ±10%) — referência.
+- **acompanhamento** → `kcard()` local: semáforo tático 5/15% (`calc.meta_status`) + flag 3d — semântica ≠ goalCmp.
+- **historico** → `card()` local: spark + delta vs. anterior, sem meta.
+- **criativos/conversao-perfil** → `kpi-strip` (widget diferente de kpi-card).
+
+**Encoding (regra dura):** saída JSON p/ stdout sempre via
+`sys.stdout.buffer.write(json.dumps(..., ensure_ascii=False).encode('utf-8'))` — nunca
+`print()` (o console Windows cp1252 quebra ★/→/± fora do pygen); arquivo sempre com
+`open(..., 'w', encoding='utf-8')`.
+
+**`opts` do assemble por tipo** (chaves aceitas — não criar uma convenção nova sem atualizar aqui):
+
+| tipo | opts |
+|---|---|
+| conversao-perfil | — (não usa) |
+| historico-lancamentos | `launches: [labels]`, `metric: 'conv'\|'qual'\|…` |
+| criativos | `mode: 'resultado'\|'captacao'`, `temp: <temperatura>`, `min_invest: float`, `dict: {}` (injetado pelo render_view) |
+| acompanhamento-lancamento | — (não usa) |
+| debriefing-lancamento | `filters: { tipo/canal/temp/campanha/publico/criativo: [...] }` (aplicado pelo render_view antes do assemble) |
 
 **Despacho:** `src/server/pygen.ts` resolve `buildScript = pysrc/<pysrcDir>/build_report.py`
 a partir do registry — **nenhum if/else por tipo** no servidor.
@@ -67,7 +96,14 @@ Adicionar um tipo = **uma entrada em `TYPES`** + a pasta `pysrc/<tipo>/`. Campos
 `queryScript?`, `renderScript?`, `gerarPage`, `montadorPage`, `controlsKind?`,
 `buildDeepenMeta()`. `buildDeepenMeta` retorna `null` → deepen roda no **modo raso** (catálogo).
 
-Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`.
+Campos opcionais de capacidade (fonte única p/ os forms de criação/atualização, evitando
+Sets hardcoded por tipo): `supportsTemperature`, `supportsGoals`, `supportsDict`,
+`goalsUi` (`'metas-toggle'` = manuais × CSV, acompanhamento; `'upload'` = só CSV, debriefing).
+`controlsKind` só é declarado quando o tipo tem `renderScript` **e** classe de controls no
+client (`main.ts` despacha por `meta.controls.kind`) — declarar sem os dois vira metadado morto.
+
+Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`,
+`acompanhamento-lancamento`, `debriefing-lancamento`.
 
 ---
 
@@ -84,8 +120,11 @@ Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`.
 
 **Widgets** (`src/shared/`): registrar em `types.ts` (`WIDGET_TYPES` + união `Widget`),
 validar em `validate.ts` (`validateWidget` switch), renderizar em `renderer.ts`, estilizar
-em `public/style.css`. Widgets de plataforma incluem: kpi-row, chart, heatmap, find-block,
-embed, link-card, scatter-picker.
+em `public/style.css`. Widgets de plataforma incluem: kpi-card (tier `feature` com
+`goalCmp` = toggle Meta×Histórico, `band`, `emph`, `info`), chart, table, heatmap,
+heatmap-toggle (com `scopes` = 2º toggle de escopo), find-block, embed, link-card,
+scatter-picker (`sizeBy`/`dimToggle`), evolution-picker (`combo` barras+linha), funnel,
+meta-bars, escopo-cards, channel-table, bullet-groups, quadrant-scatter, qa-card, strat-grid.
 
 ---
 
@@ -107,9 +146,8 @@ Regra dura: **toda feature nova entra como recurso reutilizável**, nunca `if ti
 
 ## Formatação numérica — `pysrc/common/fmt.py`
 
-`money` (abrevia: M/k/inteiro), `pctf` (`12,3%`), `xf` (`1,42×`), `intf`, `fmtval(fmt,x)`.
-⚠️ `money()` hoje arredonda valores baixos para inteiro (`R$ 14`) — métricas como **CPM/CPL
-precisam de 2 casas** (ver tarefa #16 em [TAREFAS.md](TAREFAS.md)).
+`money` (abrevia: M/k; **2 casas para custos unitários** — `R$ 14,27` em CPM/CPL/CPC/CPMQL/CAC),
+`pctf` (`12,3%`), `xf` (`1,42×`), `intf`, `fmtval(fmt,x)`.
 
 ---
 

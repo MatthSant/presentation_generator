@@ -112,12 +112,7 @@
     let TEMP_CTL = null;  // editor de regras de temperatura (substitui o JSON avançado)
     let GOALS_FILE = null; // CSV de launch goals re-enviado (opcional)
     let DICT_FILE = null;  // CSV de dicionário de criativos re-enviado (opcional)
-    // Tipos cuja temperatura é classificada por regras (espelha o servidor).
-    const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
-    // Tipos que aceitam launch goals (metas por utm_source × dia).
-    const GOALS_TYPES = new Set(['acompanhamento-lancamento', 'debriefing-lancamento']);
-    // Tipos que aceitam dicionário de criativos (field_ad_name → link).
-    const DICT_TYPES = new Set(['acompanhamento-lancamento', 'criativos']);
+    let CAPS = null;       // capacidades de auxiliares vindas do registry (base-config)
 
     if (!client || !slug) { $('loading').textContent = 'Faltam parâmetros (?c=cliente&s=slug).'; }
     else init();
@@ -132,6 +127,7 @@
         $('loading').hidden = true;
         if (!d.hasBase) { $('nobase').hidden = false; return; }
         RETAINED = d.config;
+        CAPS = d.caps || {};   // registry: { temperature, goals, dict, goalsUi } — fonte única (sem Sets locais)
         $('form').hidden = false;
         buildForm(d.config);
         setupTempEditor(d.config);
@@ -208,7 +204,7 @@
     // Editor de regras de temperatura: começa com as da ANÁLISE ATUAL; botão puxa as
     // do cliente (com fallback pro padrão geral do app). Substitui o JSON avançado.
     function setupTempEditor(cfg) {
-      if (!TEMP_TYPES.has(cfg.type)) return;
+      if (!CAPS.temperature) return;
       const card = document.createElement('div');
       card.className = 'u-card';
       card.innerHTML =
@@ -233,7 +229,7 @@
     // Metas (acompanhamento): igual ao criar — escolhe Manuais ou Launch goals (CSV).
     // Default = como foi setado na última geração (goals_csv presente → goals).
     function setupMetas(cfg) {
-      if (cfg.type !== 'acompanhamento-lancamento') return;
+      if (CAPS.goalsUi !== 'metas-toggle') return;
       const m = cfg.metas || {};
       const hasGoals = !!cfg.goals_csv;
       const fld = (id, lbl, val, step) => `<div class="fld"><label>${lbl}</label><input id="${id}" type="number"${step ? ` step="${step}"` : ''} value="${val == null ? '' : val}"></div>`;
@@ -268,7 +264,7 @@
 
     // Launch goals na atualização (debriefing): upload opcional de um novo CSV de metas.
     function setupGoals(cfg) {
-      if (cfg.type !== 'debriefing-lancamento') return;  // acompanhamento usa o toggle (setupMetas)
+      if (CAPS.goalsUi !== 'upload') return;  // 'metas-toggle' usa o card de metas (setupMetas)
       const card = document.createElement('div');
       card.className = 'u-card';
       const hasGoals = !!cfg.goals_csv;
@@ -291,7 +287,7 @@
     // Dicionário de criativos na atualização: upload opcional de um novo CSV
     // (field_ad_name → link). Se enviado, substitui o dicionário retido.
     function setupDict(cfg) {
-      if (!DICT_TYPES.has(cfg.type)) return;
+      if (!CAPS.dict) return;
       const card = document.createElement('div');
       card.className = 'u-card';
       const hasDict = !!cfg.dict_csv;

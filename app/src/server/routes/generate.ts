@@ -44,16 +44,13 @@ function uniqueSlug(out: string, client: string, base: string): string {
   return slug;
 }
 
-/** Tipos cuja temperatura é classificada por regras (match no field_campaign_name).
- *  histórico lê a coluna do CSV; conversão não tem temperatura. */
-const TEMP_TYPES = new Set(['acompanhamento-lancamento', 'criativos', 'debriefing-lancamento']);
-
 /** Preenche temp_rules/temp_overwrite do config a partir do cliente → fallback geral,
  *  quando o config não trouxe regras. Na geração nova o form manda as regras; na
  *  atualização a UI manda as da análise atual (ou as puxadas do cliente). O default
- *  de cada motor é o último recurso. */
+ *  de cada motor é o último recurso. Quais tipos têm temperatura vem do registry
+ *  (`supportsTemperature`) — histórico lê a coluna do CSV; conversão não tem. */
 function applyTempDefaults(config: Record<string, unknown>, client: string, type: string): void {
-  if (!TEMP_TYPES.has(type)) return;
+  if (!TYPES[type]?.supportsTemperature) return;
   if (Array.isArray(config.temp_rules) && config.temp_rules.length) return;
   const t = clientTemp(client) || globalTemp();
   if (!t) return;
@@ -261,7 +258,11 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     // launch goals / dicionário já foi usado p/ mostrar "mantém o atual" (pré-carregado).
     const clean: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(cfg!)) { clean[k] = /_csv$/.test(k) ? !!v : v; }
-    res.json({ hasBase: true, config: clean, type: cfg!.type });
+    // Capacidades de auxiliares vêm do registry (fonte única) — a UI de atualização
+    // não precisa mais de Sets hardcoded por tipo.
+    const def = TYPES[String(cfg!.type)];
+    const caps = { temperature: !!def?.supportsTemperature, goals: !!def?.supportsGoals, dict: !!def?.supportsDict, goalsUi: def?.goalsUi || null };
+    res.json({ hasBase: true, config: clean, type: cfg!.type, caps });
   });
 
   app.post('/api/:client/:slug/update', upload.fields([{ name: 'csv', maxCount: 1 }, { name: 'goals', maxCount: 1 }, { name: 'dict', maxCount: 1 }]), async (req, res) => {

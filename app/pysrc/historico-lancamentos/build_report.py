@@ -19,6 +19,9 @@ import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf, safe, fmtval
 from common.preserve import preserve, preserve_dataset
+# Builders de seção compartilhados. O kpi-card fica no `card()` local: o histórico
+# usa spark + delta vs. anterior (sem meta/goalCmp), que o km() de common não modela.
+from common.report import eb, fb
 
 LINE_COLORS = ['#4C1D95', '#7C3AED', '#3B82F6', '#0EA5E9', '#0D9488', '#10B981']
 METRIC_LABELS = {'cpm': 'CPM', 'ctr': 'CTR', 'cpc': 'CPC', 'cpl': 'CPL', 'conv_paga': 'Conversão paga', 'cpa': 'CPA'}
@@ -195,8 +198,7 @@ def assemble(rows, config, content, opts=None):
         pan.append({'id': wid, 'type': 'kpi-card', 'tier': tier, **kw})
         pg.add(wid, 'kpi-card', 3, 3 if tier == 'feature' else 2)
 
-    pan.append({'id': 'pan-eb-kpi1', 'type': 'eyebrow', 'title': 'INDICADORES PRINCIPAIS', 'caption': '4 métricas'})
-    pg.add('pan-eb-kpi1', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb-kpi1', 'INDICADORES PRINCIPAIS', '4 métricas')
     card('pan-k-conv', 'feature', label='Taxa de conversão', value=pctf(safe(vendas_t * 100, leads_t)),
          sub='vendas do produto principal / leads totais', icon='target', iconColor='#534AB7',
          delta=d_conv[0], deltaTone=d_conv[1], spark=s_conv)
@@ -210,8 +212,7 @@ def assemble(rows, config, content, opts=None):
          sub='fat. líq. − invest. − impostos − taxas', icon='database', iconColor='#1D9E75',
          delta=d_ret[0], deltaTone=d_ret[1], spark=s_ret)
 
-    pan.append({'id': 'pan-eb-kpi2', 'type': 'eyebrow', 'title': 'VOLUME E QUALIFICAÇÃO', 'caption': '8 métricas'})
-    pg.add('pan-eb-kpi2', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb-kpi2', 'VOLUME E QUALIFICAÇÃO', '8 métricas')
     sp_pago = safe(lpago_t * 100, lpago_t + lorg_t) or 0
     rc_pago = safe(rcp_t * 100, rcp_t + rco_t)
     refp = safe(refq_t * 100, vendas_t) or 0
@@ -252,9 +253,8 @@ def assemble(rows, config, content, opts=None):
     def bval(byk):
         return lambda key, fc: ov[fc]['by'][byk][key][metric]
 
-    pan.append({'id': 'pan-eb-brk', 'type': 'eyebrow', 'title': 'EVOLUÇÃO DE INDICADORES',
-                'caption': 'escolha o indicador — afeta só os gráficos e tabelas abaixo (linha tracejada = média)'})
-    pg.add('pan-eb-brk', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb-brk', 'EVOLUÇÃO DE INDICADORES',
+       'escolha o indicador — afeta só os gráficos e tabelas abaixo (linha tracejada = média)')
     pan.append({'id': 'pan-metric', 'type': 'metric-toggle', 'current': metric,
                 'metrics': [{'id': k, 'label': BRK_INFO[k]['label']} for k in calc.METRICS]})
     pg.add('pan-metric', 'metric-toggle', 12, 1)
@@ -305,9 +305,7 @@ def assemble(rows, config, content, opts=None):
                     [pf_mql, pf_nmql])
     cperf = cmp_rich('lc_cmp_perfil', 'Grupo', [('cmql', 'MQL'), ('cnmql', 'Não-MQL')], perfil_val, bfmt, bcost)
     ctbl('pan-ct-perfil', f'{blbl} · MQL × não-MQL', perfil_chart, cperf, 'lc_cmp_perfil', w=6)
-    pan.append({'id': 'pan-eb-fin', 'type': 'eyebrow', 'title': 'RESULTADO FINANCEIRO',
-                'caption': 'ROAS (breakeven em 1×), ROI e retorno por lançamento'})
-    pg.add('pan-eb-fin', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb-fin', 'RESULTADO FINANCEIRO', 'ROAS (breakeven em 1×), ROI e retorno por lançamento')
     pan.append(auto_out(line('pan-roas', 'ROAS por lançamento', 'lc_financ', 'roas', colors=['#7C3AED'], pct=False, vf='x'),
                         [[ov[fc]['roas'] for fc in events]])); pg.add('pan-roas', 'chart', 4, 4)
     pan.append(auto_out(line('pan-roi', 'ROI por lançamento', 'lc_financ', 'roi', colors=['#3B82F6'], pct=False, vf='x'),
@@ -342,8 +340,7 @@ def assemble(rows, config, content, opts=None):
             kw['delta'], kw['deltaTone'] = kvar(mk, cost)
         inv.append(kw); ig.add(wid, 'kpi-card', 3, 3)
 
-    inv.append({'id': 'inv-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE MÍDIA', 'caption': '8 métricas'})
-    ig.add('inv-eb-kpi', 'eyebrow', 12, 1)
+    eb(inv, ig, 'inv-eb-kpi', 'INDICADORES DE MÍDIA', '8 métricas')
     icard('inv-k-inv', money(mi), 'Investimento pago', 'verba total de mídia paga', 'coin', '#534AB7', 'invest', cost=False)
     icard('inv-k-cpm', ('—' if mimp <= 0 else f'R$ {mi / mimp * 1000:.2f}'), 'CPM', 'custo por mil impressões', 'database', '#185FA5', 'cpm', cost=True)
     icard('inv-k-ctr', pctf(safe(mclk * 100, mimp)), 'CTR', 'cliques / impressões', 'trending-up', '#3B6D11', 'ctr', cost=False)
@@ -352,16 +349,13 @@ def assemble(rows, config, content, opts=None):
     icard('inv-k-conv', pctf(safe(mvp * 100, mlp)), 'Conv. paga', 'vendas / leads (pago)', 'circle-check', '#534AB7', 'conv_paga', cost=False)
     icard('inv-k-cpa', (money(mi / mvp) if mvp > 0 else '—'), 'CPA', 'custo por aquisição', 'shopping-cart', '#3B6D11', 'cpa', cost=True)
     icard('inv-k-roas', xf(safe(mfl, mi)), 'ROAS pago', 'fat. líq. pago / investimento', 'bolt', '#EF9F27', spark=roas_pago_sp)
-    inv.append({'id': 'inv-eb-spend', 'type': 'eyebrow', 'title': 'INVESTIMENTO', 'caption': 'verba de mídia paga por lançamento'})
-    ig.add('inv-eb-spend', 'eyebrow', 12, 1)
+    eb(inv, ig, 'inv-eb-spend', 'INVESTIMENTO', 'verba de mídia paga por lançamento')
     inv.append({'id': 'inv-invest', 'type': 'chart', 'chartType': 'bar', 'title': 'Investimento por lançamento', 'height': 300,
                 'colors': ['#534AB7'], 'valueFormat': 'money', 'bind': {'dataset': 'lc_media', 'x': 'lcto', 'y': 'invest'}})
     ig.add('inv-invest', 'chart', 12, 4)
     for m in calc._MEDIA_METRICS:
         lbl, ispct, cost = METRIC_LABELS[m], METRIC_PCT.get(m, False), METRIC_COST.get(m, False)
-        inv.append({'id': f'inv-eb-{m}', 'type': 'eyebrow', 'title': lbl.upper(),
-                    'caption': f'{lbl} geral e por temperatura ao longo dos lançamentos'})
-        ig.add(f'inv-eb-{m}', 'eyebrow', 12, 1)
+        eb(inv, ig, f'inv-eb-{m}', lbl.upper(), f'{lbl} geral e por temperatura ao longo dos lançamentos')
         mvf = 'pct' if ispct else 'money'
         inv.append(auto_out(line(f'inv-{m}-geral', f'{lbl} · geral', 'lc_media', m, colors=['#534AB7'], pct=ispct, vf=mvf),
                             [[media[fc][m] for fc in events]]))
@@ -390,13 +384,10 @@ def assemble(rows, config, content, opts=None):
     if insights.get('zones'):
         ins, ig2 = [], Grid()
         for z, zone in enumerate(insights['zones']):
-            ins.append({'id': f'ins-eb{z}', 'type': 'eyebrow', 'n': zone.get('n'), 'color': zone.get('color'),
-                        'title': zone.get('title'), 'caption': zone.get('caption', '')})
-            ig2.add(f'ins-eb{z}', 'eyebrow', 12, 1)
+            eb(ins, ig2, f'ins-eb{z}', zone.get('title'), zone.get('caption', ''),
+               n=zone.get('n'), color=zone.get('color'))
             for ci, cd in enumerate(zone.get('cards', [])):
-                ins.append({'id': f'ins-{z}-{ci}', 'type': 'find-block', 'card': True, 'tag': cd.get('tag'),
-                            'tagColor': cd.get('tagColor'), 'title': cd.get('title'), 'detail': cd.get('detail')})
-                ig2.add(f'ins-{z}-{ci}', 'find-block', 4, 3)
+                fb(ins, ig2, f'ins-{z}-{ci}', cd.get('tag'), cd.get('tagColor'), cd.get('title'), cd.get('detail'))
         if insights.get('method'):
             ins.append({'id': 'ins-method', 'type': 'find-note', 'text': insights['method']}); ig2.add('ins-method', 'find-note', 12, 1)
         sections['s10'] = {'id': 's10', 'header': insights.get('header', {'badge': 'Insights', 'title': 'Insights'}), 'widgets': ins}

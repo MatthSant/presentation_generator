@@ -47,7 +47,7 @@ def _week_rows(rows):
     return out
 
 
-def build_frame(B, a):
+def build_frame(ctx, a):
     """Eixo parametrizável: escopo | canal | temperatura | campanha | criativo | publico
     | semana | dia. `recorte_*` filtra as linhas antes (escopo/temperatura/canal/criativo/
     publico/campanha) — ex.: ROAS por temperatura só do canal X. `incluir_geral=sim`
@@ -57,7 +57,7 @@ def build_frame(B, a):
     filtro = {k: a[k2] for k, k2 in (('escopo', 'recorte_escopo'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
                                      ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
-    src = B.get('_rows') or []
+    src = ctx.get('_rows') or []
     # so_midia: nas séries temporais, poda a cauda pós-lançamento (dias sem mídia paga)
     # que distorce a leitura de custo/saturação (ex.: trend de leads caindo p/ "-100%").
     if dim in ('dia', 'semana') and str(a.get('so_midia', '')).lower() in ('sim', 'true', '1'):
@@ -424,7 +424,8 @@ def main():
         out = qc.run(build_frame, EXTRA, M, fn, args)
     except Exception as e:
         out = {'status': 'erro', 'motivo': str(e)}
-    print(json.dumps(out, ensure_ascii=False))
+    # UTF-8 direto no buffer — o console Windows (cp1252) quebraria fora do pygen.
+    sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode('utf-8'))
 
 
 if __name__ == '__main__':

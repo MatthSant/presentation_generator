@@ -19,6 +19,10 @@ import calc
 from common.layout import Grid
 from common.fmt import money, pctf, intf
 from common.preserve import preserve, preserve_dataset
+# Builders de seção compartilhados. O kpi-card fica no `kcard()` local: o semáforo
+# tático (meta_status 5/15% + flag 3d) tem semântica própria — não é o goalCmp
+# avaliativo (±10%) do km() de common.
+from common.report import eb, fb
 
 PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
 INT = {'leads'}  # contagem — nem % nem dinheiro
@@ -123,29 +127,21 @@ def assemble(rows, config, content, opts=None):
                         'tone': 'bad' if r['cls'] == 'bad' else 'warn'}
                 tag, tagColor = f"{sym} {r['label']}", ('r' if r['cls'] == 'bad' else 'a')
                 detail = impact
-            arr.append({'id': f'{prefix}-risk-{i}', 'type': 'find-block', 'card': True,
-                        'tag': tag, 'tagColor': tagColor,
-                        'title': f"{vfmt(r['metric'], r['value'])}",
-                        'stat': stat, 'detail': detail})
-            pg.add(f'{prefix}-risk-{i}', 'find-block', 6, 2)
+            fb(arr, pg, f'{prefix}-risk-{i}', tag, tagColor,
+               f"{vfmt(r['metric'], r['value'])}", detail, w=6, h=2, stat=stat)
 
     def risk_section(arr, pg, risks, prefix, title):
         # eyebrow + cards de risco; quando não há risco, mostra um card de "tudo em
         # linha" em vez de seção vazia.
         if risks:
-            arr.append({'id': f'{prefix}-eb-risk', 'type': 'eyebrow', 'n': '!', 'color': 'red',
-                        'title': title, 'caption': 'KPIs furando a meta ou em piora acelerada'})
-            pg.add(f'{prefix}-eb-risk', 'eyebrow', 12, 1)
+            eb(arr, pg, f'{prefix}-eb-risk', title, 'KPIs furando a meta ou em piora acelerada', n='!', color='red')
             risk_blocks(arr, pg, risks, prefix)
         else:
-            arr.append({'id': f'{prefix}-eb-risk', 'type': 'eyebrow', 'n': '✓', 'color': 'green',
-                        'title': title, 'caption': 'sem alertas no momento'})
-            pg.add(f'{prefix}-eb-risk', 'eyebrow', 12, 1)
-            arr.append({'id': f'{prefix}-risk-ok', 'type': 'find-block', 'card': True,
-                        'tag': '✓ Tudo em linha', 'tagColor': 'g',
-                        'title': 'Indicadores em linha ou acima do planejado',
-                        'detail': 'Nenhum KPI furando a meta nem em piora acelerada nos últimos 3 dias. Manter o ritmo e seguir monitorando.'})
-            pg.add(f'{prefix}-risk-ok', 'find-block', 12, 2)
+            eb(arr, pg, f'{prefix}-eb-risk', title, 'sem alertas no momento', n='✓', color='green')
+            fb(arr, pg, f'{prefix}-risk-ok', '✓ Tudo em linha', 'g',
+               'Indicadores em linha ou acima do planejado',
+               'Nenhum KPI furando a meta nem em piora acelerada nos últimos 3 dias. Manter o ritmo e seguir monitorando.',
+               w=12, h=2)
 
     # ── dataset diário (charts + bind direto no deep mode) ───────────────────
     # inclui TODAS as taxas diárias deriváveis (taxa_resp/conv_pag/ctr) p/ a IA poder
@@ -190,9 +186,8 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s01 — Visão Geral ════════════════════════════════════════════════
     pan, pg = [], Grid()
-    pan.append({'id': 'pan-eb-vg', 'type': 'eyebrow', 'title': 'CAPTAÇÃO',
-                'caption': f"leads captados, origem e atingimento de meta · dia {B['dia_campanha']} · dados até {B['corte_label']}"})
-    pg.add('pan-eb-vg', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb-vg', 'CAPTAÇÃO',
+       f"leads captados, origem e atingimento de meta · dia {B['dia_campanha']} · dados até {B['corte_label']}")
 
     # acumulado de leads (barras, últimas 3 destacadas) + linhas de meta + número-destaque
     mt = B['meta'].get('_leads_total')
@@ -250,8 +245,7 @@ def assemble(rows, config, content, opts=None):
     pg.items = hero_lay
     pg.x, pg.y, pg.rowh = 0, bottom, 0
 
-    pan.append({'id': 'pan-eb-kpi', 'type': 'eyebrow', 'title': 'KPIS MACRO', 'caption': '6 indicadores · valor geral · 3 dias · tendência · meta'})
-    pg.add('pan-eb-kpi', 'eyebrow', 12, 1)
+    eb(pan, pg, 'pan-eb-kpi', 'KPIS MACRO', '6 indicadores · valor geral · 3 dias · tendência · meta')
     for m in calc.KPI_MACRO:
         kcard(pan, pg, m)
 
@@ -291,8 +285,7 @@ def assemble(rows, config, content, opts=None):
     can, cg = [], Grid()
     # Origem do Tráfego (bar-list hierárquico: Pago/Orgânico + canais) + Temperatura
     # (bar-list + cards de CPL médio) — 2 colunas. Widget único 'bar-list'.
-    can.append({'id': 'can-eb-orig', 'type': 'eyebrow', 'title': 'ORIGEM E TEMPERATURA', 'caption': 'distribuição dos leads'})
-    cg.add('can-eb-orig', 'eyebrow', 12, 1)
+    eb(can, cg, 'can-eb-orig', 'ORIGEM E TEMPERATURA', 'distribuição dos leads')
     sp = B['split']; tot_leads = sp['leads_pago'] + sp['leads_org']
     orig_rows = [
         {'label': 'Pago', 'value': intf(sp['leads_pago']), 'pct': calc.pct(sp['leads_pago'], tot_leads) or 0,
@@ -328,8 +321,7 @@ def assemble(rows, config, content, opts=None):
         cg.add('can-temp', 'bar-list', 6, 4)
     # tipo de lead (6 células como kpi-cards)
     tl = B['tipo_lead']
-    can.append({'id': 'can-eb-tipo', 'type': 'eyebrow', 'title': 'TIPO DE LEAD', 'caption': 'novos, antigos e clientes por origem'})
-    cg.add('can-eb-tipo', 'eyebrow', 12, 1)
+    eb(can, cg, 'can-eb-tipo', 'TIPO DE LEAD', 'novos, antigos e clientes por origem')
     # barras 100% por categoria, divididas Pago / Orgânico — mostra quem domina cada
     # categoria de lead (novos = pago, clientes = orgânico, etc.)
     leads_base = tl['novos'] + tl['antigos']
@@ -352,9 +344,8 @@ def assemble(rows, config, content, opts=None):
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:
-        can.append({'id': 'can-eb-cri', 'type': 'eyebrow', 'title': 'CRIATIVOS',
-                    'caption': f"maior volume e maior qualificação · campanha até {B['corte_label']}"})
-        cg.add('can-eb-cri', 'eyebrow', 12, 1)
+        eb(can, cg, 'can-eb-cri', 'CRIATIVOS',
+           f"maior volume e maior qualificação · campanha até {B['corte_label']}")
 
         def cri_list_rows(lst, eff=False):
             rows = []
@@ -384,8 +375,7 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s04 — Tráfego Pago ═══════════════════════════════════════════════
     tra, tg = [], Grid()
-    tra.append({'id': 'tra-eb-kpi', 'type': 'eyebrow', 'title': 'INDICADORES DE TRÁFEGO PAGO', 'caption': 'mídia + custo e qualidade do lead pago'})
-    tg.add('tra-eb-kpi', 'eyebrow', 12, 1)
+    eb(tra, tg, 'tra-eb-kpi', 'INDICADORES DE TRÁFEGO PAGO', 'mídia + custo e qualidade do lead pago')
     # mídia (omite hook/hold/connect sem dado) + conversão, em LINHAS UNIFORMES:
     # 12÷(nº da linha) → larguras iguais por linha. Ex.: no fallback (7 cards) vira
     # 4 em cima (w3) + 3 embaixo (w4), em vez de fluir 5+2 com larguras desiguais.
@@ -409,9 +399,7 @@ def assemble(rows, config, content, opts=None):
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais
     # (sem Pageviews quando a base não tem o dado)
-    tra.append({'id': 'tra-eb-fun', 'type': 'eyebrow', 'title': 'FUNIL DE TRÁFEGO PAGO',
-                'caption': ' → '.join(s['label'] for s in B['funnel_total'])})
-    tg.add('tra-eb-fun', 'eyebrow', 12, 1)
+    eb(tra, tg, 'tra-eb-fun', 'FUNIL DE TRÁFEGO PAGO', ' → '.join(s['label'] for s in B['funnel_total']))
 
     def funnel_widget(wid, title, sub, stages, w=6):
         # Widget de funil visual: barras degradê por etapa + pills perda/migram por
@@ -475,8 +463,7 @@ def assemble(rows, config, content, opts=None):
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
                                     'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},
-                          'controls': {'kind': 'acompanhamento-lancamento',
-                                       'pages': ['acompanhamento']},
+                          # sem meta.controls: o tipo não tem render_view.py nem controls no client
                           'nav': 'sidebar'},
                  'pages': pages}
     return {'dataset': dataset, 'data': data_json,

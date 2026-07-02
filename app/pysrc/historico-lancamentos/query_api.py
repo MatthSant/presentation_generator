@@ -52,11 +52,11 @@ def _serie(S, m):
     return [_val(S, fc, m) for fc in S['events']]
 
 
-def build_frame(S, _a):
+def build_frame(ctx, _a):
     """Eixo = lançamento (cronológico); métricas = catálogo overview + mídia paga."""
     return {
         'axis': 'lcto',
-        'rows': [{'key': S['labels'][fc], 'm': {m: _val(S, fc, m) for m in _LABEL}} for fc in S['events']],
+        'rows': [{'key': ctx['labels'][fc], 'm': {m: _val(ctx, fc, m) for m in _LABEL}} for fc in ctx['events']],
         'labels': _LABEL,
         'cost': {m: (m in _COST) for m in _LABEL},
     }
@@ -119,7 +119,8 @@ def main():
         out = qc.run(build_frame, EXTRA, S, fn, args)
     except Exception as e:
         out = {'status': 'erro', 'motivo': str(e)}
-    print(json.dumps(out, ensure_ascii=False))
+    # UTF-8 direto no buffer — o console Windows (cp1252) quebraria fora do pygen.
+    sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode('utf-8'))
 
 
 if __name__ == '__main__':

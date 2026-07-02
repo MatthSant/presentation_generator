@@ -14,25 +14,13 @@ import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf
 from common.preserve import preserve, preserve_dataset
+# Builders de card/seção + motor de comparação Meta×Histórico — fonte canônica em common.report.
+from common.report import (dev as _dev, gstatus as _gstatus, goalcmp as _goalcmp,
+                           apply_goal as _apply_goal, km, ks, eb, fb, table)
 
 
 def _pp(v):
     return '—' if v is None else f'{v:+.1f} p.p.'
-
-
-def _dev(real, meta, invert=False):
-    """Δ% bruto vs meta (sinal = direção real: + acima, − abaixo). invert = custo
-    (menor é melhor). Avaliação em 3 níveis: verde (na meta ou melhor) · âmbar (desvio
-    pequeno, ≤10%) · vermelho (desvio grande) — evita 'tudo vermelho' em desvios baixos."""
-    if not meta:
-        return None, 'neutral'
-    d = (real - meta) / meta * 100
-    if abs(d) < 1:
-        return d, 'neutral'
-    good = (d <= 0) if invert else (d >= 0)  # custo: abaixo da meta é bom
-    if good:
-        return d, 'pos'
-    return d, 'warn' if abs(d) <= 10 else 'neg'
 
 
 def assemble(rows, config, content, opts=None):
@@ -43,67 +31,7 @@ def assemble(rows, config, content, opts=None):
 
     def add_table(name, dims, rows_):
         dataset[name] = {'dims': list(dims), 'filters': [], 'rows': rows_}
-
-    def _gstatus(tone):
-        return 'ok' if tone == 'pos' else ('bad' if tone == 'neg' else 'warn')
-
-    def _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt, glabel='Meta'):
-        """Rodapé de meta toggleável Meta↔Hist (substitui o pill — a base já mostra o
-        desvio). glabel = 'Meta' ou 'Bench'. None quando não há meta formatada."""
-        if real is None or not meta or not meta_fmt:
-            return None
-        d, tone = _dev(real, meta, invert)
-        if d is None:
-            return None
-        mg = {'label': f'{glabel} {meta_fmt}', 'delta': f'{d:+.0f}%', 'status': _gstatus(tone)}
-        dh, th = _dev(real, hist, invert) if hist else (None, 'neutral')
-        if dh is not None and hist_fmt:
-            hg = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
-        else:
-            hg = {'label': 'Hist —', 'delta': '', 'status': 'neutral'}
-        return {'meta': mg, 'hist': hg}
-
-    def _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt, glabel='Meta'):
-        gc = _goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt, glabel)
-        if gc:
-            card['goalCmp'] = gc
-        elif real is not None and hist and hist_fmt:
-            # Sem meta (derivados): rodapé estático comparando vs histórico.
-            dh, th = _dev(real, hist, invert)
-            if dh is not None:
-                card['goal'] = {'label': f'Hist {hist_fmt}', 'delta': f'{dh:+.0f}%', 'status': _gstatus(th)}
-
-    def km(arr, pg, wid, label, value, sub, icon, color, real=None, meta=None, invert=False, hist=None, w=4, h=2, meta_fmt=None, hist_fmt=None, x=None, y=None, glabel='Meta'):
-        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value,
-                'sub': sub, 'icon': icon, 'iconColor': color}
-        _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt, glabel)
-        arr.append(card)
-        if x is not None: pg.at(wid, 'kpi-card', x, y, w, h)
-        else: pg.add(wid, 'kpi-card', w, h)
-
-    def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=None, invert=False, hist=None, meta_fmt=None, hist_fmt=None):
-        # mesmo padrão dos KPIs macro: card feature com rodapé "Meta X · ±% ✓" toggleável (sem ícone).
-        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature', 'label': label, 'value': value, 'sub': sub}
-        _apply_goal(card, real, meta, invert, hist, meta_fmt, hist_fmt)
-        arr.append(card); pg.add(wid, 'kpi-card', w, h)
-
-    def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None):
-        b = {'id': wid, 'type': 'eyebrow', 'title': title, 'caption': caption}
-        if n:
-            b['n'] = n
-        if color:
-            b['color'] = color
-        if info:
-            b['info'] = info
-        arr.append(b); pg.add(wid, 'eyebrow', 12, 1)
-
-    def fb(arr, pg, wid, tag, tagColor, title, detail, w=4, h=3):
-        arr.append({'id': wid, 'type': 'find-block', 'card': True, 'tag': tag, 'tagColor': tagColor,
-                    'title': title, 'detail': detail}); pg.add(wid, 'find-block', w, h)
-
-    def table(arr, pg, wid, title, cols, rows_, w=12, h=4):
-        arr.append({'id': wid, 'type': 'table', 'title': title, 'cols': cols, 'rows': rows_})
-        pg.add(wid, 'table', w, h)
+    # _dev/_gstatus/_goalcmp/_apply_goal/km/ks/eb/fb/table → importados de common.report.
 
     # daily dataset (gráficos)
     add_table('deb_daily', ['data'], [
@@ -805,19 +733,17 @@ def assemble(rows, config, content, opts=None):
                     'metrics': _mjson, 'dimToggle': _scdt, 'dims': _scdims, 'points': _scdims[_first],
                     'x': 'cpmql', 'y': 'roas', 'trend': 'best', 'sizeBy': 'inv'})
         tg.at('tra-corr', 'scatter-picker', 0, 20, 8, 6)
-        tra.append({'id': 'tra-corr-help', 'type': 'find-block', 'card': True, 'tag': 'COMO USAR', 'tagColor': 'p',
-                    'title': 'Correlação & R²',
-                    'detail': ('O <strong>R²</strong> (0 a 1) mede o quanto uma métrica explica a outra: perto de '
-                               '<strong>1</strong>, relação forte; perto de <strong>0</strong>, sem relação. O motor testa '
-                               '<strong>reta, log e exp</strong> e plota o melhor ajuste.<br><br>'
-                               '<strong>Como usar:</strong> troque X e Y para comparar pares — ex.: <strong>CPMQL × ROAS</strong> '
-                               'vs <strong>CPL × ROAS</strong>. O par com maior R² é o que mais <strong>explica o retorno</strong> '
-                               'da mídia paga; é nele que vale focar pra otimizar. Alterne <strong>Público / Criativo / '
-                               'Campanha</strong> pra ver onde a relação é mais forte. O <strong>tamanho do ponto</strong> '
-                               '= investimento.<br><br>'
-                               '<strong>Cuidado:</strong> com <strong>poucos pontos</strong> (n baixo), um R² alto pode ser '
-                               'ilusório — trate como sinal, não prova.')})
-        tg.at('tra-corr-help', 'find-block', 8, 20, 4, 6)
+        fb(tra, tg, 'tra-corr-help', 'COMO USAR', 'p', 'Correlação & R²',
+           ('O <strong>R²</strong> (0 a 1) mede o quanto uma métrica explica a outra: perto de '
+            '<strong>1</strong>, relação forte; perto de <strong>0</strong>, sem relação. O motor testa '
+            '<strong>reta, log e exp</strong> e plota o melhor ajuste.<br><br>'
+            '<strong>Como usar:</strong> troque X e Y para comparar pares — ex.: <strong>CPMQL × ROAS</strong> '
+            'vs <strong>CPL × ROAS</strong>. O par com maior R² é o que mais <strong>explica o retorno</strong> '
+            'da mídia paga; é nele que vale focar pra otimizar. Alterne <strong>Público / Criativo / '
+            'Campanha</strong> pra ver onde a relação é mais forte. O <strong>tamanho do ponto</strong> '
+            '= investimento.<br><br>'
+            '<strong>Cuidado:</strong> com <strong>poucos pontos</strong> (n baixo), um R² alto pode ser '
+            'ilusório — trate como sinal, não prova.'), w=4, h=6, x=8, y=20)
     tg.cursor_to(26)
 
     # ── GARGALOS NO FUNIL — heatmap (Temperatura · Campanha · Público) ──────────
