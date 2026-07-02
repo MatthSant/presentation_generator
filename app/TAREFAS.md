@@ -58,20 +58,32 @@ tipos: skill `/integrar-analise` (`.claude/skills/integrar-analise/`).
 
 ## Plataforma — melhorias da revisão (jul/2026)
 
-Achados da revisão completa pré-Fase 2 (não bloqueiam; fazer quando tocar na área):
+Achados da revisão completa pré-Fase 2:
 
-- [ ] **Registry dinâmico de controles no client** — mapa `kind → classe` em vez dos ifs
-      em `src/client/main.ts:309–331`; novo tipo com controles hoje exige editar o main.
-- [ ] **Helpers compartilhados dos `*-controls.ts`** — `el`/`group`/`opt`/`must`/debounce
-      duplicados ~35 LOC × 3 arquivos → extrair p/ `filters.ts`.
-- [ ] **Sanitização de `innerHTML` com prosa LLM** (renderer.ts: find-block/find-note/
-      highlight/ni/label-sec/request) — whitelist de tags (defesa em profundidade; hoje o
-      conteúdo vem do motor determinístico, risco teórico).
-- [ ] **Testes**: `bind.test.ts`, rotas `POST /render` e `POST /query`; CI (lint+build+test).
+- [x] **Registry dinâmico de controles no client** — `controlsRegistry` em `main.ts`
+      (mount + body do recompute por `kind`); novo tipo = classe + 1 entrada.
+- [x] **Helpers compartilhados dos `*-controls.ts`** — extraídos p/ `src/client/controls-utils.ts`
+      (el/group/opt/mini/must/mountShell/fabSetPage/setBadge/debounce).
+- [x] **Sanitização de `innerHTML` com prosa** — `safeHtml()` no renderer.ts (whitelist
+      strong/em/br/code, unwrap do resto) nos sites de find-block/find-note/highlight/ni/
+      label-sec/xs/bullets. `request` já usava textContent.
+- [x] **Testes + CI** — `bind.test.ts` já existia; `render.test.ts` novo (guards);
+      `.github/workflows/ci.yml` (lint+build+test, suíte hermética).
 - [ ] **`render_view.py` p/ conversao-perfil/acompanhamento** se um dia ganharem controles
       interativos (assemble já é puro nos dois).
-- [ ] **Cópia de CSVs auxiliares p/ a base retida** (`generate.ts:186–196`): logar/fail-hard
-      se a cópia falhar (hoje falha silenciosa perde goals/hist/dict na atualização).
+- [x] **Cópia de CSVs auxiliares p/ a base retida** — logada; aux de `requiredFiles`
+      (ex.: goals do debriefing) agora falha alto no /generate.
+
+## /goal detalhamentos — retomada (aguarda crédito de API)
+
+A análise `inde/conversao-perfil` foi recriada do backup (motor + base retida manual).
+Os detalhamentos (17/20 na época; os 2 do conversao se perderam com o output) rodam com:
+
+1. Subir o app (`node dist/server/index.js` ou dev-authoff).
+2. `set DET_BASE=http://localhost:3131` (ou a porta em uso) e
+   `node temp/det_driver.mjs inde conversao-perfil cp-drag,cp-demo,cp-channel,cp-consist,cp-combos`.
+3. Conferir `temp/det_summary_inde_conversao-perfil.json` + o render real de cada seção
+   em `/report/inde/conversao-perfil` (regra: checar o render, não só ok=true).
 
 ---
 

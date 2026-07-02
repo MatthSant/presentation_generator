@@ -190,8 +190,15 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
             const src = baseConfig[`${aux}_csv`];
             if (typeof src === 'string' && fs.existsSync(src)) {
               const dest = path.join(baseDir, `${aux}.csv`);
-              fs.copyFileSync(src, dest);
-              baseConfig[`${aux}_csv`] = dest;
+              try {
+                fs.copyFileSync(src, dest);
+                baseConfig[`${aux}_csv`] = dest;
+              } catch (e) {
+                // Aux OBRIGATÓRIO (registry.requiredFiles) sem cópia = base quebrada na
+                // certa (rebuild/deep perdem as metas) → falha alto em vez de silencioso.
+                console.error(`[generate] ${client}/${slug}: falha ao reter ${aux}.csv na base — ${(e as Error).message}`);
+                if (def.requiredFiles?.includes(aux)) throw new Error(`não consegui reter ${aux}.csv na base (${(e as Error).message})`);
+              }
             }
           }
           writeJson(path.join(baseDir, 'config.json'), baseConfig);
@@ -199,7 +206,10 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
           // exigem content.insights (conversao-perfil) quebra. Atualizado se insights rodar.
           try { fs.copyFileSync(contentPath, path.join(baseDir, 'content.json')); } catch { /* opcional */ }
           baseRetained = true;
-        } catch { baseRetained = false; }
+        } catch (e) {
+          console.error(`[generate] ${client}/${slug}: base NÃO retida — ${(e as Error).message}`);
+          baseRetained = false;
+        }
       }
 
       // Optional Layer B1: generate insight prose from the freshly computed
@@ -343,7 +353,11 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
         if (!config.goals_csv) { try { fs.rmSync(path.join(baseDir, 'goals.csv')); } catch { /* sem goals retido */ } }
         writeJson(path.join(baseDir, 'config.json'), config);
         writeJson(path.join(baseDir, 'content.json'), content);
-      } catch { /* não-fatal */ }
+      } catch (e) {
+        // Não-fatal (a atualização já rodou), mas a base defasada quebra o próximo
+        // rebuild/deep — deixa rastro no log em vez de sumir com o erro.
+        console.error(`[update] ${client}/${slug}: falha ao re-reter a base — ${(e as Error).message}`);
+      }
       // Re-fixa o nome de exibição do cliente na meta (segue o registro).
       try {
         const dataFile = path.join(outDir, 'data.json');

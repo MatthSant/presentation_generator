@@ -4,46 +4,34 @@
  * recalcula no servidor (debounced); o main faz o POST /render e re-renderiza. */
 
 import type { ReportMeta } from '../shared/types.js';
-import { wireFilterShell } from './filters.js';
+import { el, group, opt, mountShell, fabSetPage, setBadge, debounce, type FabShell } from './controls-utils.js';
 
 type Controls = NonNullable<ReportMeta['controls']>;
 export interface CriativosOpts { mode: string; minInvest: number; temp: string | null; }
 export interface CriativosHandlers { apply: (o: CriativosOpts) => void; }
 
 export class CriativosControls {
-  private fab: HTMLElement;
-  private modal: HTMLElement;
-  private body: HTMLElement;
-  private count: HTMLElement;
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private shell: FabShell;
+  private schedule: () => void;
   private mode: string;
   private minInvest = 0;
   private temp: string | null = null;
 
   constructor(private cfg: Controls, private h: CriativosHandlers) {
-    this.fab = must('filter-fab');
-    this.modal = must('filter-modal');
-    this.body = must('filter-body');
-    this.count = must('filter-count');
+    this.shell = mountShell('criativos-controls', () => { this.minInvest = 0; this.temp = null; this.renderBody(); this.updateBadge(); this.schedule(); });
     const c = cfg as { mode?: string; modes?: Array<{ id: string }> };
     this.mode = c.mode || c.modes?.[0]?.id || 'resultado';
-
-    wireFilterShell(this.fab, this.modal, must('filter-close'));
-    must('filter-clear').addEventListener('click', () => { this.minInvest = 0; this.temp = null; this.renderBody(); this.updateBadge(); this.schedule(); });
+    this.schedule = debounce(() => this.h.apply({ mode: this.mode, minInvest: this.minInvest, temp: this.temp }), 250);
 
     this.renderBody();
     this.updateBadge();
   }
 
   /** O FAB de controle aparece em todas as páginas do relatório. */
-  setPage(pageId: string): void {
-    const on = (this.cfg.pages || []).includes(pageId);
-    this.fab.hidden = !on;
-    if (!on) this.modal.classList.remove('open');
-  }
+  setPage(pageId: string): void { fabSetPage(this.shell, this.cfg.pages, pageId); }
 
   private renderBody(): void {
-    this.body.replaceChildren();
+    this.shell.body.replaceChildren();
     const c = this.cfg as { modes?: Array<{ id: string; label: string }>; temps?: string[]; minInvestPresets?: number[] };
 
     // Modo (single-select)
@@ -55,7 +43,7 @@ export class CriativosControls {
       segM.appendChild(b);
     }
     gMode.appendChild(segM);
-    this.body.appendChild(gMode);
+    this.shell.body.appendChild(gMode);
 
     // Investimento mínimo (presets)
     const gInv = group('Investimento mínimo');
@@ -67,7 +55,7 @@ export class CriativosControls {
       segI.appendChild(b);
     }
     gInv.appendChild(segI);
-    this.body.appendChild(gInv);
+    this.shell.body.appendChild(gInv);
 
     // Temperatura (single-select) — só quando há temperaturas na base. Com uma única
     // temperatura, "Todas" é redundante: mostra apenas essa opção (informativa).
@@ -86,35 +74,11 @@ export class CriativosControls {
         segT.appendChild(b);
       }
       gT.appendChild(segT);
-      this.body.appendChild(gT);
+      this.shell.body.appendChild(gT);
     }
   }
 
   private updateBadge(): void {
-    const n = (this.minInvest > 0 ? 1 : 0) + (this.temp ? 1 : 0);
-    this.count.textContent = String(n);
-    this.fab.classList.toggle('flt-has', n > 0);
+    setBadge(this.shell, (this.minInvest > 0 ? 1 : 0) + (this.temp ? 1 : 0));
   }
-
-  private schedule(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.h.apply({ mode: this.mode, minInvest: this.minInvest, temp: this.temp }), 250);
-  }
-}
-
-function el(tag: string, cls: string): HTMLElement { const e = document.createElement(tag); e.className = cls; return e; }
-function group(label: string): HTMLElement {
-  const g = el('div', 'flt-group');
-  const l = el('div', 'flt-label'); l.textContent = label; g.appendChild(l);
-  return g;
-}
-function opt(label: string, active: boolean): HTMLElement {
-  const b = el('button', 'flt-opt' + (active ? ' flt-active' : ''));
-  (b as HTMLButtonElement).type = 'button'; b.textContent = label;
-  return b;
-}
-function must(id: string): HTMLElement {
-  const e = document.getElementById(id);
-  if (!e) throw new Error(`criativos-controls: missing #${id}`);
-  return e;
 }

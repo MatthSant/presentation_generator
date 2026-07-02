@@ -62,8 +62,7 @@ test('auditLayout: gráfico longe de qualquer conclusão é SOFT', () => {
     [{ id: 'ch', w: 6, h: 4 }, { id: 'tb', w: 6, h: 4 }], // dado isolado dos textos
     [{ id: 'fb', w: 12, h: 3 }],
   ];
-  const a = auditLayout(rows, W);
-  // 'fb' (linha 4) é adjacente à linha 3 (ch/tb), então os dados TÊM conclusão perto:
+  auditLayout(rows, W);   // 'fb' (linha 4) é adjacente à linha 3 (ch/tb) → dados COM conclusão perto
   // monta um caso em que o gráfico fica realmente longe.
   const far: LayoutCell[][] = [
     [{ id: 'fb', w: 12, h: 3 }],

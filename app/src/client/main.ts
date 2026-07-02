@@ -17,7 +17,11 @@ import { HistoricoFilters } from './historico-controls.js';
 import { CriativosControls } from './criativos-controls.js';
 import { DebriefingControls, type DebFilters } from './debriefing-controls.js';
 import { resolveBind } from '../shared/bind.js';
-import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
+import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta, ReportMeta } from '../shared/types.js';
+
+type ReportControls = NonNullable<ReportMeta['controls']>;
+/** Contrato mínimo de um controle type-specific montado (o resto é interno à classe). */
+interface TypeControls { setPage(pageId: string): void }
 
 const ROOT = document.getElementById('export-root')!;
 const MODAL_ROOT = document.getElementById('modal-root')!;
@@ -37,7 +41,8 @@ class App {
   /** Modal id to auto-open after the next section (re)render — set by deepen. */
   private pendingModal: string | null = null;
   private perguntas: PerguntasView | null = null;
-  private hist: HistoricoFilters | null = null;
+  /** Instância do controle type-specific montado (registry por meta.controls.kind). */
+  private typeControls: TypeControls | null = null;
   /** Current launch selection (null = full series) — drives the filtered-chart badge. */
   private histSel: string[] | null = null;
   private histLaunches: string[] | null = null;
@@ -46,11 +51,61 @@ class App {
   private histMode: string | undefined;
   private histMinInvest: number | undefined;
   private histTemp: string | null = null;
-  private criativos: CriativosControls | null = null;
   /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
-  private debrief: DebriefingControls | null = null;
   private debFilters: DebFilters | null = null;
   private busyEl: HTMLElement | null = null;
+
+  /** Registry dos controles interativos por meta.controls.kind (o kind vem do
+   *  typeRegistry do servidor). Tipo novo com controles = classe *-controls.ts +
+   *  UMA entrada aqui — mount instancia o FAB e body monta o payload do POST /render. */
+  private readonly controlsRegistry: Record<string, {
+    mount: (controls: ReportControls) => TypeControls | null;
+    body: () => Record<string, unknown>;
+  }> = {
+    // Criativos: toggle de MODO (resultado × captação) + investimento mínimo + temperatura.
+    'criativos': {
+      mount: (controls) => {
+        const cc = controls as { mode?: string; modes?: Array<{ id: string }> };
+        this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
+        return new CriativosControls(controls, {
+          apply: (o) => {
+            this.histMode = o.mode;
+            this.histMinInvest = o.minInvest || undefined;
+            this.histTemp = o.temp;
+            void this.recompute();
+          },
+        });
+      },
+      body: () => ({ mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }),
+    },
+    // Debriefing: filtro nível-relatório (multi-seleção por dimensão) → recompute.
+    'debriefing-lancamento': {
+      mount: (controls) => {
+        if (!(controls as { filters?: unknown[] }).filters?.length) return null;
+        return new DebriefingControls(controls, {
+          apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
+        });
+      },
+      body: () => ({ filters: this.debFilters || {} }),
+    },
+    // Histórico: pílulas de lançamento + toggle de indicador (inline no Panorama).
+    'historico-lancamentos': {
+      mount: (controls) => {
+        this.histMetric = controls.metrics[0]?.id || 'conv';
+        const total = controls.launches.length;
+        // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
+        // changing it recomputes only the metric-driven breakdown below.
+        document.addEventListener('metric-change', (e) => {
+          this.histMetric = (e as CustomEvent<string>).detail;
+          void this.recompute();
+        });
+        return new HistoricoFilters(controls, {
+          apply: (l) => { this.histLaunches = (l.length >= total || l.length === 0) ? null : l; void this.recompute(); },
+        });
+      },
+      body: () => ({ launches: this.histLaunches, metric: this.histMetric }),
+    },
+  };
 
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
@@ -115,7 +170,7 @@ class App {
     });
 
     this.nav.build();
-    if (!this.hist && !this.criativos && !this.debrief) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
+    if (!this.typeControls) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
     this.watch();
 
     const first = this.store.allSections()[0];
@@ -186,9 +241,7 @@ class App {
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
 
-    this.hist?.setPage(pageId);
-    this.criativos?.setPage(pageId);
-    this.debrief?.setPage(pageId);
+    this.typeControls?.setPage(pageId);
 
     if (this.store.page(pageId)?.kind === 'perguntas') {
       await this.renderPerguntas();
@@ -295,51 +348,14 @@ class App {
 
   /* ───────────────────────────  Histórico — vista interativa  ─────────────────────────── */
 
-  /** Mount the launch/metric control bar above the report when meta.controls says so. */
+  /** Monta o controle interativo do tipo (registry por meta.controls.kind). */
   private setupHistorico(): void {
     const controls = this.store.data?.meta?.controls;
-    // Dispatch por kind: cada tipo com controles interativos registra o seu setup
-    // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
     if (!controls) return;
     // Feature de plataforma (qualquer tipo): toggle vs Meta / vs Histórico nos badges
     // de KPI que trazem `cmp`. Independe do `kind`.
     if ((controls as { compare?: string }).compare) this.setupCompare();
-    // Criativos: único controle é o toggle de MODO (resultado × captação) — um
-    // metric-toggle que dispara 'metric-change'; recompute server-side por modo.
-    if (controls.kind === 'criativos') {
-      const cc = controls as { mode?: string; modes?: Array<{ id: string }> };
-      this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
-      // Controles NÍVEL-RELATÓRIO no FAB: modo + investimento mínimo + temperatura.
-      this.criativos = new CriativosControls(controls, {
-        apply: (o) => {
-          this.histMode = o.mode;
-          this.histMinInvest = o.minInvest || undefined;
-          this.histTemp = o.temp;
-          void this.recompute();
-        },
-      });
-      return;
-    }
-    // Debriefing: filtro nível-relatório no FAB (multi-seleção por dimensão) → recompute.
-    if (controls.kind === 'debriefing-lancamento') {
-      if (!(controls as { filters?: unknown[] }).filters?.length) return;
-      this.debrief = new DebriefingControls(controls, {
-        apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
-      });
-      return;
-    }
-    if (controls.kind !== 'historico-lancamentos') return;
-    this.histMetric = controls.metrics[0]?.id || 'conv';
-    const total = controls.launches.length;
-    this.hist = new HistoricoFilters(controls, {
-      apply: (l) => { this.histLaunches = (l.length >= total || l.length === 0) ? null : l; void this.recompute(); },
-    });
-    // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
-    // changing it recomputes only the metric-driven breakdown below.
-    document.addEventListener('metric-change', (e) => {
-      this.histMetric = (e as CustomEvent<string>).detail;
-      void this.recompute();
-    });
+    this.typeControls = this.controlsRegistry[controls.kind || '']?.mount(controls) ?? null;
   }
 
   /** Toggle de plataforma "vs Meta / vs Histórico": injeta um segmented na barra
@@ -369,11 +385,7 @@ class App {
     const y = window.scrollY;
     try {
       const kind = (this.store.data?.meta?.controls as { kind?: string } | undefined)?.kind;
-      const body = kind === 'criativos'
-        ? { mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }
-        : kind === 'debriefing-lancamento'
-          ? { filters: this.debFilters || {} }
-          : { launches: this.histLaunches, metric: this.histMetric };
+      const body = this.controlsRegistry[kind || '']?.body() ?? {};
       const r = await this.api.renderView(body);
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);

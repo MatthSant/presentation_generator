@@ -500,7 +500,7 @@ function renderChartTable(w: ChartTableWidget, ctx: RenderCtx): HTMLElement {
 
 /* ── heat class from a cell value ── diverging diff scale or long-term uplift scale */
 function heatClass(value: unknown, scale: 'diff' | 'uplift' | 'amp' | 'surv'): string {
-  const n = parseFloat(String(value).replace(/−/g, '-').replace(/[^0-9.\-]/g, ''));
+  const n = parseFloat(String(value).replace(/−/g, '-').replace(/[^0-9.-]/g, ''));
   if (!Number.isFinite(n)) return '';
   if (scale === 'amp') {            // amplitude / relevância (% vs benchmark)
     if (n >= 30) return 'cup';
@@ -905,6 +905,23 @@ function highlightFigures(html: string): string {
   return html.replace(/(R\$\s?\d[\d.,]*(?:\s?(?:k|mil|M|mi|bi))?|[+\-−]?\d[\d.,]*\s?%)/g, '<strong>$1</strong>');
 }
 
+/** Defesa em profundidade p/ prosa com HTML inline (motor determinístico ou LLM):
+ *  mantém só <strong>/<em>/<br>/<code> — sem atributos — e DESEMBRULHA qualquer
+ *  outra tag preservando o texto. Um JSON comprometido não injeta script/handler. */
+function safeHtml(html: string): string {
+  const tpl = document.createElement('template');   // content inerte: nada executa no parse
+  tpl.innerHTML = html;
+  const ALLOWED = new Set(['STRONG', 'EM', 'BR', 'CODE']);
+  for (const node of Array.from(tpl.content.querySelectorAll('*'))) {
+    if (ALLOWED.has(node.tagName)) {
+      for (const a of Array.from(node.attributes)) node.removeAttribute(a.name);
+    } else {
+      node.replaceWith(...Array.from(node.childNodes));
+    }
+  }
+  return tpl.innerHTML;
+}
+
 function renderFindBlock(w: FindBlockWidget): HTMLElement {
   const color = w.tagColor || 'p';
   const div = el('div', `find-block${w.card ? ' find-block--card' : ''} fb-${color}`);
@@ -921,11 +938,11 @@ function renderFindBlock(w: FindBlockWidget): HTMLElement {
   }
   if (w.detail) {
     const { body, impl } = splitImplication(w.detail);
-    if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = w.card ? highlightFigures(body) : body; div.appendChild(p); }
+    if (body) { const p = el('p', 'sm fb-body'); p.innerHTML = w.card ? highlightFigures(safeHtml(body)) : safeHtml(body); div.appendChild(p); }
     if (impl) {
       const f = el('div', 'fb-impl');
       f.appendChild(el('span', 'fb-impl-tag', 'Implicação'));
-      const t = el('span', 'fb-impl-txt'); t.innerHTML = impl; f.appendChild(t);
+      const t = el('span', 'fb-impl-txt'); t.innerHTML = safeHtml(impl); f.appendChild(t);
       div.appendChild(f);
     }
   }
@@ -1552,7 +1569,7 @@ function renderStratGrid(w: StratGridWidget): HTMLElement {
 
 function renderFindNote(w: FindNoteWidget): HTMLElement {
   const p = el('p', 'find-note find-note-p');
-  p.innerHTML = w.text || '';
+  p.innerHTML = safeHtml(w.text || '');
   return p;
 }
 
@@ -1560,7 +1577,7 @@ function renderHighlight(w: HighlightWidget): HTMLElement {
   const div = el('div', w.color ? `hl hl-${w.color}` : 'hl');
   if (w.label) div.appendChild(el('span', 'label-sec', w.label));
   const body = el('span');
-  body.innerHTML = w.text || '';
+  body.innerHTML = safeHtml(w.text || '');
   div.appendChild(body);
   return div;
 }
@@ -1573,13 +1590,13 @@ function renderNi(w: NiWidget): HTMLElement {
   if (w.why) {
     const sec = el('div', 'ni-section');
     sec.append(el('span', 'ni-sl', 'Por quê?'));
-    const b = el('span', 'ni-sb'); b.innerHTML = w.why; sec.appendChild(b);
+    const b = el('span', 'ni-sb'); b.innerHTML = safeHtml(w.why); sec.appendChild(b);
     div.appendChild(sec);
   }
   if (w.action) {
     const sec = el('div', 'ni-section');
     sec.append(el('span', 'ni-sl c-g', 'Acionável'));
-    const b = el('span', 'ni-sb'); b.innerHTML = w.action; sec.appendChild(b);
+    const b = el('span', 'ni-sb'); b.innerHTML = safeHtml(w.action); sec.appendChild(b);
     div.appendChild(sec);
   }
   return div;
@@ -1589,7 +1606,7 @@ function renderLabelSec(w: LabelSecWidget): HTMLElement {
   const wrap = el('div');
   wrap.appendChild(el('p', 'label-sec', w.text || ''));
   wrap.appendChild(el('div', 'divl'));
-  if (w.sub) { const sub = el('p', 'sm'); sub.innerHTML = w.sub; wrap.appendChild(sub); }
+  if (w.sub) { const sub = el('p', 'sm'); sub.innerHTML = safeHtml(w.sub); wrap.appendChild(sub); }
   return wrap;
 }
 
@@ -1606,7 +1623,7 @@ function renderRequest(w: RequestWidget): HTMLElement {
 
 function renderXs(w: XsWidget): HTMLElement {
   const p = el('p', 'xs');
-  p.innerHTML = w.text || '';
+  p.innerHTML = safeHtml(w.text || '');
   return p;
 }
 
@@ -1647,7 +1664,7 @@ function renderEmbed(w: EmbedWidget): HTMLElement {
  *  is set via innerHTML (same trust model as find-block/ni). */
 function bulletList(items: string[]): HTMLElement {
   const ul = el('ul', 'def-bullets');
-  for (const b of items) { const li = el('li'); li.innerHTML = b; ul.appendChild(li); }
+  for (const b of items) { const li = el('li'); li.innerHTML = safeHtml(b); ul.appendChild(li); }
   return ul;
 }
 
