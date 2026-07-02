@@ -51,9 +51,7 @@ def assoc_cls(v):
     if v > 0.08: return 'cup4'
     return 'cn0'
 
-def build(csv_path, config, content, out_dir):
-    os.makedirs(out_dir, exist_ok=True)
-    rows = cc.load_dump(csv_path)
+def assemble(rows, config, content, opts=None):
     dims = cc.dim_columns(rows)
     LCTOS_ID = cc.ordered_lancamentos(rows)
     LBL = [lcto_label(s) for s in LCTOS_ID]
@@ -396,16 +394,27 @@ def build(csv_path, config, content, out_dir):
                           'nav': 'sidebar'},
                  'pages': all_pages}
 
-    preserve(out_dir, data_json, sections)   # detalhamentos, perguntas e modais sobrevivem à regeneração
-    preserve_dataset(out_dir, dataset)       # tabelas q-* dos detalhamentos sobrevivem
+    return {'dataset': dataset, 'data': data_json,
+            'layout': {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'},
+            'sections': sections,
+            '_cod': {k: v['papel'] for k, v in cod['fatores'].items()}}  # só p/ o summary do build
+
+
+def build(csv_path, config, content, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    rows = cc.load_dump(csv_path)
+    r = assemble(rows, config, content)
+    # preserve FORA do assemble (padrão dos demais tipos): assemble é puro.
+    preserve(out_dir, r['data'], r['sections'])   # detalhamentos, perguntas e modais sobrevivem à regeneração
+    preserve_dataset(out_dir, r['dataset'])       # tabelas q-* dos detalhamentos sobrevivem
 
     def dump(name, obj): json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
-    dump('dataset.json', dataset); dump('data.json', data_json)
-    dump('layout.json', {'sections': layouts, 'updatedAt': f'{created}T00:00:00.000Z'})
-    for sid, sec in sections.items(): dump(f'{sid}.json', sec)
+    dump('dataset.json', r['dataset']); dump('data.json', r['data'])
+    dump('layout.json', r['layout'])
+    for sid, sec in r['sections'].items(): dump(f'{sid}.json', sec)
 
-    return {'tables': len(dataset), 'sections': len(sections), 'pages': len(all_pages),
-            'codependencia': {k: v['papel'] for k, v in cod['fatores'].items()}, 'out_dir': out_dir}
+    return {'tables': len(r['dataset']), 'sections': len(r['sections']), 'pages': len(r['data']['pages']),
+            'codependencia': r['_cod'], 'out_dir': out_dir}
 
 
 if __name__ == '__main__':

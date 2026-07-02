@@ -24,10 +24,12 @@ afterEach(() => {
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-test('query: unknown fn → 400', async () => {
+// A whitelist de fns vem do registry via o config RETIDO — sem base não há como
+// validar a fn, então tudo é 404 (o 400 "fn inválida" é coberto no e2e com base real).
+test('query: unknown fn sem base retida → 404', async () => {
   const res = await request(created.app).post(URL).send({ fn: 'rm_rf' });
-  assert.equal(res.status, 400);
-  assert.match(res.body.error, /fn inválida/);
+  assert.equal(res.status, 404);
+  assert.match(res.body.error, /dado-base/);
 });
 
 test('query: known fn but no retained base → 404', async () => {

@@ -56,6 +56,25 @@ tipos: skill `/integrar-analise` (`.claude/skills/integrar-analise/`).
 
 ---
 
+## Plataforma — melhorias da revisão (jul/2026)
+
+Achados da revisão completa pré-Fase 2 (não bloqueiam; fazer quando tocar na área):
+
+- [ ] **Registry dinâmico de controles no client** — mapa `kind → classe` em vez dos ifs
+      em `src/client/main.ts:309–331`; novo tipo com controles hoje exige editar o main.
+- [ ] **Helpers compartilhados dos `*-controls.ts`** — `el`/`group`/`opt`/`must`/debounce
+      duplicados ~35 LOC × 3 arquivos → extrair p/ `filters.ts`.
+- [ ] **Sanitização de `innerHTML` com prosa LLM** (renderer.ts: find-block/find-note/
+      highlight/ni/label-sec/request) — whitelist de tags (defesa em profundidade; hoje o
+      conteúdo vem do motor determinístico, risco teórico).
+- [ ] **Testes**: `bind.test.ts`, rotas `POST /render` e `POST /query`; CI (lint+build+test).
+- [ ] **`render_view.py` p/ conversao-perfil/acompanhamento** se um dia ganharem controles
+      interativos (assemble já é puro nos dois).
+- [ ] **Cópia de CSVs auxiliares p/ a base retida** (`generate.ts:186–196`): logar/fail-hard
+      se a cópia falhar (hoje falha silenciosa perde goals/hist/dict na atualização).
+
+---
+
 ## Notas
 
 - **Caso real atual:** `output/[cliente]/[criativos-slug]/` — gerado por script, posse atribuída

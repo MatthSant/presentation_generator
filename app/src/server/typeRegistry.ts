@@ -29,6 +29,8 @@ export interface AnalysisTypeDef {
   supportsTemperature?: boolean;   // classifica temperatura por regras (field_campaign_name)
   supportsGoals?: boolean;         // aceita CSV de launch goals (metas por utm_source × dia)
   supportsDict?: boolean;          // aceita dicionário de criativos (field_ad_name → link)
+  /** UI de metas nos forms: 'metas-toggle' = manuais × launch goals; 'upload' = só CSV. */
+  goalsUi?: 'metas-toggle' | 'upload';
   /** meta.controls.kind emitido pelo gerador (dispatch no client). */
   controlsKind?: string;
   /** Metadados do deep deepen (tool `consultar`). `null` → só modo raso (catálogo). */
@@ -177,11 +179,12 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     supportsTemperature: true,
     supportsGoals: true,
     supportsDict: true,
+    goalsUi: 'metas-toggle',              // metas manuais × launch goals (CSV)
     supportsInsights: false,
     queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/tendência por dia
     gerarPage: 'gerar-acompanhamento.html',
     montadorPage: 'montador-acompanhamento.html',
-    controlsKind: 'acompanhamento-lancamento',
+    // sem controlsKind: não há render_view.py nem classe de controls no client
     validateConfig() { return []; },
     buildDeepenMeta() {
       const M = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
@@ -215,6 +218,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     pysrcDir: 'debriefing-lancamento',
     supportsTemperature: true,
     supportsGoals: true,
+    goalsUi: 'upload',                    // launch goals via CSV (obrigatório na criação)
     supportsInsights: false,
     queryScript: 'query_api.py',          // modo FUNDO: frames + decomposição + drill-down por escopo/canal/temperatura/campanha/criativo/publico/semana
     renderScript: 'render_view.py',       // FAB: filtro nível-relatório por tipo/canal/temp/campanha/publico/criativo

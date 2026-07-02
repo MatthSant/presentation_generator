@@ -25,7 +25,7 @@ METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
 COST = {'cpl', 'cpmql', 'cpm'}
 
 
-def build_frame(B, a):
+def build_frame(ctx, a):
     """Eixo parametrizável: dia (default) | temperatura | canal | origem. `recorte_*`
     (origem/temperatura/canal) filtra as linhas antes — ex.: CPL por dia só do Quente."""
     dim = a.get('dimensao', 'dia')
@@ -33,7 +33,7 @@ def build_frame(B, a):
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
                                      ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
     geral = str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1')
-    days, src = B['days'], B['rows_corte']
+    days, src = ctx['days'], ctx['rows_corte']
     # so_midia: poda dias sem mídia paga (investimento=0) — ex.: cauda pós-captação onde
     # leads orgânicos residuais distorcem CPL/custo (CPL "+1714%" virando ruído).
     if str(a.get('so_midia', '')).lower() in ('sim', 'true', '1'):
@@ -43,7 +43,7 @@ def build_frame(B, a):
     if dim == 'dia' and not filtro:
         rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in days]
     else:
-        rows = calc.frame_rows(src, dim, filtro, B.get('trules'), incluir_geral=geral)
+        rows = calc.frame_rows(src, dim, filtro, ctx.get('trules'), incluir_geral=geral)
     if not rows:
         return {'status': 'nao_disponivel', 'motivo': f'sem dados para dimensão={dim} com esse recorte'}
     return {
@@ -267,7 +267,8 @@ def main():
         out = qc.run(build_frame, EXTRA, B, fn, args)
     except Exception as e:
         out = {'status': 'erro', 'motivo': str(e)}
-    print(json.dumps(out, ensure_ascii=False))
+    # UTF-8 direto no buffer — o console Windows (cp1252) quebraria fora do pygen.
+    sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode('utf-8'))
 
 
 if __name__ == '__main__':

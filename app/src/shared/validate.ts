@@ -258,6 +258,36 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       if (!Array.isArray(w.points)) c.err(`${path}.points`, 'quadrant-scatter requires a points array');
       if (!w.modes || typeof w.modes !== 'object' || !(w.modes as { meta?: unknown }).meta) c.err(`${path}.modes`, 'quadrant-scatter requires modes.meta');
       break;
+    case 'def-step':
+    case 'mdef-block':
+      if (!isNonEmptyStr(w.title)) c.err(`${path}.title`, `${type} title is required`);
+      break;
+    case 'eyebrow':
+      if (!isNonEmptyStr(w.title)) c.err(`${path}.title`, 'eyebrow title is required');
+      break;
+    case 'grp-list':
+      if (!Array.isArray(w.items) || w.items.length === 0) c.err(`${path}.items`, 'grp-list requires an items array');
+      break;
+    case 'kpi-strip':
+      if (!Array.isArray(w.items) || w.items.length === 0) c.err(`${path}.items`, 'kpi-strip requires an items array');
+      break;
+    case 'kpi-card':
+      if (!isNonEmptyStr(w.label)) c.err(`${path}.label`, 'kpi-card label is required');
+      if (!isNonEmptyStr(String(w.value ?? ''))) c.err(`${path}.value`, 'kpi-card value is required');
+      break;
+    case 'metric-toggle':
+      if (!Array.isArray(w.metrics) || w.metrics.length === 0) c.err(`${path}.metrics`, 'metric-toggle requires a metrics array');
+      if (!isNonEmptyStr(w.current)) c.err(`${path}.current`, 'metric-toggle current is required');
+      break;
+    case 'chart-toggle':
+      if (!Array.isArray(w.tabs) || w.tabs.length === 0) c.err(`${path}.tabs`, 'chart-toggle requires a tabs array');
+      else w.tabs.forEach((t, i) => {
+        if (!isObj(t) || !isObj((t as Obj).chart)) c.err(`${path}.tabs[${i}].chart`, 'chart-toggle tab requires a chart');
+      });
+      break;
+    case 'chart-table':
+      if (!isObj(w.chart)) c.err(`${path}.chart`, 'chart-table requires a chart');
+      break;
     case 'heatmap-toggle': {
       // Duas formas: `tabs[]` (toggle único de dimensão) ou `scopes[].tabs[]`
       // (toggle de escopo + dimensão). Exige pelo menos uma; cada aba precisa de bind.

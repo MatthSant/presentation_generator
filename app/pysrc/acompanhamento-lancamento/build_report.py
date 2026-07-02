@@ -475,8 +475,7 @@ def assemble(rows, config, content, opts=None):
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
                                     'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},
-                          'controls': {'kind': 'acompanhamento-lancamento',
-                                       'pages': ['acompanhamento']},
+                          # sem meta.controls: o tipo não tem render_view.py nem controls no client
                           'nav': 'sidebar'},
                  'pages': pages}
     return {'dataset': dataset, 'data': data_json,

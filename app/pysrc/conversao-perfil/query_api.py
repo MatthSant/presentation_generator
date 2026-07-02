@@ -19,9 +19,9 @@ METRICAS = {'conv_lcto', 'conv_12m', 'diff', 'uplift', 'rep'}
 LIST_KEY = {'conv_lcto': 'conv_lcto', 'conv_12m': 'conv_12m', 'diff': 'diff_lcto', 'uplift': 'uplift_12m', 'rep': 'rep'}
 MET_LABEL = {'conv_lcto': 'Conv. lcto', 'conv_12m': 'Conv. 12m', 'diff': 'Diferença', 'uplift': 'Uplift', 'rep': 'Repres.'}
 # Consultas genéricas (common.query_core) que o perfil expõe sobre os GRUPOS de um
-# critério. `trend`/`correlacao` ficam de fora: o perfil já tem trend temporal e
-# association (Cramér's V) próprios.
-GENERIC_USE = {'series', 'ranking'}
+# critério — as MESMAS anunciadas em buildDeepenMeta (typeRegistry). `trend`/
+# `correlacao` ficam de fora: o perfil já tem trend temporal e association próprios.
+GENERIC_USE = {'tabela', 'series', 'series_long', 'ranking'}
 
 
 def _mean(xs):
@@ -45,7 +45,7 @@ def meta(ctx, _a):
     config = ctx['config']
     return {'status': 'ok', 'table': {'dims': ['campo'], 'filters': [], 'rows': []},
             'criterios': [{'id': c['id'], 'label': c.get('label', c['id'])} for c in config['criterios']],
-            'canais': config.get('channels', ['Geral']), 'metricas': sorted(METRICAS),
+            'canais': config.get('channels') or ['Geral'], 'metricas': sorted(METRICAS),
             'lancamentos': ctx['lctos']}
 
 
@@ -161,7 +161,7 @@ def run(config, rows, fn, args):
         'config': config, 'rows': rows, 'dims': dims,
         'lctos_id': lctos_id,
         'lctos': lctos_id,
-        'canais': config.get('channels', ['Geral']),
+        'canais': config.get('channels') or ['Geral'],  # `channels: []` no config não pode virar IndexError
         'crit': {c['id']: c for c in config['criterios']},
     }
     if fn in GENERIC_USE:
@@ -178,6 +178,8 @@ if __name__ == '__main__':
         args = json.loads(sys.argv[4]) if len(sys.argv) > 4 else {}
         config = json.load(open(cfg_path, encoding='utf-8'))
         rows = cc.load_dump(dump_path)
-        print(json.dumps(run(config, rows, fn, args), ensure_ascii=False))
+        out = run(config, rows, fn, args)
     except Exception as e:  # noqa: BLE001 — devolve erro estruturado p/ o Node
-        print(json.dumps({'status': 'erro', 'motivo': str(e)}, ensure_ascii=False))
+        out = {'status': 'erro', 'motivo': str(e)}
+    # UTF-8 direto no buffer — o console Windows (cp1252) quebraria fora do pygen.
+    sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode('utf-8'))

@@ -35,11 +35,11 @@ def _r(v, d=4):
     return round(v, d) if isinstance(v, (int, float)) else None
 
 
-def build_frame(B, _a):
+def build_frame(ctx, _a):
     """Eixo = criativo válido; métricas = catálogo _LABEL já calculado por criativo."""
     return {
         'axis': 'criativo',
-        'rows': [{'key': c['name'], 'm': c['m']} for c in B['valid']],
+        'rows': [{'key': c['name'], 'm': c['m']} for c in ctx['valid']],
         'labels': _LABEL,
         'cost': {k: (calc.METRICS.get(k, {}).get('cost') is True) for k in _LABEL},
         'rank_extra': ['roas', 'cpl', 'qualidade', 'leads'],
@@ -125,7 +125,8 @@ def main():
         out = qc.run(build_frame, EXTRA, B, fn, args)
     except Exception as e:
         out = {'status': 'erro', 'motivo': str(e)}
-    print(json.dumps(out, ensure_ascii=False))
+    # UTF-8 direto no buffer — o console Windows (cp1252) quebraria fora do pygen.
+    sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode('utf-8'))
 
 
 if __name__ == '__main__':

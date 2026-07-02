@@ -261,7 +261,7 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     // Capacidades de auxiliares vêm do registry (fonte única) — a UI de atualização
     // não precisa mais de Sets hardcoded por tipo.
     const def = TYPES[String(cfg!.type)];
-    const caps = { temperature: !!def?.supportsTemperature, goals: !!def?.supportsGoals, dict: !!def?.supportsDict };
+    const caps = { temperature: !!def?.supportsTemperature, goals: !!def?.supportsGoals, dict: !!def?.supportsDict, goalsUi: def?.goalsUi || null };
     res.json({ hasBase: true, config: clean, type: cfg!.type, caps });
   });
 

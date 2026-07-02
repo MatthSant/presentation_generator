@@ -24,8 +24,10 @@ def main(argv):
         opts = {}
     rows = calc.load_rows(argv[2])
     r = assemble(rows, config, {}, opts)
-    print(json.dumps({'dataset': r['dataset'], 'sections': r['sections'],
-                      'layout': r['layout']['sections']}, ensure_ascii=False))
+    out = json.dumps({'dataset': r['dataset'], 'sections': r['sections'],
+                      'layout': r['layout']['sections']}, ensure_ascii=False)
+    # UTF-8 direto no buffer — o console Windows (cp1252) quebraria fora do pygen.
+    sys.stdout.buffer.write(out.encode('utf-8'))
     return 0
 
 
