@@ -20,6 +20,8 @@ Auth próprio, só stdlib, em `src/server/`:
 - **`db.ts`** — tabelas `users (id,email,pass_hash,role,created_at)`, `sessions`,
   `user_clients`.
 - **Dev:** `AUTH_DISABLED=1` (porta 3132) desliga o gate inteiro.
+- **Defesa em profundidade (02/07/2026):** o client sanitiza prosa com HTML inline via
+  `safeHtml()` (renderer.ts — whitelist strong/em/br/code) — independe do provedor de auth.
 
 ## Por que BetterAuth (motivação)
 

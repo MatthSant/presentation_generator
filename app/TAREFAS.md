@@ -71,6 +71,10 @@ Achados da revisão completa pré-Fase 2:
       `.github/workflows/ci.yml` (lint+build+test, suíte hermética).
 - [ ] **`render_view.py` p/ conversao-perfil/acompanhamento** se um dia ganharem controles
       interativos (assemble já é puro nos dois).
+- [ ] **Skill /conversao-perfil divergente do pysrc** — `.claude/skills/conversao-perfil/
+      {build_report,conv_calc}.py` (~870 LOC) é o motor de origem, standalone; o canônico
+      evoluiu em `pysrc/conversao-perfil` (common/, assemble/build). Decidir: skill delega
+      ao pysrc (remove os .py locais) ou congela com aviso no SKILL.md.
 - [x] **Cópia de CSVs auxiliares p/ a base retida** — logada; aux de `requiredFiles`
       (ex.: goals do debriefing) agora falha alto no /generate.
 
