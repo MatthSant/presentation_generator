@@ -1392,22 +1392,35 @@ body.edit-mode .tile-deepen { display:none; }
 /* Deepen composer dialog */
 /* inset:0 + margin:auto centraliza o dialog modal (um reset global zera o margin:auto
  * que o navegador aplicaria, jogando o dialog p/ o canto). */
-.deepen-dlg { border:none; border-radius:14px; padding:0; max-width:460px; width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.3); background:var(--bg); color:var(--fg); inset:0; margin:auto; }
-.deepen-dlg::backdrop { background:rgba(0,0,0,.4); }
-.deepen-form { padding:20px 22px; display:flex; flex-direction:column; gap:10px; }
-.deepen-form h3 { margin:0; font-size:15px; font-weight:750; }
-.deepen-card { margin:0; font-size:12.5px; color:var(--gray); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 11px; }
-.deepen-form textarea { min-height:84px; resize:vertical; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-family:var(--font-sans),sans-serif; font-size:13.5px; color:var(--fg); background:var(--surface); outline:none; }
-.deepen-form textarea:focus { border-color:var(--purple); }
-.deepen-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-2px 0 0; }
-.deepen-improve { font-size:12px; font-weight:700; color:var(--purple); background:var(--purple-bg); border:1px solid color-mix(in srgb, var(--purple) 30%, transparent); border-radius:8px; padding:6px 11px; cursor:pointer; font-family:inherit; }
-.deepen-improve:hover:not(:disabled) { background:color-mix(in srgb, var(--purple) 14%, transparent); }
+.deepen-dlg { border:none; border-radius:16px; padding:0; max-width:480px; width:92vw; box-shadow:0 24px 70px -12px rgba(15,15,20,.42); background:var(--bg); color:var(--fg); inset:0; margin:auto; overflow:hidden; }
+.deepen-dlg::backdrop { background:rgba(15,15,20,.5); }
+.deepen-form { padding:22px 24px 20px; display:flex; flex-direction:column; gap:14px; }
+/* cabeçalho: ícone (varinha) + título + subtítulo */
+.deepen-hd { display:flex; align-items:flex-start; gap:12px; }
+.deepen-hd-ic { flex-shrink:0; width:38px; height:38px; border-radius:11px; display:grid; place-items:center; color:var(--purple); background:var(--purple-bg); border:1px solid color-mix(in srgb, var(--purple) 22%, transparent); }
+.deepen-hd-ic svg { width:20px; height:20px; }
+.deepen-hd-tx { min-width:0; padding-top:1px; }
+.deepen-form h3 { margin:0; font-size:16px; font-weight:750; letter-spacing:-.01em; }
+.deepen-hd-sub { margin:2px 0 0; font-size:12.5px; color:var(--gray); line-height:1.45; }
+/* chip de contexto (o bloco de origem) — rótulo em pílula + valor */
+.deepen-card { margin:0; display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:600; color:var(--fg); background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:9px 12px; }
+.deepen-card[data-lbl]::before { content:attr(data-lbl); flex-shrink:0; font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--purple); background:var(--purple-bg); border-radius:5px; padding:2px 7px; }
+/* campo com label */
+.deepen-field { display:flex; flex-direction:column; gap:6px; }
+.deepen-lbl { font-size:12px; font-weight:650; color:var(--fg); }
+.deepen-form textarea { min-height:96px; resize:vertical; border:1px solid var(--border); border-radius:10px; padding:11px 13px; font-family:var(--font-sans),sans-serif; font-size:13.5px; line-height:1.55; color:var(--fg); background:var(--surface); outline:none; transition:border-color .14s, box-shadow .14s; }
+.deepen-form textarea:focus { border-color:var(--purple); box-shadow:0 0 0 3px var(--purple-bg); }
+.deepen-form textarea::placeholder { color:var(--gray2); }
+.deepen-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-4px 0 0; }
+.deepen-improve { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; color:var(--purple); background:var(--purple-bg); border:1px solid color-mix(in srgb, var(--purple) 28%, transparent); border-radius:8px; padding:6px 11px; cursor:pointer; font-family:inherit; transition:background .14s; }
+.deepen-improve:hover:not(:disabled) { background:color-mix(in srgb, var(--purple) 16%, transparent); }
 .deepen-improve:disabled { opacity:.6; cursor:default; }
 .deepen-improve-note { font-size:11.5px; color:var(--gray); }
-.deepen-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:2px; }
-.deepen-btn { font-size:13px; font-weight:700; border:none; border-radius:8px; padding:8px 15px; cursor:pointer; background:var(--purple); color:#fff; }
+.deepen-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:4px; padding-top:15px; border-top:1px solid var(--divider); }
+.deepen-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; border:none; border-radius:9px; padding:9px 17px; cursor:pointer; font-family:inherit; background:var(--purple); color:#fff; transition:background .14s, border-color .14s, color .14s; }
+.deepen-btn:hover { background:var(--purple-600); }
 .deepen-btn.ghost { background:transparent; color:var(--gray); border:1px solid var(--border); }
-.deepen-btn:hover { opacity:.9; }
+.deepen-btn.ghost:hover { background:var(--surface); color:var(--fg); border-color:var(--border-strong); }
 
 /* Iterate footer inside an open detalhamento modal: ask to adjust / deepen more. */
 .ic-deepen { display:flex; gap:8px; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }

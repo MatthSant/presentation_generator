@@ -521,9 +521,17 @@ class App {
     const dlg = document.createElement('dialog');
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
-      <h3>Adicionar pergunta</h3>
-      <p class="deepen-card">Sua pergunta vira um aprofundamento na hora (sem cálculo de relevância).</p>
-      <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
+      <div class="deepen-hd">
+        <span class="deepen-hd-ic">${App.WAND}</span>
+        <div class="deepen-hd-tx">
+          <h3>Adicionar pergunta</h3>
+          <p class="deepen-hd-sub">Vira um aprofundamento na hora, sobre a análise inteira (sem cálculo de relevância).</p>
+        </div>
+      </div>
+      <label class="deepen-field">
+        <span class="deepen-lbl">Sua pergunta</span>
+        <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
+      </label>
       ${App.IMPROVE_ROW}
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
@@ -630,9 +638,18 @@ class App {
     const dlg = document.createElement('dialog');
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
-      <h3>Detalhar card</h3>
-      <p class="deepen-card">${esc(cardTitle)}</p>
-      <textarea placeholder="O que aprofundar? Ex.: mostre a variação por faixa de renda ao longo dos lançamentos."></textarea>
+      <div class="deepen-hd">
+        <span class="deepen-hd-ic">${App.WAND}</span>
+        <div class="deepen-hd-tx">
+          <h3>Detalhar bloco</h3>
+          <p class="deepen-hd-sub">Peça um aprofundamento com IA sobre este bloco.</p>
+        </div>
+      </div>
+      ${cardTitle ? `<p class="deepen-card" data-lbl="Bloco">${esc(cardTitle)}</p>` : ''}
+      <label class="deepen-field">
+        <span class="deepen-lbl">O que você quer aprofundar?</span>
+        <textarea placeholder="Ex.: mostre a variação por faixa de renda ao longo dos lançamentos."></textarea>
+      </label>
       ${App.IMPROVE_ROW}
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
@@ -703,9 +720,18 @@ class App {
     const dlg = document.createElement('dialog');
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
-      <h3>Pedir revisão do bloco</h3>
-      <p class="deepen-card">${esc(blockTitle || 'este bloco')}</p>
-      <textarea placeholder="O que mudar NESTE bloco? Ex.: troque este gráfico por uma comparação X × Y ao longo dos dias."></textarea>
+      <div class="deepen-hd">
+        <span class="deepen-hd-ic">${App.PENCIL}</span>
+        <div class="deepen-hd-tx">
+          <h3>Pedir revisão do bloco</h3>
+          <p class="deepen-hd-sub">Ajuste escopado a este bloco — regenera com o seu pedido.</p>
+        </div>
+      </div>
+      <p class="deepen-card" data-lbl="Bloco">${esc(blockTitle || 'este bloco')}</p>
+      <label class="deepen-field">
+        <span class="deepen-lbl">O que mudar neste bloco?</span>
+        <textarea placeholder="Ex.: troque este gráfico por uma comparação X × Y ao longo dos dias."></textarea>
+      </label>
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
         <button value="go" class="deepen-btn" type="submit">Pedir revisão</button>
