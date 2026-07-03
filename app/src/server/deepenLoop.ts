@@ -61,6 +61,21 @@ const CAP = 60; // teto de linhas/categorias por widget no factsheet (controla t
 /** Resolve o bind de cada widget de dado num "factsheet": os números REAIS que ele
  *  mostra (categorias, séries, totais, linhas). É a verdade-base contra a qual o
  *  critic confere os números citados na prosa. */
+/** Remove widgets-placeholder VAZIOS (texto/título/valor em branco) que modelos
+ *  fracos às vezes emitem e nunca preenchem. Um bloco vazio é ruído — e um único
+ *  `highlight text is required` reprovava o detalhamento inteiro. Poda o vazio e
+ *  mantém o conteúdo real; NÃO baixa a qualidade (limpa, não fabrica). */
+export function pruneEmptyWidgets(widgets: Widget[]): Widget[] {
+  const blank = (v: unknown): boolean => v == null || String(v).trim() === '';
+  return (widgets || []).filter((raw) => {
+    const w = raw as { type?: string; text?: unknown; title?: unknown; value?: unknown; bind?: unknown };
+    if (w.type === 'highlight' || w.type === 'find-note') return !blank(w.text);
+    if (w.type === 'find-block' || w.type === 'ni' || w.type === 'ni-vertical') return !blank(w.title);
+    if (w.type === 'kpi') return !blank(w.value);
+    return true;   // chart/table validam por bind (schema/qualidade já pegam)
+  });
+}
+
 export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
   const sheet: unknown[] = [];
   for (const raw of widgets) {

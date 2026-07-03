@@ -18,7 +18,7 @@ import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
 import { buildCatalog } from '../datasetCatalog.js';
 import { generateModal, generateModalDeep, rewriteQuestion, type DeepDeps } from '../claude.js';
-import { gateAndRepair } from '../deepenLoop.js';
+import { gateAndRepair, pruneEmptyWidgets } from '../deepenLoop.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 import { typeOf, inferType } from '../typeRegistry.js';
@@ -142,7 +142,7 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
           }
           return generateModal(framedPrompt, cardCtx, cat, repair, p, fewShot, objetivo, analysisType);
         },
-        normalize: (m) => assignIds({ ...(m as Modal), id: modalId }),
+        normalize: (m) => assignIds({ ...(m as Modal), id: modalId, widgets: pruneEmptyWidgets(((m as Modal).widgets) ?? []) }),
         validateSchema: (m) => validate(m as Modal),
       });
       const mocked = gate.mocked;

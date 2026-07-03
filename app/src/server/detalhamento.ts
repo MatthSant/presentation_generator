@@ -13,7 +13,7 @@ import { readJson } from './fsutil.js';
 import { BASE } from './paths.js';
 import { buildCatalog } from './datasetCatalog.js';
 import { generateModal, generateModalDeep, layoutSection, sumUsage, type DeepDeps } from './claude.js';
-import { gateAndRepair } from './deepenLoop.js';
+import { gateAndRepair, pruneEmptyWidgets } from './deepenLoop.js';
 import { runQuery } from './pygen.js';
 import { validateSection } from '../shared/validate.js';
 import { typeOf } from './typeRegistry.js';
@@ -117,7 +117,7 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
       }
       return generateModal(framedPrompt, cardCtx, cat, repair, prev, inp.fewShot, objetivo);
     },
-    normalize: (m) => ({ id: inp.resultId, title: 'Detalhamento', widgets: ensureIds(widgetsOf(m)) } as unknown as Modal),
+    normalize: (m) => ({ id: inp.resultId, title: 'Detalhamento', widgets: ensureIds(pruneEmptyWidgets(widgetsOf(m))) } as unknown as Modal),
     validateSchema: (m) => validate(((m as { widgets?: Widget[] }).widgets) ?? []),
   });
 
