@@ -8,6 +8,7 @@ public/js/*
 !public/js/criar-secnav.js
 !public/js/temp-rules.js
 !public/js/montar.js
+!public/js/gen-progress.js
 *.tsbuildinfo
 *.log
 coverage/

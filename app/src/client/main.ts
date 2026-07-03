@@ -62,18 +62,15 @@ class App {
     mount: (controls: ReportControls) => TypeControls | null;
     body: () => Record<string, unknown>;
   }> = {
-    // Criativos: toggle de MODO (resultado × captação) + investimento mínimo + temperatura.
+    // Criativos: MODO (resultado × captação) é um toggle na navbar (como o compare
+    // do debriefing); o FAB fica só com investimento mínimo + temperatura.
     'criativos': {
       mount: (controls) => {
-        const cc = controls as { mode?: string; modes?: Array<{ id: string }> };
+        const cc = controls as { mode?: string; modes?: Array<{ id: string; label: string }> };
         this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
+        if (cc.modes?.length) this.setupNavToggle('mode-toggle', cc.modes, this.histMode, (id) => { this.histMode = id; void this.recompute(); });
         return new CriativosControls(controls, {
-          apply: (o) => {
-            this.histMode = o.mode;
-            this.histMinInvest = o.minInvest || undefined;
-            this.histTemp = o.temp;
-            void this.recompute();
-          },
+          apply: (o) => { this.histMinInvest = o.minInvest || undefined; this.histTemp = o.temp; void this.recompute(); },
         });
       },
       body: () => ({ mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }),
@@ -373,6 +370,28 @@ class App {
       b.addEventListener('click', () => {
         setCmpMode(mode);
         wrap.querySelectorAll('.cmp-btn').forEach((x) => x.classList.toggle('on', x === b));
+      });
+      wrap.appendChild(b);
+    }
+    right.insertBefore(wrap, right.firstChild);
+  }
+
+  /** Segmented genérico na navbar (mesmo visual do compare) que dispara `onChange`
+   *  ao trocar de opção — recurso de plataforma. Usado pelo MODO de criativos. */
+  private setupNavToggle(id: string, opts: Array<{ id: string; label: string }>, current: string, onChange: (id: string) => void): void {
+    const right = document.querySelector('.tn-right');
+    if (!right || document.getElementById(id)) return;
+    const wrap = document.createElement('div');
+    wrap.id = id;
+    wrap.className = 'cmp-toggle';
+    for (const o of opts) {
+      const b = document.createElement('button');
+      b.className = 'cmp-btn' + (o.id === current ? ' on' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        if (b.classList.contains('on')) return;
+        wrap.querySelectorAll('.cmp-btn').forEach((x) => x.classList.toggle('on', x === b));
+        onChange(o.id);
       });
       wrap.appendChild(b);
     }

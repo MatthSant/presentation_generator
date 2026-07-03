@@ -1,81 +1,96 @@
-/* criativos-controls.ts — controles NÍVEL-RELATÓRIO da análise de criativos, no FAB
- * (#filter-*): toggle de MODO (Resultado Final × Captação) + filtro de investimento
- * mínimo + filtro de temperatura. Persistem entre Panorama e fichas. Cada mudança
- * recalcula no servidor (debounced); o main faz o POST /render e re-renderiza. */
+/* criativos-controls.ts — filtros NÍVEL-RELATÓRIO da análise de criativos, no FAB
+ * (#filter-*): investimento mínimo + temperatura, como dropdowns-accordion (mesmo
+ * visual do debriefing). O MODO (Resultado × Captação) NÃO fica aqui — é um toggle
+ * na navbar (main.setupNavToggle). Cada mudança recalcula no servidor (debounced). */
 
 import type { ReportMeta } from '../shared/types.js';
-import { el, group, opt, mountShell, fabSetPage, setBadge, debounce, type FabShell } from './controls-utils.js';
+import { el, mountShell, fabSetPage, setBadge, debounce, type FabShell } from './controls-utils.js';
 
 type Controls = NonNullable<ReportMeta['controls']>;
-export interface CriativosOpts { mode: string; minInvest: number; temp: string | null; }
+export interface CriativosOpts { minInvest: number; temp: string | null; }
 export interface CriativosHandlers { apply: (o: CriativosOpts) => void; }
+
+interface Dim { key: 'invest' | 'temp'; label: string; opts: Array<{ id: string; label: string }>; }
 
 export class CriativosControls {
   private shell: FabShell;
   private schedule: () => void;
-  private mode: string;
+  private dims: Dim[];
   private minInvest = 0;
   private temp: string | null = null;
+  private openKey: string | null = null;
 
   constructor(private cfg: Controls, private h: CriativosHandlers) {
     this.shell = mountShell('criativos-controls', () => { this.minInvest = 0; this.temp = null; this.renderBody(); this.updateBadge(); this.schedule(); });
-    const c = cfg as { mode?: string; modes?: Array<{ id: string }> };
-    this.mode = c.mode || c.modes?.[0]?.id || 'resultado';
-    this.schedule = debounce(() => this.h.apply({ mode: this.mode, minInvest: this.minInvest, temp: this.temp }), 250);
+    this.schedule = debounce(() => this.h.apply({ minInvest: this.minInvest, temp: this.temp }), 250);
+
+    const c = cfg as { temps?: string[]; minInvestPresets?: number[] };
+    const invOpts = [{ id: '0', label: 'Todos' }, ...(c.minInvestPresets || [100, 500, 1000]).map((v) => ({ id: String(v), label: v >= 1000 ? `R$ ${v / 1000}k` : `R$ ${v}` }))];
+    this.dims = [{ key: 'invest', label: 'Investimento mínimo', opts: invOpts }];
+    if (c.temps && c.temps.length) {
+      const tOpts = c.temps.length === 1
+        ? c.temps.map((t) => ({ id: t, label: t }))                              // única temperatura: informativa
+        : [{ id: '', label: 'Todas' }, ...c.temps.map((t) => ({ id: t, label: t }))];
+      this.dims.push({ key: 'temp', label: 'Temperatura', opts: tOpts });
+      // temperatura única = informativa: não filtra (temp fica null) — só mostra qual é.
+    }
 
     this.renderBody();
     this.updateBadge();
   }
 
-  /** O FAB de controle aparece em todas as páginas do relatório. */
+  /** O FAB de filtro aparece em todas as páginas do relatório. */
   setPage(pageId: string): void { fabSetPage(this.shell, this.cfg.pages, pageId); }
+
+  private cur(d: Dim): string {
+    if (d.key === 'invest') return String(this.minInvest);
+    if (d.opts.length === 1) return d.opts[0].id;   // temperatura única: sempre "ativa" (informativa)
+    return this.temp || '';
+  }
+  private summary(d: Dim): string {
+    const sel = d.opts.find((o) => o.id === this.cur(d));
+    return sel ? sel.label : d.opts[0].label;
+  }
 
   private renderBody(): void {
     this.shell.body.replaceChildren();
-    const c = this.cfg as { modes?: Array<{ id: string; label: string }>; temps?: string[]; minInvestPresets?: number[] };
+    for (const d of this.dims) this.shell.body.appendChild(this.dropdown(d));
+  }
 
-    // Modo (single-select)
-    const gMode = group('Modo de análise');
-    const segM = el('div', 'flt-seg');
-    for (const m of (c.modes || [])) {
-      const b = opt(m.label, this.mode === m.id);
-      b.addEventListener('click', () => { this.mode = m.id; this.renderBody(); this.updateBadge(); this.schedule(); });
-      segM.appendChild(b);
-    }
-    gMode.appendChild(segM);
-    this.shell.body.appendChild(gMode);
+  /** Um dropdown (accordion) por filtro; painel com opções de SELEÇÃO ÚNICA. Só um
+   *  aberto por vez — idêntico ao padrão do debriefing. */
+  private dropdown(d: Dim): HTMLElement {
+    const open = this.openKey === d.key;
+    const dd = el('div', 'flt-dd' + (open ? ' is-open' : ''));
+    const head = el('button', 'flt-dd-head') as HTMLButtonElement;
+    head.type = 'button';
+    const lbl = el('span', 'flt-dd-lbl'); lbl.textContent = d.label;
+    const sum = el('span', 'flt-dd-sum'); sum.textContent = this.summary(d);
+    const chev = el('span', 'flt-dd-chev'); chev.textContent = '⌄';
+    head.append(lbl, sum, chev);
+    head.addEventListener('click', () => { this.openKey = open ? null : d.key; this.renderBody(); });
+    dd.appendChild(head);
+    if (!open) return dd;
 
-    // Investimento mínimo (presets)
-    const gInv = group('Investimento mínimo');
-    const segI = el('div', 'flt-seg');
-    const presets: Array<[string, number]> = [['Todos', 0], ...(c.minInvestPresets || [100, 500, 1000]).map((v) => [v >= 1000 ? `R$ ${v / 1000}k` : `R$ ${v}`, v] as [string, number])];
-    for (const [label, val] of presets) {
-      const b = opt(label, this.minInvest === val);
-      b.addEventListener('click', () => { this.minInvest = val; this.renderBody(); this.updateBadge(); this.schedule(); });
-      segI.appendChild(b);
-    }
-    gInv.appendChild(segI);
-    this.shell.body.appendChild(gInv);
-
-    // Temperatura (single-select) — só quando há temperaturas na base. Com uma única
-    // temperatura, "Todas" é redundante: mostra apenas essa opção (informativa).
-    if (c.temps && c.temps.length) {
-      const gT = group('Temperatura');
-      const segT = el('div', 'flt-seg');
-      const single = c.temps.length === 1;
-      if (!single) {
-        const all = opt('Todas', this.temp === null);
-        all.addEventListener('click', () => { this.temp = null; this.renderBody(); this.updateBadge(); this.schedule(); });
-        segT.appendChild(all);
+    const panel = el('div', 'flt-dd-panel');
+    const seg = el('div', 'flt-seg');
+    for (const o of d.opts) {
+      const b = el('button', 'flt-opt' + (o.id === this.cur(d) ? ' flt-active' : '')) as HTMLButtonElement;
+      b.type = 'button';
+      b.textContent = o.label;
+      // temperatura única = informativa (sem clique)
+      if (!(d.key === 'temp' && d.opts.length === 1)) {
+        b.addEventListener('click', () => {
+          if (d.key === 'invest') this.minInvest = Number(o.id) || 0;
+          else this.temp = o.id || null;
+          this.renderBody(); this.updateBadge(); this.schedule();
+        });
       }
-      for (const t of c.temps) {
-        const b = opt(t, single ? true : this.temp === t);
-        if (!single) b.addEventListener('click', () => { this.temp = t; this.renderBody(); this.updateBadge(); this.schedule(); });
-        segT.appendChild(b);
-      }
-      gT.appendChild(segT);
-      this.shell.body.appendChild(gT);
+      seg.appendChild(b);
     }
+    panel.appendChild(seg);
+    dd.appendChild(panel);
+    return dd;
   }
 
   private updateBadge(): void {

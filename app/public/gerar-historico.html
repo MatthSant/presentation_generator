@@ -65,6 +65,7 @@
 
   <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
+  <script src="/js/gen-progress.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     let CSV = null;
@@ -80,7 +81,7 @@
       if (!CSV) { show('err', 'Escolha o arquivo CSV.'); return; }
       const cfg = { type: 'historico-lancamentos' };
       $('go').disabled = true;
-      show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
+      const prog = window.genProgress.start(['Lendo o CSV e calculando os números…', 'Montando as páginas do relatório…', 'Finalizando…']);
       try {
         const fd = new FormData();
         fd.append('csv', CSV);
@@ -88,9 +89,11 @@
         const r = await fetch(`/api/${encodeURIComponent(client)}/_new/generate`, { method: 'POST', body: fd });
         const d = await r.json();
         if (!r.ok) throw new Error((d.error || 'falha') + (d.stderr ? ' — ' + d.stderr.slice(-300) : ''));
+        prog.done();
         show('ok', 'Pronto! Abrindo o relatório…');
         setTimeout(() => { location.href = d.report; }, 700);
       } catch (err) {
+        prog.fail(err.message);
         show('err', '⚠ ' + err.message);
       } finally {
         $('go').disabled = false;
