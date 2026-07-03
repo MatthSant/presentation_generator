@@ -63,6 +63,7 @@ test('toOpenAIBody: assistant tool_use + user tool_result → tool_calls + role 
 
 test('fromOpenAI: tool_calls → tool_use, texto → text, usage e stop_reason', () => {
   const json = {
+    model: 'z-ai/glm-5.2',
     choices: [{ message: { content: '', tool_calls: [
       { id: 'call_9', function: { name: 'emit_modal', arguments: '{"widgets":[]}' } },
     ] } }],
@@ -76,6 +77,7 @@ test('fromOpenAI: tool_calls → tool_use, texto → text, usage e stop_reason',
   assert.equal(msg.stop_reason, 'tool_use');
   assert.equal(msg.usage.input_tokens, 12);
   assert.equal(msg.usage.output_tokens, 7);
+  assert.equal((msg as { model?: string }).model, 'z-ai/glm-5.2');   // p/ o histórico registrar o modelo
 });
 
 test('fromOpenAI: só texto → bloco text + end_turn', () => {

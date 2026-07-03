@@ -75,7 +75,8 @@ export function toOpenAIBody(params: Anthropic.MessageCreateParamsNonStreaming, 
 }
 
 /** Resposta OpenAI → Anthropic.Message (só os campos que o fluxo consome: content,
- *  usage, stop_reason). Pura (testável). */
+ *  usage, stop_reason, model). Pura (testável). O `model` é preservado p/ o histórico
+ *  registrar QUAL modelo (NVIDIA) gerou o detalhamento. */
 export function fromOpenAI(json: AnyRec): Anthropic.Message {
   const choice = (json.choices as AnyRec[] | undefined)?.[0] as AnyRec | undefined;
   const msg = (choice?.message || {}) as AnyRec;
@@ -91,9 +92,26 @@ export function fromOpenAI(json: AnyRec): Anthropic.Message {
   const usage = (json.usage || {}) as AnyRec;
   return {
     content,
+    model: String(json.model || ''),
     stop_reason: toolCalls.length ? 'tool_use' : 'end_turn',
     usage: { input_tokens: Number(usage.prompt_tokens || 0), output_tokens: Number(usage.completion_tokens || 0) },
   } as unknown as Anthropic.Message;
+}
+
+// Throttle global p/ respeitar o rate limit do build.nvidia (40 rpm). Serializa o
+// espaçamento entre chamadas (min-gap = 60s/RPM) mesmo com deepens concorrentes — o
+// deep loop faz muitas chamadas e estouraria o limite sem isso.
+let lastCall = 0;
+let gate: Promise<void> = Promise.resolve();
+function throttle(): Promise<void> {
+  const rpm = Number(process.env.NVIDIA_RPM) || 40;
+  const minGap = Math.ceil(60000 / Math.max(1, rpm));
+  gate = gate.then(async () => {
+    const wait = lastCall + minGap - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastCall = Date.now();
+  });
+  return gate;
 }
 
 /** Traduz + tenta os modelos em ordem no build.nvidia; devolve a 1ª resposta OK
@@ -107,19 +125,32 @@ export async function nvidiaFallback(
   const models = nvidiaModels();
   let lastErr: unknown;
   for (const model of models) {
-    try {
-      const resp = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify(toOpenAIBody(params, model)),
-      });
-      if (!resp.ok) { lastErr = new Error(`NVIDIA ${model}: HTTP ${resp.status} ${(await resp.text()).slice(0, 200)}`); continue; }
-      const json = (await resp.json()) as AnyRec;
-      const out = fromOpenAI(json);
-      if (!out.content.length) { lastErr = new Error(`NVIDIA ${model}: resposta vazia`); continue; }
-      note?.(`fallback NVIDIA: ${model}`);
-      return out;
-    } catch (e) { lastErr = e; }
+    // Até 3 tentativas por modelo APENAS p/ 429 (rate limit): respeita o Retry-After
+    // e re-tenta o MESMO modelo; outros erros pulam direto p/ o próximo modelo.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await throttle();
+        const resp = await fetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify(toOpenAIBody(params, model)),
+        });
+        if (resp.status === 429) {
+          const ra = Number(resp.headers.get('retry-after')) || 2 ** attempt;
+          note?.(`NVIDIA ${model}: 429 rate limit — aguardando ${ra}s`);
+          lastErr = new Error(`NVIDIA ${model}: 429 rate limit`);
+          await new Promise((r) => setTimeout(r, ra * 1000));
+          continue;   // re-tenta o mesmo modelo
+        }
+        if (!resp.ok) { lastErr = new Error(`NVIDIA ${model}: HTTP ${resp.status} ${(await resp.text()).slice(0, 200)}`); break; }
+        const json = (await resp.json()) as AnyRec;
+        const out = fromOpenAI(json);
+        if (!out.content.length) { lastErr = new Error(`NVIDIA ${model}: resposta vazia`); break; }
+        (out as { model?: string }).model = (out as { model?: string }).model || model;
+        note?.(`fallback NVIDIA: ${(out as { model?: string }).model}`);
+        return out;
+      } catch (e) { lastErr = e; break; }
+    }
   }
   throw lastErr instanceof Error ? lastErr : new Error('NVIDIA fallback falhou');
 }

@@ -65,7 +65,7 @@ async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreatePa
   for (let attempt = 0; ; attempt++) {
     try {
       const msg = await client.messages.create(params);
-      logClaude(kind, params, { response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
+      logClaude(kind, params, { model: (msg as { model?: string }).model || MODEL, response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
       return msg;
     } catch (e) {
       const status = (e as { status?: number }).status;
@@ -78,7 +78,7 @@ async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreatePa
         if (isCreditError(e) && nvidiaConfigured()) {
           try {
             const fb = await nvidiaFallback(params, (m) => logClaude(`${kind}:nvidia`, params, { note: m }));
-            logClaude(`${kind}:nvidia`, params, { response: fb.content, usage: fb.usage, cost: costOf(fb.usage as Usage), fallback: true });
+            logClaude(`${kind}:nvidia`, params, { model: (fb as { model?: string }).model || 'nvidia', response: fb.content, usage: fb.usage, fallback: true });
             return fb;
           } catch (fbErr) {
             logClaude(`${kind}:nvidia`, params, { error: `fallback NVIDIA falhou: ${(fbErr as Error).message}` });
@@ -403,7 +403,9 @@ export interface FewShotExample { instrucao: string; modal: unknown }
 function usageOf(msg: Anthropic.Message): ModalUsage {
   const u = (msg.usage || {}) as Usage;
   const c = costOf(u) as { usd?: number } | undefined;
-  return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model: MODEL };
+  // model REAL da resposta (Anthropic ecoa o modelo; no fallback é o id NVIDIA) → o
+  // histórico do detalhamento registra qual modelo de fato gerou.
+  return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model: (msg as { model?: string }).model || MODEL };
 }
 
 export function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {
