@@ -112,8 +112,10 @@ Achados da revisão completa pré-Fase 2:
       ficam congelados no estado atual (o gráfico ainda é interativo).
     - Modais de deepen a NÍVEL DE BLOCO (varinha) entram com os gráficos e o runtime
       abre/fecha + monta o chart no open; aprofundamentos da página são seções normais.
-    - Embeds do criativos (iframe Instagram) e o @import de fonte precisam de internet.
-      Avaliar embutir os woff2 p/ fidelidade offline real.
+    - ~~o @import de fonte precisa de internet~~ → **RESOLVIDO**: os woff2 (Poppins +
+      IBM Plex Mono, subsets latin/latin-ext) são buscados no export e embutidos como
+      data: URI (fallback p/ o @import se offline no momento do export). +~220 KB.
+    - Embeds do criativos (iframe Instagram) ainda precisam de internet p/ carregar.
     - Chart-toggle: só a pane ativa entra (as ocultas nunca desenham na captura).
 - [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
       solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada

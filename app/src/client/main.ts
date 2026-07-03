@@ -1242,10 +1242,38 @@ class App {
       await this.go(saved.p, saved.s);
 
       const css = await fetch('/style.css').then(r => r.text()).catch(() => '');
-      // A tipografia da marca (Poppins) vem do fonts.css (@import Google Fonts) —
-      // sem inliná-lo, o relatório entregue caía na fonte de fallback do sistema.
-      // O @import tem de ficar ANTES das demais regras (spec CSS).
-      const fontsCss = await fetch('/fonts.css').then(r => r.text()).catch(() => '');
+      // Tipografia da marca EMBUTIDA: o fonts.css é um @import do Google Fonts, que
+      // exige internet — offline o relatório caía na fonte de fallback. No export
+      // (online) buscamos o CSS do Google, filtramos os subsets latin/latin-ext e
+      // embutimos cada woff2 como data: URI → fidelidade offline real. Fallback: o
+      // @import original se algo falhar (CORS/offline no momento do export).
+      const rawFontsCss = await fetch('/fonts.css').then(r => r.text()).catch(() => '');
+      const embedFonts = async (): Promise<string> => {
+        const im = rawFontsCss.match(/@import\s+url\(['"]?([^'")]+)['"]?\)/);
+        if (!im) return rawFontsCss;
+        try {
+          const gcss = await fetch(im[1]).then(r => r.text());
+          const re = /\/\*\s*([\w-]+)\s*\*\/\s*@font-face\s*\{([^}]+)\}/g;
+          const faces: string[] = [];
+          const jobs: Array<Promise<void>> = [];
+          let mm: RegExpExecArray | null;
+          while ((mm = re.exec(gcss))) {
+            const subset = mm[1], face = mm[2];
+            if (subset !== 'latin' && subset !== 'latin-ext') continue;   // pt-BR
+            const um = face.match(/url\(([^)]+)\)/);
+            if (!um) continue;
+            const url = um[1].replace(/['"]/g, '');
+            const idx = faces.length; faces.push('');
+            jobs.push(fetch(url).then(r => r.blob()).then(blobToDataUrl)
+              .then(dataUrl => { faces[idx] = `@font-face{${face.replace(/url\([^)]+\)/, `url(${dataUrl})`)}}`; })
+              .catch(() => { faces[idx] = ''; }));
+          }
+          await Promise.all(jobs);
+          const out = faces.filter(Boolean).join('\n');
+          return out || rawFontsCss;
+        } catch { return rawFontsCss; }
+      };
+      const fontsCss = await embedFonts();
       const apexCss = [...document.querySelectorAll('style')]
         .map(s => s.textContent || '').filter(t => /apexcharts/i.test(t)).join('\n');
       const logo = await fetch('/assets/witly-logo.png').then(r => r.blob()).then(blobToDataUrl).catch(() => '');
