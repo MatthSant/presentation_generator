@@ -85,12 +85,38 @@ Achados da revisão completa pré-Fase 2:
       resposta. Toca: upload na UI de perguntas/deepen → reter junto à base (`.base/`, como
       goals/hist/dict) → expor ao motor/`consultar` (catálogo do CSV no contexto) → citar a
       fonte na seção gerada. Cuidado: validar/limitar o CSV (LGPD, tamanho, schema livre).
-- [ ] **Revisar o exportador de HTML de ponta a ponta** — não só bugs: conferir se o
-      `exportHtml` (`src/client/main.ts` → botão `#export-html-btn`) cumpre o OBJETIVO
-      (relatório standalone fiel p/ entregar ao cliente?) e se o COMO está certo: o que
-      embute (CSS/fonts/ApexCharts/dados), o que quebra (gráficos, sidebar, modais,
-      controles interativos, perguntas), tamanho do arquivo, e se filtros/estado atual
-      entram no export. Definir o escopo esperado e testar com um relatório de cada tipo.
+- [x] **Revisar o exportador de HTML de ponta a ponta** — `exportHtml` em `main.ts`
+      (botão `#export-html-btn`). Revisão + REESCRITA (jul/2026); resultado abaixo.
+  - **Objetivo & como (v2, interativo):** gera um `.html` standalone (abre offline, sem
+    servidor) que se comporta como o app — **uma seção por vez** com **sidebar de navegação**
+    (reusa as classes vivas `#sidenav`/`.sn-*`/`#export-root`, então o style.css inlinado
+    estiliza de graça), toggle de canal no topnav, largura **mín 1180 / máx 1920** e
+    **gráficos ApexCharts REAIS** (hover/tooltip). Cada seção × canal é renderizada pela via
+    real; capturamos o **ChartDef** de cada gráfico (estrutura de dados com os valores JÁ
+    resolvidos — sem dataset/bind/regra de negócio) via `chartCaptureStart/End` +
+    `captureChart` (charts.ts) e embutimos um `buildOptions` empacotado (charts.js só depende
+    de trend.js) + o ApexCharts real + `window.__EXP_CHARTS`; um runtime remonta cada chart
+    com `data-xc`. Perguntas, deepen, seletores dos pickers e toggles mortos (outlier,
+    chart/heatmap-toggle) são removidos — a pane/seleção ativa fica **congelada** mas o
+    gráfico é interativo.
+  - **BUG corrigido (fonte):** o `fonts.css` (@import Poppins) NÃO era inlinado → fonte de
+    fallback. Agora entra no topo do `<style>`.
+  - **Cuidado (pickers × aba em 2º plano):** scatter/evolution-picker montam via
+    `requestAnimationFrame`, estrangulado em aba de fundo durante o export → o `captureChart`
+    não disparava (0 charts no criativos). Fix: `chartExportMode()` → build **síncrono** no
+    export (renderer.ts). Charts do ChartManager já montam síncronos.
+  - **Ganho de tamanho:** conversao-perfil caiu de ~8,3 MB → ~2,8 MB; criativos ~2,7 MB
+    (defs são JSON minúsculo; o ApexCharts entra uma vez, não SVG re-renderizado por canal).
+  - **Limitações remanescentes (por design):**
+    - Só o filtro de CANAL é alternável; demais controles (compare, modo, lançamentos)
+      ficam congelados no estado atual (o gráfico ainda é interativo).
+    - Modais de deepen a NÍVEL DE BLOCO (varinha) entram com os gráficos e o runtime
+      abre/fecha + monta o chart no open; aprofundamentos da página são seções normais.
+    - ~~o @import de fonte precisa de internet~~ → **RESOLVIDO**: os woff2 (Poppins +
+      IBM Plex Mono, subsets latin/latin-ext) são buscados no export e embutidos como
+      data: URI (fallback p/ o @import se offline no momento do export). +~220 KB.
+    - Embeds do criativos (iframe Instagram) ainda precisam de internet p/ carregar.
+    - Chart-toggle: só a pane ativa entra (as ocultas nunca desenham na captura).
 - [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
       solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada
       barata reescreve com o contexto do TIPO de análise ("Foi acréscimo/decréscimo no

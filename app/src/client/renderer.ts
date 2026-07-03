@@ -13,7 +13,7 @@ import type {
   EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
-import { defFromResolved, buildOptions, valueFmt, type ChartDef } from './charts.js';
+import { defFromResolved, buildOptions, valueFmt, captureChart, chartExportMode, type ChartDef } from './charts.js';
 import { trendR2, bestFit, type TrendType } from './trend.js';
 
 const FIT_LBL: Record<string, string> = { linear: 'Linear', log: 'Log', exp: 'Exp', pow: 'Potência' };
@@ -1860,12 +1860,16 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
     const opts = buildOptions(def);
     if (chart) { void chart.updateOptions(opts); return; }
     if (typeof ApexCharts === 'undefined') return;
+    if (!host.id) host.id = `${w.id}-xc`;
+    captureChart(host.id, def);
     chart = new ApexCharts(host, opts);
     void chart.render();
   };
   xSel.addEventListener('change', () => { uiSet(w.id, 'x', xSel.value); build(); });
   ySel.addEventListener('change', () => { uiSet(w.id, 'y', ySel.value); build(); });
-  requestAnimationFrame(build);
+  // No export (aba em 2º plano) o rAF é estrangulado e o chart nunca monta/captura;
+  // build síncrono garante o captureChart. O runtime remonta com o tamanho certo.
+  if (chartExportMode()) build(); else requestAnimationFrame(build);
   return wrap;
 }
 
@@ -1933,12 +1937,14 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
     const opts = buildOptions(def);
     if (chart) { void chart.updateOptions(opts); return; }
     if (typeof ApexCharts === 'undefined') return;
+    if (!host.id) host.id = `${w.id}-xc`;
+    captureChart(host.id, def);
     chart = new ApexCharts(host, opts);
     void chart.render();
   };
   sel.addEventListener('change', () => { uiSet(w.id, 'm1', sel.value); build(); });
   sel2?.addEventListener('change', () => { uiSet(w.id, 'm2', sel2.value); build(); });
-  requestAnimationFrame(build);
+  if (chartExportMode()) build(); else requestAnimationFrame(build);
   return wrap;
 }
 
