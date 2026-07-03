@@ -85,12 +85,30 @@ Achados da revisão completa pré-Fase 2:
       resposta. Toca: upload na UI de perguntas/deepen → reter junto à base (`.base/`, como
       goals/hist/dict) → expor ao motor/`consultar` (catálogo do CSV no contexto) → citar a
       fonte na seção gerada. Cuidado: validar/limitar o CSV (LGPD, tamanho, schema livre).
-- [ ] **Revisar o exportador de HTML de ponta a ponta** — não só bugs: conferir se o
-      `exportHtml` (`src/client/main.ts` → botão `#export-html-btn`) cumpre o OBJETIVO
-      (relatório standalone fiel p/ entregar ao cliente?) e se o COMO está certo: o que
-      embute (CSS/fonts/ApexCharts/dados), o que quebra (gráficos, sidebar, modais,
-      controles interativos, perguntas), tamanho do arquivo, e se filtros/estado atual
-      entram no export. Definir o escopo esperado e testar com um relatório de cada tipo.
+- [x] **Revisar o exportador de HTML de ponta a ponta** — `exportHtml` em `main.ts`
+      (botão `#export-html-btn`). Revisão feita (jul/2026); resultado abaixo.
+  - **Objetivo & como:** gera um `.html` standalone (abre offline, sem servidor) — um
+    SNAPSHOT ESTÁTICO do relatório no estado atual. Renderiza cada seção × canal pela via
+    real (charts viram SVG embutido), clona o DOM com alturas fixadas, e monta um doc com
+    style.css + CSS do ApexCharts + logo (data URI) inlinados, capa, tabs por página +
+    toggle de canal, e um runtime mínimo que troca as panes. Perguntas, botões de deepen e
+    links de detalhamento são removidos.
+  - **BUG corrigido:** o `fonts.css` (@import Poppins do Google) NÃO era inlinado → o
+    relatório entregue saía na fonte de fallback do sistema, não a da marca. Agora o
+    fonts.css entra no topo do `<style>` (antes das demais regras). Verificado: o export
+    passa a conter o @import na 1ª posição (idêntico ao relatório vivo, que carrega Poppins).
+  - **Limitações (por design — é snapshot), a decidir se vira feature:**
+    - Só o filtro de CANAL é alternável no export; os demais controles (compare do
+      debriefing, modo de criativos, lançamentos do histórico, filtro do debriefing) ficam
+      CONGELADOS no estado atual.
+    - Modais de deepen a NÍVEL DE BLOCO (varinha) não entram; só as seções da página
+      "Aprofundamentos" entram.
+    - Embeds do criativos (iframe Instagram) precisam de internet p/ carregar.
+    - Nav lateral (sidebar) vira tabs no topo; a página "Fichas" (criativos) empilha todas
+      as fichas numa tab só.
+    - **Tamanho:** conversao-perfil (3 canais) ~8,3 MB; debriefing ~2,6 MB — pesado p/
+      e-mail (SVG re-renderizado por canal). Avaliar opção "exportar só o canal atual" e/ou
+      embutir os woff2 p/ fidelidade offline real (hoje o @import precisa de internet).
 - [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
       solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada
       barata reescreve com o contexto do TIPO de análise ("Foi acréscimo/decréscimo no

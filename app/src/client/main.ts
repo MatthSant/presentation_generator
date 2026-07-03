@@ -1171,6 +1171,10 @@ class App {
       await this.go(saved.p, saved.s);
 
       const css = await fetch('/style.css').then(r => r.text()).catch(() => '');
+      // A tipografia da marca (Poppins) vem do fonts.css (@import Google Fonts) —
+      // sem inliná-lo, o relatório entregue caía na fonte de fallback do sistema.
+      // O @import tem de ficar ANTES das demais regras (spec CSS).
+      const fontsCss = await fetch('/fonts.css').then(r => r.text()).catch(() => '');
       const apexCss = [...document.querySelectorAll('style')]
         .map(s => s.textContent || '').filter(t => /apexcharts/i.test(t)).join('\n');
       const logo = await fetch('/assets/witly-logo.png').then(r => r.blob()).then(blobToDataUrl).catch(() => '');
@@ -1204,6 +1208,7 @@ var c=e.target.closest&&e.target.closest('.exp-cbtn');if(c){canal=c.getAttribute
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <style>
+${fontsCss}
 ${css}
 ${apexCss}
 body{margin:0}
