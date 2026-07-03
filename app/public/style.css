@@ -2096,7 +2096,10 @@ body.edit-mode .tile-filter-badge { display:none; }
 
 .pg-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--border); }
 .pg-kpi { min-width: 0; }
-.pg-kpi-v { font-size: 15px; font-weight: 800; color: var(--purple); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Números ficam em 1 linha (curtos); valores de texto livre (ex.: "Idade: 30 a 34 anos",
+   "cruzamento (pesado)") quebram em até 2 linhas em vez de cortar com "…". `title` no
+   markup garante o texto completo no hover se ainda assim clampar. */
+.pg-kpi-v { font-size: 15px; font-weight: 800; color: var(--purple); font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .pg-kpi-l { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray2); margin-top: 3px; }
 
 .pg-actions { display: flex; align-items: center; gap: 9px; margin-top: 18px; }

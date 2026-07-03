@@ -76,7 +76,7 @@ export class PerguntasView {
     // consultor — não exibir o código cru. Só o marcador "✎" de pergunta própria.
     const pid = isCustom ? '✎' : '';
     const kpis = (p.kpis || []).slice(0, 3).map((k) => `
-      <div class="pg-kpi"><div class="pg-kpi-v">${esc(k.value)}</div><div class="pg-kpi-l">${esc(k.label)}</div></div>`).join('');
+      <div class="pg-kpi"><div class="pg-kpi-v" title="${esc(k.value)}">${esc(k.value)}</div><div class="pg-kpi-l">${esc(k.label)}</div></div>`).join('');
     const kpisBlock = kpis ? `<div class="pg-kpis">${kpis}</div>` : '';
 
     let actions: string;
