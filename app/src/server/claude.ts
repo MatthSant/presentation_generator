@@ -13,6 +13,8 @@ import type { Digest, DeepenCatalog } from './datasetCatalog.js';
 import type { LayoutItem } from '../shared/types.js';
 import { auditLayout, rowsToItems, packFallback, type Audit, type LayoutCell, type LayWidget } from './layoutAudit.js';
 import { CLAUDE_LOG } from './paths.js';
+import { isCreditError } from './creditError.js';
+import { nvidiaConfigured, nvidiaFallback } from './nvidiaFallback.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 
@@ -70,6 +72,18 @@ async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreatePa
       // sem status = erro de conexão (fetch failed / timeout); 429 = rate limit; ≥500 = servidor
       const transient = status === undefined || status === 429 || status >= 500;
       if (!transient || attempt >= MAX_RETRIES) {
+        // Sem crédito na Anthropic → cai para o build.nvidia (se configurado), tentando
+        // os modelos em ordem. Se o fallback também falhar, lança o erro de crédito original
+        // (o app mostra a tela "sem crédito"). Só p/ falta de crédito — auth/400 não caem.
+        if (isCreditError(e) && nvidiaConfigured()) {
+          try {
+            const fb = await nvidiaFallback(params, (m) => logClaude(`${kind}:nvidia`, params, { note: m }));
+            logClaude(`${kind}:nvidia`, params, { response: fb.content, usage: fb.usage, cost: costOf(fb.usage as Usage), fallback: true });
+            return fb;
+          } catch (fbErr) {
+            logClaude(`${kind}:nvidia`, params, { error: `fallback NVIDIA falhou: ${(fbErr as Error).message}` });
+          }
+        }
         logClaude(kind, params, { error: (e as Error).message });
         throw e;
       }

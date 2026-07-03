@@ -80,6 +80,17 @@ export function approveDeepen(db: DB, id: string): boolean {
   return r.changes > 0;
 }
 
+/** Marca a geração como DESCARTADA, guardando o motivo do consultor (sinal forte de
+ *  qualidade: o que não serviu e por quê — alimenta a análise do harness). */
+export function markDiscarded(db: DB, id: string, motivo: string): boolean {
+  const r = db.prepare(`
+    UPDATE deepen_history SET status = 'descartado',
+      feedback_text = COALESCE(feedback_text || ' · ', '') || ?, feedback_at = ?
+    WHERE id = ?
+  `).run(`descartado: ${motivo}`, new Date().toISOString(), id);
+  return r.changes > 0;
+}
+
 /** Marca a versão anterior como revisada, guardando o comentário que motivou a
  *  revisão (a nova geração vira uma entrada própria, encadeada por prev_modal_id). */
 export function markRevised(db: DB, id: string, comment: string): boolean {

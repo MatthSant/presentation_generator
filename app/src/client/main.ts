@@ -52,7 +52,6 @@ class App {
   private histTemp: string | null = null;
   /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
   private debFilters: DebFilters | null = null;
-  private busyEl: HTMLElement | null = null;
   /** Fila NÃO-bloqueante de aprofundamentos/detalhamentos (painel canto inf. esq.). */
   private queue: DeepenQueue;
 
@@ -301,16 +300,14 @@ class App {
     // Seções det-*: rodapé de revisão (aprovar / pedir revisão regenera a própria
     // seção / ★1–5). Seções antigas sem historyId não mostram nada.
     if (section.historyId) {
-      const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async () => {
-        if (!window.confirm('Descartar este aprofundamento? A seção será removida e não dá para desfazer.')) return;
-        this.setBusy(true, 'Descartando…');
+      const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async (motivo) => {
         try {
-          await this.api.descartarDet(section.id);
+          await this.api.descartarDet(section.id, motivo);
           this.removeDetSection(section.id);
           this.toast('Aprofundamento descartado.');
         } catch (e) {
           this.toast(`Falha ao descartar: ${(e as Error).message}`);
-        } finally { this.setBusy(false); }
+        }
       }, undefined, 'aprofundamento');
       rt.classList.add('rate--section');
       host.appendChild(rt);
@@ -446,47 +443,6 @@ class App {
       host.innerHTML = `<div class="pg-wrap"><p class="pg-loading">Erro ao carregar perguntas: ${esc((e as Error).message)}</p></div>`;
     }
   }
-
-  /** Blocking loading overlay — shown while a detalhamento is generated server-side
-   *  (the LLM call takes a few seconds), so the wait is explicit and clicks are
-   *  locked until we navigate to the result. */
-  private ensureBusy(): void {
-    if (this.busyEl) return;
-    const el = document.createElement('div');
-    el.className = 'busy-overlay';
-    el.hidden = true;
-    el.innerHTML = `
-      <div class="busy-box">
-        <div class="busy-load"><div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div></div>
-        <div class="busy-err" hidden>
-          <div class="busy-err-title">Não foi possível gerar com a IA</div>
-          <p class="busy-err-sub"></p>
-          <div class="busy-err-block" hidden><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues"></ul></div>
-          <div class="busy-err-sug" hidden><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist"></ul></div>
-          <div class="busy-err-actions">
-            <button type="button" class="busy-err-retry">↻ Rerodar</button>
-            <button type="button" class="busy-err-close">Fechar</button>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(el);
-    this.busyEl = el;
-  }
-
-  private setBusy(on: boolean, msg = 'Carregando…'): void {
-    this.ensureBusy();
-    if (!this.busyEl) return;
-    if (on) {
-      this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = false;
-      this.busyEl.querySelector<HTMLElement>('.busy-err')!.hidden = true;
-      const m = this.busyEl.querySelector('.busy-msg');
-      if (m) m.textContent = msg;
-      this.busyEl.hidden = false;
-    } else {
-      this.busyEl.hidden = true;
-    }
-  }
-
 
   /** Diálogo de erro de um job REPROVADO da fila (não bloqueia): mesmo detalhamento
    *  de motivos/sugestões do overlay antigo, com "Rerodar". Aberto pelo botão
@@ -883,9 +839,18 @@ class App {
 
     // Revisão: aprovar / pedir revisão (regenera via prev) / ★1–5 — tudo no histórico.
     if (modal.historyId) {
+      const secForModal = this.store.currentSectionId;
       dialog.appendChild(this.buildRating(modal.historyId,
         ownerBlockId ? async (c) => { await this.runDeepen(this.store.currentSectionId, ownerBlockId, c, modal); } : undefined,
-        undefined,
+        ownerBlockId ? async (motivo) => {
+          try {
+            await this.api.descartarModal(secForModal, ownerBlockId, motivo);
+            closeOverlay(overlay);
+            this.store.dropSection(secForModal);
+            await this.go(this.store.currentPageId, secForModal, true);
+            this.toast('Detalhamento descartado.');
+          } catch (e) { this.toast(`Falha ao descartar: ${(e as Error).message}`); }
+        } : undefined,
         foot ? () => { foot!.hidden = false; } : undefined));
     }
     if (foot) dialog.appendChild(foot);
@@ -903,7 +868,7 @@ class App {
    *  itera via prev; seção det-* regenera a própria seção). */
   // `noun` = "detalhamento" (bloco do relatório) ou "aprofundamento" (board de
   // perguntas) — o rodapé de rating serve os dois fluxos; a nomenclatura segue a origem.
-  private buildRating(historyId: string, revisar?: (comentario: string) => void | Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => void | Promise<void>, onDiscard?: (motivo: string) => void | Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
     const Noun = noun[0].toUpperCase() + noun.slice(1);
     const wrap = document.createElement('div');
     wrap.className = 'rate';
@@ -994,8 +959,22 @@ class App {
       discard.type = 'button';
       discard.className = 'btn btn--sm rate-discard';
       discard.textContent = '🗑 Descartar';
-      discard.addEventListener('click', () => { void onDiscard(); });
-      wrap.append(discard);
+      // Descartar SEMPRE pede o motivo (sinal de qualidade): abre um form curto;
+      // sem motivo não descarta (o "porquê" é o ponto).
+      const df = document.createElement('form');
+      df.className = 'rate-fb rate-discard-fb';
+      df.hidden = true;
+      df.innerHTML = `<input type="text" placeholder="por que descartar? (ex.: fugiu do tema, dado errado, não acrescenta)" /><button type="submit" class="btn btn--sm rate-discard-go">Descartar</button>`;
+      discard.addEventListener('click', () => { df.hidden = !df.hidden; if (!df.hidden) (df.querySelector('input') as HTMLInputElement).focus(); });
+      df.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inp = df.querySelector('input') as HTMLInputElement;
+        const motivo = inp.value.trim();
+        if (!motivo) { inp.focus(); return; }
+        df.hidden = true;
+        await onDiscard(motivo);
+      });
+      wrap.append(discard, df);
     }
     return wrap;
   }

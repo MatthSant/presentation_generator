@@ -107,9 +107,16 @@ export class Api {
     });
   }
 
-  descartarDet(sectionId: string): Promise<{ ok: boolean; sectionId: string; pageRemoved: boolean }> {
+  descartarDet(sectionId: string, motivo?: string): Promise<{ ok: boolean; sectionId: string; pageRemoved: boolean }> {
     return this.json(`${this.base()}/det/${encodeURIComponent(sectionId)}/descartar`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo }),
+    });
+  }
+
+  /** Descarta o detalhamento (modal) de um bloco, com o motivo. */
+  descartarModal(secId: string, blockId: string, motivo?: string): Promise<{ ok: boolean; secId: string; blockId: string }> {
+    return this.json(`${this.base()}/section/${encodeURIComponent(secId)}/block/${encodeURIComponent(blockId)}/descartar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo }),
     });
   }
 
