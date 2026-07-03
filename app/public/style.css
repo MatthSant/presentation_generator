@@ -1399,6 +1399,11 @@ body.edit-mode .tile-deepen { display:none; }
 .deepen-card { margin:0; font-size:12.5px; color:var(--gray); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 11px; }
 .deepen-form textarea { min-height:84px; resize:vertical; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-family:var(--font-sans),sans-serif; font-size:13.5px; color:var(--fg); background:var(--surface); outline:none; }
 .deepen-form textarea:focus { border-color:var(--purple); }
+.deepen-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-2px 0 0; }
+.deepen-improve { font-size:12px; font-weight:700; color:var(--purple); background:var(--purple-bg); border:1px solid color-mix(in srgb, var(--purple) 30%, transparent); border-radius:8px; padding:6px 11px; cursor:pointer; font-family:inherit; }
+.deepen-improve:hover:not(:disabled) { background:color-mix(in srgb, var(--purple) 14%, transparent); }
+.deepen-improve:disabled { opacity:.6; cursor:default; }
+.deepen-improve-note { font-size:11.5px; color:var(--gray); }
 .deepen-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:2px; }
 .deepen-btn { font-size:13px; font-weight:700; border:none; border-radius:8px; padding:8px 15px; cursor:pointer; background:var(--purple); color:#fff; }
 .deepen-btn.ghost { background:transparent; color:var(--gray); border:1px solid var(--border); }

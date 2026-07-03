@@ -28,9 +28,15 @@ export function buildCardContext(section: Section | null | undefined, blockId: s
         .map((t) => ({ label: t.label, dataset: (t.bind as { dataset?: string })?.dataset ?? (t.chart as { bind?: { dataset?: string } })?.bind?.dataset }))
         .filter((t) => t.dataset)
     : undefined;
+  // O "assunto" do bloco pode vir de campos diferentes por tipo de widget:
+  // find-block/chart/table usam `title`; kpi-card usa `label` (ex.: "Atingimento ·
+  // Leads"); alguns usam `ind`/`name`. Sem esse fallback, o `objetivo` do deepen
+  // (cardCtx.title || prompt) ficava VAZIO em kpi-cards e o detalhamento derivava
+  // p/ outro bloco (ex.: leads → vendas). detail cai p/ `sub` (subtítulo do kpi).
+  const c = card as { title?: string; label?: string; ind?: string; name?: string; detail?: string; sub?: string } | undefined;
   return {
-    title: (card as { title?: string } | undefined)?.title,
-    detail: (card as { detail?: string } | undefined)?.detail,
+    title: c?.title || c?.label || c?.ind || c?.name,
+    detail: c?.detail || c?.sub,
     type: (card as Widget | undefined)?.type,
     bind: (card as { bind?: unknown } | undefined)?.bind,
     tabs,

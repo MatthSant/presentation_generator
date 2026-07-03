@@ -117,14 +117,15 @@ Achados da revisão completa pré-Fase 2:
       data: URI (fallback p/ o @import se offline no momento do export). +~220 KB.
     - Embeds do criativos (iframe Instagram) ainda precisam de internet p/ carregar.
     - Chart-toggle: só a pane ativa entra (as ocultas nunca desenham na captura).
-- [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
-      solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada
-      barata reescreve com o contexto do TIPO de análise ("Foi acréscimo/decréscimo no
-      volume de leads ou na conversão desses leads que teve maior impacto no faturamento e
-      retorno?") — pergunta melhor escopada = detalhamento melhor. Toca: rota
-      `perguntas/custom` (passo de rewrite ANTES do fluxo atual), prompt com o dicionário
-      de métricas/dimensões do tipo (registry/buildDeepenMeta), e UI mostrando a pergunta
-      reescrita p/ o usuário confirmar/editar antes de gastar o deepen completo.
+- [x] **Camada de IA que reescreve a pergunta antes do detalhamento** — ✅ jul/2026.
+      Botão **"✨ Melhorar pergunta"** nos composers (detalhar bloco + pergunta custom):
+      chamada barata (`rewriteQuestion` em claude.ts, haiku + mock) via rota
+      `POST /api/:c/:s/deepen/rewrite`, ANCORADA no bloco de origem (título/label/critério
+      + tabelas que ele consome) e no vocabulário (métricas/dims do catálogo) → devolve a
+      pergunta reescrita p/ o consultor revisar/editar antes de gerar. **Bônus:** corrigiu
+      na raiz o drift "detalhar leads → gerava vendas" — `buildCardContext` não pegava o
+      assunto de **kpi-cards** (usam `label`, não `title`), então `objetivo = title||prompt`
+      ficava sem âncora; agora cai p/ `label`/`ind`/`name` (pinamento do deepen + rewrite).
 
 ## /goal detalhamentos — retomada (aguarda crédito de API)
 

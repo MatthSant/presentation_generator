@@ -568,12 +568,14 @@ class App {
       <h3>Adicionar pergunta</h3>
       <p class="deepen-card">Sua pergunta vira um aprofundamento na hora (sem cálculo de relevância).</p>
       <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
+      ${App.IMPROVE_ROW}
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
         <button value="go" class="deepen-btn" type="submit">Criar aprofundamento</button>
       </div></form>`;
     document.body.appendChild(dlg);
     const ta = dlg.querySelector('textarea')!;
+    this.wireImprove(dlg, ta);   // pergunta da análise inteira (sem bloco)
     dlg.addEventListener('close', () => {
       const text = ta.value.trim();
       const go = dlg.returnValue === 'go';
@@ -672,12 +674,14 @@ class App {
       <h3>Detalhar card</h3>
       <p class="deepen-card">${esc(cardTitle)}</p>
       <textarea placeholder="O que aprofundar? Ex.: mostre a variação por faixa de renda ao longo dos lançamentos."></textarea>
+      ${App.IMPROVE_ROW}
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
         <button value="go" class="deepen-btn" type="submit">Gerar detalhamento</button>
       </div></form>`;
     document.body.appendChild(dlg);
     const ta = dlg.querySelector('textarea')!;
+    this.wireImprove(dlg, ta, secId, blockId);
     dlg.addEventListener('close', () => {
       const prompt = ta.value.trim();
       const go = dlg.returnValue === 'go';
@@ -687,6 +691,38 @@ class App {
     });
     dlg.showModal();
     ta.focus();
+  }
+
+  /** Linha de ferramentas dos composers: botão "Melhorar pergunta" + nota de status. */
+  private static IMPROVE_ROW = '<div class="deepen-tools"><button type="button" class="deepen-improve">✨ Melhorar pergunta</button><span class="deepen-improve-note" hidden></span></div>';
+
+  /** Liga o botão "✨ Melhorar": reescreve a pergunta atual (ancorada no bloco, se
+   *  houver) via IA barata e substitui o textarea p/ o consultor revisar/editar
+   *  antes de gerar. Passo opcional — não bloqueia o "Gerar". */
+  private wireImprove(dlg: HTMLElement, ta: HTMLTextAreaElement, secId?: string, blockId?: string): void {
+    const btn = dlg.querySelector<HTMLButtonElement>('.deepen-improve');
+    const note = dlg.querySelector<HTMLElement>('.deepen-improve-note');
+    if (!btn || !note) return;
+    const setNote = (msg: string): void => { note.hidden = false; note.textContent = msg; };
+    btn.addEventListener('click', async () => {
+      const cur = ta.value.trim();
+      if (!cur) { setNote('Escreva a pergunta primeiro.'); return; }
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = '✨ Melhorando…';
+      note.hidden = true;
+      try {
+        const r = await this.api.rewriteDeepen(cur, secId, blockId);
+        ta.value = r.rewritten;
+        ta.focus();
+        setNote(r.mocked ? 'Sugestão (mock) — revise e gere.' : 'Pergunta melhorada — revise e gere.');
+      } catch {
+        setNote('Não foi possível melhorar agora — gere com a sua pergunta.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    });
   }
 
   /** Botão "pedir revisão deste bloco" (dentro de um detalhamento/aprofundamento).

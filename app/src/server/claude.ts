@@ -855,3 +855,68 @@ function mockContent(d: Digest): unknown {
     detalhamentos: {},
   };
 }
+
+/* ── Rewrite da pergunta (camada barata ANTES do detalhamento) ──
+ * O consultor escreve solto ("captação ou conversão teve mais impacto?"); um
+ * passo barato (haiku) reescreve com o CONTEXTO DO BLOCO (título/números/critério)
+ * e o vocabulário do tipo (métricas/dimensões) → pergunta melhor escopada, ANCORADA
+ * no bloco (evita o detalhamento derivar p/ outro assunto). O consultor revê/edita
+ * antes de gastar o deepen completo. Sem bloco (pergunta custom da análise inteira),
+ * ancora no tema geral. */
+export interface RewriteInput {
+  prompt: string;
+  card?: CardCtx;
+  blockId?: string;
+  analysisTitle?: string;
+  /** Vocabulário compacto: métricas (colunas numéricas) e dimensões disponíveis. */
+  vocab: { metrics: string[]; dims: string[]; blockTables?: string[] };
+}
+export interface RewriteResult { rewritten: string; mocked: boolean }
+
+const REWRITE_SYSTEM = `Você reescreve a pergunta solta de um consultor em UMA pergunta analítica
+PRECISA e EXECUTÁVEL sobre um relatório de marketing/dados, em português do Brasil.
+
+REGRAS:
+- ANCORE no ASSUNTO do bloco de origem (título/números/critério informados). Se o bloco é
+  sobre "leads", a pergunta continua sobre leads — nunca troque o assunto (ex.: p/ vendas).
+- Use os NOMES REAIS de métricas e dimensões do vocabulário fornecido quando fizer sentido.
+- Deixe explícito o RECORTE (por qual dimensão comparar) e a MÉTRICA-ALVO.
+- Uma pergunta objetiva (1–2 frases), sem preâmbulo, sem explicar o método, sem responder.
+- Responda APENAS com a pergunta reescrita, texto puro (sem aspas, sem rótulos).`;
+
+export async function rewriteQuestion(input: RewriteInput): Promise<RewriteResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || process.env.CLAUDE_MOCK === '1') return { rewritten: mockRewrite(input), mocked: true };
+
+  const model = process.env.ANTHROPIC_REWRITE_MODEL || 'claude-haiku-4-5-20251001';
+  const client = new Anthropic({ apiKey });
+  const payload = {
+    pergunta_do_consultor: input.prompt,
+    bloco: (input.card || input.blockId) ? {
+      id: input.blockId, titulo: input.card?.title, resumo: input.card?.detail,
+      pagina: input.card?.pagina, criterio: input.card?.criterio, tabelas: input.vocab.blockTables,
+    } : undefined,
+    analise: input.analysisTitle,
+    metricas_disponiveis: input.vocab.metrics,
+    dimensoes_disponiveis: input.vocab.dims,
+  };
+  const msg = await loggedCreate(client, {
+    model, max_tokens: 400,
+    system: [{ type: 'text', text: REWRITE_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: JSON.stringify(payload) }],
+  }, 'rewrite');
+  const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join(' ').trim();
+  return { rewritten: text || input.prompt, mocked: false };
+}
+
+/** Mock determinístico: demonstra a ancoragem no bloco + recorte por uma dimensão real. */
+function mockRewrite(input: RewriteInput): string {
+  // Assunto do bloco: título/label, senão deriva do id (ex.: "pan-at-leads" → "leads").
+  const fromId = input.blockId ? input.blockId.split('-').pop() : '';
+  const assunto = (input.card?.title?.trim()) || fromId;
+  const dim = input.vocab.dims[0];
+  const recorte = dim ? ` por ${dim}` : '';
+  const base = input.prompt.replace(/\s+/g, ' ').trim().replace(/[?.]+$/, '');
+  if (assunto) return `No bloco "${assunto}": ${base}${recorte}? [mock]`;
+  return `${base}${recorte}, na análise "${input.analysisTitle || 'atual'}"? [mock]`;
+}

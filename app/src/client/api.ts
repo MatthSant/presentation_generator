@@ -59,6 +59,14 @@ export class Api {
     });
   }
 
+  /** Camada barata: reescreve a pergunta solta, ancorada no bloco (se informado). */
+  rewriteDeepen(prompt: string, secId?: string, blockId?: string): Promise<{ ok: boolean; rewritten: string; mocked: boolean }> {
+    return this.json(`${this.base()}/deepen/rewrite`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, secId, blockId }),
+    });
+  }
+
   getPerguntas(): Promise<{ perguntas: Pergunta[] }> { return this.json(`${this.base()}/perguntas`); }
 
   seguirPergunta(pid: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
