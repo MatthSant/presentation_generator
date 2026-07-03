@@ -300,16 +300,16 @@ class App {
     // seção / ★1–5). Seções antigas sem historyId não mostram nada.
     if (section.historyId) {
       const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async () => {
-        if (!window.confirm('Descartar este detalhamento? A seção será removida e não dá para desfazer.')) return;
+        if (!window.confirm('Descartar este aprofundamento? A seção será removida e não dá para desfazer.')) return;
         this.setBusy(true, 'Descartando…');
         try {
           await this.api.descartarDet(section.id);
           this.removeDetSection(section.id);
-          this.toast('Detalhamento descartado.');
+          this.toast('Aprofundamento descartado.');
         } catch (e) {
           this.toast(`Falha ao descartar: ${(e as Error).message}`);
         } finally { this.setBusy(false); }
-      });
+      }, undefined, 'aprofundamento');
       rt.classList.add('rate--section');
       host.appendChild(rt);
     }
@@ -440,7 +440,7 @@ class App {
       <div class="busy-box">
         <div class="busy-load"><div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div></div>
         <div class="busy-err" hidden>
-          <div class="busy-err-title">Não foi possível gerar o detalhamento</div>
+          <div class="busy-err-title">Não foi possível gerar com a IA</div>
           <p class="busy-err-sub"></p>
           <div class="busy-err-block" hidden><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues"></ul></div>
           <div class="busy-err-sug" hidden><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist"></ul></div>
@@ -479,7 +479,7 @@ class App {
     // Falta de crédito na API → tela própria (não é defeito do detalhamento).
     if (e?.code === 'no_credit') {
       err.querySelector<HTMLElement>('.busy-err-title')!.textContent = '⚠ Sem crédito na API';
-      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar detalhamentos.';
+      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar conteúdo com IA.';
       err.querySelector<HTMLElement>('.busy-err-block')!.hidden = true;
       err.querySelector<HTMLElement>('.busy-err-sug')!.hidden = true;
       err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
@@ -487,7 +487,7 @@ class App {
       err.hidden = false; this.busyEl.hidden = false;
       return;
     }
-    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar o detalhamento';
+    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar com a IA';
     const msg = e?.message || String(error || '');
     // motivo (antes do '—') no topo; ERROS (blocking) e SUGESTÕES em listas separadas.
     const sep = msg.indexOf('—');
@@ -549,11 +549,11 @@ class App {
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
       <h3>Adicionar pergunta</h3>
-      <p class="deepen-card">Sua pergunta vira um detalhamento na hora (sem cálculo de relevância).</p>
+      <p class="deepen-card">Sua pergunta vira um aprofundamento na hora (sem cálculo de relevância).</p>
       <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
-        <button value="go" class="deepen-btn" type="submit">Criar detalhamento</button>
+        <button value="go" class="deepen-btn" type="submit">Criar aprofundamento</button>
       </div></form>`;
     document.body.appendChild(dlg);
     const ta = dlg.querySelector('textarea')!;
@@ -710,12 +710,12 @@ class App {
   /** Revisão de uma seção det-* (aprofundamento): regenera a própria seção com o
    *  comentário. Compartilhado pelo rodapé geral e pelos botões por bloco. */
   private async revisarDetSection(sectionId: string, comentario: string): Promise<void> {
-    this.setBusy(true, 'Revisando o detalhamento…');
+    this.setBusy(true, 'Revisando o aprofundamento…');
     try {
       await this.api.revisarDet(sectionId, comentario);
       this.store.dropSection(sectionId);
       await this.go(this.store.currentPageId, sectionId, true);
-      this.toast('Detalhamento revisado.');
+      this.toast('Aprofundamento revisado.');
     } catch (e) {
       this.toast(`Falha na revisão: ${(e as Error).message}`);
     } finally { this.setBusy(false); }
@@ -832,12 +832,15 @@ class App {
    *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
    *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
    *  itera via prev; seção det-* regenera a própria seção). */
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void): HTMLElement {
+  // `noun` = "detalhamento" (bloco do relatório) ou "aprofundamento" (board de
+  // perguntas) — o rodapé de rating serve os dois fluxos; a nomenclatura segue a origem.
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
+    const Noun = noun[0].toUpperCase() + noun.slice(1);
     const wrap = document.createElement('div');
     wrap.className = 'rate';
     const lbl = document.createElement('span');
     lbl.className = 'rate-lbl';
-    lbl.textContent = 'Este detalhamento foi útil?';
+    lbl.textContent = `Este ${noun} foi útil?`;
 
     const approve = document.createElement('button');
     approve.type = 'button';
@@ -850,7 +853,7 @@ class App {
       onApproved?.();   // revela a caixa "ajustar/aprofundar" (só após aprovar)
     };
     approve.addEventListener('click', async () => {
-      try { await this.api.approveDeepen(historyId); setApproved(); this.toast('Detalhamento aprovado.'); }
+      try { await this.api.approveDeepen(historyId); setApproved(); this.toast(`${Noun} aprovado.`); }
       catch (e) { this.toast(`Falha ao aprovar: ${(e as Error).message}`); }
     });
 

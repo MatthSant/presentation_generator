@@ -49,9 +49,9 @@ export class PerguntasView {
         <div class="pg-eyebrow">Perguntas de aprofundamento</div>
         <div class="pg-head-row">
           <h1 class="pg-title">O que vale aprofundar primeiro?</h1>
-          <button type="button" class="pg-add" title="Adicionar uma pergunta sua e gerar o detalhamento">+ Adicionar pergunta</button>
+          <button type="button" class="pg-add" title="Adicionar uma pergunta sua e gerar o aprofundamento">+ Adicionar pergunta</button>
         </div>
-        <p class="pg-sub">Ordenadas por relevância (cálculo fixo sobre os dados). Siga as que importam — cada uma vira um detalhamento — ou descarte as que não fazem sentido.</p>
+        <p class="pg-sub">Ordenadas por relevância (cálculo fixo sobre os dados). Siga as que importam — cada uma vira um aprofundamento — ou descarte as que não fazem sentido.</p>
       </header>`;
 
     const grid = pendentes.length
@@ -84,8 +84,8 @@ export class PerguntasView {
       actions = `<button type="button" class="pg-btn ghost" data-act="seguir" data-id="${esc(p.id)}">Reconsiderar</button>`;
     } else if (p.status === 'seguida') {
       const open = p.det
-        ? `<button type="button" class="pg-btn" data-act="abrir" data-id="${esc(p.id)}">↗ Ver detalhamento</button>`
-        : `<span class="pg-done">Detalhamento gerado</span>`;
+        ? `<button type="button" class="pg-btn" data-act="abrir" data-id="${esc(p.id)}">↗ Ver aprofundamento</button>`
+        : `<span class="pg-done">Aprofundamento gerado</span>`;
       actions = `${open}<button type="button" class="pg-btn ghost" data-act="ignorar" data-id="${esc(p.id)}">Ignorar</button>`;
     } else {
       actions = `<button type="button" class="pg-btn" data-act="seguir" data-id="${esc(p.id)}">Adicionar</button>

@@ -10,8 +10,11 @@ import request from 'supertest';
 import { createApp, type CreatedApp } from '../../src/server/app.js';
 import { openDb } from '../../src/server/db.js';
 
-const CLIENT = 'inde';
-const SLUG = 'conversao-perfil';
+// Client/slug SINTÉTICO (nunca uma análise real): a rota de deepen consulta o
+// app/.base/<client>/<slug> real; usar um slug de análise existente mudaria o
+// comportamento (deep mode) e quebraria o teste hermético.
+const CLIENT = 'testco';
+const SLUG = 'deepen-fixture';
 
 let tmp: string;
 let created: CreatedApp;
