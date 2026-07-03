@@ -15,7 +15,7 @@ const DEFAULT_BASE = 'https://integrate.api.nvidia.com/v1';
 // Melhor → pior p/ o NOSSO caso (deepen = agentic tool-use multi-turn + JSON forçado),
 // não raciocínio puro: lidera o GLM-5.2 (flagship agentic/coding). IDs exatos variam no
 // build.nvidia; sobrescreva com NVIDIA_FALLBACK_MODELS="a,b,c" se preciso.
-const DEFAULT_MODELS = 'zai/glm-5.2,deepseek-ai/deepseek-v4-pro,moonshotai/kimi-k2.6';
+const DEFAULT_MODELS = 'z-ai/glm-5.2,deepseek-ai/deepseek-v4-pro,moonshotai/kimi-k2.6';
 
 export function nvidiaConfigured(): boolean {
   return !!process.env.NVIDIA_API_KEY;
