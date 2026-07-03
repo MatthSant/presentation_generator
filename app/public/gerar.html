@@ -27,8 +27,10 @@
     .cr .g-crit-body .g-field input:focus { border-color: var(--purple); }
     .cr .g-ckbox { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); }
 
-    /* Editor de grupos: chips reordenáveis (arrastar) + juntar por seleção. */
-    .cr .g-ord { flex-basis: 100%; }
+    /* Editor de grupos: chips reordenáveis (arrastar) + juntar por seleção.
+       O seletor precisa de 3 classes p/ vencer `.g-crit-body .g-field { flex:1 }`
+       e ocupar a LARGURA CHEIA (linha própria abaixo de Rótulo/Abreviação). */
+    .cr .g-crit-body .g-ord { flex: 1 1 100%; min-width: 0; }
     .cr .g-ord-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
     .cr .g-ord-head label { font-size: 12px; font-weight: 700; color: var(--fg); margin-right: auto; }
     .cr .g-tool { font-size: 11.5px; font-weight: 600; color: var(--purple); background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.22); border-radius: 6px; padding: 4px 9px; cursor: pointer; }
@@ -42,8 +44,10 @@
     .cr .g-chip.drag-over { border-color: var(--purple); border-style: dashed; }
     .cr .g-chip.dragging { opacity: .45; }
     .cr .g-grip { cursor: grab; color: var(--gray2); font-size: 13px; line-height: 1; flex-shrink: 0; user-select: none; }
-    .cr .g-name { font-size: 13px; font-weight: 600; color: var(--fg); border: none; background: none; outline: none; padding: 2px 4px; border-radius: 5px; min-width: 60px; flex: 0 1 auto; }
-    .cr .g-name:focus { background: rgba(124,58,237,.08); }
+    /* 4 classes p/ vencer `.g-crit-body .g-field input` (senão o nome herda o
+       box estreito do input padrão e CORTA). Cresce p/ preencher a linha. */
+    .cr .g-crit-body .g-ord .g-name { flex: 1 1 auto; min-width: 150px; width: auto; box-sizing: border-box; font-size: 13px; font-weight: 600; color: var(--fg); background: var(--card, #fff); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; outline: none; }
+    .cr .g-crit-body .g-ord .g-name:focus { border-color: var(--purple); }
     .cr .g-merged { font-size: 10.5px; color: var(--gray2); flex-shrink: 0; }
     .cr .g-w { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .cr .g-w-bar { width: 54px; height: 6px; border-radius: 3px; background: rgba(0,0,0,.06); overflow: hidden; }
