@@ -82,11 +82,17 @@ export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
   return sheet;
 }
 
-function repairMessage(objetivo: string | undefined, issues: string[]): string {
+function repairMessage(objetivo: string | undefined, issues: string[], factsheet?: unknown[]): string {
   const alvo = objetivo
     ? `A PERGUNTA ORIGINAL, que a saída DEVE responder, é: "${objetivo}". Não troque o alvo — ajuste a forma para respondê-la melhor.\n`
     : '';
-  return `${alvo}A saída anterior foi rejeitada por:\n- ${issues.join('\n- ')}\nCorrija TODOS esses pontos e reemita a saída final completa.`;
+  // DADOS REAIS resolvidos dos gráficos/tabelas da saída anterior: a prosa DEVE bater
+  // com estes números (é a mesma fonte que o revisor usa). Sem isso, o modelo "corrige"
+  // reescrevendo de memória e re-inventa a tendência → o critic reprova de novo.
+  const dados = (factsheet && factsheet.length)
+    ? `\n\nNÚMEROS REAIS que os gráficos/tabelas mostram — sua prosa tem que bater EXATAMENTE com eles; NÃO afirme tendência (queda/subida contínua, "despencou", "saturou") que a série NÃO mostra:\n${JSON.stringify(factsheet).slice(0, 2600)}`
+    : '';
+  return `${alvo}A saída anterior foi rejeitada por:\n- ${issues.join('\n- ')}\nCorrija TODOS esses pontos e reemita a saída final completa.${dados}`;
 }
 
 /** Reparo de POLIMENTO: a saída já passou (sem erro); só refina a FORMA. Tom suave
@@ -106,6 +112,7 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   let issues: string[] = [];
   let lastBlocking: string[] = [];      // bloqueante/sugestão da última tentativa (p/ o residual final)
   let lastSuggestions: string[] = [];
+  let lastFactsheet: unknown[] = [];    // números REAIS da última saída válida → grounding do reparo
   // melhor versão SEM erro já obtida (e suas sugestões de forma pendentes). Protege a
   // entrega: se uma passada de polimento introduzir erro, devolvemos esta.
   let accepted: Modal | null = null;
@@ -123,7 +130,7 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
         : `Revisando o detalhamento (tentativa ${attempt + 1} de ${max})…`);
     const repair = attempt === 0 ? undefined
       : polishing ? polishMessage(inp.objetivo, issues)
-      : repairMessage(inp.objetivo, issues);
+      : repairMessage(inp.objetivo, issues, lastFactsheet);
     polishing = false;
     const r = await inp.generate(repair, prev);
     mocked = r.mocked;
@@ -136,6 +143,10 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     lastValid = cand; // renderável a partir daqui
 
     const widgets = (cand.widgets as Widget[]) ?? [];
+    // Factsheet (números REAIS dos binds) desta saída — usado pelo critic E injetado no
+    // próximo reparo p/ a prosa ficar grounded (mesma fonte que o revisor confere).
+    const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
+    lastFactsheet = factsheet;
     // Defeitos determinísticos (tabela vazia, gráfico ilegível, coluna inexistente) são
     // sempre BLOQUEANTES. O critic acrescenta o juízo semântico, já separado em
     // bloqueante × polimento. Só o bloqueante reprova; polimento entra no reparo mas
@@ -146,7 +157,6 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     let suggestions: string[] = qualitySuggestions(widgets);
     if (blocking.length === 0 && runCritic && !mocked) {
       inp.onProgress?.('Verificando a qualidade…');
-      const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
       const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet);
       if (crit.usage) usage = sumUsage(usage, crit.usage);
       if (!crit.ok) blocking = crit.blocking.length ? crit.blocking : ['o revisor concluiu que a saída não responde à pergunta original'];

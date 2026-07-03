@@ -64,6 +64,10 @@ async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreatePa
   const MAX_RETRIES = 3;
   for (let attempt = 0; ; attempt++) {
     try {
+      // Debug/ops: NVIDIA_FORCE_FALLBACK=1 simula "Anthropic sem crédito" p/ exercitar
+      // (e avaliar) TODO o fluxo pelo fallback gratuito do build.nvidia — sem gastar
+      // crédito. Off por default; só um erro sintético de crédito no 1º attempt.
+      if (attempt === 0 && process.env.NVIDIA_FORCE_FALLBACK === '1') throw Object.assign(new Error('credit balance is too low (forced)'), { status: 400 });
       const msg = await client.messages.create(params);
       logClaude(kind, params, { model: (msg as { model?: string }).model || MODEL, response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
       return msg;
@@ -751,24 +755,32 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string, forceEmit = false): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
+  const regInfo: Record<string, { num: string[]; dim: string[] }> = {};   // key → colunas (p/ o modelo escolher o dataset certo no reparo)
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
   let usage: ModalUsage | undefined;
+  let consultaTurns = 0;   // rodadas que consultaram (sem emitir) — força emit após ~4
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     // No ÚLTIMO turno, FORÇA o emit_modal (tool_choice fixo) + avisa que acabou o
     // orçamento de consultas: sem isso, uma pergunta difícil esgota os turnos só
     // consultando e o loop estoura "sem emit_modal" — pior que um detalhamento
     // imperfeito (que ainda passa pelo gate de qualidade/reparo).
-    const lastTurn = turn === MAX_TURNS - 1;
+    // Força o emit no último turno OU depois de consultas demais (modelos fracos
+    // re-consultam em loop; ~4 rodadas já bastam). REPARO (forceEmit): os dados JÁ
+    // vieram e o feedback é sobre a modal anterior → emita já a versão corrigida no
+    // 1º turno, sem re-consultar (evita o thrash de re-análise no reparo).
+    const lastTurn = turn === MAX_TURNS - 1 || consultaTurns >= 4 || (forceEmit && turn === 0);
     if (lastTurn) {
-      messages.push({ role: 'user', content: 'Limite de consultas atingido. Emita AGORA o emit_modal com o melhor detalhamento possível a partir do que já consultou; o que faltar, reconheça num find-note — NÃO consulte mais.' });
+      messages.push({ role: 'user', content: forceEmit && turn === 0
+        ? 'Corrija a modal_anterior conforme a instrução usando os datasets JÁ criados (no catálogo) — NÃO consulte de novo. Emita AGORA o emit_modal com a versão corrigida completa.'
+        : 'Você já tem dados suficientes (ou o limite de consultas foi atingido). Emita AGORA o emit_modal com o melhor detalhamento a partir do que consultou; o que faltar, reconheça num find-note — NÃO consulte mais.' });
     }
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
@@ -781,7 +793,12 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     usage = sumUsage(usage, usageOf(msg));
     messages.push({ role: 'assistant', content: msg.content });
     const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-    if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');
+    // Modelo fraco às vezes responde em TEXTO (sem tool) — não quebre o detalhamento:
+    // cobra a tool e segue (no último turno o tool_choice já obriga o emit_modal).
+    if (toolUses.length === 0) {
+      messages.push({ role: 'user', content: 'Você respondeu em texto — é OBRIGATÓRIO chamar uma tool. Chame "consultar" se falta um dado específico, senão chame "emit_modal" AGORA com o que já tem.' });
+      continue;
+    }
 
     // Um emit válido encerra o loop. No último turno devolve o que veio MESMO com
     // erro de schema — o gateAndRepair (fora daqui) ainda valida e repara; um
@@ -797,16 +814,43 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     for (const t of toolUses) {
       if (t.name === 'emit_modal') {
         const errs = deps.validate ? deps.validate(t.input) : ['modal inválida'];
-        results.push({ type: 'tool_result', tool_use_id: t.id, content: JSON.stringify({ status: 'modal_invalida', erros: errs, instrucao: 'Corrija: gráficos/tabelas só com bind a um dataset_key retornado e colunas que existem nele.' }) });
+        // Mapa dataset_key → colunas (num/dim): a falha nº1 dos modelos fracos é bindar
+        // num key que NÃO tem a coluna (ex.: quer CPL+Leads mas o key só tem CPL). Damos
+        // o mapa p/ ele escolher o key certo (o que contém TODOS os y + o x).
+        results.push({ type: 'tool_result', tool_use_id: t.id, content: JSON.stringify({
+          status: 'modal_invalida', erros: errs, datasets: regInfo,
+          instrucao: 'Corrija SEM re-consultar. Para cada gráfico/tabela escolha o dataset_key em "datasets" cujas colunas contêm TUDO que você quer (x + todos os y). chart.y ∈ colunas numéricas do key (nomes EXATOS, nunca *_detail); x/series ∈ dimensões. Textos: highlight precisa de "text"; find-block/find-note precisam de "title"/"text". Depois emit_modal de novo.',
+        }) });
         continue;
       }
       const { funcao, ...args } = t.input as { funcao: string; [k: string]: unknown };
       const r = await deps.runQuery(funcao, args);
-      const content = r.status === 'ok' && r.table
-        ? JSON.stringify({ status: 'ok', dataset_key: deps.registerTable(r.table, r.summary ?? ''), columns: Object.keys(r.table.rows[0] ?? {}), sample: r.table.rows.slice(0, 3), summary: r.summary })
-        : JSON.stringify({ status: r.status, motivo: r.motivo });
+      let content: string;
+      if (r.status === 'ok' && r.table) {
+        const rows = r.table.rows;
+        const cols = Object.keys(rows[0] ?? {});
+        // Colunas NUMÉRICAS (bind de chart y SÓ nelas) × DIMENSÕES (x/series) — dadas
+        // explícitas p/ o modelo não bindar num rótulo/coluna *_detail (string).
+        const numeric = cols.filter((c) => rows.some((row) => typeof row[c] === 'number'));
+        const dims = (r.table.dims ?? []).filter((d) => cols.includes(d));
+        const key = deps.registerTable(r.table, r.summary ?? '');
+        registered.push(key);
+        regInfo[key] = { num: numeric, dim: dims };
+        content = JSON.stringify({
+          status: 'ok', dataset_key: key, n_linhas: rows.length,
+          colunas_numericas: numeric, colunas_dimensao: dims, colunas: cols,
+          // Tabela pequena (série semanal etc.): manda TODAS as linhas p/ a prosa ser
+          // grounded na série completa — com 3 linhas o modelo extrapola tendência que
+          // não existe ("despencou/saturou"). Tabela grande: amostra de 12.
+          amostra: rows.slice(0, 12), summary: r.summary,
+          dica: 'No bind do gráfico use os NOMES EXATOS: y ∈ colunas_numericas, x/series ∈ colunas_dimensao. Um gráfico com 2+ métricas precisa de um dataset_key que tenha TODAS elas. A prosa deve refletir a SÉRIE INTEIRA (amostra) — não afirme tendência que os valores não mostram.',
+        });
+      } else {
+        content = JSON.stringify({ status: r.status, motivo: r.motivo });
+      }
       results.push({ type: 'tool_result', tool_use_id: t.id, content });
     }
+    if (toolUses.some((t) => t.name === 'consultar')) consultaTurns++;
     messages.push({ role: 'user', content: results });
   }
   throw new Error('loop de aprofundamento sem emit_modal');
