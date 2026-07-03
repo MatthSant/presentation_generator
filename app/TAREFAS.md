@@ -78,6 +78,28 @@ Achados da revisão completa pré-Fase 2:
 - [x] **Cópia de CSVs auxiliares p/ a base retida** — logada; aux de `requiredFiles`
       (ex.: goals do debriefing) agora falha alto no /generate.
 
+## Próximos passos (priorizar quando abrir espaço)
+
+- [ ] **CSV de apoio no aprofundamento** — o usuário anexa um CSV auxiliar ao pedir um
+      detalhamento (ex.: dados que a base não tem) e a IA usa esse dado para enriquecer a
+      resposta. Toca: upload na UI de perguntas/deepen → reter junto à base (`.base/`, como
+      goals/hist/dict) → expor ao motor/`consultar` (catálogo do CSV no contexto) → citar a
+      fonte na seção gerada. Cuidado: validar/limitar o CSV (LGPD, tamanho, schema livre).
+- [ ] **Revisar o exportador de HTML de ponta a ponta** — não só bugs: conferir se o
+      `exportHtml` (`src/client/main.ts` → botão `#export-html-btn`) cumpre o OBJETIVO
+      (relatório standalone fiel p/ entregar ao cliente?) e se o COMO está certo: o que
+      embute (CSS/fonts/ApexCharts/dados), o que quebra (gráficos, sidebar, modais,
+      controles interativos, perguntas), tamanho do arquivo, e se filtros/estado atual
+      entram no export. Definir o escopo esperado e testar com um relatório de cada tipo.
+- [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
+      solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada
+      barata reescreve com o contexto do TIPO de análise ("Foi acréscimo/decréscimo no
+      volume de leads ou na conversão desses leads que teve maior impacto no faturamento e
+      retorno?") — pergunta melhor escopada = detalhamento melhor. Toca: rota
+      `perguntas/custom` (passo de rewrite ANTES do fluxo atual), prompt com o dicionário
+      de métricas/dimensões do tipo (registry/buildDeepenMeta), e UI mostrando a pergunta
+      reescrita p/ o usuário confirmar/editar antes de gastar o deepen completo.
+
 ## /goal detalhamentos — retomada (aguarda crédito de API)
 
 A análise `inde/conversao-perfil` foi recriada do backup (motor + base retida manual).
