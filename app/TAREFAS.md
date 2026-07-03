@@ -101,8 +101,10 @@ Achados da revisão completa pré-Fase 2:
     - Só o filtro de CANAL é alternável no export; os demais controles (compare do
       debriefing, modo de criativos, lançamentos do histórico, filtro do debriefing) ficam
       CONGELADOS no estado atual.
-    - Modais de deepen a NÍVEL DE BLOCO (varinha) não entram; só as seções da página
-      "Aprofundamentos" entram.
+    - ~~Modais de deepen a NÍVEL DE BLOCO (varinha) não entram~~ → **RESOLVIDO**: agora
+      os modais são capturados (com gráficos) e embutidos no export; a varinha é mantida
+      e um runtime abre/fecha o modal como no app. As seções da página "Aprofundamentos"
+      já entravam.
     - Embeds do criativos (iframe Instagram) precisam de internet p/ carregar.
     - Nav lateral (sidebar) vira tabs no topo; a página "Fichas" (criativos) empilha todas
       as fichas numa tab só.

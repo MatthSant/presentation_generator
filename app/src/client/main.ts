@@ -1112,23 +1112,23 @@ class App {
       // full timeout on most sections. Instead nudge a resize, count drawn bars/paths
       // among VISIBLE canvases (inactive toggle panes are display:none and skipped),
       // and return once that count stops growing for two polls.
-      const drawnCount = (): number => {
+      const drawnCount = (root: ParentNode): number => {
         let n = 0;
-        for (const c of ROOT.querySelectorAll<HTMLElement>('.apexcharts-canvas')) {
+        for (const c of root.querySelectorAll<HTMLElement>('.apexcharts-canvas')) {
           if (c.offsetParent === null) continue;
           n += c.querySelectorAll('.apexcharts-bar-area, .apexcharts-series path, .apexcharts-series rect').length;
         }
         return n;
       };
-      const chartsReady = async (): Promise<void> => {
+      const chartsReady = async (root: ParentNode = ROOT): Promise<void> => {
         const t0 = Date.now();
         let prev = -1, stable = 0;
         for (;;) {
           window.dispatchEvent(new Event('resize'));
           await delay(70);
-          const visible = [...ROOT.querySelectorAll<HTMLElement>('.apexcharts-canvas')].some(c => c.offsetParent !== null);
+          const visible = [...root.querySelectorAll<HTMLElement>('.apexcharts-canvas')].some(c => c.offsetParent !== null);
           if (!visible) { await delay(40); return; }
-          const n = drawnCount();
+          const n = drawnCount(root);
           if (n > 0 && n === prev) { if (++stable >= 2) { await delay(40); return; } }
           else stable = 0;
           prev = n;
@@ -1139,6 +1139,11 @@ class App {
       const total = variants.length * this.store.allSections().length;
       let done = 0;
       const byVar: Record<string, Record<string, string[]>> = {};
+      // Detalhamentos de bloco (varinha → modal .ic-overlay). Capturados UMA vez (1º
+      // canal) com os gráficos montados; a varinha é mantida e um runtime abre/fecha
+      // o modal no HTML estático, como no app. Aprofundamentos da página entram como
+      // seções normais (loop acima).
+      const modalHtml: string[] = [];
       for (const val of variants) {
         if (fdef) this.store.active[fdef.id] = val ?? '';
         const key = String(val);
@@ -1153,8 +1158,24 @@ class App {
               const clone = host.cloneNode(true) as HTMLElement;
               clone.classList.add('export-section');
               pinHeights(host, clone);
-              clone.querySelectorAll('.tile-deepen, .tile-detail-link').forEach(n => n.remove());
+              // mantém a varinha (.tile-detail-link → abre o modal); remove só as
+              // affordances de EDIÇÃO (criar deepen / pedir revisão).
+              clone.querySelectorAll('.tile-deepen, .tile-revisar').forEach(n => n.remove());
               secs.push(clone.outerHTML);
+            }
+            // captura os modais da seção (só no 1º canal — o conteúdo é o mesmo).
+            if (val === variants[0]) {
+              for (const ov of MODAL_ROOT.querySelectorAll<HTMLElement>('.ic-overlay')) {
+                this.openModal(ov.id);
+                await chartsReady(ov);
+                const mc = ov.cloneNode(true) as HTMLElement;
+                mc.classList.remove('open');
+                pinHeights(ov, mc);
+                mc.querySelectorAll('.ic-deepen, .rate, .tile-revisar').forEach(n => n.remove());
+                modalHtml.push(mc.outerHTML);
+                ov.classList.remove('open');
+              }
+              document.body.style.overflow = '';
             }
             if (label) label.textContent = `Gerando ${Math.round((++done / total) * 100)}%`;
           }
@@ -1199,8 +1220,13 @@ function apply(){document.querySelectorAll('.exp-canal-pane').forEach(function(c
 document.querySelectorAll('.exp-page').forEach(function(p){p.hidden=p.getAttribute('data-page')!==page;});
 document.querySelectorAll('.exp-tab').forEach(function(t){t.classList.toggle('on',t.getAttribute('data-page')===page);});
 document.querySelectorAll('.exp-cbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-canal-btn')===canal);});window.scrollTo(0,0);}
+function closeM(ov){if(ov){ov.classList.remove('open');document.body.style.overflow='';}}
 document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('.exp-tab');if(t){page=t.getAttribute('data-page');apply();return;}
-var c=e.target.closest&&e.target.closest('.exp-cbtn');if(c){canal=c.getAttribute('data-canal-btn');apply();return;}});apply();})();`;
+var c=e.target.closest&&e.target.closest('.exp-cbtn');if(c){canal=c.getAttribute('data-canal-btn');apply();return;}
+var op=e.target.closest&&e.target.closest('[data-modal]');if(op){var m=document.getElementById(op.getAttribute('data-modal'));if(m){m.classList.add('open');document.body.style.overflow='hidden';}return;}
+var cl=e.target.closest&&e.target.closest('[data-ic-close]');if(cl){closeM(cl.closest('.ic-overlay'));return;}
+if(e.target.classList&&e.target.classList.contains('ic-overlay')){closeM(e.target);}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){var o=document.querySelector('.ic-overlay.open');if(o)closeM(o);}});apply();})();`;
 
       const doc = `<!doctype html>
 <html lang="pt-BR" data-theme="${esc(theme)}">
@@ -1241,6 +1267,7 @@ body{margin:0}
 </nav>
 <div class="exp-cover">${this.coverHtml()}</div>
 ${body}
+${modalHtml.join('\n')}
 <script>${runtime}</script>
 </body>
 </html>`;
