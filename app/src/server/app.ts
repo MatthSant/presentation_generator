@@ -26,6 +26,8 @@ import { registerUsers } from './routes/users.js';
 import { registerBenchmarks } from './routes/benchmarks.js';
 import { registerDeepenReview } from './routes/deepenReview.js';
 import { registerClaudeLog } from './routes/claudeLog.js';
+import { registerSettings } from './routes/settings.js';
+import { loadSettings } from './appSettings.js';
 import { installAuth } from './routes/authRoutes.js';
 
 export interface CreateAppOptions {
@@ -52,6 +54,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
     skipNextSSE: new Set<string>(),
     auth: opts.auth ?? false,
   };
+  loadSettings(ctx.db);   // cache das configs globais (ex.: toggle do fallback NVIDIA)
 
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -78,6 +81,7 @@ export function createApp(opts: CreateAppOptions = {}): CreatedApp {
   registerBenchmarks(app);
   registerDeepenReview(app, ctx);
   registerClaudeLog(app, ctx);
+  registerSettings(app, ctx);
   const closeWatch = registerWatch(app, ctx);
 
   return {

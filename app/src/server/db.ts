@@ -104,6 +104,12 @@ const SCHEMA = `
     archived_at TEXT NOT NULL,
     PRIMARY KEY (client, slug)
   );
+
+  -- Configurações globais do app (key-value). Ex.: 'nvidia_fallback' = '1' | '0'.
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
+  );
 `;
 
 /** Open (and initialize) a SQLite store at the given path. `:memory:` works for tests. */

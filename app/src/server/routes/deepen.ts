@@ -17,12 +17,12 @@ import type { Section, Widget, Modal } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
 import { buildCatalog } from '../datasetCatalog.js';
-import { generateModal, generateModalDeep, type DeepDeps } from '../claude.js';
+import { generateModal, generateModalDeep, rewriteQuestion, type DeepDeps } from '../claude.js';
 import { gateAndRepair } from '../deepenLoop.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 import { typeOf, inferType } from '../typeRegistry.js';
-import { buildCardContext } from '../cardContext.js';
+import { buildCardContext, type CardContext } from '../cardContext.js';
 import { recordDeepen, getFewShot, methodologySmell, markRevised, findByModalId } from '../deepenHistory.js';
 import type { ModalUsage } from '../claude.js';
 
@@ -193,6 +193,53 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     } catch (e) {
       console.error(`[deepen] ${client}/${slug}/${secId} ${blockId}:`, (e as Error).message);
       record(false, [(e as Error).message], null, undefined, false);
+      sendGenError(res, e);
+    }
+  });
+
+  // Camada barata: reescreve a pergunta solta ANTES do detalhamento, ancorada no
+  // bloco de origem (se houver) + vocabulário (métricas/dims) do relatório. Não
+  // gera nada — só devolve a pergunta melhorada p/ o consultor revisar/editar.
+  app.post('/api/:client/:slug/deepen/rewrite', async (req, res) => {
+    const { client, slug } = req.params;
+    const dir = analysisDir(ctx.out, client, slug);
+    if (!dir) { res.status(400).json({ error: 'bad path' }); return; }
+    const body = (req.body || {}) as Record<string, unknown>;
+    const prompt = String(body.prompt || '').trim();
+    if (!prompt) { res.status(400).json({ error: 'prompt required' }); return; }
+    const secId = body.secId ? String(body.secId) : '';
+    const blockId = body.blockId ? String(body.blockId) : '';
+
+    const dataset = readJson<DataMap>(path.join(dir, 'dataset.json'));
+    if (!dataset) { res.status(400).json({ error: 'dataset ausente' }); return; }
+    const catalog = buildCatalog(dataset);
+
+    // Contexto do bloco (quando o pedido parte de um bloco específico) + as tabelas
+    // que ele consome — priorizam o vocabulário p/ manter a pergunta NO assunto do bloco.
+    let card: CardContext | undefined;
+    let blockTables: string[] = [];
+    if (secId && isSafeSeg(secId) && blockId) {
+      const section = readJson<Section>(path.join(dir, `${secId}.json`));
+      if (section) {
+        card = buildCardContext(section, blockId, catalog);
+        const ds = new Set<string>();
+        const b = (card.bind as { dataset?: string } | undefined)?.dataset;
+        if (b) ds.add(b);
+        for (const t of card.tabs || []) if (t.dataset) ds.add(String(t.dataset));
+        blockTables = [...ds];
+      }
+    }
+
+    const uniq = (a: string[]): string[] => [...new Set(a.filter(Boolean))];
+    const relevant = blockTables.length ? catalog.tables.filter((t) => blockTables.includes(t.name)) : catalog.tables;
+    const metrics = uniq(relevant.flatMap((t) => t.numericCols)).slice(0, 40);
+    const dims = uniq(catalog.tables.flatMap((t) => t.dims)).slice(0, 30);
+    const navMeta = readJson<{ meta?: { title?: string } }>(path.join(dir, 'data.json'));
+
+    try {
+      const r = await rewriteQuestion({ prompt, card, blockId: blockId || undefined, analysisTitle: navMeta?.meta?.title, vocab: { metrics, dims, blockTables } });
+      res.json({ ok: true, rewritten: r.rewritten, mocked: r.mocked });
+    } catch (e) {
       sendGenError(res, e);
     }
   });

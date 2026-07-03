@@ -17,7 +17,7 @@ import { sendGenError } from '../creditError.js';
 import type { ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { generateDetalhamento } from '../detalhamento.js';
-import { rateDeepen, listHistory, getEntry, recordDeepen, getFewShot, approveDeepen, markRevised } from '../deepenHistory.js';
+import { rateDeepen, listHistory, getEntry, recordDeepen, getFewShot, approveDeepen, markRevised, markDiscarded } from '../deepenHistory.js';
 
 export function registerDeepenReview(app: Express, ctx: Ctx): void {
   app.post('/api/:client/:slug/deepen/:historyId/rate', (req: Request, res: Response) => {
@@ -96,6 +96,11 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
     const file = path.join(dir, `${sectionId}.json`);
     if (!fs.existsSync(file)) { res.status(404).json({ error: 'seção não encontrada' }); return; }
 
+    // Motivo do descarte (opcional): fica no histórico com a geração (status='descartado').
+    const motivo = String((req.body as Record<string, unknown> | undefined)?.motivo || '').trim();
+    const discarded = readJson<Section>(file);
+    if (discarded?.historyId && motivo) markDiscarded(ctx.db, discarded.historyId, motivo);
+
     const pageRemoved = detachFromDetalhamentos(dir, ctx, sectionId);
 
     const layoutFile = path.join(dir, 'layout.json');
@@ -112,6 +117,31 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
     clearPerguntaStatus(ctx, client, slug, sectionId);
 
     res.json({ ok: true, sectionId, pageRemoved });
+  });
+
+  /** Descartar o detalhamento de um BLOCO (modal da varinha): remove o modal do
+   *  bloco + limpa card.modal, gravando o motivo no histórico (status='descartado').
+   *  A varinha volta a ser "detalhar". */
+  app.post('/api/:client/:slug/section/:secId/block/:blockId/descartar', (req: Request, res: Response) => {
+    const { client, slug, secId, blockId } = req.params;
+    const dir = analysisDir(ctx.out, client, slug);
+    if (!dir || !isSafeSeg(secId)) { res.status(400).json({ error: 'bad path' }); return; }
+    const file = path.join(dir, `${secId}.json`);
+    const section = readJson<Section>(file);
+    if (!section) { res.status(404).json({ error: 'seção não encontrada' }); return; }
+    const card = section.widgets.find((w) => w.id === blockId) as { modal?: string } | undefined;
+    const modalId = card?.modal;
+    if (!card || !modalId) { res.status(404).json({ error: 'bloco sem detalhamento' }); return; }
+
+    const motivo = String((req.body as Record<string, unknown> | undefined)?.motivo || '').trim();
+    const modal = (section.modals || []).find((m) => m.id === modalId) as { historyId?: string } | undefined;
+    if (modal?.historyId && motivo) markDiscarded(ctx.db, modal.historyId, motivo);
+
+    section.modals = (section.modals || []).filter((m) => m.id !== modalId);
+    delete card.modal;
+    ctx.skipNextSSE.add(`${secId}.json`);
+    writeJson(file, section);
+    res.json({ ok: true, secId, blockId });
   });
 
   app.get('/api/deepen-history', (req: Request, res: Response) => {

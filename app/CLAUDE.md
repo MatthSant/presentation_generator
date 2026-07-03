@@ -146,6 +146,18 @@ Regra dura: **toda feature nova entra como recurso reutilizável**, nunca `if ti
   **`/verificar-motor`**; o acumulado vive em [docs/motor-deepen-review.md](docs/motor-deepen-review.md).
 - **Perguntas norteadoras:** banco por tipo em `pysrc/perguntas/banks/<tipo>.py`
   (`TYPE`/`detect`/`evaluate_all`) registrado em `banks/__init__.py`.
+- **Melhorar pergunta (rewrite):** antes do deepen, `rewriteQuestion` (claude.ts, haiku)
+  via `POST /deepen/rewrite` reescreve a pergunta solta ANCORADA no bloco (cardContext:
+  título/label/critério + tabelas que ele consome) + vocabulário do catálogo. Botão
+  "✨ Melhorar" nos composers. `buildCardContext` deriva o assunto de `title||label||ind||name`
+  (kpi-cards usam `label`) — sem isso o `objetivo` do deepen ficava sem âncora.
+- **Fallback sem crédito (build.nvidia):** `loggedCreate` (claude.ts) cai para o
+  `nvidiaFallback.ts` (OpenAI-compatible) quando a Anthropic dá erro de crédito e há
+  `NVIDIA_API_KEY` — traduz params ⇄ resposta e tenta os modelos em ordem. Env:
+  `NVIDIA_API_KEY`, `NVIDIA_FALLBACK_MODELS` (csv, melhor→pior), `NVIDIA_BASE_URL`.
+- **Descartar com motivo:** rating bar de detalhamento/aprofundamento tem "🗑 Descartar"
+  que exige um motivo → `markDiscarded` grava `status='descartado'` + o porquê em
+  `deepen_history` (sinal de qualidade). Rotas `det/:id/descartar` e `section/:s/block/:b/descartar`.
 
 ---
 

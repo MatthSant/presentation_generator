@@ -13,6 +13,7 @@ import { Dashboard } from './dashboard.js';
 import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, chartCaptureStart, chartCaptureEnd, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
+import { DeepenQueue } from './deepen-queue.js';
 import { HistoricoFilters } from './historico-controls.js';
 import { CriativosControls } from './criativos-controls.js';
 import { DebriefingControls, type DebFilters } from './debriefing-controls.js';
@@ -38,8 +39,6 @@ class App {
   private modalChartDefs = new Map<string, { elId: string; def: ChartDef }[]>();
   private openedModals = new Set<string>();
   private editing = false;
-  /** Modal id to auto-open after the next section (re)render — set by deepen. */
-  private pendingModal: string | null = null;
   private perguntas: PerguntasView | null = null;
   /** Instância do controle type-specific montado (registry por meta.controls.kind). */
   private typeControls: TypeControls | null = null;
@@ -53,7 +52,8 @@ class App {
   private histTemp: string | null = null;
   /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
   private debFilters: DebFilters | null = null;
-  private busyEl: HTMLElement | null = null;
+  /** Fila NÃO-bloqueante de aprofundamentos/detalhamentos (painel canto inf. esq.). */
+  private queue: DeepenQueue;
 
   /** Registry dos controles interativos por meta.controls.kind (o kind vem do
    *  typeRegistry do servidor). Tipo novo com controles = classe *-controls.ts +
@@ -107,6 +107,10 @@ class App {
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
     this.nav = new Navigation(this.store, (p, s) => void this.go(p, s));
+    this.queue = new DeepenQueue({
+      onToast: (m) => this.toast(m),
+      onError: (e, retry) => this.showDeepenError(e, retry),
+    });
     this.wireModals();
     this.wireLayoutEditor();
     document.getElementById('export-html-btn')?.addEventListener('click', () => void this.exportHtml());
@@ -296,24 +300,17 @@ class App {
     // Seções det-*: rodapé de revisão (aprovar / pedir revisão regenera a própria
     // seção / ★1–5). Seções antigas sem historyId não mostram nada.
     if (section.historyId) {
-      const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async () => {
-        if (!window.confirm('Descartar este aprofundamento? A seção será removida e não dá para desfazer.')) return;
-        this.setBusy(true, 'Descartando…');
+      const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async (motivo) => {
         try {
-          await this.api.descartarDet(section.id);
+          await this.api.descartarDet(section.id, motivo);
           this.removeDetSection(section.id);
           this.toast('Aprofundamento descartado.');
         } catch (e) {
           this.toast(`Falha ao descartar: ${(e as Error).message}`);
-        } finally { this.setBusy(false); }
+        }
       }, undefined, 'aprofundamento');
       rt.classList.add('rate--section');
       host.appendChild(rt);
-    }
-
-    if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
-      this.openModal(this.pendingModal);
-      this.pendingModal = null;
     }
   }
 
@@ -447,103 +444,60 @@ class App {
     }
   }
 
-  /** Blocking loading overlay — shown while a detalhamento is generated server-side
-   *  (the LLM call takes a few seconds), so the wait is explicit and clicks are
-   *  locked until we navigate to the result. */
-  private ensureBusy(): void {
-    if (this.busyEl) return;
-    const el = document.createElement('div');
-    el.className = 'busy-overlay';
-    el.hidden = true;
-    el.innerHTML = `
-      <div class="busy-box">
-        <div class="busy-load"><div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div></div>
-        <div class="busy-err" hidden>
-          <div class="busy-err-title">Não foi possível gerar com a IA</div>
-          <p class="busy-err-sub"></p>
-          <div class="busy-err-block" hidden><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues"></ul></div>
-          <div class="busy-err-sug" hidden><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist"></ul></div>
-          <div class="busy-err-actions">
-            <button type="button" class="busy-err-retry">↻ Rerodar</button>
-            <button type="button" class="busy-err-close">Fechar</button>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(el);
-    this.busyEl = el;
-  }
-
-  private setBusy(on: boolean, msg = 'Carregando…'): void {
-    this.ensureBusy();
-    if (!this.busyEl) return;
-    if (on) {
-      this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = false;
-      this.busyEl.querySelector<HTMLElement>('.busy-err')!.hidden = true;
-      const m = this.busyEl.querySelector('.busy-msg');
-      if (m) m.textContent = msg;
-      this.busyEl.hidden = false;
-    } else {
-      this.busyEl.hidden = true;
-    }
-  }
-
-  /** Tela de erro no overlay quando o detalhamento é REPROVADO após todas as tentativas:
-   *  explica em itens o que falhou e oferece "Rerodar" (re-executa a mesma geração). */
-  private busyError(error: unknown, onRetry: () => void): void {
-    this.ensureBusy();
-    if (!this.busyEl) return;
-    this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = true;
-    const err = this.busyEl.querySelector<HTMLElement>('.busy-err')!;
+  /** Diálogo de erro de um job REPROVADO da fila (não bloqueia): mesmo detalhamento
+   *  de motivos/sugestões do overlay antigo, com "Rerodar". Aberto pelo botão
+   *  "Detalhes" de um job com erro no painel da fila. */
+  private showDeepenError(error: unknown, onRetry: () => void): void {
     const e = error as { message?: string; blocking?: string[]; suggestions?: string[]; code?: string };
-    // Falta de crédito na API → tela própria (não é defeito do detalhamento).
+    let inner: string;
     if (e?.code === 'no_credit') {
-      err.querySelector<HTMLElement>('.busy-err-title')!.textContent = '⚠ Sem crédito na API';
-      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar conteúdo com IA.';
-      err.querySelector<HTMLElement>('.busy-err-block')!.hidden = true;
-      err.querySelector<HTMLElement>('.busy-err-sug')!.hidden = true;
-      err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
-      err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
-      err.hidden = false; this.busyEl.hidden = false;
-      return;
+      inner = `<div class="busy-err-title">⚠ Sem crédito na API</div>
+        <p class="busy-err-sub">${esc(e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar conteúdo com IA.')}</p>`;
+    } else {
+      const msg = e?.message || String(error || '');
+      const sep = msg.indexOf('—');
+      const head = (sep >= 0 ? msg.slice(0, sep) : msg).trim();
+      const blocking = (e?.blocking && e.blocking.length) ? e.blocking
+        : (sep >= 0 ? msg.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+      const suggestions = e?.suggestions || [];
+      inner = `<div class="busy-err-title">Não foi possível gerar com a IA</div>
+        <p class="busy-err-sub">${esc(head || 'Falha na geração.')}</p>
+        ${blocking.length ? `<div class="busy-err-block"><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues">${blocking.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>` : ''}
+        ${suggestions.length ? `<div class="busy-err-sug"><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist">${suggestions.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>` : ''}`;
     }
-    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar com a IA';
-    const msg = e?.message || String(error || '');
-    // motivo (antes do '—') no topo; ERROS (blocking) e SUGESTÕES em listas separadas.
-    const sep = msg.indexOf('—');
-    const head = (sep >= 0 ? msg.slice(0, sep) : msg).trim();
-    const blocking = (e?.blocking && e.blocking.length) ? e.blocking
-      : (sep >= 0 ? msg.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
-    const suggestions = e?.suggestions || [];
-    err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = head || 'Falha na geração.';
-    const blockBox = err.querySelector<HTMLElement>('.busy-err-block')!;
-    blockBox.hidden = blocking.length === 0;
-    err.querySelector<HTMLElement>('.busy-err-issues')!.innerHTML = blocking.map(i => `<li>${esc(i)}</li>`).join('');
-    const sugBox = err.querySelector<HTMLElement>('.busy-err-sug')!;
-    sugBox.hidden = suggestions.length === 0;
-    err.querySelector<HTMLElement>('.busy-err-suglist')!.innerHTML = suggestions.map(i => `<li>${esc(i)}</li>`).join('');
-    err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
-    err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
-    err.hidden = false;
-    this.busyEl.hidden = false;
+    const dlg = document.createElement('dialog');
+    dlg.className = 'deepen-dlg';
+    dlg.innerHTML = `<div class="busy-err" style="border:none;box-shadow:none;padding:2px 2px 0;max-width:none">${inner}
+      <div class="busy-err-actions"><button type="button" class="busy-err-close">Fechar</button><button type="button" class="busy-err-retry">↻ Rerodar</button></div></div>`;
+    document.body.appendChild(dlg);
+    dlg.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => dlg.close();
+    dlg.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { dlg.close(); onRetry(); };
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
   }
 
   /** Follow a question: the server generates its detalhamento as a new section on
-   *  the Detalhamentos page; we refresh the nav and jump straight to it. */
-  private async seguirPergunta(p: Pergunta): Promise<void> {
-    this.setBusy(true, 'Gerando aprofundamento…');
-    try {
-      const r = await this.api.seguirPergunta(p.id);
-      // The nav map changed (new section, maybe a new page) → reload + rebuild.
-      this.store.data = await this.api.getData();
-      this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
-      this.nav.build();
-      await this.go(r.pageId, r.sectionId);
-      this.toast(r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado');
-      this.setBusy(false);
-    } catch (e) {
-      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
-      this.busyError(e, () => void this.seguirPergunta(p));
-    }
+   *  the Detalhamentos page; the queue refreshes the nav; "Ver" jumps to it. */
+  private seguirPergunta(p: Pergunta): void {
+    this.queue.add({
+      kind: 'aprofundamento',
+      label: 'Aprofundamento',
+      sub: p.pergunta,
+      run: async () => {
+        const r = await this.api.seguirPergunta(p.id);
+        // The nav map changed (new section, maybe a new page) → reload + rebuild,
+        // mas SEM roubar a tela do usuário (só o botão "Ver" navega).
+        this.store.data = await this.api.getData();
+        this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+        this.nav.build();
+        this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
+        if (this.store.page(this.store.currentPageId)?.kind === 'perguntas') void this.renderPerguntas();
+        return {
+          toast: r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado',
+          view: () => void this.go(r.pageId, r.sectionId),
+        };
+      },
+    });
   }
 
   private async ignorarPergunta(p: Pergunta): Promise<void> {
@@ -567,15 +521,25 @@ class App {
     const dlg = document.createElement('dialog');
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
-      <h3>Adicionar pergunta</h3>
-      <p class="deepen-card">Sua pergunta vira um aprofundamento na hora (sem cálculo de relevância).</p>
-      <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
+      <div class="deepen-hd">
+        <span class="deepen-hd-ic">${App.WAND}</span>
+        <div class="deepen-hd-tx">
+          <h3>Adicionar pergunta</h3>
+          <p class="deepen-hd-sub">Vira um aprofundamento na hora, sobre a análise inteira (sem cálculo de relevância).</p>
+        </div>
+      </div>
+      <label class="deepen-field">
+        <span class="deepen-lbl">Sua pergunta</span>
+        <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
+      </label>
+      ${App.IMPROVE_ROW}
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
         <button value="go" class="deepen-btn" type="submit">Criar aprofundamento</button>
       </div></form>`;
     document.body.appendChild(dlg);
     const ta = dlg.querySelector('textarea')!;
+    this.wireImprove(dlg, ta);   // pergunta da análise inteira (sem bloco)
     dlg.addEventListener('close', () => {
       const text = ta.value.trim();
       const go = dlg.returnValue === 'go';
@@ -587,20 +551,24 @@ class App {
     ta.focus();
   }
 
-  private async criarPerguntaCustom(text: string): Promise<void> {
-    this.setBusy(true, 'Criando aprofundamento…');
-    try {
-      const r = await this.api.addCustomPergunta(text);
-      this.store.data = await this.api.getData();
-      this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
-      this.nav.build();
-      await this.go(r.pageId, r.sectionId);
-      this.toast(r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado');
-    } catch (e) {
-      this.toast(`Falha ao adicionar pergunta: ${(e as Error).message}`);
-    } finally {
-      this.setBusy(false);
-    }
+  private criarPerguntaCustom(text: string): void {
+    this.queue.add({
+      kind: 'aprofundamento',
+      label: 'Aprofundamento',
+      sub: text,
+      run: async () => {
+        const r = await this.api.addCustomPergunta(text);
+        this.store.data = await this.api.getData();
+        this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+        this.nav.build();
+        this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
+        if (this.store.page(this.store.currentPageId)?.kind === 'perguntas') void this.renderPerguntas();
+        return {
+          toast: r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado',
+          view: () => void this.go(r.pageId, r.sectionId),
+        };
+      },
+    });
   }
 
   /** Content widget types worth deepening (skips eyebrows, notes, kpi strips). */
@@ -630,7 +598,10 @@ class App {
       if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
       if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link, :scope > .tile-revisar')) continue;
-      const title = (w as { title?: string }).title || '';
+      // Assunto do bloco: title, senão label/ind/name (kpi-cards usam `label`, ex.:
+      // "Atingimento · Leads") — sem isso a pill do composer fica vazia e o deepen perde a âncora.
+      const wl = w as { title?: string; label?: string; ind?: string; name?: string };
+      const title = wl.title || wl.label || wl.ind || wl.name || '';
       if (isDet) {
         tile.appendChild(this.revisarButton(title, (instr) => void this.revisarDetSection(section.id, instr)));
         continue;
@@ -667,24 +638,67 @@ class App {
     const dlg = document.createElement('dialog');
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
-      <h3>Detalhar card</h3>
-      <p class="deepen-card">${esc(cardTitle)}</p>
-      <textarea placeholder="O que aprofundar? Ex.: mostre a variação por faixa de renda ao longo dos lançamentos."></textarea>
+      <div class="deepen-hd">
+        <span class="deepen-hd-ic">${App.WAND}</span>
+        <div class="deepen-hd-tx">
+          <h3>Detalhar bloco</h3>
+          <p class="deepen-hd-sub">Peça um aprofundamento com IA sobre este bloco.</p>
+        </div>
+      </div>
+      ${cardTitle ? `<p class="deepen-card" data-lbl="Bloco">${esc(cardTitle)}</p>` : ''}
+      <label class="deepen-field">
+        <span class="deepen-lbl">O que você quer aprofundar?</span>
+        <textarea placeholder="Ex.: mostre a variação por faixa de renda ao longo dos lançamentos."></textarea>
+      </label>
+      ${App.IMPROVE_ROW}
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
         <button value="go" class="deepen-btn" type="submit">Gerar detalhamento</button>
       </div></form>`;
     document.body.appendChild(dlg);
     const ta = dlg.querySelector('textarea')!;
+    this.wireImprove(dlg, ta, secId, blockId);
     dlg.addEventListener('close', () => {
       const prompt = ta.value.trim();
       const go = dlg.returnValue === 'go';
       dlg.remove();
       if (!go || !prompt) return;
-      void this.runDeepen(secId, blockId, prompt);
+      this.runDeepen(secId, blockId, prompt, undefined, cardTitle);
     });
     dlg.showModal();
     ta.focus();
+  }
+
+  /** Linha de ferramentas dos composers: botão "Melhorar pergunta" + nota de status. */
+  private static IMPROVE_ROW = '<div class="deepen-tools"><button type="button" class="deepen-improve">✨ Melhorar pergunta</button><span class="deepen-improve-note" hidden></span></div>';
+
+  /** Liga o botão "✨ Melhorar": reescreve a pergunta atual (ancorada no bloco, se
+   *  houver) via IA barata e substitui o textarea p/ o consultor revisar/editar
+   *  antes de gerar. Passo opcional — não bloqueia o "Gerar". */
+  private wireImprove(dlg: HTMLElement, ta: HTMLTextAreaElement, secId?: string, blockId?: string): void {
+    const btn = dlg.querySelector<HTMLButtonElement>('.deepen-improve');
+    const note = dlg.querySelector<HTMLElement>('.deepen-improve-note');
+    if (!btn || !note) return;
+    const setNote = (msg: string): void => { note.hidden = false; note.textContent = msg; };
+    btn.addEventListener('click', async () => {
+      const cur = ta.value.trim();
+      if (!cur) { setNote('Escreva a pergunta primeiro.'); return; }
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = '✨ Melhorando…';
+      note.hidden = true;
+      try {
+        const r = await this.api.rewriteDeepen(cur, secId, blockId);
+        ta.value = r.rewritten;
+        ta.focus();
+        setNote(r.mocked ? 'Sugestão (mock) — revise e gere.' : 'Pergunta melhorada — revise e gere.');
+      } catch {
+        setNote('Não foi possível melhorar agora — gere com a sua pergunta.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    });
   }
 
   /** Botão "pedir revisão deste bloco" (dentro de um detalhamento/aprofundamento).
@@ -706,9 +720,18 @@ class App {
     const dlg = document.createElement('dialog');
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
-      <h3>Pedir revisão do bloco</h3>
-      <p class="deepen-card">${esc(blockTitle || 'este bloco')}</p>
-      <textarea placeholder="O que mudar NESTE bloco? Ex.: troque este gráfico por uma comparação X × Y ao longo dos dias."></textarea>
+      <div class="deepen-hd">
+        <span class="deepen-hd-ic">${App.PENCIL}</span>
+        <div class="deepen-hd-tx">
+          <h3>Pedir revisão do bloco</h3>
+          <p class="deepen-hd-sub">Ajuste escopado a este bloco — regenera com o seu pedido.</p>
+        </div>
+      </div>
+      <p class="deepen-card" data-lbl="Bloco">${esc(blockTitle || 'este bloco')}</p>
+      <label class="deepen-field">
+        <span class="deepen-lbl">O que mudar neste bloco?</span>
+        <textarea placeholder="Ex.: troque este gráfico por uma comparação X × Y ao longo dos dias."></textarea>
+      </label>
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
         <button value="go" class="deepen-btn" type="submit">Pedir revisão</button>
@@ -728,33 +751,45 @@ class App {
 
   /** Revisão de uma seção det-* (aprofundamento): regenera a própria seção com o
    *  comentário. Compartilhado pelo rodapé geral e pelos botões por bloco. */
-  private async revisarDetSection(sectionId: string, comentario: string): Promise<void> {
-    this.setBusy(true, 'Revisando o aprofundamento…');
-    try {
-      await this.api.revisarDet(sectionId, comentario);
-      this.store.dropSection(sectionId);
-      await this.go(this.store.currentPageId, sectionId, true);
-      this.toast('Aprofundamento revisado.');
-    } catch (e) {
-      this.toast(`Falha na revisão: ${(e as Error).message}`);
-    } finally { this.setBusy(false); }
+  private revisarDetSection(sectionId: string, comentario: string): void {
+    const pageId = this.store.currentPageId;
+    this.queue.add({
+      kind: 'revisao',
+      label: 'Revisão do aprofundamento',
+      sub: comentario,
+      run: async () => {
+        await this.api.revisarDet(sectionId, comentario);
+        this.store.dropSection(sectionId);
+        if (this.store.currentSectionId === sectionId) await this.go(this.store.currentPageId, sectionId, true);
+        return { toast: 'Aprofundamento revisado', view: () => void this.go(pageId, sectionId) };
+      },
+    });
   }
 
-  private async runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<void> {
-    this.setBusy(true, prev ? 'Ajustando o detalhamento…' : 'Gerando detalhamento…');
-    try {
-      const r = await this.api.deepen(secId, blockId, prompt, prev);
-      this.pendingModal = r.modal.id;
-      // Deep mode added new aggregate tables → refresh the dataset before re-render.
-      if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
-      this.store.dropSection(secId);
-      await this.go(this.store.currentPageId, secId);
-      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
-      this.setBusy(false);
-    } catch (e) {
-      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
-      this.busyError(e, () => void this.runDeepen(secId, blockId, prompt, prev));
-    }
+  /** Enfileira um detalhamento de bloco. `sub` = rótulo humano (título do card).
+   *  Não bloqueia: o job roda em 2º plano e o botão "Ver" abre o modal quando pronto. */
+  private runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown, sub?: string): void {
+    const pageId = this.store.currentPageId;
+    this.queue.add({
+      kind: 'detalhamento',
+      label: prev ? 'Ajuste de detalhamento' : 'Detalhamento',
+      sub: sub || prompt,
+      run: async () => {
+        const r = await this.api.deepen(secId, blockId, prompt, prev);
+        // Deep mode added new aggregate tables → refresh the dataset before re-render.
+        if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
+        this.store.dropSection(secId);
+        // Se o usuário está VENDO a seção do bloco, re-renderiza p/ a varinha virar
+        // "ver detalhe" (sem abrir o modal — não rouba a leitura).
+        if (this.store.currentSectionId === secId && this.store.currentPageId === pageId) {
+          await this.go(pageId, secId, true);
+        }
+        return {
+          toast: r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado',
+          view: async () => { await this.go(pageId, secId); this.openModal(r.modal.id); },
+        };
+      },
+    });
   }
 
   private headerEl(section: Section): HTMLElement {
@@ -833,9 +868,18 @@ class App {
 
     // Revisão: aprovar / pedir revisão (regenera via prev) / ★1–5 — tudo no histórico.
     if (modal.historyId) {
+      const secForModal = this.store.currentSectionId;
       dialog.appendChild(this.buildRating(modal.historyId,
         ownerBlockId ? async (c) => { await this.runDeepen(this.store.currentSectionId, ownerBlockId, c, modal); } : undefined,
-        undefined,
+        ownerBlockId ? async (motivo) => {
+          try {
+            await this.api.descartarModal(secForModal, ownerBlockId, motivo);
+            closeOverlay(overlay);
+            this.store.dropSection(secForModal);
+            await this.go(this.store.currentPageId, secForModal, true);
+            this.toast('Detalhamento descartado.');
+          } catch (e) { this.toast(`Falha ao descartar: ${(e as Error).message}`); }
+        } : undefined,
         foot ? () => { foot!.hidden = false; } : undefined));
     }
     if (foot) dialog.appendChild(foot);
@@ -853,7 +897,7 @@ class App {
    *  itera via prev; seção det-* regenera a própria seção). */
   // `noun` = "detalhamento" (bloco do relatório) ou "aprofundamento" (board de
   // perguntas) — o rodapé de rating serve os dois fluxos; a nomenclatura segue a origem.
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => void | Promise<void>, onDiscard?: (motivo: string) => void | Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
     const Noun = noun[0].toUpperCase() + noun.slice(1);
     const wrap = document.createElement('div');
     wrap.className = 'rate';
@@ -944,8 +988,22 @@ class App {
       discard.type = 'button';
       discard.className = 'btn btn--sm rate-discard';
       discard.textContent = '🗑 Descartar';
-      discard.addEventListener('click', () => { void onDiscard(); });
-      wrap.append(discard);
+      // Descartar SEMPRE pede o motivo (sinal de qualidade): abre um form curto;
+      // sem motivo não descarta (o "porquê" é o ponto).
+      const df = document.createElement('form');
+      df.className = 'rate-fb rate-discard-fb';
+      df.hidden = true;
+      df.innerHTML = `<input type="text" placeholder="por que descartar? (ex.: fugiu do tema, dado errado, não acrescenta)" /><button type="submit" class="btn btn--sm rate-discard-go">Descartar</button>`;
+      discard.addEventListener('click', () => { df.hidden = !df.hidden; if (!df.hidden) (df.querySelector('input') as HTMLInputElement).focus(); });
+      df.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inp = df.querySelector('input') as HTMLInputElement;
+        const motivo = inp.value.trim();
+        if (!motivo) { inp.focus(); return; }
+        df.hidden = true;
+        await onDiscard(motivo);
+      });
+      wrap.append(discard, df);
     }
     return wrap;
   }
@@ -1421,18 +1479,7 @@ ${runtime}</script>
           if (openModal) this.openModal(openModal);
         });
       }
-    }, (msg) => this.setBusyMsg(msg));
-  }
-
-  /** Atualiza só o texto da tela de carregamento (estágio do detalhamento, via SSE)
-   *  sem mexer na visibilidade — ignorado se o overlay não está visível ou se a tela
-   *  de erro está à mostra. */
-  private setBusyMsg(msg: string): void {
-    if (!this.busyEl || this.busyEl.hidden) return;
-    const load = this.busyEl.querySelector<HTMLElement>('.busy-load');
-    if (!load || load.hidden) return;   // tela de erro à mostra → não sobrescreve
-    const m = this.busyEl.querySelector('.busy-msg');
-    if (m) m.textContent = msg;
+    }, (msg) => this.queue.setStage(msg));
   }
 }
 

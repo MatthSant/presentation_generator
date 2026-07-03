@@ -43,6 +43,18 @@
     .u-err { color: var(--red); font-weight: 700; }
     .u-empty { color: var(--gray); padding: 50px 0; text-align: center; }
     .u-note { font-size: 11.5px; color: var(--gray2); margin-top: 12px; line-height: 1.5; }
+
+    .u-fb { display: flex; align-items: center; justify-content: space-between; gap: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px 18px; box-shadow: var(--shadow-sm); margin-top: 16px; }
+    .u-fb-h { font-size: 13.5px; font-weight: 750; color: var(--fg); }
+    .u-fb-d { font-size: 12px; color: var(--gray); margin: 3px 0 0; line-height: 1.5; max-width: 64ch; }
+    .u-fb-status { font-size: 11.5px; color: var(--gray2); margin: 6px 0 0; }
+    .nv-toggle { display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+    .nv-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .nv-slider { position: relative; width: 42px; height: 24px; border-radius: 999px; background: var(--border-strong, #cbd5e1); transition: background .16s; }
+    .nv-slider::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .16s; }
+    .nv-toggle input:checked + .nv-slider { background: var(--purple); }
+    .nv-toggle input:checked + .nv-slider::after { transform: translateX(18px); }
+    .nv-toggle input:disabled + .nv-slider { opacity: .6; }
   </style>
 </head>
 <body>
@@ -69,6 +81,40 @@
         } catch (e) { alert('Falha ao marcar: ' + e.message); }
       });
     </script>
+
+    <div class="u-fb">
+      <div>
+        <div class="u-fb-h">Fallback build.nvidia (Claude sem crédito)</div>
+        <p class="u-fb-d">Quando a API do Claude fica <strong>sem crédito</strong>, o app gera os detalhamentos/insights pelo <strong>build.nvidia</strong> (endpoints gratuitos, custo 0). Desligado, um erro de crédito aparece normalmente — como antes.</p>
+        <p class="u-fb-status" id="nv-status"></p>
+      </div>
+      <label class="nv-toggle"><input type="checkbox" id="nv-fallback" /><span class="nv-slider"></span></label>
+    </div>
+    <script>
+      (async () => {
+        const cb = document.getElementById('nv-fallback');
+        const st = document.getElementById('nv-status');
+        try {
+          const s = await (await fetch('/api/settings')).json();
+          cb.checked = !!s.nvidiaFallback;
+          st.innerHTML = s.nvidiaKeyPresent
+            ? '✓ Chave <code>NVIDIA_API_KEY</code> configurada no <code>.env</code>.'
+            : '⚠ Sem <code>NVIDIA_API_KEY</code> no <code>.env</code> — o fallback não roda mesmo ligado.';
+        } catch { st.textContent = 'Não foi possível carregar as configurações.'; }
+        cb.addEventListener('change', async () => {
+          cb.disabled = true;
+          const prev = !cb.checked;
+          try {
+            const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nvidiaFallback: cb.checked }) });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error || 'falha');
+            cb.checked = !!d.nvidiaFallback;
+          } catch (e) { cb.checked = prev; alert('Falha ao salvar: ' + e.message); }
+          finally { cb.disabled = false; }
+        });
+      })();
+    </script>
+
     <div class="seg" style="margin-top:18px">
       <button type="button" class="seg-opt active" data-tab="uso">Uso da API</button>
       <button type="button" class="seg-opt" data-tab="deepen">Aprofundamentos</button>
