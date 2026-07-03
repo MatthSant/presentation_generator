@@ -11,7 +11,7 @@ import { Navigation } from './navigation.js';
 import { Filters } from './filters.js';
 import { Dashboard } from './dashboard.js';
 import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
-import { ChartManager, setChartExportMode, type ChartDef } from './charts.js';
+import { ChartManager, setChartExportMode, chartCaptureStart, chartCaptureEnd, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
 import { HistoricoFilters } from './historico-controls.js';
 import { CriativosControls } from './criativos-controls.js';
@@ -1076,21 +1076,63 @@ class App {
       ROOT.style.maxWidth = 'none';
       ROOT.style.margin = '0 auto';
 
-      // The export is interactive offline: paginated (page tabs) and filterable by
-      // channel. Since the only filter is the channel toggle (≤3 values), we
-      // pre-render each section once PER channel as a static snapshot and switch
-      // panes with a tiny inline script — no data layer or chart lib needed.
+      // O export é um app offline de uma seção por vez: sidebar de navegação
+      // (páginas → seções), toggle de canal e GRÁFICOS INTERATIVOS. Cada seção é
+      // pré-renderizada PELA VIA REAL uma vez por canal; capturamos o ChartDef de
+      // cada gráfico (estrutura de dados com os valores JÁ resolvidos — sem dataset/
+      // bind/cálculo) e embutimos um buildOptions empacotado + o ApexCharts real,
+      // que remonta cada chart com hover/tooltip no HTML estático.
       const fdef = this.store.filterDefs[0];
       const variants: (string | null)[] = fdef ? fdef.options.slice() : [null];
       // Perguntas norteadoras são ferramenta de trabalho do app (gerar detalhamentos),
       // não conteúdo do relatório — fora do HTML exportado (tabs e páginas).
       const pages = this.store.pages.filter(p => p.kind !== 'perguntas');
 
+      // Registro global de ChartDefs baked. serializeDef dropa funções (formatters
+      // do dual-evolution) — o resto do def é JSON puro; buildOptions reconstrói os
+      // formatters a partir de valueFormat/pct no runtime.
+      const chartDefs: Record<string, unknown> = {};
+      let chartSeq = 0;
+      const serializeDef = (def: unknown): unknown =>
+        JSON.parse(JSON.stringify(def, (_k, v) => (typeof v === 'function' ? undefined : v)));
+      // Marca cada elemento-host de chart no DOM VIVO (antes de clonar) com data-xc=N
+      // + a altura medida, e guarda o def em chartDefs[N]. O clone herda os atributos.
+      const stampCharts = (scope: HTMLElement, caps: Array<{ id: string; def: ChartDef }>): void => {
+        for (const { id, def } of caps) {
+          const live = scope.querySelector<HTMLElement>(`[id="${id}"]`);
+          if (!live) continue;
+          const n = String(chartSeq++);
+          live.setAttribute('data-xc', n);
+          const hh = Math.round(live.getBoundingClientRect().height);
+          if (hh > 4) live.setAttribute('data-xh', String(hh));
+          chartDefs[n] = serializeDef(def);
+        }
+      };
+      // No clone: esvazia o SVG desenhado (o runtime remonta um ApexCharts real) e
+      // fixa a altura medida p/ o container não colapsar antes do mount.
+      const clearDrawn = (clone: HTMLElement): void => {
+        clone.querySelectorAll<HTMLElement>('[data-xc]').forEach(e => {
+          const h = Number(e.getAttribute('data-xh')) || (chartDefs[e.getAttribute('data-xc') || ''] as { height?: number } | undefined)?.height || 320;
+          e.innerHTML = '';
+          e.classList.remove('apexcharts-canvas');
+          e.style.minHeight = `${h}px`;
+        });
+      };
+
       const pinHeights = (host: Element, clone: HTMLElement): void => {
         const lt = host.querySelectorAll('.dash-tile'); const ct = clone.querySelectorAll<HTMLElement>('.dash-tile');
         lt.forEach((l, i) => { const h = l.getBoundingClientRect().height; if (h > 0 && ct[i]) ct[i].style.minHeight = `${Math.round(h)}px`; });
         const lw = host.querySelectorAll('.chart-wrap'); const cw = clone.querySelectorAll<HTMLElement>('.chart-wrap');
         lw.forEach((l, i) => { const h = l.getBoundingClientRect().height; if (h > 4 && cw[i]) cw[i].style.height = `${Math.round(h)}px`; });
+      };
+
+      // Tira do clone as affordances interativas que NÃO funcionam num HTML estático
+      // (só mostrariam botões mortos): remover-outliers, criar/revisar deepen, os toggles
+      // de chart/heatmap (a pane ativa fica) e os seletores dos pickers. A varinha que
+      // ABRE o modal (.tile-detail-link) é preservada — ela funciona via runtime.
+      const stripControls = (root: HTMLElement): void => {
+        root.querySelectorAll('.tile-outlier, .tile-deepen, .tile-revisar, .ic-deepen, .rate, .seg--soft, .sp-ctrls, .sp-sel, .sp-dimtog').forEach(n => n.remove());
+        root.querySelectorAll('.seg:not(.seg--soft)').forEach(n => (n.closest('.dash-tile') || n).remove());   // metric-toggle
       };
 
       // Charts re-render once per (section × channel); disable ApexCharts animation
@@ -1138,40 +1180,49 @@ class App {
 
       const total = variants.length * this.store.allSections().length;
       let done = 0;
-      const byVar: Record<string, Record<string, string[]>> = {};
+      // secHtml[canal][secId] = HTML clonado da seção; navList = ordem das seções
+      // (montada no 1º canal) para a árvore lateral e as divs de conteúdo.
+      const secHtml: Record<string, Record<string, string>> = {};
+      const navList: Array<{ pageId: string; secId: string; label: string }> = [];
       // Detalhamentos de bloco (varinha → modal .ic-overlay). Capturados UMA vez (1º
       // canal) com os gráficos montados; a varinha é mantida e um runtime abre/fecha
       // o modal no HTML estático, como no app. Aprofundamentos da página entram como
-      // seções normais (loop acima).
+      // seções normais (árvore lateral).
       const modalHtml: string[] = [];
       for (const val of variants) {
         if (fdef) this.store.active[fdef.id] = val ?? '';
         const key = String(val);
-        byVar[key] = {};
+        secHtml[key] = {};
         for (const page of pages) {
-          const secs: string[] = [];
           for (const sref of page.sections) {
+            chartCaptureStart();
             await this.go(page.id, sref.id);
             await chartsReady();
+            const caps = chartCaptureEnd();
             const host = ROOT.firstElementChild as HTMLElement | null;
             if (host) {
+              stampCharts(host, caps);
               const clone = host.cloneNode(true) as HTMLElement;
               clone.classList.add('export-section');
               pinHeights(host, clone);
-              // mantém a varinha (.tile-detail-link → abre o modal); remove só as
-              // affordances de EDIÇÃO (criar deepen / pedir revisão).
-              clone.querySelectorAll('.tile-deepen, .tile-revisar').forEach(n => n.remove());
-              secs.push(clone.outerHTML);
+              stripControls(clone);   // mantém a varinha (.tile-detail-link → abre o modal)
+              clearDrawn(clone);      // esvazia charts p/ o runtime remontar interativo
+              secHtml[key][sref.id] = clone.outerHTML;
+              if (val === variants[0]) navList.push({ pageId: page.id, secId: sref.id, label: sref.label });
             }
             // captura os modais da seção (só no 1º canal — o conteúdo é o mesmo).
             if (val === variants[0]) {
               for (const ov of MODAL_ROOT.querySelectorAll<HTMLElement>('.ic-overlay')) {
+                chartCaptureStart();
                 this.openModal(ov.id);
                 await chartsReady(ov);
+                const mcaps = chartCaptureEnd();
+                stampCharts(ov, mcaps);
                 const mc = ov.cloneNode(true) as HTMLElement;
                 mc.classList.remove('open');
                 pinHeights(ov, mc);
-                mc.querySelectorAll('.ic-deepen, .rate, .tile-revisar').forEach(n => n.remove());
+                stripControls(mc);
+                clearDrawn(mc);
                 modalHtml.push(mc.outerHTML);
                 ov.classList.remove('open');
               }
@@ -1179,7 +1230,6 @@ class App {
             }
             if (label) label.textContent = `Gerando ${Math.round((++done / total) * 100)}%`;
           }
-          byVar[key][page.id] = secs;
         }
       }
       apexWin.Apex = apexPrev;
@@ -1199,34 +1249,76 @@ class App {
       const apexCss = [...document.querySelectorAll('style')]
         .map(s => s.textContent || '').filter(t => /apexcharts/i.test(t)).join('\n');
       const logo = await fetch('/assets/witly-logo.png').then(r => r.blob()).then(blobToDataUrl).catch(() => '');
-      const theme = document.documentElement.dataset.theme || 'light';
-      const meta = this.store.data?.meta || {};
-      const title = meta.title || meta.client || 'Relatório';
-      // Sem filtro, variants = [null] → as panes ficam com data-canal="null"; o canal
-      // padrão precisa casar com isso (senão apply() esconde tudo → export em branco).
-      const defCanal = String(fdef ? (fdef.default ?? fdef.options[0] ?? '') : variants[0]);
-      const firstPage = pages[0]?.id || '';
+      // Gráficos interativos: empacota buildOptions (charts.js só depende de trend.js;
+      // tipos são apagados) + o ApexCharts real. Strip de import/export → escopo do IIFE.
+      const strip = (js: string): string => js.replace(/^\s*import[^\n]*\n/gm, '').replace(/^\s*export\s+/gm, '');
+      const [chartsJs, trendJs, apexJs] = await Promise.all([
+        fetch('/js/client/charts.js').then(r => r.text()).catch(() => ''),
+        fetch('/js/client/trend.js').then(r => r.text()).catch(() => ''),
+        fetch('/vendor/apexcharts.min.js').then(r => r.text()).catch(() => ''),
+      ]);
+      const noClose = (s: string): string => s.replace(/<\/script>/gi, '<\\/script>');
+      const chartBundle = `(function(){\n${strip(trendJs)}\n${strip(chartsJs)}\nwindow.__buildOptions=buildOptions;\n})();`;
 
-      const navTabs = pages.map(p => `<button class="exp-tab" data-page="${esc(p.id)}">${esc(p.label)}</button>`).join('');
-      const navCanal = fdef
-        ? `<div class="exp-canal-toggle">${variants.map(v => `<button class="exp-cbtn" data-canal-btn="${esc(String(v))}">${esc(String(v))}</button>`).join('')}</div>`
+      const theme = document.documentElement.dataset.theme || 'light';
+      const meta = this.store.data?.meta as { client?: string; client_name?: string; title?: string } || {};
+      const title = meta.title || meta.client || 'Relatório';
+      const clientName = meta.client_name || meta.client || '';
+      const initials = clientName.split(/[-\s_]+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase() || 'W';
+      // Sem filtro, variants = [null] → o canal padrão é "null" (casa com data-canal).
+      const defCanal = String(fdef ? (fdef.default ?? fdef.options[0] ?? '') : variants[0]);
+      const coverHtml = this.coverHtml();
+      const defSec = coverHtml ? '__cover__' : (navList[0]?.secId || '');
+
+      // ── Árvore lateral (reusa as classes vivas .sn-* → o style.css inlinado estiliza) ──
+      const detPage = pages.find(p => p.id === 'detalhamentos');
+      const reportPages = pages.filter(p => p.id !== 'detalhamentos');
+      const secBtn = (pageId: string, s: { id: string; label: string }): string =>
+        `<button class="sn-sec" data-nav-page="${esc(pageId)}" data-nav-sec="${esc(s.id)}"><span class="sn-sec-lbl">${esc(s.label)}</span></button>`;
+      const pageGroup = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }, n: number): string =>
+        `<div class="sn-group" data-group="${esc(page.id)}"><button class="sn-page" data-nav-page="${esc(page.id)}" data-nav-sec="${esc(page.sections[0]?.id || '')}"><span class="sn-num">${n}</span><span class="sn-page-lbl">${esc(page.label)}</span></button>${page.sections.length > 1 ? page.sections.map(s => secBtn(page.id, s)).join('') : ''}</div>`;
+      const coverItem = coverHtml
+        ? `<div class="sn-group"><button class="sn-page" data-nav-page="__cover__" data-nav-sec="__cover__"><span class="sn-num">◆</span><span class="sn-page-lbl">Capa</span></button></div>`
         : '';
-      const body = variants.map(val => `
-  <div class="exp-canal-pane" data-canal="${esc(String(val))}">
-    ${pages.map(p => `<section class="exp-page" data-page="${esc(p.id)}"><div class="exp-root">${(byVar[String(val)][p.id] || []).join('\n')}</div></section>`).join('')}
-  </div>`).join('');
-      const runtime = `(function(){var canal=${JSON.stringify(defCanal)},page=${JSON.stringify(firstPage)};
-function apply(){document.querySelectorAll('.exp-canal-pane').forEach(function(c){c.hidden=c.getAttribute('data-canal')!==canal;});
-document.querySelectorAll('.exp-page').forEach(function(p){p.hidden=p.getAttribute('data-page')!==page;});
-document.querySelectorAll('.exp-tab').forEach(function(t){t.classList.toggle('on',t.getAttribute('data-page')===page);});
-document.querySelectorAll('.exp-cbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-canal-btn')===canal);});window.scrollTo(0,0);}
+      const sideTree = `${coverItem}<div class="sn-label">Relatório</div>${reportPages.map((p, i) => pageGroup(p, i + 1)).join('')}${detPage && detPage.sections.length ? `<div class="sn-label">Aprofundamentos</div><div class="sn-group" data-group="${esc(detPage.id)}">${detPage.sections.map(s => secBtn(detPage.id, s)).join('')}</div>` : ''}`;
+
+      const sidenav = `<aside id="sidenav">
+  <div class="sn-head"><a class="sn-brand" href="#">${logo ? `<span class="sn-logo-box"><img class="sn-logo" src="${logo}" alt="Witly"></span>` : ''}<span class="sn-brand-name">Witly Grimório</span></a><button class="sn-collapse" data-collapse aria-label="Minimizar menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+  <a class="sn-switcher" href="#"><span class="sn-pj">${esc(initials)}</span><span class="sn-sw-meta"><small>Cliente</small><b>${esc(clientName)}</b></span></a>
+  ${sideTree}
+</aside>
+<button id="sn-expand" class="sn-expand" data-expand aria-label="Expandir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>`;
+
+      const navCanal = fdef
+        ? `<div class="exp-canal">${variants.map(v => `<button class="exp-cbtn" data-canal-btn="${esc(String(v))}">${esc(String(v))}</button>`).join('')}</div>`
+        : '';
+
+      // Conteúdo: a capa (sem canal) + cada seção × canal, escondidas; o runtime mostra uma.
+      const coverDiv = coverHtml ? `<div class="exp-sec exp-sec-cover" data-section="__cover__" hidden>${coverHtml}</div>` : '';
+      const contentDivs = variants.map(val => {
+        const key = String(val);
+        return navList.map(s => `<div class="exp-sec export-section" data-section="${esc(s.secId)}" data-page="${esc(s.pageId)}" data-canal="${esc(key)}" hidden>${secHtml[key][s.secId] || ''}</div>`).join('\n');
+      }).join('\n');
+
+      const runtime = noClose(`(function(){var DEFS=window.__EXP_CHARTS||{};
+function mountIn(scope){if(!scope)return;scope.querySelectorAll('[data-xc]').forEach(function(el){if(el.__m||el.offsetParent===null)return;var d=DEFS[el.getAttribute('data-xc')];if(!d||typeof window.__buildOptions!=='function'||typeof ApexCharts==='undefined')return;el.__m=1;try{new ApexCharts(el,window.__buildOptions(d)).render();}catch(e){}}); }
+var sec=${JSON.stringify(defSec)},canal=${JSON.stringify(defCanal)};
+function apply(){document.querySelectorAll('.exp-sec').forEach(function(s){var cover=s.getAttribute('data-section')==='__cover__';s.hidden=!(s.getAttribute('data-section')===sec&&(cover||s.getAttribute('data-canal')===canal));});
+document.querySelectorAll('.sn-page,.sn-sec').forEach(function(b){var on=b.getAttribute('data-nav-sec')===sec;b.classList.toggle(b.classList.contains('sn-page')?'sn-page-active':'sn-sec-active',on);});
+document.querySelectorAll('.sn-group').forEach(function(g){var on=[].some.call(g.querySelectorAll('[data-nav-sec]'),function(b){return b.getAttribute('data-nav-sec')===sec;});g.classList.toggle('sn-group-active',on);});
+document.querySelectorAll('.exp-cbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-canal-btn')===canal);});
+mountIn(document.querySelector('.exp-sec:not([hidden])'));var m=document.getElementById('main');if(m)m.scrollTop=0;}
 function closeM(ov){if(ov){ov.classList.remove('open');document.body.style.overflow='';}}
-document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('.exp-tab');if(t){page=t.getAttribute('data-page');apply();return;}
-var c=e.target.closest&&e.target.closest('.exp-cbtn');if(c){canal=c.getAttribute('data-canal-btn');apply();return;}
-var op=e.target.closest&&e.target.closest('[data-modal]');if(op){var m=document.getElementById(op.getAttribute('data-modal'));if(m){m.classList.add('open');document.body.style.overflow='hidden';}return;}
-var cl=e.target.closest&&e.target.closest('[data-ic-close]');if(cl){closeM(cl.closest('.ic-overlay'));return;}
-if(e.target.classList&&e.target.classList.contains('ic-overlay')){closeM(e.target);}});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){var o=document.querySelector('.ic-overlay.open');if(o)closeM(o);}});apply();})();`;
+document.addEventListener('click',function(e){var t=e.target;
+var nv=t.closest&&t.closest('[data-nav-sec]');if(nv){sec=nv.getAttribute('data-nav-sec');apply();return;}
+var c=t.closest&&t.closest('.exp-cbtn');if(c){canal=c.getAttribute('data-canal-btn');apply();return;}
+if(t.closest&&t.closest('[data-collapse]')){document.body.setAttribute('data-nav-collapsed','1');return;}
+if(t.closest&&t.closest('[data-expand]')){document.body.setAttribute('data-nav-collapsed','');return;}
+var op=t.closest&&t.closest('[data-modal]');if(op){var mo=document.getElementById(op.getAttribute('data-modal'));if(mo){mo.classList.add('open');document.body.style.overflow='hidden';mountIn(mo);}return;}
+var cl=t.closest&&t.closest('[data-ic-close]');if(cl){closeM(cl.closest('.ic-overlay'));return;}
+if(t.classList&&t.classList.contains('ic-overlay')){closeM(t);}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){var o=document.querySelector('.ic-overlay.open');if(o)closeM(o);}});
+apply();})();`);
 
       const doc = `<!doctype html>
 <html lang="pt-BR" data-theme="${esc(theme)}">
@@ -1238,37 +1330,36 @@ ${fontsCss}
 ${css}
 ${apexCss}
 body{margin:0}
-.exp-nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;height:54px;padding:0 24px;background:var(--bg);border-bottom:1px solid var(--border);overflow-x:auto}
-.exp-logo{height:22px;width:auto;display:block;flex-shrink:0}
-.exp-bar-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
-.exp-client{font-size:14px;font-weight:700;white-space:nowrap}
-.exp-tabs{display:flex;gap:2px;margin-left:6px}
-.exp-tab{font-size:12.5px;font-weight:600;color:var(--gray);background:none;border:none;padding:7px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;font-family:inherit}
-.exp-tab:hover{color:var(--fg);background:var(--surface)}
-.exp-tab.on{color:var(--purple);background:var(--purple-bg)}
-.exp-canal-toggle{margin-left:auto;display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:2px;flex-shrink:0}
+body[data-nav="sidebar"] #topnav{position:fixed;top:0;height:60px;display:flex;align-items:center;border-bottom:1px solid var(--border);z-index:30}
+#topnav .tn-brand{display:flex;align-items:center;height:100%}
+#topnav .tn-client{font-size:13px;font-weight:700;color:var(--fg)}
+.exp-canal{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:2px}
 .exp-cbtn{font-size:12px;font-weight:600;color:var(--gray);background:none;border:none;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit}
 .exp-cbtn.on{color:#fff;background:var(--purple)}
-.exp-canal-pane[hidden],.exp-page[hidden]{display:none}
-.exp-root{width:1920px;max-width:100%;margin:0 auto;padding:22px 72px 72px}
-.exp-cover{width:1920px;max-width:100%;margin:0 auto;padding:8px 72px 0}
-.exp-cover #report-header{padding:36px 24px 18px}
-.export-section{margin-bottom:48px}
+.exp-sec[hidden]{display:none}
+.export-section{margin:0}
 .export-section .dash-tile{overflow:hidden}
 .export-section .apexcharts-canvas,.export-section .apexcharts-canvas svg{max-width:100%}
-.export-section .sec-header{margin-top:0}
+body[data-nav="sidebar"] .exp-sec .sec-header{display:block}
+.exp-sec-cover #report-header{padding:8px 0 18px}
 </style>
 </head>
-<body>
-<nav class="exp-nav">
-  <div style="display:flex;align-items:center;gap:14px">${logo ? `<img class="exp-logo" src="${logo}" alt="Witly">` : ''}<span class="exp-bar-sep"></span><span class="exp-client">${esc(meta.client || 'Relatório')}</span></div>
-  <div class="exp-tabs">${navTabs}</div>
-  ${navCanal}
+<body data-nav="sidebar">
+${sidenav}
+<nav id="topnav">
+  <div class="tn-brand"><span class="tn-client">${esc(clientName || 'Relatório')}</span></div>
+  <div class="tn-pages"></div>
+  <div class="tn-right">${navCanal}</div>
 </nav>
-<div class="exp-cover">${this.coverHtml()}</div>
-${body}
+<main id="main"><div id="export-root">
+${coverDiv}
+${contentDivs}
+</div></main>
 ${modalHtml.join('\n')}
-<script>${runtime}</script>
+<script>${noClose(apexJs)}</script>
+<script>${noClose(chartBundle)}</script>
+<script>window.__EXP_CHARTS=${noClose(JSON.stringify(chartDefs))};
+${runtime}</script>
 </body>
 </html>`;
 

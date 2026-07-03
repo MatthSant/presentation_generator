@@ -86,31 +86,35 @@ Achados da revisão completa pré-Fase 2:
       goals/hist/dict) → expor ao motor/`consultar` (catálogo do CSV no contexto) → citar a
       fonte na seção gerada. Cuidado: validar/limitar o CSV (LGPD, tamanho, schema livre).
 - [x] **Revisar o exportador de HTML de ponta a ponta** — `exportHtml` em `main.ts`
-      (botão `#export-html-btn`). Revisão feita (jul/2026); resultado abaixo.
-  - **Objetivo & como:** gera um `.html` standalone (abre offline, sem servidor) — um
-    SNAPSHOT ESTÁTICO do relatório no estado atual. Renderiza cada seção × canal pela via
-    real (charts viram SVG embutido), clona o DOM com alturas fixadas, e monta um doc com
-    style.css + CSS do ApexCharts + logo (data URI) inlinados, capa, tabs por página +
-    toggle de canal, e um runtime mínimo que troca as panes. Perguntas, botões de deepen e
-    links de detalhamento são removidos.
-  - **BUG corrigido:** o `fonts.css` (@import Poppins do Google) NÃO era inlinado → o
-    relatório entregue saía na fonte de fallback do sistema, não a da marca. Agora o
-    fonts.css entra no topo do `<style>` (antes das demais regras). Verificado: o export
-    passa a conter o @import na 1ª posição (idêntico ao relatório vivo, que carrega Poppins).
-  - **Limitações (por design — é snapshot), a decidir se vira feature:**
-    - Só o filtro de CANAL é alternável no export; os demais controles (compare do
-      debriefing, modo de criativos, lançamentos do histórico, filtro do debriefing) ficam
-      CONGELADOS no estado atual.
-    - ~~Modais de deepen a NÍVEL DE BLOCO (varinha) não entram~~ → **RESOLVIDO**: agora
-      os modais são capturados (com gráficos) e embutidos no export; a varinha é mantida
-      e um runtime abre/fecha o modal como no app. As seções da página "Aprofundamentos"
-      já entravam.
-    - Embeds do criativos (iframe Instagram) precisam de internet p/ carregar.
-    - Nav lateral (sidebar) vira tabs no topo; a página "Fichas" (criativos) empilha todas
-      as fichas numa tab só.
-    - **Tamanho:** conversao-perfil (3 canais) ~8,3 MB; debriefing ~2,6 MB — pesado p/
-      e-mail (SVG re-renderizado por canal). Avaliar opção "exportar só o canal atual" e/ou
-      embutir os woff2 p/ fidelidade offline real (hoje o @import precisa de internet).
+      (botão `#export-html-btn`). Revisão + REESCRITA (jul/2026); resultado abaixo.
+  - **Objetivo & como (v2, interativo):** gera um `.html` standalone (abre offline, sem
+    servidor) que se comporta como o app — **uma seção por vez** com **sidebar de navegação**
+    (reusa as classes vivas `#sidenav`/`.sn-*`/`#export-root`, então o style.css inlinado
+    estiliza de graça), toggle de canal no topnav, largura **mín 1180 / máx 1920** e
+    **gráficos ApexCharts REAIS** (hover/tooltip). Cada seção × canal é renderizada pela via
+    real; capturamos o **ChartDef** de cada gráfico (estrutura de dados com os valores JÁ
+    resolvidos — sem dataset/bind/regra de negócio) via `chartCaptureStart/End` +
+    `captureChart` (charts.ts) e embutimos um `buildOptions` empacotado (charts.js só depende
+    de trend.js) + o ApexCharts real + `window.__EXP_CHARTS`; um runtime remonta cada chart
+    com `data-xc`. Perguntas, deepen, seletores dos pickers e toggles mortos (outlier,
+    chart/heatmap-toggle) são removidos — a pane/seleção ativa fica **congelada** mas o
+    gráfico é interativo.
+  - **BUG corrigido (fonte):** o `fonts.css` (@import Poppins) NÃO era inlinado → fonte de
+    fallback. Agora entra no topo do `<style>`.
+  - **Cuidado (pickers × aba em 2º plano):** scatter/evolution-picker montam via
+    `requestAnimationFrame`, estrangulado em aba de fundo durante o export → o `captureChart`
+    não disparava (0 charts no criativos). Fix: `chartExportMode()` → build **síncrono** no
+    export (renderer.ts). Charts do ChartManager já montam síncronos.
+  - **Ganho de tamanho:** conversao-perfil caiu de ~8,3 MB → ~2,8 MB; criativos ~2,7 MB
+    (defs são JSON minúsculo; o ApexCharts entra uma vez, não SVG re-renderizado por canal).
+  - **Limitações remanescentes (por design):**
+    - Só o filtro de CANAL é alternável; demais controles (compare, modo, lançamentos)
+      ficam congelados no estado atual (o gráfico ainda é interativo).
+    - Modais de deepen a NÍVEL DE BLOCO (varinha) entram com os gráficos e o runtime
+      abre/fecha + monta o chart no open; aprofundamentos da página são seções normais.
+    - Embeds do criativos (iframe Instagram) e o @import de fonte precisam de internet.
+      Avaliar embutir os woff2 p/ fidelidade offline real.
+    - Chart-toggle: só a pane ativa entra (as ocultas nunca desenham na captura).
 - [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
       solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada
       barata reescreve com o contexto do TIPO de análise ("Foi acréscimo/decréscimo no

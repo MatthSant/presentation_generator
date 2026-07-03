@@ -62,6 +62,17 @@ type Theme = 'light' | 'dark';
  * the change reaches every call site without threading a parameter through. */
 let EXPORT_MODE = false;
 export function setChartExportMode(on: boolean): void { EXPORT_MODE = on; }
+export function chartExportMode(): boolean { return EXPORT_MODE; }
+
+/* Chart capture: durante o export interativo cada gráfico registra seu ChartDef
+ * (estrutura de dados JÁ resolvida — só os valores fixados, sem dataset/bind/regra
+ * de negócio). O export embute esses defs + um buildOptions empacotado e monta
+ * ApexCharts REAIS (com hover/tooltip) no HTML estático. Capturamos por (id do
+ * elemento, def); o exportador casa o id com o elemento clonado e re-monta. */
+let CHART_CAP: Array<{ id: string; def: ChartDef }> | null = null;
+export function chartCaptureStart(): void { CHART_CAP = []; }
+export function chartCaptureEnd(): Array<{ id: string; def: ChartDef }> { const c = CHART_CAP ?? []; CHART_CAP = null; return c; }
+export function captureChart(id: string, def: ChartDef): void { if (CHART_CAP && id) CHART_CAP.push({ id, def }); }
 
 interface Base {
   dark: boolean;
@@ -565,6 +576,7 @@ export class ChartManager {
     if (typeof ApexCharts === 'undefined') return;
     const el = document.getElementById(elId);
     if (!el) return;
+    captureChart(elId, def);
     const inst = new ApexCharts(el, buildOptions(def));
     this.charts.set(elId, inst);
     // render() is async; in a freshly (re)built grid it can measure a transient or
