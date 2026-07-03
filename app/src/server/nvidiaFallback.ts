@@ -10,6 +10,7 @@
  * Só um fetch — a NVIDIA é OpenAI-compatible, sem dependência nova. */
 
 import type Anthropic from '@anthropic-ai/sdk';
+import { getSetting } from './appSettings.js';
 
 const DEFAULT_BASE = 'https://integrate.api.nvidia.com/v1';
 // Melhor → pior p/ o NOSSO caso (deepen = agentic tool-use multi-turn + JSON forçado),
@@ -17,7 +18,13 @@ const DEFAULT_BASE = 'https://integrate.api.nvidia.com/v1';
 // build.nvidia; sobrescreva com NVIDIA_FALLBACK_MODELS="a,b,c" se preciso.
 const DEFAULT_MODELS = 'z-ai/glm-5.2,deepseek-ai/deepseek-v4-pro,moonshotai/kimi-k2.6';
 
+/** Fallback ativo = tem key E o toggle do app não está desligado (default: ligado).
+ *  Desligado + erro de crédito → o erro de crédito volta ao usuário como antes. */
 export function nvidiaConfigured(): boolean {
+  return !!process.env.NVIDIA_API_KEY && getSetting('nvidia_fallback', '1') !== '0';
+}
+/** Só a presença da key (independe do toggle) — p/ a UI mostrar o estado real. */
+export function nvidiaKeyPresent(): boolean {
   return !!process.env.NVIDIA_API_KEY;
 }
 export function nvidiaModels(): string[] {

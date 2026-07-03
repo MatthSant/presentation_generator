@@ -402,10 +402,12 @@ export interface FewShotExample { instrucao: string; modal: unknown }
 
 function usageOf(msg: Anthropic.Message): ModalUsage {
   const u = (msg.usage || {}) as Usage;
-  const c = costOf(u) as { usd?: number } | undefined;
+  const model = (msg as { model?: string }).model || MODEL;
   // model REAL da resposta (Anthropic ecoa o modelo; no fallback é o id NVIDIA) → o
-  // histórico do detalhamento registra qual modelo de fato gerou.
-  return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model: (msg as { model?: string }).model || MODEL };
+  // histórico do detalhamento registra qual modelo de fato gerou. Custo só p/ modelos
+  // Anthropic; os endpoints do build.nvidia são gratuitos → custo 0.
+  const c = model.startsWith('claude') ? (costOf(u) as { usd?: number } | undefined) : undefined;
+  return { tokensIn: u.input_tokens || 0, tokensOut: u.output_tokens || 0, costUsd: c?.usd || 0, model };
 }
 
 export function sumUsage(a: ModalUsage | undefined, b: ModalUsage): ModalUsage {

@@ -27,6 +27,14 @@
     .tcard-msg { font-size: 13px; font-weight: 600; }
     .tcard-msg.ok { color: var(--ok-fg, #15803d); }
     .tcard-msg.err { color: var(--err-fg, #b91c1c); }
+    .nv-toggle { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .nv-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .nv-slider { position: relative; flex-shrink: 0; width: 42px; height: 24px; border-radius: 999px; background: var(--border-strong, #cbd5e1); transition: background .16s; }
+    .nv-slider::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .16s; }
+    .nv-toggle input:checked + .nv-slider { background: var(--purple); }
+    .nv-toggle input:checked + .nv-slider::after { transform: translateX(18px); }
+    .nv-toggle input:disabled + .nv-slider { opacity: .6; }
+    .nv-lbl { font-size: 13.5px; font-weight: 600; color: var(--fg); }
   </style>
 </head>
 <body>
@@ -66,6 +74,17 @@
         <button class="btn btn--primary" id="temp-save" type="button">Salvar padrão geral</button>
         <span class="tcard-msg" id="temp-msg"></span>
       </div>
+    </div>
+
+    <p class="cfg-sec-label">IA — Fallback (build.nvidia)</p>
+    <p class="cfg-note">Quando a API da Anthropic (Claude) fica <strong>sem crédito</strong>, o app pode gerar os detalhamentos/insights pelo <strong>build.nvidia</strong> (endpoints gratuitos). Desligado, um erro de crédito aparece normalmente — como antes.</p>
+    <div class="tcard">
+      <label class="nv-toggle">
+        <input type="checkbox" id="nv-fallback" />
+        <span class="nv-slider"></span>
+        <span class="nv-lbl">Usar o build.nvidia como fallback quando o Claude estiver sem crédito</span>
+      </label>
+      <p class="cfg-note" id="nv-status" style="margin-top:12px"></p>
     </div>
 
     <p class="cfg-sec-label">Manutenção</p>
@@ -112,6 +131,36 @@
       } catch (e) { alert('Erro ao restaurar: ' + e.message); restoreBtn.disabled = false; }
     });
     refreshArchived();
+  </script>
+
+  <script>
+    // ── Fallback build.nvidia: liga/desliga (persistido em app_settings) ──
+    (async () => {
+      const cb = document.getElementById('nv-fallback');
+      const st = document.getElementById('nv-status');
+      const showKey = (present) => {
+        st.className = 'cfg-note';
+        st.innerHTML = present
+          ? '✓ Chave <code>NVIDIA_API_KEY</code> configurada no <code>.env</code>.'
+          : '⚠ Sem <code>NVIDIA_API_KEY</code> no <code>.env</code> — o fallback não roda mesmo ligado.';
+      };
+      try {
+        const s = await (await fetch('/api/settings')).json();
+        cb.checked = !!s.nvidiaFallback;
+        showKey(!!s.nvidiaKeyPresent);
+      } catch { st.textContent = 'Não foi possível carregar as configurações.'; }
+      cb.addEventListener('change', async () => {
+        cb.disabled = true;
+        const prev = !cb.checked;
+        try {
+          const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nvidiaFallback: cb.checked }) });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || 'falha');
+          cb.checked = !!d.nvidiaFallback;
+        } catch (e) { cb.checked = prev; alert('Falha ao salvar: ' + e.message); }
+        finally { cb.disabled = false; }
+      });
+    })();
   </script>
 
   <script src="/js/temp-rules.js"></script>

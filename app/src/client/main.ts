@@ -590,7 +590,10 @@ class App {
       if (!w.id || !App.DEEPENABLE.has(w.type)) continue;
       const tile = ROOT.querySelector<HTMLElement>(`[data-widget-id="${w.id}"]`);
       if (!tile || tile.querySelector(':scope > .tile-deepen, :scope > .tile-detail-link, :scope > .tile-revisar')) continue;
-      const title = (w as { title?: string }).title || '';
+      // Assunto do bloco: title, senão label/ind/name (kpi-cards usam `label`, ex.:
+      // "Atingimento · Leads") — sem isso a pill do composer fica vazia e o deepen perde a âncora.
+      const wl = w as { title?: string; label?: string; ind?: string; name?: string };
+      const title = wl.title || wl.label || wl.ind || wl.name || '';
       if (isDet) {
         tile.appendChild(this.revisarButton(title, (instr) => void this.revisarDetSection(section.id, instr)));
         continue;
