@@ -762,6 +762,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
   const regInfo: Record<string, { num: string[]; dim: string[] }> = {};   // key → colunas (p/ o modelo escolher o dataset certo no reparo)
+  const queryCache = new Map<string, string>();   // (funcao+args) → tool_result: dedup de consultas repetidas (modelos fracos repetem a mesma)
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
   let usage: ModalUsage | undefined;
@@ -824,6 +825,11 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
         continue;
       }
       const { funcao, ...args } = t.input as { funcao: string; [k: string]: unknown };
+      // Dedup: consulta idêntica já feita → devolve o MESMO resultado (mesmo dataset_key),
+      // sem re-rodar o motor nem criar tabela duplicada (que confundia a escolha do bind).
+      const cacheKey = JSON.stringify([funcao, args]);
+      const cached = queryCache.get(cacheKey);
+      if (cached) { results.push({ type: 'tool_result', tool_use_id: t.id, content: cached }); continue; }
       const r = await deps.runQuery(funcao, args);
       let content: string;
       if (r.status === 'ok' && r.table) {
@@ -848,6 +854,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
       } else {
         content = JSON.stringify({ status: r.status, motivo: r.motivo });
       }
+      queryCache.set(cacheKey, content);
       results.push({ type: 'tool_result', tool_use_id: t.id, content });
     }
     if (toolUses.some((t) => t.name === 'consultar')) consultaTurns++;
