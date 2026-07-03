@@ -386,17 +386,25 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     const sep = detectSep(lines[0]);
     const header = splitCsv(lines[0], sep);
     const seen: Record<string, Set<string>> = {};
-    header.forEach((c) => { seen[c] = new Set(); });
-    for (const line of lines.slice(1, 5001)) {
+    const weight: Record<string, Record<string, number>> = {};
+    header.forEach((c) => { seen[c] = new Set(); weight[c] = {}; });
+    // Peso por valor = soma de `total_leads` da linha (o editor mostra a
+    // representatividade de cada grupo); sem essa coluna, cai p/ contagem de linhas.
+    const leadsIdx = header.indexOf('total_leads');
+    for (const line of lines.slice(1)) {
       const cells = splitCsv(line, sep);
+      const w = leadsIdx >= 0 ? (Number(String(cells[leadsIdx] ?? '').replace(',', '.')) || 0) : 1;
       header.forEach((c, i) => {
         const v = (cells[i] ?? '').trim();
-        if (v && seen[c].size < 40) seen[c].add(v);
+        if (!v) return;
+        if (seen[c].size < 40) seen[c].add(v);
+        if (seen[c].has(v)) weight[c][v] = (weight[c][v] || 0) + w;
       });
     }
     const distinct: Record<string, string[]> = {};
-    header.forEach((c) => { distinct[c] = [...seen[c]]; });
-    res.json({ columns: header, distinct, sep: sep === '\t' ? '\\t' : sep });
+    const counts: Record<string, Record<string, number>> = {};
+    header.forEach((c) => { distinct[c] = [...seen[c]]; counts[c] = weight[c]; });
+    res.json({ columns: header, distinct, counts, weightBy: leadsIdx >= 0 ? 'leads' : 'linhas', sep: sep === '\t' ? '\\t' : sep });
   });
 }
 
