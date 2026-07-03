@@ -27,36 +27,9 @@
     .cr .g-crit-body .g-field input:focus { border-color: var(--purple); }
     .cr .g-ckbox { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); }
 
-    /* Editor de grupos: chips reordenáveis (arrastar) + juntar por seleção.
-       O seletor precisa de 3 classes p/ vencer `.g-crit-body .g-field { flex:1 }`
-       e ocupar a LARGURA CHEIA (linha própria abaixo de Rótulo/Abreviação). */
+    /* O editor de grupos (chips) vem do helper /js/group-editor.js (namespace ge-*);
+       aqui só o container ocupa a LARGURA CHEIA (3 classes p/ vencer .g-field{flex:1}). */
     .cr .g-crit-body .g-ord { flex: 1 1 100%; min-width: 0; }
-    .cr .g-ord-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-    .cr .g-ord-head label { font-size: 12px; font-weight: 700; color: var(--fg); margin-right: auto; }
-    .cr .g-tool { font-size: 11.5px; font-weight: 600; color: var(--purple); background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.22); border-radius: 6px; padding: 4px 9px; cursor: pointer; }
-    .cr .g-tool:hover { background: rgba(124,58,237,.15); }
-    .cr .g-tool[disabled] { opacity: .4; cursor: default; }
-    .cr .g-tool.merge { color: #fff; background: var(--purple); border-color: var(--purple); }
-    .cr .g-groups { display: flex; flex-direction: column; gap: 5px; }
-    .cr .g-chip { display: flex; align-items: center; gap: 9px; background: var(--card, #fff); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; transition: border-color .12s, background .12s; }
-    .cr .g-chip:hover { border-color: var(--purple); }
-    .cr .g-chip.sel { border-color: var(--purple); background: rgba(124,58,237,.06); box-shadow: inset 0 0 0 1px var(--purple); }
-    .cr .g-chip.drag-over { border-color: var(--purple); border-style: dashed; }
-    .cr .g-chip.dragging { opacity: .45; }
-    .cr .g-grip { cursor: grab; color: var(--gray2); font-size: 13px; line-height: 1; flex-shrink: 0; user-select: none; }
-    /* 4 classes p/ vencer `.g-crit-body .g-field input` (senão o nome herda o
-       box estreito do input padrão e CORTA). Cresce p/ preencher a linha. */
-    .cr .g-crit-body .g-ord .g-name { flex: 1 1 auto; min-width: 150px; width: auto; box-sizing: border-box; font-size: 13px; font-weight: 600; color: var(--fg); background: var(--card, #fff); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; outline: none; }
-    .cr .g-crit-body .g-ord .g-name:focus { border-color: var(--purple); }
-    .cr .g-merged { font-size: 10.5px; color: var(--gray2); flex-shrink: 0; }
-    .cr .g-w { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .cr .g-w-bar { width: 54px; height: 6px; border-radius: 3px; background: rgba(0,0,0,.06); overflow: hidden; }
-    .cr .g-w-bar > i { display: block; height: 100%; background: var(--purple); border-radius: 3px; }
-    .cr .g-w-n { font-size: 10.5px; font-weight: 700; color: var(--gray2); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
-    .cr .g-mv { border: none; background: none; color: var(--gray2); cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 3px; border-radius: 4px; }
-    .cr .g-mv:hover { color: var(--purple); background: rgba(124,58,237,.1); }
-    .cr .g-split { border: none; background: none; color: var(--gray2); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; }
-    .cr .g-split:hover { color: var(--purple); background: rgba(124,58,237,.1); }
   </style>
 </head>
 <body class="cr">
@@ -142,6 +115,7 @@
   <script src="/js/criar-secnav.js" defer></script>
   <script src="/js/client-picker.js"></script>
   <script src="/js/gen-progress.js"></script>
+  <script src="/js/group-editor.js"></script>
   <script type="module">
     const $ = (id) => document.getElementById(id);
     const FIXED = new Set(['field_conversion', 'tipo_trafego', 'total_leads', 'vendas_lancamento', 'vendas_6meses', 'vendas_12meses']);
@@ -171,19 +145,15 @@
       }
     });
 
-    // Modelo de grupos por coluna: [{ final, raws:[...] }] na ordem de exibição.
-    // WEIGHT[col][valorBruto] = representatividade (soma de total_leads).
-    const GROUPS = {}, WEIGHT = {}, SEL = {};
+    // Um editor de grupos (chips) por critério — /js/group-editor.js. EDS[col] guarda
+    // a instância p/ o buildConfig ler os grupos no submit.
+    const EDS = {};
     const esc = (s) => (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const fmtN = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + 'k' : String(Math.round(n));
 
     function renderCriterios() {
       const cand = INSPECT.columns.filter((c) => !FIXED.has(c));
       $('crit-list').innerHTML = cand.map((col) => {
         const vals = (INSPECT.distinct[col] || []);
-        GROUPS[col] = vals.map((v) => ({ final: v, raws: [v] }));
-        WEIGHT[col] = (INSPECT.counts && INSPECT.counts[col]) || {};
-        SEL[col] = new Set();
         const guessLabel = col.startsWith('custom_field') ? '' : col.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
         const ordinal = /idade|renda|patrim|tempo|faixa/i.test(col);
         return `
@@ -198,103 +168,19 @@
             <div class="g-field"><label>Rótulo (página)</label><input data-label value="${esc(guessLabel)}" placeholder="ex.: Renda Mensal" /></div>
             <div class="g-field" style="max-width:140px"><label>Abreviação</label><input data-abbr value="${esc(guessLabel.split(' ')[0] || '')}" /></div>
             <div class="g-field" style="flex:0 0 auto;justify-content:flex-end"><label>&nbsp;</label><span class="g-ckbox"><input type="checkbox" data-ordinal ${ordinal ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--purple)" /> ordinal (faixa)</span></div>
-            <div class="g-field g-ord">
-              <div class="g-ord-head">
-                <label>Grupos <span style="font-weight:500;color:var(--gray2)">· ${INSPECT.weightBy === 'leads' ? 'leads' : 'linhas'} por grupo</span></label>
-                <button type="button" class="g-tool merge" data-act="merge" disabled>Juntar</button>
-                <button type="button" class="g-tool" data-act="sort-range">Ordenar faixa</button>
-                <button type="button" class="g-tool" data-act="sort-size">Ordenar tamanho</button>
-              </div>
-              <div class="g-groups" data-groups></div>
-            </div>
+            <div class="g-field g-ord" data-editor></div>
           </div>
         </div>`;
       }).join('');
       for (const el of $('crit-list').querySelectorAll('.g-crit')) {
+        const col = el.dataset.col;
         el.querySelector('[data-on]').addEventListener('change', (e) => el.classList.toggle('on', e.target.checked));
-        wireCrit(el);
-        renderGroups(el);
+        const groups = (INSPECT.distinct[col] || []).map((v) => ({ final: v, raws: [v] }));
+        EDS[col] = window.mountGroupEditor(el.querySelector('[data-editor]'), {
+          groups, weights: (INSPECT.counts && INSPECT.counts[col]) || null, weightBy: INSPECT.weightBy, ordinal: true,
+        });
       }
     }
-
-    function maxW(col) { return Math.max(1, ...GROUPS[col].map((g) => groupW(col, g))); }
-    function groupW(col, g) { return g.raws.reduce((s, r) => s + (WEIGHT[col][r] || 0), 0); }
-
-    function renderGroups(el) {
-      const col = el.dataset.col;
-      const box = el.querySelector('[data-groups]');
-      const mx = maxW(col);
-      box.innerHTML = GROUPS[col].map((g, i) => {
-        const w = groupW(col, g);
-        const sel = SEL[col].has(i) ? ' sel' : '';
-        const merged = g.raws.length > 1
-          ? `<span class="g-merged" title="${esc(g.raws.join(' · '))}">↳ ${g.raws.length} juntos</span><button type="button" class="g-split" data-split="${i}" title="Separar">separar</button>`
-          : '';
-        return `<div class="g-chip${sel}" draggable="true" data-i="${i}">
-          <span class="g-grip">⠿</span>
-          <input class="g-name" data-name="${i}" value="${esc(g.final)}" />
-          ${merged}
-          <span class="g-w">
-            <span class="g-w-bar"><i style="width:${Math.round(w / mx * 100)}%"></i></span>
-            <span class="g-w-n">${fmtN(w)}</span>
-            <button type="button" class="g-mv" data-mv="up:${i}" title="Subir">▲</button>
-            <button type="button" class="g-mv" data-mv="dn:${i}" title="Descer">▼</button>
-          </span>
-        </div>`;
-      }).join('');
-      el.querySelector('.g-crit-n').textContent = GROUPS[col].length + ' grupos';
-      el.querySelector('[data-act="merge"]').disabled = SEL[col].size < 2;
-    }
-
-    function wireCrit(el) {
-      const col = el.dataset.col;
-      const box = el.querySelector('[data-groups]');
-      let dragFrom = null;
-
-      box.addEventListener('click', (e) => {
-        const mv = e.target.closest('[data-mv]');
-        if (mv) { const [d, i] = mv.dataset.mv.split(':'); move(col, +i, d === 'up' ? -1 : 1); SEL[col].clear(); renderGroups(el); return; }
-        const sp = e.target.closest('[data-split]');
-        if (sp) { split(col, +sp.dataset.split); SEL[col].clear(); renderGroups(el); return; }
-        if (e.target.closest('.g-name')) return;   // clique no nome = editar, não selecionar
-        const chip = e.target.closest('.g-chip'); if (!chip) return;
-        const i = +chip.dataset.i;
-        if (SEL[col].has(i)) SEL[col].delete(i); else SEL[col].add(i);
-        renderGroups(el);
-      });
-      box.addEventListener('change', (e) => {
-        const nm = e.target.closest('.g-name');
-        if (nm) { GROUPS[col][+nm.dataset.name].final = nm.value.trim() || GROUPS[col][+nm.dataset.name].final; }
-      });
-      // reordenar por arrasto
-      box.addEventListener('dragstart', (e) => { const c = e.target.closest('.g-chip'); if (!c) return; dragFrom = +c.dataset.i; c.classList.add('dragging'); });
-      box.addEventListener('dragend', (e) => { e.target.closest('.g-chip')?.classList.remove('dragging'); box.querySelectorAll('.drag-over').forEach((n) => n.classList.remove('drag-over')); });
-      box.addEventListener('dragover', (e) => { e.preventDefault(); const c = e.target.closest('.g-chip'); box.querySelectorAll('.drag-over').forEach((n) => n.classList.remove('drag-over')); if (c) c.classList.add('drag-over'); });
-      box.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const c = e.target.closest('.g-chip'); if (c == null || dragFrom == null) return;
-        const to = +c.dataset.i;
-        const [g] = GROUPS[col].splice(dragFrom, 1); GROUPS[col].splice(to, 0, g);
-        dragFrom = null; SEL[col].clear(); renderGroups(el);
-      });
-      // toolbar
-      el.querySelector('[data-act="merge"]').addEventListener('click', () => { mergeSel(col); renderGroups(el); });
-      el.querySelector('[data-act="sort-range"]').addEventListener('click', () => { sortRange(col); SEL[col].clear(); renderGroups(el); });
-      el.querySelector('[data-act="sort-size"]').addEventListener('click', () => { GROUPS[col].sort((a, b) => groupW(col, b) - groupW(col, a)); SEL[col].clear(); renderGroups(el); });
-    }
-
-    function move(col, i, d) { const j = i + d; if (j < 0 || j >= GROUPS[col].length) return; const a = GROUPS[col]; [a[i], a[j]] = [a[j], a[i]]; }
-    function split(col, i) { const g = GROUPS[col][i]; GROUPS[col].splice(i, 1, ...g.raws.map((r) => ({ final: r, raws: [r] }))); }
-    function mergeSel(col) {
-      const idx = [...SEL[col]].sort((a, b) => a - b); if (idx.length < 2) return;
-      const groups = idx.map((i) => GROUPS[col][i]);
-      const merged = { final: groups[0].final, raws: groups.flatMap((g) => g.raws) };
-      GROUPS[col] = GROUPS[col].filter((_, i) => !SEL[col].has(i));
-      GROUPS[col].splice(idx[0], 0, merged);   // fica na posição do primeiro selecionado
-      SEL[col].clear();
-    }
-    const rangeNum = (s) => { const m = String(s).match(/-?\d+([.,]\d+)?/); return m ? parseFloat(m[0].replace(',', '.')) : Infinity; };
-    function sortRange(col) { GROUPS[col].sort((a, b) => rangeNum(a.final) - rangeNum(b.final)); }
 
     function buildConfig() {
       const client = $('f-client').value;
@@ -305,14 +191,8 @@
         const label = el.querySelector('[data-label]').value.trim() || col;
         const abbr = el.querySelector('[data-abbr]').value.trim() || label;
         const ordinal = el.querySelector('[data-ordinal]').checked;
-        // order = nomes finais na ordem dos chips; aliases = cada bruto → seu final
-        // (só quando difere), reconstruindo o mesmo contrato do config.
-        const order = [], aliases = {};
-        for (const g of (GROUPS[col] || [])) {
-          const fin = (g.final || '').trim(); if (!fin) continue;
-          if (!order.includes(fin)) order.push(fin);
-          for (const raw of g.raws) if (raw !== fin) aliases[raw] = fin;
-        }
+        // order = nomes finais na ordem dos chips; aliases = cada bruto → seu final.
+        const { order, aliases } = window.configFromGroups(EDS[col] ? EDS[col].getGroups() : []);
         criterios.push({
           id: slugify(abbr) || slugify(col), col, label, tab: label, abbr,
           order, short_labels: {}, cores: CORES.slice(), aliases, ordinal,

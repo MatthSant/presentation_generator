@@ -9,6 +9,7 @@ public/js/*
 !public/js/temp-rules.js
 !public/js/montar.js
 !public/js/gen-progress.js
+!public/js/group-editor.js
 *.tsbuildinfo
 *.log
 coverage/
