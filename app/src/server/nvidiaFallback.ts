@@ -13,10 +13,11 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { getSetting } from './appSettings.js';
 
 const DEFAULT_BASE = 'https://integrate.api.nvidia.com/v1';
-// Melhor → pior p/ o NOSSO caso (deepen = agentic tool-use multi-turn + JSON forçado),
-// não raciocínio puro: lidera o GLM-5.2 (flagship agentic/coding). IDs exatos variam no
-// build.nvidia; sobrescreva com NVIDIA_FALLBACK_MODELS="a,b,c" se preciso.
-const DEFAULT_MODELS = 'z-ai/glm-5.2,deepseek-ai/deepseek-v4-pro,moonshotai/kimi-k2.6';
+// Ordem por DISPONIBILIDADE REAL no free tier do build.nvidia (medido jul/2026), não só
+// qualidade: o GLM-5.2 (embora rápido e bom) tem rate limit estrito e devolve 429 quase
+// sempre → fica por ÚLTIMO. Kimi lidera (rápido + confiável); deepseek robusto porém lento.
+// IDs exatos variam; sobrescreva com NVIDIA_FALLBACK_MODELS="a,b,c" (ex.: GLM 1º num tier pago).
+const DEFAULT_MODELS = 'moonshotai/kimi-k2.6,deepseek-ai/deepseek-v4-pro,z-ai/glm-5.2';
 
 /** Fallback ativo = tem key E o toggle do app não está desligado (default: ligado).
  *  Desligado + erro de crédito → o erro de crédito volta ao usuário como antes. */
@@ -149,14 +150,14 @@ export async function nvidiaFallback(
           await new Promise((r) => setTimeout(r, ra * 1000));
           continue;   // re-tenta o mesmo modelo
         }
-        if (!resp.ok) { lastErr = new Error(`NVIDIA ${model}: HTTP ${resp.status} ${(await resp.text()).slice(0, 200)}`); break; }
+        if (!resp.ok) { note?.(`NVIDIA ${model}: HTTP ${resp.status} — próximo modelo`); lastErr = new Error(`NVIDIA ${model}: HTTP ${resp.status} ${(await resp.text()).slice(0, 200)}`); break; }
         const json = (await resp.json()) as AnyRec;
         const out = fromOpenAI(json);
-        if (!out.content.length) { lastErr = new Error(`NVIDIA ${model}: resposta vazia`); break; }
+        if (!out.content.length) { note?.(`NVIDIA ${model}: resposta vazia — próximo modelo`); lastErr = new Error(`NVIDIA ${model}: resposta vazia`); break; }
         (out as { model?: string }).model = (out as { model?: string }).model || model;
         note?.(`fallback NVIDIA: ${(out as { model?: string }).model}`);
         return out;
-      } catch (e) { lastErr = e; break; }
+      } catch (e) { note?.(`NVIDIA ${model}: erro ${(e as Error).message.slice(0, 80)} — próximo modelo`); lastErr = e; break; }
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('NVIDIA fallback falhou');
