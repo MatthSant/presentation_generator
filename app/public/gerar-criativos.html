@@ -106,8 +106,8 @@
       if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV) { show('err', 'Escolha o CSV de criativos.'); return; }
       const cfg = { type: 'criativos' };
-      const rules = collectRules();
-      if (rules.length) { cfg.temp_rules = rules; cfg.temp_overwrite = $('tr-over').checked; }
+      const rules = tctl.getRules();
+      if (rules.length) { cfg.temp_rules = rules; cfg.temp_overwrite = tctl.getOverwrite(); }
       $('go').disabled = true;
       show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
       try {
