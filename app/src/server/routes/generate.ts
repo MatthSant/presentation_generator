@@ -294,8 +294,12 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       try { config = JSON.parse(String(req.body.config)) as Record<string, unknown>; }
       catch { res.status(400).json({ error: 'config inválido (JSON)' }); return; }
     } else { config = { ...retainedCfg }; }
-    const type = typeof config.type === 'string' ? config.type : (retainedCfg.type as string);
-    if (!type || !TYPES[type]) { res.status(400).json({ error: `tipo desconhecido: ${type}` }); return; }
+    // Configs antigos de conversao-perfil não têm `type` — mesmo fallback do /generate
+    // (novo config → config retido → conversao-perfil). Só erra se vier um tipo EXPLÍCITO
+    // desconhecido. Sem isso, atualizar uma análise legada dava "tipo desconhecido: undefined".
+    const type = typeof config.type === 'string' ? config.type
+      : (typeof retainedCfg.type === 'string' ? retainedCfg.type : 'conversao-perfil');
+    if (!TYPES[type]) { res.status(400).json({ error: `tipo desconhecido: ${type}` }); return; }
     const def = TYPES[type];
     config.type = type; config.client = client;
     config.client_name = String(config.client_name || retainedCfg.client_name || '').trim() || clientName(client) || client;
