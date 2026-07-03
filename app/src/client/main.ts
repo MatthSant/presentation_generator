@@ -13,6 +13,7 @@ import { Dashboard } from './dashboard.js';
 import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, chartCaptureStart, chartCaptureEnd, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
+import { DeepenQueue } from './deepen-queue.js';
 import { HistoricoFilters } from './historico-controls.js';
 import { CriativosControls } from './criativos-controls.js';
 import { DebriefingControls, type DebFilters } from './debriefing-controls.js';
@@ -38,8 +39,6 @@ class App {
   private modalChartDefs = new Map<string, { elId: string; def: ChartDef }[]>();
   private openedModals = new Set<string>();
   private editing = false;
-  /** Modal id to auto-open after the next section (re)render — set by deepen. */
-  private pendingModal: string | null = null;
   private perguntas: PerguntasView | null = null;
   /** Instância do controle type-specific montado (registry por meta.controls.kind). */
   private typeControls: TypeControls | null = null;
@@ -54,6 +53,8 @@ class App {
   /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
   private debFilters: DebFilters | null = null;
   private busyEl: HTMLElement | null = null;
+  /** Fila NÃO-bloqueante de aprofundamentos/detalhamentos (painel canto inf. esq.). */
+  private queue: DeepenQueue;
 
   /** Registry dos controles interativos por meta.controls.kind (o kind vem do
    *  typeRegistry do servidor). Tipo novo com controles = classe *-controls.ts +
@@ -107,6 +108,10 @@ class App {
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
     this.nav = new Navigation(this.store, (p, s) => void this.go(p, s));
+    this.queue = new DeepenQueue({
+      onToast: (m) => this.toast(m),
+      onError: (e, retry) => this.showDeepenError(e, retry),
+    });
     this.wireModals();
     this.wireLayoutEditor();
     document.getElementById('export-html-btn')?.addEventListener('click', () => void this.exportHtml());
@@ -310,11 +315,6 @@ class App {
       rt.classList.add('rate--section');
       host.appendChild(rt);
     }
-
-    if (this.pendingModal && (section.modals || []).some(m => m.id === this.pendingModal)) {
-      this.openModal(this.pendingModal);
-      this.pendingModal = null;
-    }
   }
 
   /** Após descartar uma seção det-*: tira-a do nav (e remove a página Detalhamentos
@@ -487,63 +487,61 @@ class App {
     }
   }
 
-  /** Tela de erro no overlay quando o detalhamento é REPROVADO após todas as tentativas:
-   *  explica em itens o que falhou e oferece "Rerodar" (re-executa a mesma geração). */
-  private busyError(error: unknown, onRetry: () => void): void {
-    this.ensureBusy();
-    if (!this.busyEl) return;
-    this.busyEl.querySelector<HTMLElement>('.busy-load')!.hidden = true;
-    const err = this.busyEl.querySelector<HTMLElement>('.busy-err')!;
+
+  /** Diálogo de erro de um job REPROVADO da fila (não bloqueia): mesmo detalhamento
+   *  de motivos/sugestões do overlay antigo, com "Rerodar". Aberto pelo botão
+   *  "Detalhes" de um job com erro no painel da fila. */
+  private showDeepenError(error: unknown, onRetry: () => void): void {
     const e = error as { message?: string; blocking?: string[]; suggestions?: string[]; code?: string };
-    // Falta de crédito na API → tela própria (não é defeito do detalhamento).
+    let inner: string;
     if (e?.code === 'no_credit') {
-      err.querySelector<HTMLElement>('.busy-err-title')!.textContent = '⚠ Sem crédito na API';
-      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar conteúdo com IA.';
-      err.querySelector<HTMLElement>('.busy-err-block')!.hidden = true;
-      err.querySelector<HTMLElement>('.busy-err-sug')!.hidden = true;
-      err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
-      err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
-      err.hidden = false; this.busyEl.hidden = false;
-      return;
+      inner = `<div class="busy-err-title">⚠ Sem crédito na API</div>
+        <p class="busy-err-sub">${esc(e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar conteúdo com IA.')}</p>`;
+    } else {
+      const msg = e?.message || String(error || '');
+      const sep = msg.indexOf('—');
+      const head = (sep >= 0 ? msg.slice(0, sep) : msg).trim();
+      const blocking = (e?.blocking && e.blocking.length) ? e.blocking
+        : (sep >= 0 ? msg.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
+      const suggestions = e?.suggestions || [];
+      inner = `<div class="busy-err-title">Não foi possível gerar com a IA</div>
+        <p class="busy-err-sub">${esc(head || 'Falha na geração.')}</p>
+        ${blocking.length ? `<div class="busy-err-block"><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues">${blocking.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>` : ''}
+        ${suggestions.length ? `<div class="busy-err-sug"><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist">${suggestions.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>` : ''}`;
     }
-    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar com a IA';
-    const msg = e?.message || String(error || '');
-    // motivo (antes do '—') no topo; ERROS (blocking) e SUGESTÕES em listas separadas.
-    const sep = msg.indexOf('—');
-    const head = (sep >= 0 ? msg.slice(0, sep) : msg).trim();
-    const blocking = (e?.blocking && e.blocking.length) ? e.blocking
-      : (sep >= 0 ? msg.slice(sep + 1) : '').split(/;\s*/).map(s => s.trim()).filter(Boolean);
-    const suggestions = e?.suggestions || [];
-    err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = head || 'Falha na geração.';
-    const blockBox = err.querySelector<HTMLElement>('.busy-err-block')!;
-    blockBox.hidden = blocking.length === 0;
-    err.querySelector<HTMLElement>('.busy-err-issues')!.innerHTML = blocking.map(i => `<li>${esc(i)}</li>`).join('');
-    const sugBox = err.querySelector<HTMLElement>('.busy-err-sug')!;
-    sugBox.hidden = suggestions.length === 0;
-    err.querySelector<HTMLElement>('.busy-err-suglist')!.innerHTML = suggestions.map(i => `<li>${esc(i)}</li>`).join('');
-    err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
-    err.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => this.setBusy(false);
-    err.hidden = false;
-    this.busyEl.hidden = false;
+    const dlg = document.createElement('dialog');
+    dlg.className = 'deepen-dlg';
+    dlg.innerHTML = `<div class="busy-err" style="border:none;box-shadow:none;padding:2px 2px 0;max-width:none">${inner}
+      <div class="busy-err-actions"><button type="button" class="busy-err-close">Fechar</button><button type="button" class="busy-err-retry">↻ Rerodar</button></div></div>`;
+    document.body.appendChild(dlg);
+    dlg.querySelector<HTMLButtonElement>('.busy-err-close')!.onclick = () => dlg.close();
+    dlg.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { dlg.close(); onRetry(); };
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
   }
 
   /** Follow a question: the server generates its detalhamento as a new section on
-   *  the Detalhamentos page; we refresh the nav and jump straight to it. */
-  private async seguirPergunta(p: Pergunta): Promise<void> {
-    this.setBusy(true, 'Gerando aprofundamento…');
-    try {
-      const r = await this.api.seguirPergunta(p.id);
-      // The nav map changed (new section, maybe a new page) → reload + rebuild.
-      this.store.data = await this.api.getData();
-      this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
-      this.nav.build();
-      await this.go(r.pageId, r.sectionId);
-      this.toast(r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado');
-      this.setBusy(false);
-    } catch (e) {
-      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
-      this.busyError(e, () => void this.seguirPergunta(p));
-    }
+   *  the Detalhamentos page; the queue refreshes the nav; "Ver" jumps to it. */
+  private seguirPergunta(p: Pergunta): void {
+    this.queue.add({
+      kind: 'aprofundamento',
+      label: 'Aprofundamento',
+      sub: p.pergunta,
+      run: async () => {
+        const r = await this.api.seguirPergunta(p.id);
+        // The nav map changed (new section, maybe a new page) → reload + rebuild,
+        // mas SEM roubar a tela do usuário (só o botão "Ver" navega).
+        this.store.data = await this.api.getData();
+        this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+        this.nav.build();
+        this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
+        if (this.store.page(this.store.currentPageId)?.kind === 'perguntas') void this.renderPerguntas();
+        return {
+          toast: r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado',
+          view: () => void this.go(r.pageId, r.sectionId),
+        };
+      },
+    });
   }
 
   private async ignorarPergunta(p: Pergunta): Promise<void> {
@@ -587,20 +585,24 @@ class App {
     ta.focus();
   }
 
-  private async criarPerguntaCustom(text: string): Promise<void> {
-    this.setBusy(true, 'Criando aprofundamento…');
-    try {
-      const r = await this.api.addCustomPergunta(text);
-      this.store.data = await this.api.getData();
-      this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
-      this.nav.build();
-      await this.go(r.pageId, r.sectionId);
-      this.toast(r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado');
-    } catch (e) {
-      this.toast(`Falha ao adicionar pergunta: ${(e as Error).message}`);
-    } finally {
-      this.setBusy(false);
-    }
+  private criarPerguntaCustom(text: string): void {
+    this.queue.add({
+      kind: 'aprofundamento',
+      label: 'Aprofundamento',
+      sub: text,
+      run: async () => {
+        const r = await this.api.addCustomPergunta(text);
+        this.store.data = await this.api.getData();
+        this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+        this.nav.build();
+        this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
+        if (this.store.page(this.store.currentPageId)?.kind === 'perguntas') void this.renderPerguntas();
+        return {
+          toast: r.mocked ? 'Aprofundamento criado (modo mock)' : 'Aprofundamento criado',
+          view: () => void this.go(r.pageId, r.sectionId),
+        };
+      },
+    });
   }
 
   /** Content widget types worth deepening (skips eyebrows, notes, kpi strips). */
@@ -681,7 +683,7 @@ class App {
       const go = dlg.returnValue === 'go';
       dlg.remove();
       if (!go || !prompt) return;
-      void this.runDeepen(secId, blockId, prompt);
+      this.runDeepen(secId, blockId, prompt, undefined, cardTitle);
     });
     dlg.showModal();
     ta.focus();
@@ -728,33 +730,45 @@ class App {
 
   /** Revisão de uma seção det-* (aprofundamento): regenera a própria seção com o
    *  comentário. Compartilhado pelo rodapé geral e pelos botões por bloco. */
-  private async revisarDetSection(sectionId: string, comentario: string): Promise<void> {
-    this.setBusy(true, 'Revisando o aprofundamento…');
-    try {
-      await this.api.revisarDet(sectionId, comentario);
-      this.store.dropSection(sectionId);
-      await this.go(this.store.currentPageId, sectionId, true);
-      this.toast('Aprofundamento revisado.');
-    } catch (e) {
-      this.toast(`Falha na revisão: ${(e as Error).message}`);
-    } finally { this.setBusy(false); }
+  private revisarDetSection(sectionId: string, comentario: string): void {
+    const pageId = this.store.currentPageId;
+    this.queue.add({
+      kind: 'revisao',
+      label: 'Revisão do aprofundamento',
+      sub: comentario,
+      run: async () => {
+        await this.api.revisarDet(sectionId, comentario);
+        this.store.dropSection(sectionId);
+        if (this.store.currentSectionId === sectionId) await this.go(this.store.currentPageId, sectionId, true);
+        return { toast: 'Aprofundamento revisado', view: () => void this.go(pageId, sectionId) };
+      },
+    });
   }
 
-  private async runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<void> {
-    this.setBusy(true, prev ? 'Ajustando o detalhamento…' : 'Gerando detalhamento…');
-    try {
-      const r = await this.api.deepen(secId, blockId, prompt, prev);
-      this.pendingModal = r.modal.id;
-      // Deep mode added new aggregate tables → refresh the dataset before re-render.
-      if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
-      this.store.dropSection(secId);
-      await this.go(this.store.currentPageId, secId);
-      this.toast(r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado');
-      this.setBusy(false);
-    } catch (e) {
-      // Reprovado após as tentativas (ou erro) → tela de erro com as pendências + rerodar.
-      this.busyError(e, () => void this.runDeepen(secId, blockId, prompt, prev));
-    }
+  /** Enfileira um detalhamento de bloco. `sub` = rótulo humano (título do card).
+   *  Não bloqueia: o job roda em 2º plano e o botão "Ver" abre o modal quando pronto. */
+  private runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown, sub?: string): void {
+    const pageId = this.store.currentPageId;
+    this.queue.add({
+      kind: 'detalhamento',
+      label: prev ? 'Ajuste de detalhamento' : 'Detalhamento',
+      sub: sub || prompt,
+      run: async () => {
+        const r = await this.api.deepen(secId, blockId, prompt, prev);
+        // Deep mode added new aggregate tables → refresh the dataset before re-render.
+        if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
+        this.store.dropSection(secId);
+        // Se o usuário está VENDO a seção do bloco, re-renderiza p/ a varinha virar
+        // "ver detalhe" (sem abrir o modal — não rouba a leitura).
+        if (this.store.currentSectionId === secId && this.store.currentPageId === pageId) {
+          await this.go(pageId, secId, true);
+        }
+        return {
+          toast: r.mocked ? 'Detalhamento criado (modo mock)' : 'Detalhamento criado',
+          view: async () => { await this.go(pageId, secId); this.openModal(r.modal.id); },
+        };
+      },
+    });
   }
 
   private headerEl(section: Section): HTMLElement {
@@ -853,7 +867,7 @@ class App {
    *  itera via prev; seção det-* regenera a própria seção). */
   // `noun` = "detalhamento" (bloco do relatório) ou "aprofundamento" (board de
   // perguntas) — o rodapé de rating serve os dois fluxos; a nomenclatura segue a origem.
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => void | Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
     const Noun = noun[0].toUpperCase() + noun.slice(1);
     const wrap = document.createElement('div');
     wrap.className = 'rate';
@@ -1421,18 +1435,7 @@ ${runtime}</script>
           if (openModal) this.openModal(openModal);
         });
       }
-    }, (msg) => this.setBusyMsg(msg));
-  }
-
-  /** Atualiza só o texto da tela de carregamento (estágio do detalhamento, via SSE)
-   *  sem mexer na visibilidade — ignorado se o overlay não está visível ou se a tela
-   *  de erro está à mostra. */
-  private setBusyMsg(msg: string): void {
-    if (!this.busyEl || this.busyEl.hidden) return;
-    const load = this.busyEl.querySelector<HTMLElement>('.busy-load');
-    if (!load || load.hidden) return;   // tela de erro à mostra → não sobrescreve
-    const m = this.busyEl.querySelector('.busy-msg');
-    if (m) m.textContent = msg;
+    }, (msg) => this.queue.setStage(msg));
   }
 }
 
