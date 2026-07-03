@@ -82,6 +82,7 @@
 
   <script src="/js/page-chrome.js" defer></script>
   <script src="/js/temp-rules.js"></script>
+  <script src="/js/group-editor.js"></script>
   <script>
     const qs = new URLSearchParams(location.search);
     const client = qs.get('c') || qs.get('client');
@@ -130,6 +131,7 @@
         CAPS = d.caps || {};   // registry: { temperature, goals, dict, goalsUi } — fonte única (sem Sets locais)
         $('form').hidden = false;
         buildForm(d.config);
+        setupCriteriosEditor(d.config);
         setupTempEditor(d.config);
         setupMetas(d.config);
         setupGoals(d.config);
@@ -194,11 +196,46 @@
       // arrays / objetos complexos (ex.: criterios, channels) → JSON avançado
       for (const [k, v] of adv) {
         if (k === 'temp_rules') continue;  // editado pelo editor de regras (não JSON)
+        if (k === 'criterios') continue;   // editado pelo editor de grupos (chips), não JSON
         const det = document.createElement('details'); det.className = 'adv';
         const sm = document.createElement('summary'); sm.textContent = `${label(k)} (avançado · JSON)`; det.appendChild(sm);
         const ta = document.createElement('textarea'); ta.dataset.json = k; ta.value = JSON.stringify(v, null, 2); ta.spellcheck = false;
         det.appendChild(ta); root.appendChild(det);
       }
+    }
+
+    // Editor de grupos (chips) por critério — substitui o JSON avançado dos
+    // `criterios` (conversao-perfil). Pré-preenchido pelo order+aliases atual;
+    // sem CSV re-inspecionado aqui, então sem barra de peso (só reordenar/juntar/renomear).
+    let CRIT_EDS = [];
+    function setupCriteriosEditor(cfg) {
+      if (!Array.isArray(cfg.criterios) || !cfg.criterios.length) return;
+      CRIT_EDS = [];
+      const card = document.createElement('div');
+      card.className = 'u-card';
+      card.innerHTML = '<p class="u-h">Critérios e grupos</p>'
+        + '<p class="u-hsub">Arraste para reordenar, clique em 2 ou mais e Juntar para fundir variantes, clique no nome para renomear.</p>';
+      for (const crit of cfg.criterios) {
+        const box = document.createElement('div');
+        box.style.cssText = 'border:1px solid var(--divider); border-radius:10px; padding:13px 15px; margin-top:12px;';
+        const hd = document.createElement('div');
+        hd.style.cssText = 'display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:11px;';
+        const lblFld = document.createElement('div'); lblFld.className = 'fld'; lblFld.style.cssText = 'flex:1; min-width:160px;';
+        lblFld.innerHTML = '<label>Rótulo (página)</label>';
+        const lblIn = document.createElement('input'); lblIn.value = crit.label || crit.col || ''; lblFld.appendChild(lblIn);
+        const abbrFld = document.createElement('div'); abbrFld.className = 'fld'; abbrFld.style.maxWidth = '140px';
+        abbrFld.innerHTML = '<label>Abreviação</label>';
+        const abbrIn = document.createElement('input'); abbrIn.value = crit.abbr || ''; abbrFld.appendChild(abbrIn);
+        const ordWrap = document.createElement('label'); ordWrap.style.cssText = 'display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--fg); padding-bottom:8px;';
+        const ordCb = document.createElement('input'); ordCb.type = 'checkbox'; ordCb.checked = !!crit.ordinal; ordCb.style.cssText = 'width:16px;height:16px;accent-color:var(--purple)';
+        ordWrap.append(ordCb, document.createTextNode(' ordinal (faixa)'));
+        hd.append(lblFld, abbrFld, ordWrap);
+        const host = document.createElement('div');
+        box.append(hd, host); card.appendChild(box);
+        const ed = window.mountGroupEditor(host, { groups: window.groupsFromConfig(crit.order, crit.aliases), weights: null, ordinal: !!crit.ordinal });
+        CRIT_EDS.push({ id: crit.id, ed, lblIn, abbrIn, ordCb });
+      }
+      $('go').before(card);
     }
 
     // Editor de regras de temperatura: começa com as da ANÁLISE ATUAL; botão puxa as
@@ -324,6 +361,18 @@
         cfg[ta.dataset.json] = JSON.parse(ta.value);  // pode lançar → tratado no submit
       }
       if (TEMP_CTL) { cfg.temp_rules = TEMP_CTL.getRules(); cfg.temp_overwrite = TEMP_CTL.getOverwrite(); }
+      // Critérios: aplica os grupos editados nos chips de volta ao order+aliases.
+      if (CRIT_EDS.length && Array.isArray(cfg.criterios)) {
+        for (const c of CRIT_EDS) {
+          const t = cfg.criterios.find((x) => x.id === c.id);
+          if (!t) continue;
+          const g = window.configFromGroups(c.ed.getGroups());
+          t.order = g.order; t.aliases = g.aliases;
+          const lbl = c.lblIn.value.trim(); if (lbl) { t.label = lbl; t.tab = lbl; }
+          const ab = c.abbrIn.value.trim(); if (ab) t.abbr = ab;
+          t.ordinal = c.ordCb.checked;
+        }
+      }
       return cfg;
     }
 

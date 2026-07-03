@@ -203,7 +203,9 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       if (!isNonEmptyStr(w.text)) c.err(`${path}.text`, `${type} text is required`);
       break;
     case 'embed':
-      if (!isNonEmptyStr(w.url)) c.err(`${path}.url`, 'embed url is required');
+      // url é OPCIONAL: sem ela o embed vira um placeholder ("preview indisponível" —
+      // ex.: criativo sem link no dicionário). O renderer já trata os dois casos.
+      if (w.url !== undefined && !isStr(w.url)) c.err(`${path}.url`, 'embed url must be a string');
       break;
     case 'link-card':
       if (!Array.isArray(w.cards)) c.err(`${path}.cards`, 'link-card requires a cards array');

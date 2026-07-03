@@ -126,9 +126,17 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     const custom = dir ? readJson<PerguntasDoc>(customPath(dir)) : null;
     const list = [...(doc?.perguntas || []), ...(custom?.perguntas || [])];
     const status = liveStatus(client, slug);
+    // O status vem do histórico (SQLite), mas a EXISTÊNCIA do aprofundamento é do
+    // disco: uma regeração pode ter reescrito o output sem a seção det-*. Se o
+    // arquivo sumiu, a pergunta volta a "não seguida" (senão o card mostraria um
+    // "Ver aprofundamento" fantasma apontando p/ nada). Recurso de plataforma —
+    // vale p/ qualquer tipo, aqui na rota genérica de perguntas.
+    const detExists = (sectionId?: string): boolean =>
+      !!dir && !!sectionId && fs.existsSync(path.join(dir, `${sectionId}.json`));
     const perguntas = list.map((p) => {
       const s = status.get(p.id);
       if (!s) return p;
+      if (s.status === 'seguida' && !detExists(s.det)) return p;   // aprofundamento perdido na regeração
       return { ...p, status: s.status, det: s.det ? { pageId: DET_PAGE_ID, sectionId: s.det } : undefined };
     });
     res.json({ pesos: doc?.pesos, efeito_ref: doc?.efeito_ref, perguntas });

@@ -58,20 +58,58 @@ tipos: skill `/integrar-analise` (`.claude/skills/integrar-analise/`).
 
 ## Plataforma — melhorias da revisão (jul/2026)
 
-Achados da revisão completa pré-Fase 2 (não bloqueiam; fazer quando tocar na área):
+Achados da revisão completa pré-Fase 2:
 
-- [ ] **Registry dinâmico de controles no client** — mapa `kind → classe` em vez dos ifs
-      em `src/client/main.ts:309–331`; novo tipo com controles hoje exige editar o main.
-- [ ] **Helpers compartilhados dos `*-controls.ts`** — `el`/`group`/`opt`/`must`/debounce
-      duplicados ~35 LOC × 3 arquivos → extrair p/ `filters.ts`.
-- [ ] **Sanitização de `innerHTML` com prosa LLM** (renderer.ts: find-block/find-note/
-      highlight/ni/label-sec/request) — whitelist de tags (defesa em profundidade; hoje o
-      conteúdo vem do motor determinístico, risco teórico).
-- [ ] **Testes**: `bind.test.ts`, rotas `POST /render` e `POST /query`; CI (lint+build+test).
+- [x] **Registry dinâmico de controles no client** — `controlsRegistry` em `main.ts`
+      (mount + body do recompute por `kind`); novo tipo = classe + 1 entrada.
+- [x] **Helpers compartilhados dos `*-controls.ts`** — extraídos p/ `src/client/controls-utils.ts`
+      (el/group/opt/mini/must/mountShell/fabSetPage/setBadge/debounce).
+- [x] **Sanitização de `innerHTML` com prosa** — `safeHtml()` no renderer.ts (whitelist
+      strong/em/br/code, unwrap do resto) nos sites de find-block/find-note/highlight/ni/
+      label-sec/xs/bullets. `request` já usava textContent.
+- [x] **Testes + CI** — `bind.test.ts` já existia; `render.test.ts` novo (guards);
+      `.github/workflows/ci.yml` (lint+build+test, suíte hermética).
 - [ ] **`render_view.py` p/ conversao-perfil/acompanhamento** se um dia ganharem controles
       interativos (assemble já é puro nos dois).
-- [ ] **Cópia de CSVs auxiliares p/ a base retida** (`generate.ts:186–196`): logar/fail-hard
-      se a cópia falhar (hoje falha silenciosa perde goals/hist/dict na atualização).
+- [ ] **Skill /conversao-perfil divergente do pysrc** — `.claude/skills/conversao-perfil/
+      {build_report,conv_calc}.py` (~870 LOC) é o motor de origem, standalone; o canônico
+      evoluiu em `pysrc/conversao-perfil` (common/, assemble/build). Decidir: skill delega
+      ao pysrc (remove os .py locais) ou congela com aviso no SKILL.md.
+- [x] **Cópia de CSVs auxiliares p/ a base retida** — logada; aux de `requiredFiles`
+      (ex.: goals do debriefing) agora falha alto no /generate.
+
+## Próximos passos (priorizar quando abrir espaço)
+
+- [ ] **CSV de apoio no aprofundamento** — o usuário anexa um CSV auxiliar ao pedir um
+      detalhamento (ex.: dados que a base não tem) e a IA usa esse dado para enriquecer a
+      resposta. Toca: upload na UI de perguntas/deepen → reter junto à base (`.base/`, como
+      goals/hist/dict) → expor ao motor/`consultar` (catálogo do CSV no contexto) → citar a
+      fonte na seção gerada. Cuidado: validar/limitar o CSV (LGPD, tamanho, schema livre).
+- [ ] **Revisar o exportador de HTML de ponta a ponta** — não só bugs: conferir se o
+      `exportHtml` (`src/client/main.ts` → botão `#export-html-btn`) cumpre o OBJETIVO
+      (relatório standalone fiel p/ entregar ao cliente?) e se o COMO está certo: o que
+      embute (CSS/fonts/ApexCharts/dados), o que quebra (gráficos, sidebar, modais,
+      controles interativos, perguntas), tamanho do arquivo, e se filtros/estado atual
+      entram no export. Definir o escopo esperado e testar com um relatório de cada tipo.
+- [ ] **Camada de IA que reescreve a pergunta antes do detalhamento** — o usuário escreve
+      solto ("captação ou conversão teve mais impacto?") e, antes de submeter, uma chamada
+      barata reescreve com o contexto do TIPO de análise ("Foi acréscimo/decréscimo no
+      volume de leads ou na conversão desses leads que teve maior impacto no faturamento e
+      retorno?") — pergunta melhor escopada = detalhamento melhor. Toca: rota
+      `perguntas/custom` (passo de rewrite ANTES do fluxo atual), prompt com o dicionário
+      de métricas/dimensões do tipo (registry/buildDeepenMeta), e UI mostrando a pergunta
+      reescrita p/ o usuário confirmar/editar antes de gastar o deepen completo.
+
+## /goal detalhamentos — retomada (aguarda crédito de API)
+
+A análise `inde/conversao-perfil` foi recriada do backup (motor + base retida manual).
+Os detalhamentos (17/20 na época; os 2 do conversao se perderam com o output) rodam com:
+
+1. Subir o app (`node dist/server/index.js` ou dev-authoff).
+2. `set DET_BASE=http://localhost:3131` (ou a porta em uso) e
+   `node temp/det_driver.mjs inde conversao-perfil cp-drag,cp-demo,cp-channel,cp-consist,cp-combos`.
+3. Conferir `temp/det_summary_inde_conversao-perfil.json` + o render real de cada seção
+   em `/report/inde/conversao-perfil` (regra: checar o render, não só ok=true).
 
 ---
 

@@ -3,7 +3,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'public/js/', 'node_modules/', 'public/vendor/'] },
+  { ignores: ['dist/', 'public/js/', 'node_modules/', 'public/vendor/', '_dev_authoff.mjs'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -11,7 +11,7 @@ export default tseslint.config(
     rules: {
       // The codebase deliberately narrows untrusted JSON with explicit casts.
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
       'no-console': 'off',
     },
   },

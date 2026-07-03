@@ -34,6 +34,13 @@ function fixture(name: string, value: unknown): void {
   fs.writeFileSync(path.join(dir, name), JSON.stringify(value), 'utf8');
 }
 
+// Grava a seção de aprofundamento no disco. O GET /perguntas só reporta a pergunta
+// como feita quando o histórico diz 'detalhamento' E a seção det-*.json existe (o
+// cross-check que evita o botão "Ver aprofundamento" fantasma após uma regeração).
+function detSection(sectionId: string): void {
+  fixture(`${sectionId}.json`, { id: sectionId, header: { title: 'Aprof.' }, widgets: [] });
+}
+
 // Grava um registro no histórico de perguntas como a rota faz (record()).
 function hist(acao: string, modalId = ''): void {
   db.prepare(`INSERT INTO perguntas_history
@@ -79,7 +86,14 @@ test('cancelar/falhar (várias intenções, nenhuma completa) mantém a pergunta
 test('só o "detalhamento" com modal_id (seção persistida) marca a pergunta como feita', async () => {
   hist('seguir');
   hist('detalhamento', 'det-q1-abc123');
+  detSection('det-q1-abc123');   // seção existe no disco → feita
   assert.equal(await statusOfQ1(), 'seguida');
+});
+
+test('"detalhamento" cuja seção SUMIU do disco (regeração) NÃO marca como feita', async () => {
+  hist('seguir');
+  hist('detalhamento', 'det-q1-abc123');   // histórico diz feita, mas sem det-*.json no disco
+  assert.equal(await statusOfQ1(), undefined);
 });
 
 test('"detalhamento" SEM modal_id (não persistiu) NÃO marca a pergunta como feita', async () => {

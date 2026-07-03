@@ -190,8 +190,15 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
             const src = baseConfig[`${aux}_csv`];
             if (typeof src === 'string' && fs.existsSync(src)) {
               const dest = path.join(baseDir, `${aux}.csv`);
-              fs.copyFileSync(src, dest);
-              baseConfig[`${aux}_csv`] = dest;
+              try {
+                fs.copyFileSync(src, dest);
+                baseConfig[`${aux}_csv`] = dest;
+              } catch (e) {
+                // Aux OBRIGATÓRIO (registry.requiredFiles) sem cópia = base quebrada na
+                // certa (rebuild/deep perdem as metas) → falha alto em vez de silencioso.
+                console.error(`[generate] ${client}/${slug}: falha ao reter ${aux}.csv na base — ${(e as Error).message}`);
+                if (def.requiredFiles?.includes(aux)) throw new Error(`não consegui reter ${aux}.csv na base (${(e as Error).message})`);
+              }
             }
           }
           writeJson(path.join(baseDir, 'config.json'), baseConfig);
@@ -199,7 +206,10 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
           // exigem content.insights (conversao-perfil) quebra. Atualizado se insights rodar.
           try { fs.copyFileSync(contentPath, path.join(baseDir, 'content.json')); } catch { /* opcional */ }
           baseRetained = true;
-        } catch { baseRetained = false; }
+        } catch (e) {
+          console.error(`[generate] ${client}/${slug}: base NÃO retida — ${(e as Error).message}`);
+          baseRetained = false;
+        }
       }
 
       // Optional Layer B1: generate insight prose from the freshly computed
@@ -284,8 +294,12 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
       try { config = JSON.parse(String(req.body.config)) as Record<string, unknown>; }
       catch { res.status(400).json({ error: 'config inválido (JSON)' }); return; }
     } else { config = { ...retainedCfg }; }
-    const type = typeof config.type === 'string' ? config.type : (retainedCfg.type as string);
-    if (!type || !TYPES[type]) { res.status(400).json({ error: `tipo desconhecido: ${type}` }); return; }
+    // Configs antigos de conversao-perfil não têm `type` — mesmo fallback do /generate
+    // (novo config → config retido → conversao-perfil). Só erra se vier um tipo EXPLÍCITO
+    // desconhecido. Sem isso, atualizar uma análise legada dava "tipo desconhecido: undefined".
+    const type = typeof config.type === 'string' ? config.type
+      : (typeof retainedCfg.type === 'string' ? retainedCfg.type : 'conversao-perfil');
+    if (!TYPES[type]) { res.status(400).json({ error: `tipo desconhecido: ${type}` }); return; }
     const def = TYPES[type];
     config.type = type; config.client = client;
     config.client_name = String(config.client_name || retainedCfg.client_name || '').trim() || clientName(client) || client;
@@ -343,7 +357,11 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
         if (!config.goals_csv) { try { fs.rmSync(path.join(baseDir, 'goals.csv')); } catch { /* sem goals retido */ } }
         writeJson(path.join(baseDir, 'config.json'), config);
         writeJson(path.join(baseDir, 'content.json'), content);
-      } catch { /* não-fatal */ }
+      } catch (e) {
+        // Não-fatal (a atualização já rodou), mas a base defasada quebra o próximo
+        // rebuild/deep — deixa rastro no log em vez de sumir com o erro.
+        console.error(`[update] ${client}/${slug}: falha ao re-reter a base — ${(e as Error).message}`);
+      }
       // Re-fixa o nome de exibição do cliente na meta (segue o registro).
       try {
         const dataFile = path.join(outDir, 'data.json');
@@ -372,17 +390,25 @@ export function registerGenerate(app: Express, ctx: Ctx): void {
     const sep = detectSep(lines[0]);
     const header = splitCsv(lines[0], sep);
     const seen: Record<string, Set<string>> = {};
-    header.forEach((c) => { seen[c] = new Set(); });
-    for (const line of lines.slice(1, 5001)) {
+    const weight: Record<string, Record<string, number>> = {};
+    header.forEach((c) => { seen[c] = new Set(); weight[c] = {}; });
+    // Peso por valor = soma de `total_leads` da linha (o editor mostra a
+    // representatividade de cada grupo); sem essa coluna, cai p/ contagem de linhas.
+    const leadsIdx = header.indexOf('total_leads');
+    for (const line of lines.slice(1)) {
       const cells = splitCsv(line, sep);
+      const w = leadsIdx >= 0 ? (Number(String(cells[leadsIdx] ?? '').replace(',', '.')) || 0) : 1;
       header.forEach((c, i) => {
         const v = (cells[i] ?? '').trim();
-        if (v && seen[c].size < 40) seen[c].add(v);
+        if (!v) return;
+        if (seen[c].size < 40) seen[c].add(v);
+        if (seen[c].has(v)) weight[c][v] = (weight[c][v] || 0) + w;
       });
     }
     const distinct: Record<string, string[]> = {};
-    header.forEach((c) => { distinct[c] = [...seen[c]]; });
-    res.json({ columns: header, distinct, sep: sep === '\t' ? '\\t' : sep });
+    const counts: Record<string, Record<string, number>> = {};
+    header.forEach((c) => { distinct[c] = [...seen[c]]; counts[c] = weight[c]; });
+    res.json({ columns: header, distinct, counts, weightBy: leadsIdx >= 0 ? 'leads' : 'linhas', sep: sep === '\t' ? '\\t' : sep });
   });
 }
 

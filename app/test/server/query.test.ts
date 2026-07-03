@@ -1,6 +1,10 @@
 /* query.test.ts — Fase 3b query route guards (hermetic: the Python catalog is
  * only invoked when a retained base exists, which these cases avoid). The full
- * query_api e2e is exercised manually against the real inde base. */
+ * query_api e2e is exercised manually against a real base.
+ *
+ * Usa um client/slug SINTÉTICO (nunca uma análise real) porque a rota lê o
+ * app/.base/<client>/<slug> real — um slug de análise existente (ex.: inde/
+ * conversao-perfil) faria os guards de "sem base" acharem base e falharem. */
 
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +17,7 @@ import { openDb } from '../../src/server/db.js';
 
 let tmp: string;
 let created: CreatedApp;
-const URL = '/api/inde/conversao-perfil/query';
+const URL = '/api/testco/query-fixture/query';
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'query-'));

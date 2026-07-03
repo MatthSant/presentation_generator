@@ -5,8 +5,10 @@ modelo de dados genérico. Cada **tipo de análise** é um cidadão de primeira 
 um motor Python determinístico gera as camadas de dados, o client TS as renderiza.
 
 > **Tarefas atuais:** [TAREFAS.md](TAREFAS.md).
+> **Mapa as-is** (rotas HTTP, módulos/LOC, motores, dívidas): [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
+> **Catálogo de widgets:** [docs/WIDGETS.md](docs/WIDGETS.md).
 > **Como integrar um tipo novo:** skill `/integrar-analise` (`.claude/skills/integrar-analise/`)
-> — este doc é o mapa; a skill é o procedimento passo-a-passo.
+> — este doc é o contrato; a skill é o procedimento passo-a-passo.
 
 ---
 
@@ -111,12 +113,15 @@ Tipos hoje: `conversao-perfil`, `historico-lancamentos`, `criativos`,
 
 | Arquivo | Papel |
 |---|---|
-| `main.ts` | Bootstrap, store, roteamento de páginas, despacho de controles por `meta.controls.kind`. |
-| `renderer.ts` | `renderWidget` switch — **único lugar com classes CSS** dos widgets. |
+| `main.ts` | Bootstrap, store, roteamento; **`controlsRegistry`** (`kind` → mount + body do recompute) — controle novo = classe + 1 entrada. |
+| `renderer.ts` | `renderWidget` switch — **único lugar com classes CSS**; `safeHtml()` sanitiza prosa inline (whitelist strong/em/br/code). |
+| `dashboard.ts` | Grid CSS 12-col da seção + editor de layout (Gridstack sob demanda). |
 | `navigation.ts` | Top-nav (default) e **sidebar** quando `meta.nav==='sidebar'` (`buildSide`). |
 | `charts.ts` | `buildOptions` ApexCharts (isDark dinâmico, dual-axis via `secondaryAxis`). |
-| `*-controls.ts` | Controles type-specific montados no FAB (ex.: `criativos-controls.ts`, `historico-controls.ts`). |
-| `api.ts` | Cliente HTTP (`renderView`, etc.). |
+| `filters.ts` | Filtro genérico client-side (re-resolve binds; usado quando o tipo não tem controle próprio). |
+| `*-controls.ts` | Controles type-specific do FAB (`historico`/`criativos`/`debriefing`) sobre `controls-utils.ts` (primitivas: el/group/opt/mountShell/setBadge/debounce). |
+| `api.ts` · `store.ts` | Cliente HTTP tipado · estado mínimo. |
+| `perguntas.ts` · `format.ts` · `trend.ts` | Board de perguntas · formatadores pt-BR · regressões p/ scatter. |
 
 **Widgets** (`src/shared/`): registrar em `types.ts` (`WIDGET_TYPES` + união `Widget`),
 validar em `validate.ts` (`validateWidget` switch), renderizar em `renderer.ts`, estilizar

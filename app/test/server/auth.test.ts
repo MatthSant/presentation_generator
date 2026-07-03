@@ -14,7 +14,7 @@ let tmp: string;
 let db: DB;
 let created: CreatedApp;
 let userA: { id: string; email: string };
-let userB: { id: string; email: string };
+let _userB: { id: string; email: string };   // segundo usuário do cenário multi-tenant (não lido)
 
 function writeFixture(client: string, slug: string, name: string, value: unknown): void {
   const dir = path.join(tmp, client, slug);
@@ -27,7 +27,7 @@ beforeEach(() => {
   db = openDb(':memory:');
   created = createApp({ out: tmp, db, auth: true });
   userA = createUser(db, 'a@witly.com', 'senhaA');
-  userB = createUser(db, 'b@witly.com', 'senhaB');
+  _userB = createUser(db, 'b@witly.com', 'senhaB');
 });
 afterEach(() => {
   created.close();

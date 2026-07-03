@@ -4,7 +4,7 @@
  * servidor (debounced); o main faz POST /render e re-renderiza. Persiste entre páginas. */
 
 import type { ReportMeta } from '../shared/types.js';
-import { wireFilterShell } from './filters.js';
+import { el, mountShell, fabSetPage, setBadge, debounce, type FabShell } from './controls-utils.js';
 
 type Controls = NonNullable<ReportMeta['controls']>;
 interface FilterDim { key: string; label: string; values: { id: string; label: string }[] }
@@ -12,40 +12,28 @@ export type DebFilters = Record<string, string[]>;
 export interface DebriefingHandlers { apply: (f: DebFilters) => void; }
 
 export class DebriefingControls {
-  private fab: HTMLElement;
-  private modal: HTMLElement;
-  private body: HTMLElement;
-  private count: HTMLElement;
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private shell: FabShell;
+  private schedule: () => void;
   private dims: FilterDim[];
   private sel = new Map<string, Set<string>>();
 
   constructor(private cfg: Controls, private h: DebriefingHandlers) {
-    this.fab = must('filter-fab');
-    this.modal = must('filter-modal');
-    this.body = must('filter-body');
-    this.count = must('filter-count');
+    this.shell = mountShell('debriefing-controls', () => { this.sel.clear(); this.renderBody(); this.updateBadge(); this.schedule(); });
     this.dims = ((cfg as { filters?: FilterDim[] }).filters || []).filter((d) => d.values && d.values.length);
-
-    wireFilterShell(this.fab, this.modal, must('filter-close'));
-    must('filter-clear').addEventListener('click', () => { this.sel.clear(); this.renderBody(); this.updateBadge(); this.schedule(); });
+    this.schedule = debounce(() => this.h.apply(this.payload()), 300);
 
     this.renderBody();
     this.updateBadge();
   }
 
   /** O FAB de filtro aparece em todas as páginas do relatório. */
-  setPage(pageId: string): void {
-    const on = (this.cfg.pages || []).includes(pageId);
-    this.fab.hidden = !on;
-    if (!on) this.modal.classList.remove('open');
-  }
+  setPage(pageId: string): void { fabSetPage(this.shell, this.cfg.pages, pageId); }
 
   private openDim: string | null = null;
 
   private renderBody(): void {
-    this.body.replaceChildren();
-    for (const d of this.dims) this.body.appendChild(this.dropdown(d));
+    this.shell.body.replaceChildren();
+    for (const d of this.dims) this.shell.body.appendChild(this.dropdown(d));
   }
 
   /** Um dropdown (accordion) por dimensão: cabeçalho com resumo + painel de checkboxes
@@ -107,27 +95,11 @@ export class DebriefingControls {
     if (set.size === 0) this.sel.delete(key);
   }
 
-  private updateBadge(): void {
-    const n = this.sel.size;
-    this.count.textContent = String(n);
-    this.fab.classList.toggle('flt-has', n > 0);
-  }
+  private updateBadge(): void { setBadge(this.shell, this.sel.size); }
 
   private payload(): DebFilters {
     const f: DebFilters = {};
     for (const [k, set] of this.sel) if (set.size) f[k] = [...set];
     return f;
   }
-
-  private schedule(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.h.apply(this.payload()), 300);
-  }
-}
-
-function el(tag: string, cls: string): HTMLElement { const e = document.createElement(tag); e.className = cls; return e; }
-function must(id: string): HTMLElement {
-  const e = document.getElementById(id);
-  if (!e) throw new Error(`debriefing-controls: missing #${id}`);
-  return e;
 }

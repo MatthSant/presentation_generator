@@ -1,66 +1,61 @@
 # Presentation Generator
 
-Pipeline de duas skills que transforma qualquer análise em uma apresentação Reveal.js com design system próprio.
+Workspace com dois sistemas: o **app de analytics** (`app/` — servidor TS + client TS +
+motores Python que renderizam análises como dashboards) e o **pipeline de apresentações**
+(skills que transformam análises em Reveal.js com design system próprio).
+
+> Arquitetura do app: [app/CLAUDE.md](app/CLAUDE.md) (como trabalhar) +
+> [app/docs/ARQUITETURA.md](app/docs/ARQUITETURA.md) (mapa: rotas, módulos, motores, dívidas).
+> Backlog vivo: [app/TAREFAS.md](app/TAREFAS.md).
 
 ---
 
 ## Mapa do workspace
 
+`input/`, `temp/`, `output/` e `backup/` são **gitignored** (LGPD — dado de cliente e
+artefato gerado nunca versionam); existem só no disco local.
+
 ```
 presentation_generator/
 ├── CLAUDE.md                          ← este arquivo
 │
-├── input/                             ← dados do cliente para análises
-│   └── [cliente]/                     ← ex: instituto-singular/
-│       └── arquivo.csv                ← CSV transacional para /ltv-analysis
+├── input/                             ← dados do cliente para análises (CSV p/ /ltv-analysis etc.)
 │
-├── temp/                              ← arquivos intermediários (não vão ao GitHub)
+├── temp/                              ← intermediários de sessão (não versionado)
 │   ├── analise_summary.md             ← gerado por /plan-slides (Fase 2)
 │   ├── slides_plan.md                 ← gerado por /plan-slides (Fase 4) — editar antes de /build-slides
-│   └── [cliente]/                     ← ex: instituto-singular/
-│       └── [analise]/                 ← ex: ltv-mai-2026/
-│           ├── plano_analise.md       ← gerado por /ltv-analysis
-│           └── dicionario.md          ← mapeamento de campos
+│   ├── det_driver.mjs                 ← driver p/ rodar detalhamentos em lote (DET_BASE=<url>)
+│   └── [cliente]/[analise]/           ← plano_analise.md + dicionario.md das skills de análise
 │
-├── app/                               ← servidor Node.js do analytics app
-│   ├── server.js                      ← Express (porta 3131) — serve JSONs, comentários, SSE
-│   ├── package.json
-│   └── public/
-│       ├── index.html                 ← homepage: lista todas as análises em output/
-│       ├── report.html                ← shell do relatório (design system + renderer)
-│       ├── style.css                  ← design system CSS (extraído de shell-report.html)
-│       ├── chart-options.js           ← buildOptions ApexCharts (isDark dinâmico)
-│       └── renderer.js                ← JSON typed-blocks → DOM (único lugar com classes CSS)
+├── app/                               ← APP DE ANALYTICS (Express TS, porta 3131)
+│   ├── CLAUDE.md                      ← arquitetura + regras (leia antes de mexer no app)
+│   ├── TAREFAS.md                     ← backlog vivo
+│   ├── src/server/                    ← rotas (~60 endpoints), typeRegistry, pygen, deepen, auth
+│   ├── src/client/                    ← renderer (37 widgets), main, charts, controles (TS → public/js/)
+│   ├── src/shared/                    ← contrato: types, validate, bind
+│   ├── pysrc/                         ← 5 motores Python + common/ + perguntas/banks/
+│   ├── public/                        ← shells (index, report, gerar-*/montador-*, usuarios…) + style.css
+│   ├── docs/                          ← ARQUITETURA.md · WIDGETS.md · motor-deepen-review.md · futuro-betterauth.md
+│   └── test/                          ← suíte hermética (node:test + supertest)
 │
-├── output/                            ← gerado por /build-slides, /make-design e /ltv-analysis
-│   ├── elements/                      ← gerado por /make-design — elementos isolados do design system
-│   ├── [cliente]/                     ← ex: instituto-singular/
-│   │   └── [analise]/                 ← ex: ltv-mai-2026/  (acessível em /report/[cliente]/[analise])
-│   │       ├── data.json              ← mapa de navegação (pages + sections)
-│   │       ├── s01.json … sXX.json   ← conteúdo de cada seção (typed blocks)
-│   │       └── comments.csv           ← anotações do consultor
-│   └── presentation.html              ← gerado por /build-slides (Reveal.js)
+├── output/                            ← GERADO (não versionado)
+│   ├── elements/                      ← /make-design — elementos isolados
+│   ├── [cliente]/[analise]/           ← análises do app (dataset/data/layout/sXX.json) — /report/[cliente]/[analise]
+│   └── presentation.html              ← /build-slides (Reveal.js)
 │
-├── requirements/
-│   └── STACK.md                       ← stack técnica completa (CDN, ferramentas, outputs)
-│
-├── _source/                           ← arquivos de referência (não editar)
-│   ├── design-system/index.html       ← design system visual completo (dark)
-│   ├── design-system/light-mode.html  ← design system visual completo (light)
-│   ├── template_presentation.html     ← apresentação de referência (padrão de componentes)
-│   ├── REQUIREMENTS.md                ← requisitos originais do sistema
-│   └── slides.md                      ← exemplo de slides em markdown
+├── backup/                            ← insumos e artefatos históricos (skills antigas, CSVs, esboços;
+│                                        ex.: backup/temp/inde/ = config/content do caso INDÊ)
 │
 └── .claude/
     └── skills/
-        ├── setup/
-        │   └── SKILL.md               ← deixa o app no ar (checa Node → install → build → sobe → abre)
-        ├── plan-slides/
-        │   └── SKILL.md               ← skill conversacional (4 fases)
-        ├── build-slides/
-        │   └── SKILL.md               ← skill de geração HTML da apresentação
-        ├── make-design/
-        │   └── SKILL.md               ← skill de elementos isolados do design system
+        ├── setup/                     ← deixa o app no ar (Node → install → build → sobe → abre)
+        ├── plan-slides/               ← skill conversacional (5 fases: 0–4, com 4a de cobertura)
+        ├── build-slides/              ← geração HTML da apresentação
+        ├── make-design/               ← elementos isolados do design system
+        ├── ltv-analysis/              ← análise LTV por skill
+        ├── conversao-perfil/          ← análise de conversão (tem motor .py próprio — o canônico é app/pysrc)
+        ├── integrar-analise/          ← procedimento: integrar um TIPO novo de análise no app
+        ├── verificar-motor/           ← procedimento: auditar o motor de deepen de um tipo
         └── components/                ← biblioteca compartilhada (build-slides + make-design)
             ├── tools-map.md           ← catálogo completo de componentes + regras de design
             ├── backgrounds/           ← backgrounds SVG (copiados para output/ pelo build-slides)
@@ -125,7 +120,7 @@ presentation_generator/
 **Pipeline de apresentação:**
 ```
 1. Colocar análise em input/  (ou ter URL em mãos)
-2. /plan-slides               → pipeline conversacional de 4 fases
+2. /plan-slides               → pipeline conversacional de 5 fases
 3. Revisar temp/slides_plan.md se quiser ajustar manualmente
 4. /build-slides              → gera output/presentation.html + copia backgrounds/
 5. Abrir output/presentation.html no browser
@@ -163,11 +158,12 @@ Deixa o **app de visualização** (`app/`) no ar do zero, com o mínimo de fric�
 ### `/plan-slides`
 Pipeline conversacional que transforma uma análise em `temp/slides_plan.md`.
 
-**4 fases:**
+**5 fases:**
 - **Fase 0** — detecta arquivo em `input/` ou pede input
 - **Fase 1** — audiência (C-Level / Gestão / Técnico / Misto) + decisão esperada
 - **Fase 2** — mensagem inescapável → gera `temp/analise_summary.md`
 - **Fase 3** — propõe estrutura SCR + horizontal flow test → itera até aprovação
+- **Fase 4a** — mapeamento de cobertura (cada achado da análise → slide)
 - **Fase 4** — valida MECE → gera `temp/slides_plan.md`
 
 **Estrutura padrão do deck:**
@@ -239,7 +235,21 @@ Análise de conversão por perfil ao longo de vários lançamentos, a partir de 
 
 **5 fases:** localizar dump → contexto → perguntas → setup + exploração → dicionário/plano (aprovação) → execução. Os cálculos são feitos por `conversao-perfil/conv_calc.py` (benchmark = respondentes da pesquisa; conversões já em %; lançamentos cronológicos; normalização de grupos duplicados). O LLM escreve a prosa de Insights/Detalhamentos; números só via `bind`.
 
-**Auxiliares da skill** (`.claude/skills/conversao-perfil/`): `conv_calc.py` (motor de cálculo), `build_report.py` (gerador genérico das 4 camadas — `build(csv, config, content, out_dir)`), `calc-rules.md`, `BLOCKS.md`, `dictionary.md`, `template.json`, `sections/{PANORAMA,CRITERIO,INSIGHTS,DETALHAMENTOS}.md`. Invocação de exemplo (caso INDÊ, do CSV bruto): `temp/inde/gen_inde.py` + `inde_config.json`/`inde_content.json`.
+**Auxiliares da skill** (`.claude/skills/conversao-perfil/`): `conv_calc.py` (motor de cálculo), `build_report.py` (gerador genérico das 4 camadas — `build(csv, config, content, out_dir)`), `calc-rules.md`, `BLOCKS.md`, `dictionary.md`, `template.json`, `sections/{PANORAMA,CRITERIO,INSIGHTS,DETALHAMENTOS}.md`. Insumos do caso INDÊ (config/content/gen_inde.py): `backup/temp/inde/`; CSV em `backup/input/`.
+
+> ⚠️ O motor `.py` desta skill é a **origem** do tipo no app e **divergiu**: o canônico é
+> `app/pysrc/conversao-perfil/` (evoluiu com `common/`). Para gerar no app, use o pysrc.
+> Dívida registrada em [app/TAREFAS.md](app/TAREFAS.md).
+
+---
+
+### `/integrar-analise`
+Procedimento para colocar **um TIPO novo de análise dentro do app** como cidadão de primeira classe (não roda a análise — integra). Cobre: motor `pysrc/<tipo>/` (calc + build_report nas 3 camadas), entrada no `typeRegistry.ts`, páginas gerar/montador, banco de perguntas norteadoras e o princípio de que **feature nova é recurso de plataforma** (nunca `if tipo==='x'`). Mapa de referência: [app/CLAUDE.md](app/CLAUDE.md).
+
+---
+
+### `/verificar-motor`
+Audita e melhora o **motor de deep mode** de um tipo (não roda a análise — audita): cobertura de dimensões/métricas do `query_api.py`, alinhamento com `buildDeepenMeta` do registry, regras de relevância do banco de perguntas, verificação **sem crédito de API** rodando o motor contra a base real. Sempre prefere ajustar o motor Python a mexer em prompt. Acumulado em [app/docs/motor-deepen-review.md](app/docs/motor-deepen-review.md).
 
 ---
 

@@ -17,7 +17,11 @@ import { HistoricoFilters } from './historico-controls.js';
 import { CriativosControls } from './criativos-controls.js';
 import { DebriefingControls, type DebFilters } from './debriefing-controls.js';
 import { resolveBind } from '../shared/bind.js';
-import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta } from '../shared/types.js';
+import type { Bind, ResolvedBind, Modal, Section, LayoutItem, Pergunta, ReportMeta } from '../shared/types.js';
+
+type ReportControls = NonNullable<ReportMeta['controls']>;
+/** Contrato mínimo de um controle type-specific montado (o resto é interno à classe). */
+interface TypeControls { setPage(pageId: string): void }
 
 const ROOT = document.getElementById('export-root')!;
 const MODAL_ROOT = document.getElementById('modal-root')!;
@@ -37,7 +41,8 @@ class App {
   /** Modal id to auto-open after the next section (re)render — set by deepen. */
   private pendingModal: string | null = null;
   private perguntas: PerguntasView | null = null;
-  private hist: HistoricoFilters | null = null;
+  /** Instância do controle type-specific montado (registry por meta.controls.kind). */
+  private typeControls: TypeControls | null = null;
   /** Current launch selection (null = full series) — drives the filtered-chart badge. */
   private histSel: string[] | null = null;
   private histLaunches: string[] | null = null;
@@ -46,11 +51,58 @@ class App {
   private histMode: string | undefined;
   private histMinInvest: number | undefined;
   private histTemp: string | null = null;
-  private criativos: CriativosControls | null = null;
   /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
-  private debrief: DebriefingControls | null = null;
   private debFilters: DebFilters | null = null;
   private busyEl: HTMLElement | null = null;
+
+  /** Registry dos controles interativos por meta.controls.kind (o kind vem do
+   *  typeRegistry do servidor). Tipo novo com controles = classe *-controls.ts +
+   *  UMA entrada aqui — mount instancia o FAB e body monta o payload do POST /render. */
+  private readonly controlsRegistry: Record<string, {
+    mount: (controls: ReportControls) => TypeControls | null;
+    body: () => Record<string, unknown>;
+  }> = {
+    // Criativos: MODO (resultado × captação) é um toggle na navbar (como o compare
+    // do debriefing); o FAB fica só com investimento mínimo + temperatura.
+    'criativos': {
+      mount: (controls) => {
+        const cc = controls as { mode?: string; modes?: Array<{ id: string; label: string }> };
+        this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
+        if (cc.modes?.length) this.setupNavToggle('mode-toggle', cc.modes, this.histMode, (id) => { this.histMode = id; void this.recompute(); });
+        return new CriativosControls(controls, {
+          apply: (o) => { this.histMinInvest = o.minInvest || undefined; this.histTemp = o.temp; void this.recompute(); },
+        });
+      },
+      body: () => ({ mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }),
+    },
+    // Debriefing: filtro nível-relatório (multi-seleção por dimensão) → recompute.
+    'debriefing-lancamento': {
+      mount: (controls) => {
+        if (!(controls as { filters?: unknown[] }).filters?.length) return null;
+        return new DebriefingControls(controls, {
+          apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
+        });
+      },
+      body: () => ({ filters: this.debFilters || {} }),
+    },
+    // Histórico: pílulas de lançamento + toggle de indicador (inline no Panorama).
+    'historico-lancamentos': {
+      mount: (controls) => {
+        this.histMetric = controls.metrics[0]?.id || 'conv';
+        const total = controls.launches.length;
+        // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
+        // changing it recomputes only the metric-driven breakdown below.
+        document.addEventListener('metric-change', (e) => {
+          this.histMetric = (e as CustomEvent<string>).detail;
+          void this.recompute();
+        });
+        return new HistoricoFilters(controls, {
+          apply: (l) => { this.histLaunches = (l.length >= total || l.length === 0) ? null : l; void this.recompute(); },
+        });
+      },
+      body: () => ({ launches: this.histLaunches, metric: this.histMetric }),
+    },
+  };
 
   constructor(private client: string, private slug: string) {
     this.api = new Api(client, slug);
@@ -115,7 +167,7 @@ class App {
     });
 
     this.nav.build();
-    if (!this.hist && !this.criativos && !this.debrief) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
+    if (!this.typeControls) { this.filters = new Filters(this.store, () => { this.dashboard?.applyFilters(); }); this.filters.init(); }
     this.watch();
 
     const first = this.store.allSections()[0];
@@ -186,9 +238,7 @@ class App {
     this.store.currentSectionId = sectionId;
     this.nav.setActive(pageId, sectionId);
 
-    this.hist?.setPage(pageId);
-    this.criativos?.setPage(pageId);
-    this.debrief?.setPage(pageId);
+    this.typeControls?.setPage(pageId);
 
     if (this.store.page(pageId)?.kind === 'perguntas') {
       await this.renderPerguntas();
@@ -247,16 +297,16 @@ class App {
     // seção / ★1–5). Seções antigas sem historyId não mostram nada.
     if (section.historyId) {
       const rt = this.buildRating(section.historyId, (c) => this.revisarDetSection(section.id, c), async () => {
-        if (!window.confirm('Descartar este detalhamento? A seção será removida e não dá para desfazer.')) return;
+        if (!window.confirm('Descartar este aprofundamento? A seção será removida e não dá para desfazer.')) return;
         this.setBusy(true, 'Descartando…');
         try {
           await this.api.descartarDet(section.id);
           this.removeDetSection(section.id);
-          this.toast('Detalhamento descartado.');
+          this.toast('Aprofundamento descartado.');
         } catch (e) {
           this.toast(`Falha ao descartar: ${(e as Error).message}`);
         } finally { this.setBusy(false); }
-      });
+      }, undefined, 'aprofundamento');
       rt.classList.add('rate--section');
       host.appendChild(rt);
     }
@@ -295,51 +345,14 @@ class App {
 
   /* ───────────────────────────  Histórico — vista interativa  ─────────────────────────── */
 
-  /** Mount the launch/metric control bar above the report when meta.controls says so. */
+  /** Monta o controle interativo do tipo (registry por meta.controls.kind). */
   private setupHistorico(): void {
     const controls = this.store.data?.meta?.controls;
-    // Dispatch por kind: cada tipo com controles interativos registra o seu setup
-    // aqui. Hoje só o histórico; um tipo novo adiciona o seu ramo.
     if (!controls) return;
     // Feature de plataforma (qualquer tipo): toggle vs Meta / vs Histórico nos badges
     // de KPI que trazem `cmp`. Independe do `kind`.
     if ((controls as { compare?: string }).compare) this.setupCompare();
-    // Criativos: único controle é o toggle de MODO (resultado × captação) — um
-    // metric-toggle que dispara 'metric-change'; recompute server-side por modo.
-    if (controls.kind === 'criativos') {
-      const cc = controls as { mode?: string; modes?: Array<{ id: string }> };
-      this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
-      // Controles NÍVEL-RELATÓRIO no FAB: modo + investimento mínimo + temperatura.
-      this.criativos = new CriativosControls(controls, {
-        apply: (o) => {
-          this.histMode = o.mode;
-          this.histMinInvest = o.minInvest || undefined;
-          this.histTemp = o.temp;
-          void this.recompute();
-        },
-      });
-      return;
-    }
-    // Debriefing: filtro nível-relatório no FAB (multi-seleção por dimensão) → recompute.
-    if (controls.kind === 'debriefing-lancamento') {
-      if (!(controls as { filters?: unknown[] }).filters?.length) return;
-      this.debrief = new DebriefingControls(controls, {
-        apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
-      });
-      return;
-    }
-    if (controls.kind !== 'historico-lancamentos') return;
-    this.histMetric = controls.metrics[0]?.id || 'conv';
-    const total = controls.launches.length;
-    this.hist = new HistoricoFilters(controls, {
-      apply: (l) => { this.histLaunches = (l.length >= total || l.length === 0) ? null : l; void this.recompute(); },
-    });
-    // Indicator selector lives inline on the Panorama page (a metric-toggle widget);
-    // changing it recomputes only the metric-driven breakdown below.
-    document.addEventListener('metric-change', (e) => {
-      this.histMetric = (e as CustomEvent<string>).detail;
-      void this.recompute();
-    });
+    this.typeControls = this.controlsRegistry[controls.kind || '']?.mount(controls) ?? null;
   }
 
   /** Toggle de plataforma "vs Meta / vs Histórico": injeta um segmented na barra
@@ -363,17 +376,35 @@ class App {
     right.insertBefore(wrap, right.firstChild);
   }
 
+  /** Segmented genérico na navbar (mesmo visual do compare) que dispara `onChange`
+   *  ao trocar de opção — recurso de plataforma. Usado pelo MODO de criativos. */
+  private setupNavToggle(id: string, opts: Array<{ id: string; label: string }>, current: string, onChange: (id: string) => void): void {
+    const right = document.querySelector('.tn-right');
+    if (!right || document.getElementById(id)) return;
+    const wrap = document.createElement('div');
+    wrap.id = id;
+    wrap.className = 'cmp-toggle';
+    for (const o of opts) {
+      const b = document.createElement('button');
+      b.className = 'cmp-btn' + (o.id === current ? ' on' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        if (b.classList.contains('on')) return;
+        wrap.querySelectorAll('.cmp-btn').forEach((x) => x.classList.toggle('on', x === b));
+        onChange(o.id);
+      });
+      wrap.appendChild(b);
+    }
+    right.insertBefore(wrap, right.firstChild);
+  }
+
   /** Recompute the filtered/metric view server-side and re-render the current section. */
   private async recompute(): Promise<void> {
     this.histSel = this.histLaunches;
     const y = window.scrollY;
     try {
       const kind = (this.store.data?.meta?.controls as { kind?: string } | undefined)?.kind;
-      const body = kind === 'criativos'
-        ? { mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }
-        : kind === 'debriefing-lancamento'
-          ? { filters: this.debFilters || {} }
-          : { launches: this.histLaunches, metric: this.histMetric };
+      const body = this.controlsRegistry[kind || '']?.body() ?? {};
       const r = await this.api.renderView(body);
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);
@@ -428,7 +459,7 @@ class App {
       <div class="busy-box">
         <div class="busy-load"><div class="busy-spinner" aria-hidden="true"></div><div class="busy-msg"></div></div>
         <div class="busy-err" hidden>
-          <div class="busy-err-title">Não foi possível gerar o detalhamento</div>
+          <div class="busy-err-title">Não foi possível gerar com a IA</div>
           <p class="busy-err-sub"></p>
           <div class="busy-err-block" hidden><div class="busy-err-lbl busy-err-lbl-err">O que reprovou (erros)</div><ul class="busy-err-issues"></ul></div>
           <div class="busy-err-sug" hidden><div class="busy-err-lbl">Sugestões (não impediram a entrega)</div><ul class="busy-err-suglist"></ul></div>
@@ -467,7 +498,7 @@ class App {
     // Falta de crédito na API → tela própria (não é defeito do detalhamento).
     if (e?.code === 'no_credit') {
       err.querySelector<HTMLElement>('.busy-err-title')!.textContent = '⚠ Sem crédito na API';
-      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar detalhamentos.';
+      err.querySelector<HTMLElement>('.busy-err-sub')!.textContent = e.message || 'Recarregue o crédito da API da Anthropic (Plans & Billing) para gerar conteúdo com IA.';
       err.querySelector<HTMLElement>('.busy-err-block')!.hidden = true;
       err.querySelector<HTMLElement>('.busy-err-sug')!.hidden = true;
       err.querySelector<HTMLButtonElement>('.busy-err-retry')!.onclick = () => { this.setBusy(false); onRetry(); };
@@ -475,7 +506,7 @@ class App {
       err.hidden = false; this.busyEl.hidden = false;
       return;
     }
-    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar o detalhamento';
+    err.querySelector<HTMLElement>('.busy-err-title')!.textContent = 'Não foi possível gerar com a IA';
     const msg = e?.message || String(error || '');
     // motivo (antes do '—') no topo; ERROS (blocking) e SUGESTÕES em listas separadas.
     const sep = msg.indexOf('—');
@@ -537,11 +568,11 @@ class App {
     dlg.className = 'deepen-dlg';
     dlg.innerHTML = `<form method="dialog" class="deepen-form">
       <h3>Adicionar pergunta</h3>
-      <p class="deepen-card">Sua pergunta vira um detalhamento na hora (sem cálculo de relevância).</p>
+      <p class="deepen-card">Sua pergunta vira um aprofundamento na hora (sem cálculo de relevância).</p>
       <textarea placeholder="Ex.: A receita de Online cresce mais rápido que a de Loja ao longo dos meses?"></textarea>
       <div class="deepen-actions">
         <button value="cancel" class="deepen-btn ghost" type="submit">Cancelar</button>
-        <button value="go" class="deepen-btn" type="submit">Criar detalhamento</button>
+        <button value="go" class="deepen-btn" type="submit">Criar aprofundamento</button>
       </div></form>`;
     document.body.appendChild(dlg);
     const ta = dlg.querySelector('textarea')!;
@@ -698,12 +729,12 @@ class App {
   /** Revisão de uma seção det-* (aprofundamento): regenera a própria seção com o
    *  comentário. Compartilhado pelo rodapé geral e pelos botões por bloco. */
   private async revisarDetSection(sectionId: string, comentario: string): Promise<void> {
-    this.setBusy(true, 'Revisando o detalhamento…');
+    this.setBusy(true, 'Revisando o aprofundamento…');
     try {
       await this.api.revisarDet(sectionId, comentario);
       this.store.dropSection(sectionId);
       await this.go(this.store.currentPageId, sectionId, true);
-      this.toast('Detalhamento revisado.');
+      this.toast('Aprofundamento revisado.');
     } catch (e) {
       this.toast(`Falha na revisão: ${(e as Error).message}`);
     } finally { this.setBusy(false); }
@@ -820,12 +851,15 @@ class App {
    *  regenera) · ★1–5. Tudo gravado em deepen_history; estado salvo é rebuscado
    *  lazy nas reaberturas. `revisar` é o caminho de regeração do contexto (modal
    *  itera via prev; seção det-* regenera a própria seção). */
-  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void): HTMLElement {
+  // `noun` = "detalhamento" (bloco do relatório) ou "aprofundamento" (board de
+  // perguntas) — o rodapé de rating serve os dois fluxos; a nomenclatura segue a origem.
+  private buildRating(historyId: string, revisar?: (comentario: string) => Promise<void>, onDiscard?: () => Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
+    const Noun = noun[0].toUpperCase() + noun.slice(1);
     const wrap = document.createElement('div');
     wrap.className = 'rate';
     const lbl = document.createElement('span');
     lbl.className = 'rate-lbl';
-    lbl.textContent = 'Este detalhamento foi útil?';
+    lbl.textContent = `Este ${noun} foi útil?`;
 
     const approve = document.createElement('button');
     approve.type = 'button';
@@ -838,7 +872,7 @@ class App {
       onApproved?.();   // revela a caixa "ajustar/aprofundar" (só após aprovar)
     };
     approve.addEventListener('click', async () => {
-      try { await this.api.approveDeepen(historyId); setApproved(); this.toast('Detalhamento aprovado.'); }
+      try { await this.api.approveDeepen(historyId); setApproved(); this.toast(`${Noun} aprovado.`); }
       catch (e) { this.toast(`Falha ao aprovar: ${(e as Error).message}`); }
     });
 
