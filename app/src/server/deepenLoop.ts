@@ -89,7 +89,11 @@ export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
         dataset: w.bind.dataset,
         categorias: r.categories.slice(0, CAP),
         series: r.series.slice(0, 12).map((s) => ({ nome: s.name, valores: s.data.slice(0, CAP) })),
-        totais: r.totals,
+        // `totais` = soma por coluna. Só faz sentido p/ SÉRIE/gráfico de volume; numa
+        // TABELA de indicadores (custos por unidade, %, atingimento) somar colunas dá
+        // número SEM SENTIDO (ex.: "atingimento total 608%") que fazia o critic reprovar
+        // por "número não confere". Omitido p/ tabelas — o critic confere pelas `linhas`.
+        totais: w.type === 'table' ? undefined : r.totals,
         linhas: r.rows.slice(0, CAP),
       });
     } catch { /* bind inválido já é pego pelo schema — ignora aqui */ }

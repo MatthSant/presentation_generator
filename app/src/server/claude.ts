@@ -522,6 +522,13 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
   // Aprovação = responde + números batem + SEM defeito grave. Polimento (suggestions)
   // não reprova: depois de N tentativas, nitpick de estilo não pode travar a entrega.
   const ok = out.answersQuestion !== false && out.numbersGrounded !== false && blocking.length === 0;
+  // Reprovou mas NÃO listou o motivo? Sintetiza pelo flag que falhou. Sem isto o gate
+  // manda uma mensagem genérica ERRADA ("não responde à pergunta") mesmo quando o
+  // problema é número que não bate — e o modelo reescreve o que já estava certo, em loop.
+  if (!ok && blocking.length === 0) {
+    if (out.answersQuestion === false) blocking.push('A saída não responde diretamente à PERGUNTA ORIGINAL — reescreva focando em respondê-la (a conclusão principal tem que ser a resposta).');
+    if (out.numbersGrounded === false) blocking.push('Um ou mais números citados na prosa NÃO conferem com os dados reais dos gráficos/tabelas — corrija cada número p/ bater EXATAMENTE com os valores mostrados; se uma linha/coluna da tabela vier com valor sem sentido (ex.: um "total" que soma custos por unidade), REMOVA essa linha/coluna ou troque por um recorte que faça sentido.');
+  }
   return { ok, issues: [...blocking, ...suggestions], blocking, suggestions, usage: usageOf(msg) };
 }
 
