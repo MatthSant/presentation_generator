@@ -171,8 +171,13 @@ def assemble(rows, config, content, opts=None):
     # rodapé de comparação vs benchmark. Modo (Resultado × Captação) e filtros
     # vivem no FAB (nível-relatório), não na página.
     eb(pan, pg, 'cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
-    pan.append({'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [bench_item(k) for k in MODE_KPIS[mode]]})
-    pg.add('cr-kpi', 'kpi-strip', 12, 2)
+    # Resultado (rótulos curtos) cabe numa linha; Captação (CPMQL projetado, Tx.
+    # Resposta…) respira melhor em 2 linhas de 4.
+    macro = {'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [bench_item(k) for k in MODE_KPIS[mode]]}
+    if mode == 'captacao':
+        macro['rows'] = 2
+    pan.append(macro)
+    pg.add('cr-kpi', 'kpi-strip', 12, 3 if mode == 'captacao' else 2)
 
     # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo,
     # todas comparadas ao BENCHMARK escolhido na criação (registro central do app).

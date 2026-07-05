@@ -221,7 +221,7 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
 
 /* ── kpi-strip ── a row of tabular KPIs (optional variation `sub` + trend spark) */
 function renderKpiStrip(w: KpiStripWidget): HTMLElement {
-  const wrap = el('div', 'kpi-strip');
+  const wrap = el('div', 'kpi-strip' + ((w.rows ?? 1) > 1 ? ' kpi-strip--rows' : ''));
   for (const item of w.items || []) {
     const k = el('div', 'kpi');
     const n = el('div', item.small ? 'kpi-n kpi-n--sm' : 'kpi-n');

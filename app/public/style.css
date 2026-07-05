@@ -1850,6 +1850,12 @@ body.edit-mode .tile-filter-badge { display:none; }
 }
 .kpi-strip .kpi { flex: 1; padding: 18px 22px; border-right: 1px solid var(--divider); }
 .kpi-strip .kpi:last-child { border-right: none; }
+/* Multi-linha (4 por linha): rótulos longos (captação) respiram em 2 linhas em
+   vez de espremer 8 numa só. Grade 4×2 — bordas internas, sem borda solta. */
+.kpi-strip--rows { flex-wrap: wrap; }
+.kpi-strip--rows .kpi { flex: 1 1 25%; box-sizing: border-box; border-bottom: 1px solid var(--divider); }
+.kpi-strip--rows .kpi:nth-child(4n) { border-right: none; }
+.kpi-strip--rows .kpi:nth-last-child(-n+4) { border-bottom: none; }
 .kpi-n { font-family: var(--font-mono); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 3px; }
 .kpi-n--sm { font-size: 19px; }
 .kpi-n .kpi-sep { color: var(--border-strong); font-weight: 500; margin: 0 3px; }
