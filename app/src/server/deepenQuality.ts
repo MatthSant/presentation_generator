@@ -57,7 +57,13 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
           // o gerador às vezes usa um RÓTULO onde a coluna é a chave. Faz a IA refazer com
           // os nomes EXATOS do catálogo.
           const cols = (w as { cols?: string[] }).cols ?? [];
-          const keys = Object.keys(r.rows[0] as Record<string, unknown>);
+          // UNIÃO das chaves de TODAS as linhas — não só a 1ª: tabelas de schema
+          // irregular (ex.: por_temperatura, onde a faixa orgânica N/C não tem ROAS/CPM
+          // por não ter mídia, mas Quente/Morno têm) davam falso-positivo quando a 1ª
+          // linha era a reduzida. Uma coluna que existe em QUALQUER linha é válida.
+          const keySet = new Set<string>();
+          for (const row of r.rows) for (const k of Object.keys(row as Record<string, unknown>)) keySet.add(k);
+          const keys = [...keySet];
           const lower = new Set(keys.map((k) => k.toLowerCase()));
           const missing = cols.filter((c) => !keys.includes(c) && !lower.has(c.toLowerCase()));
           if (missing.length) {
