@@ -73,6 +73,18 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
   return issues;
 }
 
+/** Checagem modal-level (não por-widget): um detalhamento é ANÁLISE, não dado cru —
+ *  precisa de ao menos um widget de RESPOSTA em prosa (highlight/find-block/ação). Só
+ *  gráfico+tabela não responde à pergunta. O critic (LLM) já exige isso, mas um modelo
+ *  fraco (fallback) deixa passar — esta checagem é DETERMINÍSTICA, independe do modelo. */
+const ANSWER_TYPES = new Set(['highlight', 'find-block', 'ni', 'ni-vertical', 'find-note']);
+export function missingAnswerWidget(widgets: Widget[]): string | null {
+  if (widgets.length && !widgets.some((w) => ANSWER_TYPES.has((w as { type: string }).type))) {
+    return 'O detalhamento não tem NENHUM widget de resposta em prosa (highlight/find-block/ação) — só dados crus (gráfico/tabela) não respondem à pergunta. Adicione um highlight no topo com a RESPOSTA direta (o número decisivo) e, se couber, um achado ou ação.';
+  }
+  return null;
+}
+
 /** Sugestões de FORMA (não bloqueiam a entrega — o reparo tenta acatar, mas passar
  *  destas NUNCA reprova; só erro reprova). Ex.: excesso de gráficos. */
 export function qualitySuggestions(widgets: Widget[]): string[] {
