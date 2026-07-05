@@ -17,7 +17,8 @@
       <div class="hd">Seções</div>
       <a href="#sec-cliente"><span class="n">1</span> Cliente</a>
       <a href="#sec-files"><span class="n">2</span> Arquivos</a>
-      <a href="#sec-temp"><span class="n">3</span> Temperatura</a>
+      <a href="#sec-bench"><span class="n">3</span> Benchmark</a>
+      <a href="#sec-temp"><span class="n">4</span> Temperatura</a>
     </aside>
 
     <main class="cr-main">
@@ -56,6 +57,24 @@
           <input id="f-dict" type="file" accept=".csv" hidden />
         </label>
         <p class="help" style="margin-top:14px">Colunas esperadas no CSV: <code>field_ad_name</code>, <code>field_campaign_name</code>, <code>field_adset_name</code>, <code>temperatura_lead</code>, <code>data</code>, <code>invest_total</code>, <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code>. Dicionário: 1ª coluna <code>field_ad_name</code>, 2ª coluna a URL do post.</p>
+      </section>
+
+      <section class="card" id="sec-bench">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>
+          <span class="t"><b>Benchmark de criativo <span class="help" style="font-weight:600">(opcional)</span></b><small>Taxas esperadas — usadas na comparação (↑/↓) dos KPIs de criativo (Hook, Hold, CTR, Connect, Conv. de Página).</small></span>
+        </div>
+        <div class="field col2" style="margin-bottom:16px">
+          <label class="label" for="b-tipo">Tipo de funil <span class="hint">prefill — gerencie em <a href="/benchmarks.html">Benchmarks</a></span></label>
+          <select id="b-tipo" class="ctrl"></select>
+        </div>
+        <div class="grid3">
+          <div class="field with-suffix"><label class="label" for="b-hook">Hook Rate</label><input id="b-hook" class="ctrl" type="number" step="1" value="30" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-hold">Hold Rate</label><input id="b-hold" class="ctrl" type="number" step="1" value="30" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-ctr">CTR</label><input id="b-ctr" class="ctrl" type="number" step="0.1" value="1.5" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-connect">Connect Rate</label><input id="b-connect" class="ctrl" type="number" step="1" value="80" /><span class="sfx">%</span></div>
+          <div class="field with-suffix"><label class="label" for="b-conv">Conv. de Página</label><input id="b-conv" class="ctrl" type="number" step="1" value="40" /><span class="sfx">%</span></div>
+        </div>
       </section>
 
       <section class="card" id="sec-temp">
@@ -102,6 +121,21 @@
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
 
+    // Tipo de funil → prefill dos benchmarks a partir do registro central (/benchmarks.html)
+    let BENCH = [];
+    const prefillBench = () => {
+      const b = BENCH.find((x) => x.tipo === $('b-tipo').value);
+      if (!b) return;
+      $('b-hook').value = b.hook; $('b-hold').value = b.hold; $('b-ctr').value = b.ctr;
+      $('b-connect').value = b.connect; $('b-conv').value = b.conv_pag;
+    };
+    fetch('/api/benchmarks').then((r) => r.json()).then((d) => {
+      BENCH = d.benchmarks || [];
+      $('b-tipo').innerHTML = BENCH.map((b) => `<option value="${b.tipo}">${b.label}</option>`).join('');
+      prefillBench();
+    }).catch(() => {});
+    $('b-tipo').addEventListener('change', prefillBench);
+
     $('go').addEventListener('click', async () => {
       const client = $('f-client').value;
       if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
@@ -109,6 +143,13 @@
       const cfg = { type: 'criativos' };
       const rules = tctl.getRules();
       if (rules.length) { cfg.temp_rules = rules; cfg.temp_overwrite = tctl.getOverwrite(); }
+      // Benchmark de criativo: fonte da comparação ↑/↓ dos KPIs de criativo.
+      const funnel_bench = {};
+      const addb = (k, id) => { const v = Number($(id).value); if (Number.isFinite(v)) funnel_bench[k] = v; };
+      addb('hook', 'b-hook'); addb('hold', 'b-hold'); addb('ctr', 'b-ctr');
+      addb('connect', 'b-connect'); addb('conv_pag', 'b-conv');
+      if (Object.keys(funnel_bench).length) cfg.funnel_bench = funnel_bench;
+      if ($('b-tipo').value) cfg.tipo_funil = $('b-tipo').value;
       $('go').disabled = true;
       show('work', 'Gerando a análise no servidor (pode levar alguns segundos)…');
       try {

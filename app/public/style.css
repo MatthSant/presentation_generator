@@ -878,6 +878,9 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 .sp-r2row { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin: 2px 0 6px; }
 .sp-r2 { cursor: help; }
 .sp-r2note { font-size: 11px; font-weight: 600; color: var(--gray2); cursor: help; white-space: nowrap; }
+.sp-outlier { font-family: var(--font-sans), sans-serif; font-size: 11px; font-weight: 700; color: var(--gray2); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
+.sp-outlier:hover { border-color: var(--purple); color: var(--purple); }
+.sp-outlier.on { background: var(--purple); border-color: var(--purple); color: #fff; }
 .sp-r2note--warn { color: var(--amber, #b45309); }
 .sp-chart { width: 100%; }
 

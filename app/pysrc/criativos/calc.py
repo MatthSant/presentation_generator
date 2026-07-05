@@ -19,8 +19,26 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
 from common import temp as temp_util
 
-# Benchmarks embutidos (referência, %). Direção: True = maior é melhor.
-BENCH = {'hook_rate': 30.0, 'hold_rate': 25.0}
+# Benchmark de tráfego por tipo de funil — MESMO registro central do app
+# (/api/benchmarks: campos hook/hold/ctr/connect/conv_pag). O config carrega
+# `funnel_bench` (escolhido/editado na criação); sem ele, cai no fallback abaixo.
+FUNNEL_BENCH = {'hook': 30.0, 'hold': 30.0, 'ctr': 1.5, 'connect': 80.0, 'conv_pag': 40.0}
+# nomes do registro central → chaves de métrica de criativo (o que o calc calcula).
+_BENCH_MAP = {'hook': 'hook_rate', 'hold': 'hold_rate', 'ctr': 'ctr',
+              'connect': 'connect_rate', 'conv_pag': 'conv_pagina'}
+
+
+def resolve_bench(config):
+    """Benchmark do relatório com CHAVES de métrica de criativo. Mescla o
+    `funnel_bench` do config (escolhido na criação) sobre o fallback e traduz
+    p/ hook_rate/hold_rate/ctr/connect_rate/conv_pagina."""
+    fb = dict(FUNNEL_BENCH)
+    fb.update((config or {}).get('funnel_bench') or {})
+    return {_BENCH_MAP[k]: v for k, v in fb.items() if k in _BENCH_MAP and v is not None}
+
+
+# Fallback (chaves de criativo) usado como referência quando não há config.
+BENCH = resolve_bench(None)
 
 # Catálogo de indicadores: rótulo, formato, modo ('resultado'|'captacao'|'ambos'),
 # e se "maior é melhor" (cost=False) — guia os seletores de gráfico e a ordenação.

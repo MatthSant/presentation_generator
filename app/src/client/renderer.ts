@@ -78,24 +78,30 @@ function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
  *  mais recente é legítimo, não ruído — cercas apertadas (1.5×IQR / 3.5 MAD) o
  *  cortavam indevidamente. Aqui só sai o pico claramente espúrio (erro de dado),
  *  não o extremo natural de uma tendência. */
-function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
+/** Predicado de outlier robusto (MAD ∧ Tukey) p/ um vetor numérico — mesmas cercas
+ *  conservadoras do dropOutliers (só sai pico claramente espúrio, não o extremo de
+ *  uma tendência). <5 pontos → nunca marca. Reusado pelos pickers (evolução/dispersão). */
+export function outlierPredicate(nums: number[]): (v: number) => boolean {
+  if (nums.length < 5) return () => false;
   const median = (a: number[]) => { const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+  const sorted = [...nums].sort((a, b) => a - b);
+  const med = median(sorted);
+  const mad = median(nums.map(v => Math.abs(v - med)).sort((a, b) => a - b));
+  const q = (p: number) => { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); };
+  const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
+  const madThr = mad > 0 ? 5 * 1.4826 * mad : Infinity;
+  const lo = iqr > 0 ? q1 - 3 * iqr : -Infinity, hi = iqr > 0 ? q3 + 3 * iqr : Infinity;
+  if (madThr === Infinity && !(iqr > 0)) return () => false;
+  // Só marca se AMBAS as cercas robustas concordam — uma sozinha dispara fácil demais
+  // no extremo de uma tendência (a queixa original).
+  return (v: number) => Math.abs(v - med) > madThr && (v < lo || v > hi);
+}
+
+function dropOutliers(series: ResolvedSeries[]): ResolvedSeries[] {
   return series.map(s => {
     const nums = s.data.filter((v): v is number => typeof v === 'number');
     if (nums.length < 5) return s;
-    const sorted = [...nums].sort((a, b) => a - b);
-    const med = median(sorted);
-    const mad = median(nums.map(v => Math.abs(v - med)).sort((a, b) => a - b));
-    const q = (p: number) => { const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); };
-    const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
-    const madThr = mad > 0 ? 5 * 1.4826 * mad : Infinity;
-    const lo = iqr > 0 ? q1 - 3 * iqr : -Infinity, hi = iqr > 0 ? q3 + 3 * iqr : Infinity;
-    // Só remove um ponto se AMBAS as cercas robustas concordam que é espúrio — uma
-    // sozinha dispara fácil demais no extremo de uma tendência (a queixa original).
-    const madOut = (v: number) => Math.abs(v - med) > madThr;
-    const tukeyOut = (v: number) => v < lo || v > hi;
-    const isOut = (v: number) => madOut(v) && tukeyOut(v);
-    if (madThr === Infinity && !(iqr > 0)) return s;
+    const isOut = outlierPredicate(nums);
     return { name: s.name, data: s.data.map(v => (typeof v === 'number' && isOut(v)) ? null : v) };
   });
 }
@@ -1804,6 +1810,15 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
     ctrls.appendChild(dt);
   }
   ctrls.append(el('span', 'sp-lbl', 'X'), xSel, el('span', 'sp-lbl', 'Y'), ySel);
+  const outBtn = el('button', 'sp-outlier' + ((w as { outliers?: boolean }).outliers ? ' on' : '')) as HTMLButtonElement;
+  outBtn.type = 'button';
+  outBtn.textContent = 'Sem outliers';
+  outBtn.title = 'Descarta criativos fora das cercas de Tukey/MAD (em X ou Y) — pontos claramente espúrios.';
+  outBtn.addEventListener('click', () => {
+    const ww = w as { outliers?: boolean }; ww.outliers = !ww.outliers;
+    outBtn.classList.toggle('on', !!ww.outliers); build();
+  });
+  ctrls.appendChild(outBtn);
   hd.appendChild(ctrls);
   wrap.appendChild(hd);
   // Badge de R² em evidência, abaixo do seletor Y (alinhado à direita) + nº de pontos.
@@ -1824,7 +1839,12 @@ function renderScatterPicker(w: ScatterPickerWidget): HTMLElement {
     const xk = xSel.value, yk = ySel.value;
     const xm = w.metrics.find(m => m.id === xk), ym = w.metrics.find(m => m.id === yk);
     // Pares [x,y] (não {x,y}) p/ compatibilizar com a linha de tendência (Point = [x,y]).
-    const fpts = (pointsOf()).filter(p => p.vals[xk] != null && p.vals[yk] != null);
+    let fpts = (pointsOf()).filter(p => p.vals[xk] != null && p.vals[yk] != null);
+    if ((w as { outliers?: boolean }).outliers) {
+      const px = outlierPredicate(fpts.map(p => p.vals[xk] as number));
+      const py = outlierPredicate(fpts.map(p => p.vals[yk] as number));
+      fpts = fpts.filter(p => !px(p.vals[xk] as number) && !py(p.vals[yk] as number));
+    }
     const pairs = fpts.map(p => [p.vals[xk] as number, p.vals[yk] as number] as [number, number]);
     const series = fpts.map(p => ({ name: p.name, data: [[p.vals[xk] as number, p.vals[yk] as number]] }));
     // Tamanho do ponto (bolha) por uma métrica — raio ∝ √valor (área proporcional).
@@ -1897,22 +1917,33 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
   const ctrls = el('div', 'sp-ctrls');
   if (dual && sel2) ctrls.append(el('span', 'sp-lbl', 'Esq.'), sel, el('span', 'sp-lbl', 'Dir.'), sel2);
   else ctrls.append(el('span', 'sp-lbl', 'Métrica'), sel);
+  const outBtn = el('button', 'sp-outlier' + ((w as { outliers?: boolean }).outliers ? ' on' : '')) as HTMLButtonElement;
+  outBtn.type = 'button';
+  outBtn.textContent = 'Sem outliers';
+  outBtn.title = 'Substitui picos espúrios (fora das cercas de Tukey/MAD) por um vão na linha.';
+  outBtn.addEventListener('click', () => {
+    const ww = w as { outliers?: boolean }; ww.outliers = !ww.outliers;
+    outBtn.classList.toggle('on', !!ww.outliers); build();
+  });
+  ctrls.appendChild(outBtn);
   hd.appendChild(ctrls);
   wrap.appendChild(hd);
   const host = el('div', 'sp-chart');
   wrap.appendChild(host);
 
   const cats = (w.points || []).map(p => p.name);
+  const clean = (d: (number | null)[]): (number | null)[] =>
+    (w as { outliers?: boolean }).outliers ? dropOutliers([{ name: '', data: d }])[0].data : d;
   let chart: ApexInstance | null = null;
   const build = (): void => {
     const mk = sel.value;
     const m = w.metrics.find(x => x.id === mk);
-    const data = (w.points || []).map(p => (p.vals[mk] ?? null));
+    const data = clean((w.points || []).map(p => (p.vals[mk] ?? null)));
     let def: ChartDef;
     if (dual && sel2) {
       const mk2 = sel2.value;
       const m2 = w.metrics.find(x => x.id === mk2);
-      const data2 = (w.points || []).map(p => (p.vals[mk2] ?? null));
+      const data2 = clean((w.points || []).map(p => (p.vals[mk2] ?? null)));
       const f1 = valueFmt(m?.fmt), f2 = valueFmt(m2?.fmt);
       const combo = !!w.combo;   // 1ª métrica em barras, 2ª em linha
       def = {
