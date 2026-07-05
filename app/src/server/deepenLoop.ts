@@ -83,17 +83,38 @@ export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
     if (!w.bind || (w.type !== 'chart' && w.type !== 'table' && w.type !== 'kpi')) continue;
     try {
       const r = resolveBind(w.bind, dataset);
+      // `totais` = soma por coluna. Só faz sentido p/ SÉRIE/gráfico de volume; numa
+      // TABELA de indicadores (custos por unidade, %, atingimento) somar colunas dá
+      // número SEM SENTIDO (ex.: "atingimento total 608%") que fazia o critic reprovar
+      // por "número não confere". Omitido p/ tabelas — o critic confere pelas `linhas`.
+      let totais = w.type === 'table' ? undefined : r.totals;
+      // Uma linha "Geral"/"Total" já É a soma das outras — se estiver entre as linhas,
+      // r.totals a conta de novo (dobra: Vendas 249+552+801=1602 em vez de 801). A linha
+      // agregada se identifica pelo VALOR da coluna de dimensão (bind.x), não pelo índice
+      // (categories é distinct(rows,x), não alinha 1:1 com rows). Subtrai o valor dela.
+      if (totais) {
+        const xcol = (w.bind as { x?: string }).x;
+        const AGG = /^(geral|total(?:\s+geral)?|todos|consolidado|acumulado)$/i;
+        const aggRows = xcol
+          ? r.rows.filter((row) => AGG.test(String((row as Record<string, unknown>)[xcol] ?? '').trim()))
+          : [];
+        if (aggRows.length) {
+          totais = { ...totais };
+          for (const col of Object.keys(totais)) {
+            for (const ag of aggRows) {
+              const gv = (ag as Record<string, unknown>)[col];
+              if (typeof gv === 'number') totais[col] -= gv;
+            }
+          }
+        }
+      }
       sheet.push({
         widget: w.type,
         titulo: w.title || w.label,
         dataset: w.bind.dataset,
         categorias: r.categories.slice(0, CAP),
         series: r.series.slice(0, 12).map((s) => ({ nome: s.name, valores: s.data.slice(0, CAP) })),
-        // `totais` = soma por coluna. Só faz sentido p/ SÉRIE/gráfico de volume; numa
-        // TABELA de indicadores (custos por unidade, %, atingimento) somar colunas dá
-        // número SEM SENTIDO (ex.: "atingimento total 608%") que fazia o critic reprovar
-        // por "número não confere". Omitido p/ tabelas — o critic confere pelas `linhas`.
-        totais: w.type === 'table' ? undefined : r.totals,
+        totais,
         linhas: r.rows.slice(0, CAP),
       });
     } catch { /* bind inválido já é pego pelo schema — ignora aqui */ }

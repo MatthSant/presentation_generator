@@ -45,3 +45,20 @@ test('factsheet vazio quando a prosa cita números sem nenhuma tabela/gráfico',
   // sem widget de dado → factsheet vazio → o critic deve cobrar a tabela que sustente os números
   assert.deepEqual(buildFactsheet(ws, DS), []);
 });
+
+test('factsheet NÃO dobra o total quando há linha agregada "Geral" (já é a soma)', () => {
+  const ds = {
+    esc: {
+      dims: ['escopo'], filters: [],
+      rows: [
+        { escopo: 'Pago', Vendas: 249, Leads: 10114 },
+        { escopo: 'Orgânico', Vendas: 552, Leads: 9108 },
+        { escopo: 'Geral', Vendas: 801, Leads: 19222 },
+      ],
+    },
+  } as unknown as DataMap;
+  const ws = [{ id: 'c', type: 'chart', title: 'Vendas', bind: { dataset: 'esc', x: 'escopo', y: 'Vendas' } }] as unknown as Widget[];
+  const fs = buildFactsheet(ws, ds)[0] as { totais: Record<string, number> };
+  assert.equal(fs.totais.Vendas, 801);   // não 1602 (= 249+552+801)
+  assert.equal(fs.totais.Leads, 19222);  // não 38444
+});
