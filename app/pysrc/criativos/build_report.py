@@ -147,25 +147,21 @@ def assemble(rows, config, content, opts=None):
     pan, pg = [], Grid()
     total, avg = B['total'], B['avg']
 
-    def kcards(prefix, keys):
+    def kcards(prefix, keys, sub_of=None):
+        # KPIs como CARDS individuais (kpi-card feature) — alinhado ao design dos KPIs
+        # do debriefing: cada métrica no seu card (label + valor + sub). 4 por linha (w=3).
         for k in keys:
             star = k in STAR
-            pan.append({'id': f'{prefix}-{k}', 'type': 'kpi-card', 'tier': 'feature',
+            wid = f'{prefix}-{k}'
+            pan.append({'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                         'label': calc.METRICS[k]['label'] + (' ★' if star else ''),
                         'value': fmtm(k, total.get(k)),
-                        'sub': f"média/criativo {fmtm(k, avg.get(k))}",
-                        'icon': ICON.get(k, 'chart-bar'),
-                        'iconColor': '#534AB7' if star else '#7F77DD'})
-            pg.add(f'{prefix}-{k}', 'kpi-card', 3, 2)
+                        'sub': sub_of(k) if sub_of else f'méd {fmtm(k, avg.get(k))}'})
+            pg.add(wid, 'kpi-card', 3, 2)
 
     # Modo (Resultado × Captação) e filtros vivem no FAB (nível-relatório), não na página.
     eb(pan, pg, 'cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
-    # KPIs Macro numa LINHA só (kpi-strip), como no original.
-    pan.append({'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [
-        {'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''),
-         'value': fmtm(k, total.get(k)), 'sub': f'méd {fmtm(k, avg.get(k))}', 'subTone': 'neutral'}
-        for k in MODE_KPIS[mode]]})
-    pg.add('cr-kpi', 'kpi-strip', 12, 2)
+    kcards('cr-k', MODE_KPIS[mode])
 
     # Captação: qualidade do criativo (vídeo/página) com comparação ao BENCHMARK
     # (Hook 30% / Hold 25%) ou à MÉDIA do lançamento (CTR/Connect/Conv. de Página).
