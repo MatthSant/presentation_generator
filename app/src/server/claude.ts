@@ -235,10 +235,11 @@ const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
   não está disponível, nunca o invente.
 - MÉTRICA DERIVADA: CPA = CPL ÷ Taxa de Conversão. Para EXPLICAR o CPA, atribua sua variação a CPL vs.
   conversão — nunca liste o próprio CPA como um terceiro fator independente ao lado deles.
-- ROAS já vem PRONTO na coluna ROAS — NÃO recalcule nem some 1. ROAS = retorno por R$1 investido:
-  ROAS < 1 é PREJUÍZO (ROAS 0,64 = retornou só R$0,64, perdeu R$0,36 por real), ROAS = 1 empata, ROAS > 1
-  dá lucro. Nunca trate um ROAS < 1 como lucro nem o cite como se fosse > 1 (ex.: ler 0,64 como "1,64");
-  ESCALAR exige ROAS > 1 (idealmente bem acima), ROAS < 1 → PAUSAR/revisar.
+- ROAS já vem PRONTO na coluna ROAS e é LÍQUIDO (= Faturamento/Investimento − 1) — NÃO recalcule, NÃO
+  some 1, NÃO trate como bruto (Fat/Inv). É o LUCRO líquido por R$1 investido, com breakeven em 0 (não em 1):
+  ROAS < 0 é PREJUÍZO (ROAS −0,36 = perdeu R$0,36 por real), ROAS = 0 empata, ROAS > 0 dá lucro (ROAS 0,78 =
+  R$0,78 de lucro por real ⇒ 1,78× o investido em bruto; ROAS 1,05 = dobrou o dinheiro). Nunca trate um ROAS > 0
+  como prejuízo. ESCALAR exige ROAS bem acima de 0; ROAS < 0 → PAUSAR/revisar.
 - Use a métrica que o texto NOMEIA: se a frase diz "CPL", use o valor de CPL (não o de CPA); confira a ordem
   de grandeza (um CPL de leads costuma ser ~R$10–50, não milhares — um valor de milhares ali é quase sempre
   a métrica errada).
@@ -477,6 +478,13 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   recalcule a PONDERADA (use os totais de invest/leads dos dados) — se o valor citado bate com ela, está
   CERTO, ainda que difira da média simples dos dias. Só marque FALSE se não bater NEM com a ponderada NEM
   com a média simples (aí é número inventado). A média SIMPLES de uma taxa é que é incorreta.
+  ROAS É LÍQUIDO (= Faturamento/Investimento − 1), NUNCA bruto (Fat/Inv): um ROAS de 0,78 com Faturamento
+  123.026 e Investimento 69.253 está CORRETO (123.026÷69.253 = 1,78; menos 1 = 0,78) — NÃO exija 1,78 nem
+  recalcule como Fat/Inv. Breakeven em 0 (não em 1): ROAS < 0 = prejuízo, ROAS > 0 = lucro (ROAS 1,05 =
+  dobrou o dinheiro). Só marque FALSE se o valor citado NÃO bater com Fat/Inv − 1. TAMBÉM é blocking o
+  ENQUADRAMENTO trocado: descrever um ROAS > 0 como "prejuízo"/"perda", ou dizer "prejuízo de R$X por real"
+  quando o ROAS é positivo (ROAS 0,78 é LUCRO de R$0,78 por real, NÃO perda de R$0,22) — reprove e mande
+  corrigir o enquadramento p/ lucro.
 - Classifique cada problema em DOIS baldes. Cada item: 1 linha ACIONÁVEL com a CORREÇÃO (o que fazer
   EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo), não só o defeito.
 - "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
@@ -495,7 +503,11 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   está certo); padronizar NOMENCLATURA entre sinônimos do MESMO conceito (ex.: "Taxa de Qualificação" ≈ "Taxa de
   Qualidade"); acrescentar contexto extra (ex.: nº absoluto de MQL ao lado da taxa). Esses NÃO tornam a saída errada.
 Não invente defeitos: se está bom e responde, answersQuestion=true, numbersGrounded=true, blocking=[]
-(suggestions pode ter 0+ itens). Na dúvida entre blocking e suggestion, é SEMPRE suggestion.`;
+(suggestions pode ter 0+ itens). Na dúvida entre blocking e suggestion, é SEMPRE suggestion.
+OBRIGATÓRIO: se marcar numbersGrounded=false, você TEM que listar em "blocking" o número EXATO que não
+confere + o valor certo dos dados ("prosa diz X; os dados mostram Y — troque para Y"). Um numbersGrounded=false
+SEM o número específico em blocking é inútil para o reparo — nesse caso NÃO reprove: marque numbersGrounded=true.
+O mesmo vale p/ answersQuestion=false: aponte em blocking o que a saída deixou de responder.`;
 
 /** Juízo semântico + NUMÉRICO de uma modal/seção já válida no schema: responde à
  *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
