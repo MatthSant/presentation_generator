@@ -1,13 +1,17 @@
-/* archive.ts — arquivar análises da home (esconde da listagem, sem deletar arquivos).
+/* archive.ts — arquivar e renomear análises da home.
  *
- * Feature de plataforma reversível: uma flag por (client, slug) no DB. O relatório
- * continua acessível por URL direta (/report/...); a análise só some da home — e um
- * cliente cujas análises foram todas arquivadas desaparece do agrupamento. */
+ * ARQUIVAR: feature de plataforma reversível — uma flag por (client, slug) no DB. O
+ * relatório continua acessível por URL direta (/report/...); a análise só some da home
+ * — e um cliente cujas análises foram todas arquivadas desaparece do agrupamento.
+ * RENOMEAR: troca só o `meta.title` do data.json (o rótulo exibido). O SLUG não muda —
+ * ele é a pasta em disco e a URL do relatório; renomeá-lo quebraria links e o histórico
+ * de deepen (que referencia client/slug). */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Express, Request } from 'express';
 import type { Ctx } from '../context.js';
+import { analysisDir, readJson, writeJson } from '../fsutil.js';
 import { clientsOf } from '../auth.js';
 import type { AuthedRequest } from './authRoutes.js';
 
@@ -83,5 +87,27 @@ export function registerArchive(app: Express, ctx: Ctx): void {
       }
     }
     res.json({ ok: true, archived, kept: [...keep] });
+  });
+
+  // Renomeia o RÓTULO da análise (meta.title do data.json). Não mexe no slug: ele é a
+  // pasta/URL e é referenciado pelo deepen_history — trocá-lo quebraria links e dados.
+  app.post('/api/:client/:slug/rename', (req, res) => {
+    const { client, slug } = req.params;
+    const title = String((req.body ?? {}).title ?? '').trim();
+    if (!title) { res.status(400).json({ error: 'título obrigatório' }); return; }
+    if (title.length > 120) { res.status(400).json({ error: 'título muito longo (máx. 120)' }); return; }
+    const owned = ownedOf(ctx, req);
+    if (owned && !owned.has(client)) { res.status(403).json({ error: 'cliente não pertence ao usuário' }); return; }
+    const dir = analysisDir(ctx.out, client, slug);
+    if (!dir) { res.status(400).json({ error: 'bad path' }); return; }
+    const file = path.join(dir, 'data.json');
+    const data = readJson<{ meta?: Record<string, unknown> }>(file);
+    if (!data?.meta) { res.status(404).json({ error: 'análise não encontrada' }); return; }
+    data.meta.title = title;
+    // A capa espelha o título; sem isso o relatório abriria com o nome antigo no topo.
+    const cover = data.meta.cover as Record<string, unknown> | undefined;
+    if (cover && typeof cover === 'object') cover.title = title;
+    writeJson(file, data);
+    res.json({ ok: true, title });
   });
 }
