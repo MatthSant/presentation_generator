@@ -307,7 +307,9 @@ html, body {
 /* COMPACTO — a taxa ao LADO da barra, sem conector: metade da altura, p/ o funil caber
    na dobra ao lado de outro bloco. A largura do afunilamento vem do style inline da
    barra, então a linha alinha à esquerda e a pill ocupa o resto. */
-.funnel-card--compact { padding: 11px 13px; }
+/* height:auto — o funnel-card normal usa height:100% p/ casar com o gráfico ao lado;
+   no compacto isso só criava um vazio embaixo das barras quando a linha era alta. */
+.funnel-card--compact { padding: 11px 13px; height: auto; }
 .funnel-card--compact .funnel-body { align-items: stretch; gap: 2px; }
 .funnel-card--compact .funnel-bar { height: 32px; }
 .funnel-card--compact .funnel-title { margin-bottom: 2px; }

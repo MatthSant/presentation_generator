@@ -380,7 +380,12 @@ def assemble(rows, config, content, opts=None):
 
     # Altura do preview na ficha, em linhas de grade. O bloco de cima (preview |
     # métricas + funil) tem de caber numa dobra — ver a modal de referência.
-    PREV_H = 7
+    # O preview cruza TODAS as linhas do bloco (eyebrow + métricas + eyebrow + funil).
+    # Se cruzar MENOS, o navegador espalha a altura dele só pelas linhas que ele toca e
+    # o excesso vai inteiro p/ os cards de métrica — com embed real (~570px) eles iam de
+    # 75px para 106px de puro vazio. Cruzando o bloco todo, a sobra se dilui.
+    BLOCK_H = 1 + ((len(MODE_KPIS[mode]) + 3) // 4) + 1 + 4
+    PREV_H = BLOCK_H
     fichas_refs = []
     for i, c in enumerate(valid, 1):
         sid = f's{i + 1:02d}'
