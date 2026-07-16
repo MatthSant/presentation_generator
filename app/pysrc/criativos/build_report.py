@@ -375,8 +375,8 @@ def assemble(rows, config, content, opts=None):
         keys = [k for k in MODE_BR[mode] if any(mm.get(k) is not None for _, mm in segs)]
         if not segs or not keys:
             return None
-        cells = []
-        for name, mm in segs:
+
+        def hrow(name, mm, ref=False):
             full = name or '—'
             row, worst_i, worst_d = [], None, 0.0
             for k in keys:
@@ -392,17 +392,32 @@ def assemble(rows, config, content, opts=None):
                 elif k in ('retorno', 'roas') and v is not None:
                     cls = 'hmd-pos1' if v > 0 else ('hmd-neg1' if v < 0 else 'hmd-neu')
                     ttl += ' · acima de 0 = sobrou dinheiro'
-                row.append({'seg': full, 'segLabel': full if len(full) <= 30 else full[:29].rstrip() + '…',
-                            'etapa': SHORT[k], 'val': val, 'cls': cls, 'title': ttl})
-            if worst_i is not None:
+                cell = {'seg': full, 'segLabel': full if len(full) <= 30 else full[:29].rstrip() + '…',
+                        'etapa': SHORT[k], 'val': val, 'cls': cls, 'title': ttl}
+                if ref:
+                    # A régua não é julgada: sem tint e sem anel, ou o olho a lê como
+                    # mais um segmento em vez da base de comparação.
+                    cell.update({'cls': 'hmd-neu', 'rowCls': 'hm-ref',
+                                 'title': f'{calc.METRICS[k]["label"]}: {val} · média de todos os criativos'})
+                row.append(cell)
+            if worst_i is not None and not ref:
                 row[worst_i]['cls'] += ' hm-worst'
                 row[worst_i]['title'] += ' · maior furo'
-            cells.extend(row)
+            return row
+
+        cells = []
+        for name, mm in segs:
+            cells.extend(hrow(name, mm))
+        # Régua: a média de TODOS os criativos da análise (calc.avg — razão ponderada
+        # pelo volume, aditiva dividida pelo nº de criativos). Sem ela, cada número da
+        # tabela só se compara ao benchmark; com ela dá p/ ver se o desvio é do criativo
+        # ou da campanha inteira. Vai por último, como rodapé de referência.
+        cells.extend(hrow('Média da campanha', avg, ref=True))
         dsname = f'cr_{i}_{prefix}'
         dataset[dsname] = {'dims': ['seg', 'etapa'], 'filters': [], 'rows': cells}
         return {'label': dimlabel, 'sub': 'etapa do funil e qualidade · verde acima do benchmark, vermelho abaixo',
                 'bind': {'dataset': dsname}, 'rowKey': 'seg', 'rowLabelKey': 'segLabel',
-                'rowTitleKey': 'seg', 'colKey': 'etapa', 'valKey': 'val',
+                'rowTitleKey': 'seg', 'rowClsKey': 'rowCls', 'colKey': 'etapa', 'valKey': 'val',
                 'clsKey': 'cls', 'titleKey': 'title'}
 
     # Altura do preview na ficha, em linhas de grade. O bloco de cima (preview |
@@ -458,14 +473,18 @@ def assemble(rows, config, content, opts=None):
                              'x': 4 + (j % 4) * 2, 'y': 1 + (j // 4), 'w': 2, 'h': 1})
         y_fun = 1 + ((len(MACRO) + 3) // 4)
 
-        # CAMINHO ATÉ A VENDA — o mesmo funil do Panorama, no recorte deste criativo.
-        # Começa na impressão (o investimento do criativo já está nas métricas acima).
-        fw.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow', 'title': 'CAMINHO ATÉ A VENDA',
+        # O mesmo funil do Panorama, no recorte deste criativo — e com o MESMO desfecho
+        # por modo: resultado termina na venda; captação, no lead qualificado (a venda
+        # ainda nem existe numa captação em andamento). Começa na impressão — o
+        # investimento do criativo já está nas métricas ao lado.
+        fw.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow',
+                   'title': 'CAMINHO ATÉ A VENDA' if mode == 'resultado' else 'CAMINHO ATÉ O LEAD QUALIFICADO',
                    'caption': 'etapa a etapa · taxas vs benchmark', 'compact': True})
         fg.items.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow', 'x': 4, 'y': y_fun, 'w': 8, 'h': 1})
-        fsteps = [('Impressões', m.get('impressoes'), None), ('Clicks', m.get('clicks'), None),
-                  ('Pageviews', m.get('pageviews'), None), ('Leads', m.get('leads'), None),
-                  ('Vendas', m.get('vendas'), None)]
+        fsteps = ([('Impressões', m.get('impressoes'), None), ('Clicks', m.get('clicks'), None),
+                   ('Pageviews', m.get('pageviews'), None), ('Leads', m.get('leads'), None)]
+                  + ([('Vendas', m.get('vendas'), None)] if mode == 'resultado'
+                     else [('Respostas', m.get('respostas'), None), ('MQLs', m.get('mqls'), None)]))
         fw.append(funnel(m, fsteps, bench, f'{sid}-fun', None, None, compact=True))
         fg.items.append({'id': f'{sid}-fun', 'type': 'funnel', 'x': 4, 'y': y_fun + 1, 'w': 8, 'h': 4})
         # Abaixo do MAIS ALTO entre o preview e a coluna da direita.
@@ -488,6 +507,27 @@ def assemble(rows, config, content, opts=None):
             card['compact'] = True
             fw.append(card)
             fg.add(wid, 'kpi-card', qw, 2)
+        # EVOLUÇÃO antes do recorte por dimensão: lida a qualidade do criativo, a
+        # pergunta seguinte é "como ele se comportou ao longo do tempo?" — o corte por
+        # temperatura/campanha/público é o detalhe que vem depois.
+        if c['daily']:
+            dataset[f'cr_{i}_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
+                {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest']} for d in c['daily']]}
+            fkeys = [k for k in MODE_KPIS[mode] if any(d['m'].get(k) is not None for d in c['daily'])]
+            fdef = 'leads' if 'leads' in fkeys else (fkeys[0] if fkeys else 'leads')
+            fmetrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in fkeys]
+            fpoints = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in fkeys}} for d in c['daily']]
+            eb(fw, fg, f'{sid}-eb-evo', 'EVOLUÇÃO NO TEMPO', 'duas métricas · barras e linha, escalas independentes')
+            # DUAL+COMBO (o mesmo do debriefing): 2º seletor plota uma segunda métrica no
+            # eixo da direita — 1ª em barras, 2ª em linha. Sem isso não dava p/ ver leads
+            # e investimento no mesmo dia, que é a leitura que interessa.
+            evo = {'id': f'{sid}-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 260,
+                   'metrics': fmetrics, 'points': fpoints, 'current': fdef}
+            snd = next((k for k in ('invest', 'cpl', 'cpmql') if k in fkeys and k != fdef), None)
+            if snd:
+                evo.update({'current2': snd, 'combo': True})
+            fw.append(evo)
+            fg.add(f'{sid}-evo', 'evolution-picker', 12, 4)
         # ONDE ESTE CRIATIVO RODOU — um heatmap com toggle de dimensão, no lugar das 3
         # tabelas empilhadas: mesma leitura da fonte, um terço da altura e a comparação
         # com o benchmark visível na célula (a tabela crua não comparava com nada).
@@ -500,22 +540,13 @@ def assemble(rows, config, content, opts=None):
                      'Página): desvio vs o benchmark da análise — verde = melhor, vermelho = pior, '
                      'neutro = perto do benchmark (±10%). O anel marca a pior métrica de cada linha. '
                      'Retorno e ROAS líquido: verde = sobrou dinheiro, vermelho = a mídia custou mais '
-                     'do que trouxe. As demais colunas são contexto — sem benchmark no app, sem cor.'))
+                     'do que trouxe. As demais colunas são contexto — sem benchmark no app, sem cor. '
+                     'A última linha é a média de TODOS os criativos da análise — a régua para ler '
+                     'as de cima.'))
             # Sem `title`: o card mostra a aba ativa ("Temperatura"), que diz o que o
             # eyebrow acima não diz. Com título fixo os dois repetiam a mesma frase.
             fw.append({'id': f'{sid}-br', 'type': 'heatmap-toggle', 'tabs': brt})
             fg.add(f'{sid}-br', 'heatmap-toggle', 12, 6)
-        if c['daily']:
-            dataset[f'cr_{i}_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
-                {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest']} for d in c['daily']]}
-            fkeys = [k for k in MODE_KPIS[mode] if any(d['m'].get(k) is not None for d in c['daily'])]
-            fdef = 'leads' if 'leads' in fkeys else (fkeys[0] if fkeys else 'leads')
-            fmetrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in fkeys]
-            fpoints = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in fkeys}} for d in c['daily']]
-            eb(fw, fg, f'{sid}-eb-evo', 'EVOLUÇÃO NO TEMPO', 'escolha a métrica')
-            fw.append({'id': f'{sid}-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 260,
-                       'metrics': fmetrics, 'points': fpoints, 'current': fdef})
-            fg.add(f'{sid}-evo', 'evolution-picker', 12, 4)
         vtag = 'vídeo' if c['is_video'] else 'estático'
         sections[sid] = {'id': sid, 'header': {'badge': f'Ficha · {vtag}', 'title': c['name'],
                          'sub': f'{c["platform"]} · ROAS líquido {fmtm("roas", m["roas"])} · investimento {money(m["invest"])}'}, 'widgets': fw}

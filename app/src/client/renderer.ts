@@ -668,7 +668,7 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
 
 /* ── heatmap ── inline rows, or bound (pivot a long-format table so the channel
  *  toggle re-filters it: one dataset row per cell → grid). */
-interface HeatSpec { bind?: Bind; rowKey?: string; rowLabelKey?: string; rowTitleKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string; clsHistKey?: string; titleHistKey?: string }
+interface HeatSpec { bind?: Bind; rowKey?: string; rowLabelKey?: string; rowTitleKey?: string; rowClsKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string; clsHistKey?: string; titleHistKey?: string }
 function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: HeatRow[] } | null {
   const r = ctx.resolve(w.bind);
   if (!r || r.rows.length === 0) return null;
@@ -683,7 +683,7 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
   const rowOrder: string[] = [];
   // identidade da linha = rowKey (nome completo, único); rótulo exibido e tooltip opcionais.
   const byRow = new Map<string, Map<string, HeatCell>>();
-  const rowMeta = new Map<string, { label: string; title?: string }>();
+  const rowMeta = new Map<string, { label: string; title?: string; cls?: string }>();
   for (const row of r.rows) {
     const rk = String(row[rowKey] ?? '');
     const ck = String(row[colKey] ?? '');
@@ -694,6 +694,7 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
       rowMeta.set(rk, {
         label: w.rowLabelKey && row[w.rowLabelKey] != null ? String(row[w.rowLabelKey]) : rk,
         title: w.rowTitleKey && row[w.rowTitleKey] != null ? String(row[w.rowTitleKey]) : undefined,
+        cls: w.rowClsKey && row[w.rowClsKey] != null ? String(row[w.rowClsKey]) : undefined,
       });
     }
     byRow.get(rk)!.set(ck, {
@@ -705,6 +706,7 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
   const rows: HeatRow[] = rowOrder.map(rk => ({
     label: rowMeta.get(rk)!.label,
     title: rowMeta.get(rk)!.title,
+    cls: rowMeta.get(rk)!.cls,
     cells: cols.map(ck => byRow.get(rk)!.get(ck) ?? { value: '—' }),
   }));
   return { cols, rows };
@@ -717,11 +719,13 @@ function buildHeatGrid(cols: string[], rows: HeatRow[]): HTMLElement {
   grid.appendChild(el('div'));
   for (const c of cols) grid.appendChild(el('div', 'hm-th', c));
   for (const r of rows) {
-    const rh = el('div', 'hm-rh', r.label);
+    // r.cls marca a linha inteira (cabeçalho + células) — o grid é flat, então não há
+    // um <tr> onde pendurar a classe: ela vai em cada filho daquela linha.
+    const rh = el('div', `hm-rh${r.cls ? ` ${r.cls}` : ''}`, r.label);
     if (r.title && r.title !== r.label) rh.title = r.title;
     grid.appendChild(rh);
     for (const cell of r.cells || []) {
-      const td = el('div', `hm-cell ${cell.cls || 'hm-n'}`, formatValue(cell.value));
+      const td = el('div', `hm-cell ${cell.cls || 'hm-n'}${r.cls ? ` ${r.cls}` : ''}`, formatValue(cell.value));
       if (cell.title) td.title = cell.title;
       grid.appendChild(td);
     }

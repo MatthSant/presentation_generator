@@ -199,7 +199,9 @@ export interface TableWidget extends WidgetBase {
 }
 
 export interface HeatCell { value: string | number; cls?: string; title?: string }
-export interface HeatRow { label: string; cells: HeatCell[]; title?: string }
+/** `cls` marca a linha inteira (cabeçalho + células) — ex.: `hm-ref` numa linha de
+ *  referência (média/base) que serve de régua para as demais, não é par delas. */
+export interface HeatRow { label: string; cells: HeatCell[]; title?: string; cls?: string }
 export interface HeatmapWidget extends WidgetBase {
   type: 'heatmap';
   /** Column headers. Optional when bound — derived from the `colKey` column. */
@@ -216,6 +218,8 @@ export interface HeatmapWidget extends WidgetBase {
   valKey?: string;
   clsKey?: string;
   titleKey?: string;
+  /** Coluna cuja 1ª ocorrência na linha vira a classe da LINHA (ver HeatRow.cls). */
+  rowClsKey?: string;
 }
 
 /** One tab of a heatmap-toggle: its own bound dataset + pivot keys. */
@@ -224,6 +228,11 @@ export interface HeatmapTab {
   sub?: string;
   bind: Bind;
   rowKey?: string;
+  /** Rótulo exibido e tooltip da linha, quando o `rowKey` (identidade) é longo demais
+   *  p/ caber — nome de campanha/público. Ausentes → mostra o próprio rowKey. */
+  rowLabelKey?: string;
+  rowTitleKey?: string;
+  rowClsKey?: string;
   colKey?: string;
   valKey?: string;
   clsKey?: string;

@@ -2121,6 +2121,11 @@ body.edit-mode .tile-filter-badge { display:none; }
 .hm-host .hm-cell.hmd-neg1 { background: rgba(239,68,68,.10); color: var(--fg); font-weight: 600; }
 .hm-host .hm-cell.hmd-neg2 { background: rgba(239,68,68,.20); color: var(--fg); font-weight: 700; }
 .hm-host .hm-cell.hm-worst { box-shadow: inset 0 0 0 1.5px rgba(220,38,38,.6); font-weight: 700; }
+/* linha de REFERÊNCIA (média/base): régua das linhas de cima, não par delas — separada
+   por um filete e recuada no tom, p/ o olho não a ler como mais um segmento. */
+.hm-host .hm-ref { border-top: 1px solid var(--border); margin-top: 5px; padding-top: 9px; }
+.hm-host .hm-rh.hm-ref { font-style: italic; color: var(--gray2); }
+.hm-host .hm-cell.hm-ref { background: transparent; color: var(--gray2); font-weight: 600; }
 
 /* — Section bar band: match the base page-band's near-white gradient — */
 #section-bar { background: linear-gradient(180deg, oklch(99% 0.004 285), #fff); }
