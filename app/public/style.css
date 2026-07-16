@@ -304,6 +304,16 @@ html, body {
 .funnel-bar-l { font-size: 12.5px; } .funnel-bar-v { font-size: 13px; font-weight: 750; }
 .funnel-conn { width: 2px; height: 9px; background: var(--border); align-self: center; }
 .funnel-pills { display: flex; gap: 7px; justify-content: center; align-items: center; padding: 4px 0; flex-wrap: wrap; }
+/* COMPACTO — a taxa ao LADO da barra, sem conector: metade da altura, p/ o funil caber
+   na dobra ao lado de outro bloco. A largura do afunilamento vem do style inline da
+   barra, então a linha alinha à esquerda e a pill ocupa o resto. */
+.funnel-card--compact { padding: 11px 13px; }
+.funnel-card--compact .funnel-body { align-items: stretch; gap: 2px; }
+.funnel-card--compact .funnel-bar { height: 32px; }
+.funnel-card--compact .funnel-title { margin-bottom: 2px; }
+.funnel-card--compact .funnel-row { display: flex; align-items: center; gap: 10px; }
+.funnel-card--compact .funnel-row .funnel-bar { flex: 0 0 auto; }
+.funnel-card--compact .funnel-pills { padding: 0; justify-content: flex-start; flex-wrap: nowrap; }
 .funnel-pill { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
 .funnel-pill--loss { background: var(--purple-bg, #eeedfe); color: var(--purple, #7F77DD); }
 .funnel-pill--migrate { background: var(--ok-bg, #f0fdf4); color: var(--ok-fg, #15803d); }
@@ -841,7 +851,10 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 .embed-card { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
 .embed-title { font-size: 12px; font-weight: 600; color: var(--gray2); }
 /* proporção de Reels (vertical ~9:16, + chrome do post do Instagram) */
-.embed-ig { width: 100%; max-width: 360px; min-height: 720px; margin: 0 auto; display: block; border: none; border-radius: 8px; background: var(--surface); }
+/* aspect-ratio 9/16 em vez de min-height fixo: o preview ACOMPANHA a largura da coluna
+   e o bloco (preview + métricas + funil) cabe numa dobra. Os 720px fixos estouravam a
+   tela sozinhos. O iframe rola por dentro quando o post é mais alto. */
+.embed-ig { width: 100%; max-width: 360px; aspect-ratio: 9 / 16; max-height: 62vh; margin: 0 auto; display: block; border: none; border-radius: 8px; background: var(--surface); }
 .embed-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 200px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--gray2); font-size: 13px; }
 .embed-link { color: var(--purple); font-size: 13px; font-weight: 500; text-decoration: none; }
 .embed-link:hover { text-decoration: underline; }
@@ -1851,6 +1864,9 @@ body.edit-mode .tile-filter-badge { display:none; }
 
 /* — Group eyebrow (numbered zone separator) — */
 .grp-eyebrow { display: flex; align-items: center; gap: 14px; margin: 30px 0 20px; }
+/* COMPACTO: os 50px de margem separam SEÇÕES num fluxo; dentro de um bloco que precisa
+   caber na dobra (ficha do criativo) eles custam 84px por rótulo de 18px. */
+.grp-eyebrow--compact { margin: 2px 0 8px; }
 .grp-eyebrow .ge-i {
   width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -1893,6 +1909,15 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc { padding: 13px 15px; display: flex; flex-direction: column; height: 100%; }
 .kc--volume { padding: 12px 13px 11px; }
 .kc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+/* COMPACTO — card de métrica dentro de um bloco que precisa caber na dobra (ficha do
+   criativo): 10 deles dividem a tela com o preview e o funil. Aperta o padding e a
+   cabeça (o badge (i) sozinho levava a head de ~14px p/ 34px). */
+.kc--compact { padding: 9px 11px; }
+.kc--compact .kc-head { margin-bottom: 3px; align-items: center; }
+.kc--compact .kc-lbl { font-size: 9.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--gray2); line-height: 1.25; }
+.kc--compact .kc-val { font-size: 16px; }
+.kc--compact .kc-valrow { margin-bottom: 0; }
+.kc--compact .th-i { width: 13px; height: 13px; line-height: 13px; font-size: 9px; flex: 0 0 auto; align-self: center; }
 .kc--feature .kc-head { align-items: center; margin-bottom: 6px; }
 .kc--volume .kc-head { margin-bottom: 5px; }
 .kc-ico { width: 31px; height: 31px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }

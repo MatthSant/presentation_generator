@@ -406,6 +406,9 @@ export interface EyebrowWidget extends WidgetBase {
   /** Divisor de grupo (cabeçalho de seção): estilo mais forte que um eyebrow comum,
    *  para abrir um bloco que contém sub-seções (que usam eyebrows normais). */
   divider?: boolean;
+  /** Sem a margem de separação de seção (50px). Para rótulo DENTRO de um bloco que
+   *  precisa caber numa dobra — a margem custa mais que o próprio rótulo. */
+  compact?: boolean;
   /** Tooltip (i) ao lado do título — ex.: critérios de cor/marcação de um widget. */
   info?: string;
 }
@@ -437,6 +440,9 @@ export interface KpiCardWidget extends WidgetBase {
   /** Destaque (feature): fundo roxo em degradê + texto claro — p/ a métrica-chave
    *  da seção (ex.: CPMQL nos KPIs macro). */
   emph?: boolean;
+  /** COMPACTO: padding e rótulo apertados, valor menor. Para grades de muitas métricas
+   *  dentro de um bloco que precisa caber numa dobra (ficha do criativo). */
+  compact?: boolean;
   /** Tom de fundo (tint) do card por categoria — p/g/a/r/n. Para grades de células
    *  categóricas (ex.: tipo de lead: roxo base, vermelho pago, verde orgânico). */
   tint?: ColorToken;
@@ -599,6 +605,10 @@ export interface FunnelWidget extends WidgetBase {
   baseLabel?: string;
   /** esconde a tag de perda (▼ X%) — só mostra a taxa de passagem vs bench + MAIOR FURO. */
   hideLoss?: boolean;
+  /** COMPACTO: a taxa fica ao LADO da barra, sem conectores — ~metade da altura.
+   *  Para quando o funil precisa caber numa dobra ao lado de outro bloco (ficha do
+   *  criativo). Sem isto, cada transição empilha conector+pill+conector entre as barras. */
+  compact?: boolean;
   /** vlabel = rótulo do valor (ex.: "R$ 151k" p/ uma etapa em dinheiro); default = value formatado. */
   steps: { label: string; value: number; vlabel?: string }[];
   /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido.

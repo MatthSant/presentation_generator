@@ -210,7 +210,7 @@ function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
 
 /* ── eyebrow ── numbered zone separator (badge + title + caption + rule) */
 function renderEyebrow(w: EyebrowWidget): HTMLElement {
-  const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
+  const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.compact ? ' grp-eyebrow--compact' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
   if (w.info) wrap.appendChild(infoBadge(w.info));
@@ -398,7 +398,8 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
   const emphCls = (feature && w.emph) ? ' kc--emph' : '';
-  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}${emphCls}`);
+  const cmpCls = w.compact ? ' kc--compact' : '';
+  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}${emphCls}${cmpCls}`);
   const val = el('div', 'kc-val');
   val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
   if (feature) {
@@ -997,7 +998,7 @@ function renderQaCard(w: QaCardWidget, ctx: RenderCtx): HTMLElement {
 /* ── funnel ── funil visual: barras degradê por etapa + pills perda/migram. */
 const FUNNEL_GRAD = ['#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#3B1675', '#2E084B'];
 function renderFunnel(w: FunnelWidget): HTMLElement {
-  const wrap = el('div', 'funnel-card');
+  const wrap = el('div', 'funnel-card' + (w.compact ? ' funnel-card--compact' : ''));
   if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
   if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
   const hasHist = (w.transitions || []).some(t => t && t.benchHist != null);
@@ -1015,10 +1016,13 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
       bar.appendChild(el('span', 'funnel-bar-l', s.label));
       bar.appendChild(el('span', 'funnel-bar-v', s.vlabel ?? (s.value ?? 0).toLocaleString('pt-BR')));
-      body!.appendChild(bar);
+      // COMPACTO: a barra e a taxa dividem a MESMA linha (a taxa à direita), em vez de
+      // empilhar conector+pill+conector entre as barras. Corta ~metade da altura.
+      const row = w.compact ? el('div', 'funnel-row') : null;
+      if (row) { row.appendChild(bar); body!.appendChild(row); } else { body!.appendChild(bar); }
       const t = w.transitions?.[i];
       if (t && i < n - 1) {
-        body!.appendChild(el('div', 'funnel-conn'));
+        if (!w.compact) body!.appendChild(el('div', 'funnel-conn'));
         const pills = el('div', 'funnel-pills');
         if (t.invalid) {
           pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
@@ -1048,7 +1052,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
               `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(dec)}%${baseTxt}${furoTxt}`));
           }
         }
-        body!.appendChild(pills);
+        if (row) row.appendChild(pills); else body!.appendChild(pills);
       }
     });
     wrap.appendChild(body);

@@ -88,7 +88,7 @@ def fmtm(key, v):
     return intf(v)
 
 
-def funnel(m, steps_def, bench, wid, title, sub):
+def funnel(m, steps_def, bench, wid, title, sub, compact=False):
     """Widget de funil a partir das métricas `m` e das etapas `steps_def`
     [(rótulo, valor, vlabel|None)]. Usado pelo Panorama (consolidado) e pela ficha
     (um criativo) — mesma leitura dos dois lados.
@@ -129,7 +129,7 @@ def funnel(m, steps_def, bench, wid, title, sub):
     if wi is not None:
         trs[wi]['worst'] = True
     return {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub,
-            'baseLabel': 'bench', 'hideLoss': True,
+            'baseLabel': 'bench', 'hideLoss': True, **({'compact': True} if compact else {}),
             'steps': [{'label': l, 'value': v, **({'vlabel': vl} if vl else {})} for l, v, vl in fv],
             'transitions': trs}
 
@@ -378,6 +378,9 @@ def assemble(rows, config, content, opts=None):
         dataset[name] = {'dims': [dimlabel], 'filters': [], 'rows': rws}
         return cols, name
 
+    # Altura do preview na ficha, em linhas de grade. O bloco de cima (preview |
+    # métricas + funil) tem de caber numa dobra — ver a modal de referência.
+    PREV_H = 7
     fichas_refs = []
     for i, c in enumerate(valid, 1):
         sid = f's{i + 1:02d}'
@@ -396,43 +399,45 @@ def assemble(rows, config, content, opts=None):
             fw.append({'id': f'{sid}-embed', 'type': 'embed', 'platform': c['platform'],
                        'title': f'{c["name"]} · {c["platform"]}',
                        'caption': 'Sem link no dicionário — adicione a URL do anúncio para ver o preview.'})
-        fg.items.append({'id': f'{sid}-embed', 'type': fw[-1]['type'], 'x': 0, 'y': 0, 'w': 4, 'h': 9})
+        # O bloco inteiro — preview + métricas + funil — tem de caber numa dobra, como
+        # na modal de referência. w4 mantém a conta do grid (as 8 restantes = 4 métricas).
+        fg.items.append({'id': f'{sid}-embed', 'type': fw[-1]['type'], 'x': 0, 'y': 0, 'w': 4, 'h': PREV_H})
         # MÉTRICAS — compactas, 4 por linha. Eram 2 por linha (w=4) e esticavam para
         # preencher a altura do preview, com metade do card vazio.
-        fw.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'title': 'MÉTRICAS', 'caption': 'consolidado do criativo'})
+        fw.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'title': 'MÉTRICAS', 'caption': 'consolidado do criativo', 'compact': True})
         fg.items.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'x': 4, 'y': 0, 'w': 8, 'h': 1})
         for j, k in enumerate(MACRO):
             star = k in STAR
-            card = {'id': f'{sid}-m-{k}', 'type': 'kpi-card', 'tier': 'feature',
+            # Card ENXUTO (label + valor), como na referência: sem ícone e sem "média" —
+            # são 10 deles numa dobra dividida com o preview e o funil. A comparação com
+            # o lançamento continua no Panorama e nas tabelas abaixo.
+            card = {'id': f'{sid}-m-{k}', 'type': 'kpi-card', 'tier': 'feature', 'compact': True,
                     'label': calc.METRICS[k]['label'] + (' ★' if star else ''),
-                    'value': fmtm(k, m.get(k)),
-                    'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if star else '#7F77DD'}
-            # "média X" aqui COMPARA (este criativo × o lançamento) — números diferentes,
-            # ao contrário do Panorama, onde o avg da razão é o próprio total.
-            if not calc.is_ratio(k) or avg.get(k) != m.get(k):
-                card['sub'] = f'média {fmtm(k, avg.get(k))}'
+                    'value': fmtm(k, m.get(k))}
             if INFO.get(k):
                 card['info'] = INFO[k]
             if star:
                 card['emph'] = True
             fw.append(card)
+            # h=1 (não 2): o card enxuto tem ~66px de altura natural e a linha de grade
+            # aqui vale ~61px. Com h=2 ele ESTICAVA p/ 122px e empurrava o funil p/ fora
+            # da dobra — metade do card era vazio.
             fg.items.append({'id': f'{sid}-m-{k}', 'type': 'kpi-card',
-                             'x': 4 + (j % 4) * 2, 'y': 1 + (j // 4) * 2, 'w': 2, 'h': 2})
-        y_fun = 1 + ((len(MACRO) + 3) // 4) * 2
+                             'x': 4 + (j % 4) * 2, 'y': 1 + (j // 4), 'w': 2, 'h': 1})
+        y_fun = 1 + ((len(MACRO) + 3) // 4)
 
         # CAMINHO ATÉ A VENDA — o mesmo funil do Panorama, no recorte deste criativo.
         # Começa na impressão (o investimento do criativo já está nas métricas acima).
         fw.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow', 'title': 'CAMINHO ATÉ A VENDA',
-                   'caption': 'etapa a etapa · taxas vs benchmark'})
+                   'caption': 'etapa a etapa · taxas vs benchmark', 'compact': True})
         fg.items.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow', 'x': 4, 'y': y_fun, 'w': 8, 'h': 1})
         fsteps = [('Impressões', m.get('impressoes'), None), ('Clicks', m.get('clicks'), None),
                   ('Pageviews', m.get('pageviews'), None), ('Leads', m.get('leads'), None),
                   ('Vendas', m.get('vendas'), None)]
-        fw.append(funnel(m, fsteps, bench, f'{sid}-fun', 'Caminho até a venda',
-                         'da impressão à compra · taxas vs benchmark'))
-        fg.items.append({'id': f'{sid}-fun', 'type': 'funnel', 'x': 4, 'y': y_fun + 1, 'w': 8, 'h': 6})
-        # Abaixo do MAIS ALTO entre o preview (h=9) e a coluna da direita.
-        fg.x = 0; fg.y = max(9, y_fun + 7); fg.rowh = 0
+        fw.append(funnel(m, fsteps, bench, f'{sid}-fun', None, None, compact=True))
+        fg.items.append({'id': f'{sid}-fun', 'type': 'funnel', 'x': 4, 'y': y_fun + 1, 'w': 8, 'h': 4})
+        # Abaixo do MAIS ALTO entre o preview e a coluna da direita.
+        fg.x = 0; fg.y = max(PREV_H, y_fun + 5); fg.rowh = 0
         # DADOS DO CRIATIVO — só para vídeo (hook/hold/views só existem com views_totais>0).
         if m.get('is_video'):
             vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
