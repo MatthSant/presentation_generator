@@ -236,7 +236,7 @@ def assemble(rows, config, content, opts=None):
 
     # ── s01 Panorama ─────────────────────────────────────────────────────────
     pan, pg = [], Grid()
-    total, avg = B['total'], B['avg']
+    total = B['total']
 
     def bench_sub(k, v):
         # Rodapé comparando `v` ao BENCHMARK da métrica (↑ acima / ↓ abaixo, custo
@@ -398,7 +398,7 @@ def assemble(rows, config, content, opts=None):
                     # A régua não é julgada: sem tint e sem anel, ou o olho a lê como
                     # mais um segmento em vez da base de comparação.
                     cell.update({'cls': 'hmd-neu', 'rowCls': 'hm-ref',
-                                 'title': f'{calc.METRICS[k]["label"]}: {val} · média de todos os criativos'})
+                                 'title': f'{calc.METRICS[k]["label"]}: {val} · consolidado de todos os criativos'})
                 row.append(cell)
             if worst_i is not None and not ref:
                 row[worst_i]['cls'] += ' hm-worst'
@@ -408,11 +408,11 @@ def assemble(rows, config, content, opts=None):
         cells = []
         for name, mm in segs:
             cells.extend(hrow(name, mm))
-        # Régua: a média de TODOS os criativos da análise (calc.avg — razão ponderada
-        # pelo volume, aditiva dividida pelo nº de criativos). Sem ela, cada número da
-        # tabela só se compara ao benchmark; com ela dá p/ ver se o desvio é do criativo
-        # ou da campanha inteira. Vai por último, como rodapé de referência.
-        cells.extend(hrow('Média da campanha', avg, ref=True))
+        # Régua: o consolidado de TODOS os criativos da análise. Nas ADITIVAS (invest,
+        # leads, vendas) é a soma — dá p/ ver que fatia este recorte representa. Nas
+        # RAZÕES (CPM, CTR, ROAS…) `total` já é a razão agregada ponderada por volume,
+        # que é a leitura certa de "o CPM da campanha". Vai por último, como rodapé.
+        cells.extend(hrow('Total da campanha', total, ref=True))
         dsname = f'cr_{i}_{prefix}'
         dataset[dsname] = {'dims': ['seg', 'etapa'], 'filters': [], 'rows': cells}
         return {'label': dimlabel, 'sub': 'etapa do funil e qualidade · verde acima do benchmark, vermelho abaixo',
@@ -544,8 +544,8 @@ def assemble(rows, config, content, opts=None):
                      'neutro = perto do benchmark (±10%). O anel marca a pior métrica de cada linha. '
                      'Retorno e ROAS líquido: verde = sobrou dinheiro, vermelho = a mídia custou mais '
                      'do que trouxe. As demais colunas são contexto — sem benchmark no app, sem cor. '
-                     'A última linha é a média de TODOS os criativos da análise — a régua para ler '
-                     'as de cima.'))
+                     'A última linha é o consolidado de TODOS os criativos da análise — soma nas '
+                     'aditivas (investimento, leads, vendas), razão ponderada nas taxas e custos.'))
             # Sem `title`: o card mostra a aba ativa ("Temperatura"), que diz o que o
             # eyebrow acima não diz. Com título fixo os dois repetiam a mesma frase.
             fw.append({'id': f'{sid}-br', 'type': 'heatmap-toggle', 'tabs': brt})
