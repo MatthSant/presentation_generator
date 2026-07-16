@@ -47,6 +47,31 @@ ICON = {'invest': 'coin', 'roas': 'bolt', 'retorno': 'database', 'leads': 'users
         'vendas': 'shopping-cart', 'conv': 'circle-check', 'cac': 'target', 'qualidade': 'star',
         'cpl': 'users', 'cpm': 'database', 'ctr': 'trending-up', 'tx_resposta': 'message',
         'cpmql': 'target'}
+# Tooltip (i) de cada indicador — explica em PESSOAS, não em nome de coluna do dump
+# ("quem viu metade do vídeo", não "views_50pc"). Substitui a nota de rodapé.
+INFO = {
+    'invest': 'Quanto foi gasto em mídia paga nestes criativos.',
+    'leads': 'Pessoas que deixaram o contato.',
+    'vendas': 'Compras concluídas atribuídas a estes criativos.',
+    'retorno': 'Faturamento bruto gerado — antes de descontar o investimento.',
+    'roas': 'Retorno LÍQUIDO por real investido: o quanto sobrou além do que se gastou. '
+            '0 = empatou (o faturamento cobriu exatamente a mídia); 1× = dobrou o dinheiro. '
+            'Negativo = a mídia custou mais do que trouxe.',
+    'cpl': 'Quanto custou cada pessoa que deixou o contato.',
+    'cac': 'Quanto custou cada venda.',
+    'conv': 'De cada 100 pessoas que deixaram o contato, quantas compraram.',
+    'qualidade': 'Entre quem respondeu a pesquisa, a fatia que tem o perfil de quem compra (lead qualificado).',
+    'cpmql': 'Quanto custa, na projeção, cada lead com perfil de comprador — o custo do lead '
+             'dividido pela fatia que se qualifica. Sobe quando o lead fica caro OU quando piora o perfil.',
+    'cpm': 'Quanto custou para o anúncio aparecer mil vezes. É o preço do leilão de mídia.',
+    'ctr': 'De cada 100 pessoas que viram o anúncio, quantas clicaram.',
+    'tx_resposta': 'Dos que deixaram o contato, quantos responderam a pesquisa.',
+    'hook_rate': 'De quem viu o anúncio, quantos pararam e começaram a assistir. Mede se a abertura prende.',
+    'hold_rate': 'De quem começou a assistir, quantos ficaram até o fim. Mede se o vídeo segura.',
+    'connect_rate': 'De quem clicou, quantos realmente chegaram a abrir a página. Perda aqui costuma ser '
+                    'página lenta ou clique sem intenção.',
+    'conv_pagina': 'De quem abriu a página, quantos deixaram o contato. Mede a página, não o anúncio.',
+}
 
 
 def fmtm(key, v):
@@ -183,6 +208,8 @@ def assemble(rows, config, content, opts=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v),
                 'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if k in STAR else '#7F77DD'}
+        if INFO.get(k):
+            card['info'] = INFO[k]   # (i) no card — substitui a nota de rodapé
         if bench.get(k) is not None:
             apply_goal(card, v, bench.get(k), calc.METRICS.get(k, {}).get('cost') is True,
                        None, fmtm(k, bench.get(k)), None, 'Bench')
@@ -303,15 +330,14 @@ def assemble(rows, config, content, opts=None):
     pan.append({'id': 'cr-rank', 'type': 'link-card', 'ranked': True,
                 'sortKeys': sort_keys, 'cards': rank_cards})
     pg.add('cr-rank', 'link-card', 12, 8)
-    pan.append({'id': 'cr-note', 'type': 'find-note',
-                'text': 'ROAS líquido = faturamento/investimento − 1. Qualidade = MQLs/respostas. '
-                        'CPMQL projetado = CPL ÷ (MQLs/respostas). Hook = views 2s/impressões; Hold = views 50%/2s. '
-                        f'Criativos sem tráfego ({len(creatives) - len(valid)}) ficam fora dos totais.'})
-    pg.add('cr-note', 'find-note', 12, 1)
 
-    # O recorte de tipo fica explícito no cabeçalho — a análise nasce filtrada e o
-    # consultor precisa ver isso ao ler os números.
+    # As fórmulas saíram da nota de rodapé e viraram o (i) de cada KPI (em linguagem de
+    # pessoas). O que a nota tinha de ESCOPO — quem ficou de fora dos totais — não é
+    # fórmula e sobe para o cabeçalho, junto do recorte de tipo.
     sub = f'{len(valid)} criativos com tráfego · investimento {money(total["invest"])} · {len(B["daily"])} dias'
+    sem_trafego = len(creatives) - len(valid)
+    if sem_trafego:
+        sub += f' · {sem_trafego} sem tráfego, fora dos totais'
     if sel_tipo:
         sub += f' · campanhas de {sel_tipo}'
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': 'Panorama de Criativos', 'sub': sub}, 'widgets': pan}

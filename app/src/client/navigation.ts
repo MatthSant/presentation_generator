@@ -243,13 +243,14 @@ export class Navigation {
 
     const det = this.store.pages.find((p) => p.id === 'detalhamentos');
     const report = this.store.pages.filter((p) => p.id !== 'detalhamentos');
+    // Listas longas (ex.: Fichas, com uma seção por criativo) vão para o FIM: as
+    // páginas-destino e os aprofundamentos ficam alcançáveis sem rolar a lista toda.
+    const groups = report.filter((p) => p.sections.length > 1);
+    const items = report.filter((p) => p.sections.length <= 1);
 
     label('Relatório');
     let n = 0;   // só as páginas-destino são numeradas
-    for (const page of report) {
-      if (page.sections.length > 1) groupPage(page);
-      else pageItem(page, ++n);
-    }
+    for (const page of items) pageItem(page, ++n);
 
     if (det && det.sections.length) {
       label('Aprofundamentos');
@@ -259,6 +260,8 @@ export class Navigation {
       for (const sec of det.sections) this.appendSec(grp, det.id, sec);
       this.sideHost.appendChild(grp);
     }
+
+    for (const page of groups) groupPage(page);
   }
 
   /** Item de seção (sub-página / detalhamento) na árvore lateral. */

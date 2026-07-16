@@ -407,7 +407,19 @@ class App {
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);
       this.store.layout = { ...this.store.layout, sections: { ...this.store.layout.sections, ...r.layout } };
-      await this.go(this.store.currentPageId, this.store.currentSectionId, true);
+      // O filtro pode mudar QUAIS seções existem (ex.: criativos fora do investimento
+      // mínimo somem) → a nav precisa acompanhar. Mescla por id: as páginas que vivem
+      // no disco (Aprofundamentos, Perguntas) não vêm do assemble e ficam como estão.
+      if (r.pages?.length) {
+        const fresh = new Map(r.pages.map((p) => [p.id, p]));
+        this.store.data.pages = this.store.pages.map((p) => fresh.get(p.id) || p);
+        this.nav.build();
+      }
+      // A seção aberta pode ter sumido no novo recorte — cai para a 1ª disponível.
+      const cur = this.store.currentSectionId;
+      const stillThere = this.store.pages.some((p) => p.sections.some((s) => s.id === cur));
+      const target = stillThere ? cur : (this.store.page(this.store.currentPageId)?.sections[0]?.id || cur);
+      await this.go(this.store.currentPageId, target, true);
       window.scrollTo({ top: y });
     } catch (e) {
       this.toast(`Falha ao recalcular: ${(e as Error).message}`);
