@@ -155,6 +155,9 @@ def assemble(rows, config, content, opts=None):
             'title': c['name'], 'sub': c['platform'], 'tags': tags,
             'metrics': [{'label': calc.METRICS[k]['label'], 'value': fmtm(k, m.get(k))} for k in card_metrics],
             'main': {'label': main_lbl, 'value': fmtm(main_k, m.get(main_k)), 'pct': round(card_pct(m), 1), 'tone': card_tone(m)},
+            # valores CRUS p/ o seletor de ordenação (as métricas acima são strings)
+            'sort': {'invest': m.get('invest'), 'roas': m.get('roas'), 'retorno': m.get('retorno'),
+                     'cpmql': m.get('cpmql')},
             'gotoPage': 'fichas', 'gotoSection': sid_of[c['key']]})
 
     # ── s01 Panorama ─────────────────────────────────────────────────────────
@@ -291,8 +294,14 @@ def assemble(rows, config, content, opts=None):
 
     eb(pan, pg, 'cr-eb-rank', 'CRIATIVOS POR DESEMPENHO', f'{len(valid)} criativos · clique no card para abrir a ficha · ordenado por {main_lbl}')
     # ranked: os cards saem ordenados por `main` (ROAS/CPMQL) → o card numera 1..n e a
-    # barra passa a significar "distância até o 1º".
-    pan.append({'id': 'cr-rank', 'type': 'link-card', 'ranked': True, 'cards': rank_cards})
+    # barra passa a significar "distância até o 1º". A 1ª chave de ordenação é a que
+    # eles já chegam ordenados (o indicador do modo).
+    sort_keys = ([{'key': 'roas', 'label': 'ROAS'}] if mode == 'resultado'
+                 else [{'key': 'cpmql', 'label': 'CPMQL', 'asc': True}])   # custo: menor é melhor
+    sort_keys += [{'key': 'invest', 'label': 'Investimento'}, {'key': 'retorno', 'label': 'Retorno'},
+                  {'key': 'name', 'label': 'A-Z', 'asc': True}]
+    pan.append({'id': 'cr-rank', 'type': 'link-card', 'ranked': True,
+                'sortKeys': sort_keys, 'cards': rank_cards})
     pg.add('cr-rank', 'link-card', 12, 8)
     pan.append({'id': 'cr-note', 'type': 'find-note',
                 'text': 'ROAS líquido = faturamento/investimento − 1. Qualidade = MQLs/respostas. '
@@ -425,7 +434,11 @@ def build(csv_path, config, content, out_dir):
     dic = calc.load_dict(dict_csv) if dict_csv and os.path.exists(dict_csv) else {}
     r = assemble(rows, config, content, {'dict': dic})
     try:
-        from common.preserve import preserve, preserve_dataset
+        from common.preserve import preserve, preserve_dataset, prune_sections
+        # Antes de gravar: some com os sXX.json que esta geração não produz mais (a
+        # análise encolhe quando o recorte de tipo entra ou o CSV traz menos criativos).
+        # Sem isto sobram fichas órfãs apontando p/ datasets mortos.
+        prune_sections(out_dir, r['sections'])
         preserve(out_dir, r['data'], r['sections'])
         preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     except Exception:

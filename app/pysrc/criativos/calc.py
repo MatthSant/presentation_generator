@@ -155,6 +155,7 @@ def metrics(rows, produto):
     pv = soma(rows, 'pageviews')
     v2s = soma(rows, 'views_2s')
     v50 = soma(rows, 'views_50pc')
+    v100 = soma(rows, 'views_100pc')
     vtot = soma(rows, 'views_totais')
     qual_raw = (mqls / resp) if resp > 0 else None
     cpl = div(invest, leads)
@@ -175,11 +176,15 @@ def metrics(rows, produto):
         'cpm': div(invest * 1000, imp),
         'ctr': pct(clk, imp),
         'tx_resposta': pct(resp, leads),
-        # vídeo / página (só com base de vídeo). Base = views_totais (proxy atual de
-        # videoviews, conforme a SKILL fonte; views_2s entra quando o campo for corrigido).
-        # Fórmulas iguais à fonte: Hook = viewsTotais/impressões; Hold = views50pc/viewsTotais.
+        # vídeo / página (só com base de vídeo). A cadeia: o NUMERADOR do Hook é o
+        # DENOMINADOR do Hold — quem começou a assistir.
+        #   Hook = quem começou ÷ quem viu o anúncio
+        #   Hold = quem foi até o fim ÷ quem começou
+        # "quem começou" deveria ser views_2s, mas o export traz o campo ZERADO (usá-lo
+        # apagaria Hook e Hold de todos os criativos), então a base é views_totais.
+        # Idem "views95": não há coluna de 95% no export → views_100pc (assistiu até o fim).
         'hook_rate': (pct(vtot, imp) if vtot > 0 else None),
-        'hold_rate': (pct(v50, vtot) if vtot > 0 else None),
+        'hold_rate': (pct(v100, vtot) if vtot > 0 else None),
         'connect_rate': pct(pv, clk),
         'conv_pagina': pct(leads, pv),
         'videoviews': (round(vtot) if vtot > 0 else None),

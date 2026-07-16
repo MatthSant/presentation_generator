@@ -12,6 +12,7 @@ pós-geração e precisa sobreviver:
 histórico). Idempotente; análises novas (dir vazio) passam ilesas."""
 import json
 import os
+import re
 
 
 def _load(path):
@@ -83,3 +84,26 @@ def preserve(out_dir, data, sections):
             sec['historyId'] = prev['historyId']
 
     return data
+
+
+def prune_sections(out_dir, sections):
+    """Apaga os `sXX.json` que a geração NÃO produziu mais.
+
+    O build grava todas as seções do assemble, mas nunca removia as antigas: se a
+    análise ENCOLHE (ex.: um filtro passa a recortar o dump, ou o CSV novo tem menos
+    entidades), os arquivos sobram apontando para datasets que já não existem — o
+    relatório não os mostra (data.json não os referencia), mas o validate acusa e o
+    diretório vira lixo acumulado.
+
+    Só mexe no padrão `s<dígitos>.json` — det-*.json (detalhamentos) e o resto ficam.
+    """
+    if not os.path.isdir(out_dir):
+        return 0
+    keep = set(sections or {})
+    n = 0
+    for f in os.listdir(out_dir):
+        m = re.fullmatch(r'(s\d+)\.json', f)
+        if m and m.group(1) not in keep:
+            os.remove(os.path.join(out_dir, f))
+            n += 1
+    return n

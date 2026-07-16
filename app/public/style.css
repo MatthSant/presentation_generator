@@ -848,6 +848,10 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 .embed-cap { font-size: 12px; color: var(--gray2); }
 
 /* ── LINK-CARD — grid de cards clicáveis (criativos → ficha) ── */
+.lc-hd { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.lc-hd .chart-title { margin: 0; }
+.lc-sort .seg-opt { font-size: 11.5px; font-weight: 500; padding: 6px 12px; font-variant-numeric: tabular-nums; }
+.lc-sort .seg-opt.active { font-weight: 700; }
 .lc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; }
 /* font-family: inherit — o card é um <button>, e botão NÃO herda a fonte do body:
    sem isto o card inteiro renderiza no default do browser (Arial), não em Poppins. */
@@ -856,21 +860,23 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 
 /* Identidade: nº da colocação + nome. O nome é um slug longo — quebra em 2 linhas em
    vez de cortar com "…" (o resto fica no title), como a sidebar já faz. */
+/* ESCADA DE PESO — só o herói é bold. Se tudo é negrito, nada tem peso: o destaque
+   vem do CONTRASTE (800 no herói · 600 na identidade · 500 no resto). */
 .lc-top { display: flex; align-items: flex-start; gap: 9px; }
-.lc-rank { flex: 0 0 auto; width: 21px; height: 21px; border-radius: 6px; background: var(--surface); color: var(--gray2); font-size: 10.5px; font-weight: 800; display: grid; place-items: center; font-variant-numeric: tabular-nums; cursor: help; }
-.lc-rank--top { background: var(--purple-bg); color: var(--purple); }
+.lc-rank { flex: 0 0 auto; width: 21px; height: 21px; border-radius: 6px; background: var(--surface); color: var(--gray2); font-size: 10.5px; font-weight: 600; display: grid; place-items: center; font-variant-numeric: tabular-nums; cursor: help; }
+.lc-rank--top { background: var(--purple-bg); color: var(--purple); font-weight: 700; }
 .lc-id { min-width: 0; }   /* sem isso o line-clamp não recolhe dentro do flex */
-.lc-name { font-size: 13.5px; font-weight: 700; letter-spacing: -.012em; line-height: 1.3; color: var(--fg); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.lc-sub { font-size: 11px; color: var(--gray2); margin-top: 3px; }
+.lc-name { font-size: 13.5px; font-weight: 600; letter-spacing: -.012em; line-height: 1.3; color: var(--fg); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.lc-sub { font-size: 11px; font-weight: 400; color: var(--gray2); margin-top: 3px; }
 
 .lc-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.lc-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface); color: var(--gray2); }
+.lc-tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface); color: var(--gray2); }
 .lc-tag-g { background: var(--ok-bg); color: var(--ok-fg); } .lc-tag-r { background: var(--err-bg); color: var(--err-fg); }
 .lc-tag-a { background: #FAEEDA; color: #854F0B; } .lc-tag-b { background: #E6F1FB; color: #0C447C; } .lc-tag-p { background: var(--purple-bg); color: var(--purple); }
 
 /* A métrica da ORDENAÇÃO é o herói do card: é por ela que a lista existe. */
 .lc-main { margin-top: auto; }
-.lc-main-l { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gray2); }
+.lc-main-l { font-size: 9.5px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--gray2); }
 .lc-main-v { font-size: 25px; font-weight: 800; letter-spacing: -.025em; line-height: 1.12; margin-top: 3px; color: var(--purple); font-variant-numeric: tabular-nums; }
 .lc-main-g .lc-main-v { color: var(--ok-fg); } .lc-main-r .lc-main-v { color: var(--err-fg); }
 .lc-bar { height: 4px; border-radius: var(--r-pill); background: var(--surface); margin-top: 10px; overflow: hidden; cursor: help; }
@@ -879,8 +885,8 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 
 /* Secundários: micro, para não competir com o herói. */
 .lc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding-top: 13px; border-top: 1px solid var(--divider); }
-.lc-m-v { font-size: 14px; font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; }
-.lc-m-l { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin-top: 1px; }
+.lc-m-v { font-size: 14px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+.lc-m-l { font-size: 9.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin-top: 1px; }
 
 /* ── SCATTER-PICKER — dispersão com 2 dropdowns (X/Y) ── */
 .sp-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }

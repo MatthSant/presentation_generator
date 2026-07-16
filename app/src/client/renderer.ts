@@ -1727,14 +1727,67 @@ function renderGrpList(w: GrpListWidget): HTMLElement {
 /* ── link-card ── grid de cards clicáveis que abrem uma seção (ficha). Cada card:
  *  nome + sub + tags + métricas 2×2 + indicador principal com barra. O clique
  *  dispara 'goto-section' (o main navega). */
+/** Seletor de ordenação do link-card: reordena os cards no grid e RENUMERA os ranks
+ *  (senão o "1" passa a mentir depois de reordenar). Clicar na chave ativa inverte a
+ *  direção, como na sidebar. */
+function buildLcSort(w: LinkCardWidget, grid: HTMLElement, ranks: HTMLElement[]): HTMLElement {
+  const seg = el('div', 'seg lc-sort');
+  const keys = w.sortKeys || [];
+  let curKey = keys[0]?.key || 'name';
+  let dir = keys[0]?.asc ? 1 : -1;
+  const num = (e: HTMLElement, k: string): number => {
+    const v = Number(e.dataset[k]);
+    return Number.isFinite(v) ? v : (dir < 0 ? -Infinity : Infinity);   // sem valor vai p/ o fim
+  };
+  const apply = (): void => {
+    const cards = [...grid.querySelectorAll<HTMLElement>('.lc-card')];
+    cards.sort((a, b) => curKey === 'name'
+      ? dir * (a.dataset.name || '').localeCompare(b.dataset.name || '', 'pt-BR')
+      : dir * (num(a, curKey) - num(b, curKey)));
+    for (const c of cards) grid.appendChild(c);
+    // renumera: o rank é a posição NESTA ordem
+    cards.forEach((c, i) => {
+      const r = c.querySelector<HTMLElement>('.lc-rank');
+      if (!r) return;
+      r.textContent = String(i + 1);
+      r.classList.toggle('lc-rank--top', i === 0);
+      r.title = `${i + 1}º por ${keys.find((k) => k.key === curKey)?.label || curKey}`;
+    });
+    void ranks;
+    for (const b of seg.querySelectorAll<HTMLElement>('.seg-opt')) {
+      const on = b.dataset.key === curKey;
+      b.classList.toggle('active', on);
+      b.textContent = (keys.find((k) => k.key === b.dataset.key)?.label || '') + (on ? (dir < 0 ? ' ↓' : ' ↑') : '');
+    }
+  };
+  for (const k of keys) {
+    const b = el('button', 'seg-opt' + (k.key === curKey ? ' active' : '')) as HTMLButtonElement;
+    b.type = 'button'; b.dataset.key = k.key;
+    b.textContent = k.label + (k.key === curKey ? (dir < 0 ? ' ↓' : ' ↑') : '');
+    b.addEventListener('click', () => {
+      if (curKey === k.key) dir = -dir; else { curKey = k.key; dir = k.asc ? 1 : -1; }
+      apply();
+    });
+    seg.appendChild(b);
+  }
+  return seg;
+}
+
 /* Card de entidade ranqueada (criativos). Hierarquia em 3 alturas, como manda o
  *  design system: identidade (rank + nome) → a MÉTRICA da ordenação, em tamanho de
  *  herói → os secundários, em micro. A barra só existe com `ranked`: aí ela lê como
  *  "distância até o 1º", que é o que a posição significa. */
 function renderLinkCard(w: LinkCardWidget): HTMLElement {
   const wrap = el('div', 'lc-wrap');
-  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
   const grid = el('div', 'lc-grid');
+  const ranks: HTMLElement[] = [];   // renumerados a cada reordenação
+
+  // Cabeçalho: título + seletor de ordenação (quando o motor declara as chaves).
+  const hd = el('div', 'lc-hd');
+  if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
+  if (w.sortKeys?.length) hd.appendChild(buildLcSort(w, grid, ranks));
+  if (hd.childNodes.length) wrap.appendChild(hd);
+
   for (const [i, c] of (w.cards || []).entries()) {
     const card = el('button', 'lc-card') as HTMLButtonElement;
     card.type = 'button';
@@ -1742,7 +1795,7 @@ function renderLinkCard(w: LinkCardWidget): HTMLElement {
     const top = el('div', 'lc-top');
     if (w.ranked) {
       const r = el('span', 'lc-rank' + (i === 0 ? ' lc-rank--top' : ''), String(i + 1));
-      r.title = i === 0 ? 'Melhor colocado' : `${i + 1}º em ${c.main?.label || 'desempenho'}`;
+      ranks.push(r);
       top.appendChild(r);
     }
     const id = el('div', 'lc-id');
@@ -1752,6 +1805,9 @@ function renderLinkCard(w: LinkCardWidget): HTMLElement {
     if (c.sub) id.appendChild(el('div', 'lc-sub', c.sub));
     top.appendChild(id);
     card.appendChild(top);
+    // valores crus no DOM → o seletor de ordenação lê daqui
+    card.dataset.name = c.title;
+    for (const [k, v] of Object.entries(c.sort || {})) if (v != null) card.dataset[k] = String(v);
 
     if (c.tags?.length) {
       const t = el('div', 'lc-tags');

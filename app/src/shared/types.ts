@@ -511,6 +511,9 @@ export interface LinkCard {
   tags?: Array<{ label: string; tone?: ColorToken }>;
   metrics?: Array<{ label: string; value: string }>;
   main?: { label: string; value: string; pct?: number; tone?: ColorToken };
+  /** Valores CRUS p/ ordenar (as métricas acima são strings formatadas). Chaveado
+   *  pelas `sortKeys` do widget. */
+  sort?: Record<string, number | null>;
   gotoPage?: string;
   gotoSection?: string;
 }
@@ -520,6 +523,10 @@ export interface LinkCardWidget extends WidgetBase {
   /** Cards já vêm ORDENADOS por `main` → numera 1..n e a barra lê como "vs o 1º".
    *  Opt-in: sem isso a posição não significa nada e o número mentiria. */
   ranked?: boolean;
+  /** Liga o seletor de ordenação. `key` casa com `card.sort[key]`; a chave especial
+   *  `name` ordena pelo título (A-Z). A 1ª entrada é a ordem em que os cards chegam.
+   *  `asc` = menor primeiro é o "melhor" (custo, A-Z); default = maior primeiro. */
+  sortKeys?: Array<{ key: string; label: string; asc?: boolean }>;
   cards: LinkCard[];
 }
 
