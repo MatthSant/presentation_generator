@@ -50,7 +50,6 @@ class App {
   private histMode: string | undefined;
   private histMinInvest: number | undefined;
   private histTemp: string | null = null;
-  private histTipo: string | null = null;
   /** Filtro nível-relatório do debriefing (FAB): tipo/canal/temp/campanha/publico/criativo. */
   private debFilters: DebFilters | null = null;
   /** Fila NÃO-bloqueante de aprofundamentos/detalhamentos (painel canto inf. esq.). */
@@ -64,18 +63,18 @@ class App {
     body: () => Record<string, unknown>;
   }> = {
     // Criativos: MODO (resultado × captação) é um toggle na navbar (como o compare
-    // do debriefing); o FAB fica com investimento mínimo + tipo de campanha + temperatura.
+    // do debriefing); o FAB fica só com investimento mínimo + temperatura. O TIPO de
+    // campanha não é filtro aqui: é escolhido na criação (a análise já nasce recortada).
     'criativos': {
       mount: (controls) => {
         const cc = controls as { mode?: string; modes?: Array<{ id: string; label: string }> };
         this.histMode = cc.mode || cc.modes?.[0]?.id || 'resultado';
         if (cc.modes?.length) this.setupNavToggle('mode-toggle', cc.modes, this.histMode, (id) => { this.histMode = id; void this.recompute(); });
         return new CriativosControls(controls, {
-          apply: (o) => { this.histMinInvest = o.minInvest || undefined; this.histTemp = o.temp; this.histTipo = o.tipo; void this.recompute(); },
+          apply: (o) => { this.histMinInvest = o.minInvest || undefined; this.histTemp = o.temp; void this.recompute(); },
         });
       },
-      body: () => ({ mode: this.histMode, min_invest: this.histMinInvest,
-                     temp: this.histTemp || undefined, tipo: this.histTipo || undefined }),
+      body: () => ({ mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }),
     },
     // Debriefing: filtro nível-relatório (multi-seleção por dimensão) → recompute.
     'debriefing-lancamento': {

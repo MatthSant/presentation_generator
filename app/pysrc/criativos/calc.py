@@ -241,23 +241,19 @@ def _trim_daily(daily):
 def build(rows, dic=None, opts=None):
     """Agrega por criativo (field_ad_name). Devolve criativos + dimensões + médias.
 
-    opts = { temp?: <temperatura ativa | None>, tipo?: <tipo de campanha ativo | None>,
-    min_invest?: <float> } só afeta os AGREGADOS globais (totais/médias/série) — cada
-    criativo carrega seus próprios recortes para a ficha. Filtros reativos finos ficam
-    no render_view."""
+    opts = { temp?: <temperatura ativa | None>, min_invest?: <float> } só afeta os
+    AGREGADOS globais (totais/médias/série) — cada criativo carrega seus próprios
+    recortes para a ficha. Filtros reativos finos ficam no render_view. O TIPO DE
+    CAMPANHA não entra aqui: é escolhido na criação e filtrado no assemble."""
     opts = opts or {}
     dic = dic or {}
     produto = produto_principal(rows)
     temps = _distinct(rows, 'temperatura_lead')   # todas (para as opções do filtro)
-    tipos = _distinct(rows, 'tipo_campanha')      # idem (Lead/Venda/N.C — vem das regras)
-    # Filtros de TEMPERATURA e TIPO DE CAMPANHA (recompute): restringem as linhas ao
-    # recorte ativo antes de agregar — assim todas as métricas refletem o recorte.
+    # Filtro de TEMPERATURA (recompute): restringe as linhas à temperatura ativa antes
+    # de agregar — assim todas as métricas refletem o recorte.
     sel_temp = opts.get('temp')
     if sel_temp:
         rows = [r for r in rows if (r.get('temperatura_lead') or '').strip() == sel_temp]
-    sel_tipo = opts.get('tipo')
-    if sel_tipo:
-        rows = [r for r in rows if (r.get('tipo_campanha') or '').strip() == sel_tipo]
 
     keys = []
     for r in rows:
@@ -319,7 +315,6 @@ def build(rows, dic=None, opts=None):
         'creatives': creatives,
         'valid': valid,
         'temps': temps,
-        'tipos': tipos,
         'campanhas': _distinct(rows, 'field_campaign_name'),
         'publicos': _distinct(rows, 'field_adset_name'),
         'total': total, 'avg': avg, 'daily': daily,

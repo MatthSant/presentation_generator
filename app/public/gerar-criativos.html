@@ -81,10 +81,15 @@
       <section class="card" id="sec-tipo">
         <div class="card-hd">
           <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
-          <span class="t"><b>Tipo de campanha <span class="help" style="font-weight:600">(opcional)</span></b><small>Separa campanhas de captação (lead) das de venda pelo nome da campanha.</small></span>
+          <span class="t"><b>Tipo de campanha <span class="req">*</span></b><small>A análise cobre só as campanhas do tipo escolhido.</small></span>
         </div>
-        <p class="help" style="margin-bottom:14px">Define o <code>tipo_campanha</code> por trecho do <strong>nome da campanha</strong> (ILIKE — 1ª regra que casar vence). Vira um <strong>filtro no relatório</strong>, para analisar só as campanhas do tipo certo. Campanhas sem match viram <code>N/C</code>.</p>
+        <p class="help" style="margin-bottom:14px">Define o tipo por trecho do <strong>nome da campanha</strong> (ILIKE — 1ª regra que casar vence). Depois escolha <strong>qual tipo esta análise vai cobrir</strong>: só essas campanhas entram (as demais ficam de fora). Campanhas sem match viram <code>N/C</code>.</p>
         <div id="tipo-editor"></div>
+        <div class="field col2" style="margin-top:16px">
+          <label class="label" for="f-tipo">Tipo desta análise <span class="req">*</span></label>
+          <select id="f-tipo" class="ctrl"></select>
+          <small class="help">Vem dos rótulos das regras acima.</small>
+        </div>
       </section>
 
       <section class="card" id="sec-temp">
@@ -134,6 +139,18 @@
       showOverwrite: false, placeholder: 'Tipo (ex.: Lead)',
       rules: [{ contains: ['_lead'], label: 'Lead' }, { contains: ['_venda'], label: 'Venda' }],
     });
+    // O seletor do tipo da análise vem dos RÓTULOS das regras — editar as regras
+    // atualiza as opções (preservando a escolha, se ela ainda existir).
+    const syncTipos = () => {
+      const cur = $('f-tipo').value;
+      const labels = [...new Set(tipoCtl.getRules().map((r) => r.label))];
+      $('f-tipo').replaceChildren(...labels.map((l) => {
+        const o = document.createElement('option'); o.value = l; o.textContent = l; return o;
+      }));
+      if (labels.includes(cur)) $('f-tipo').value = cur;
+    };
+    $('tipo-editor').addEventListener('input', syncTipos);
+    syncTipos();
 
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
@@ -157,12 +174,14 @@
       const client = $('f-client').value;
       if (!client) { show('err', 'Selecione um cliente (cadastre um em Clientes se a lista estiver vazia).'); return; }
       if (!CSV) { show('err', 'Escolha o CSV de criativos.'); return; }
-      const cfg = { type: 'criativos' };
+      // Tipo de campanha é OBRIGATÓRIO: a análise nasce recortada nesse tipo.
+      const tipoRules = tipoCtl.getRules();
+      if (!tipoRules.length) { show('err', 'Defina ao menos uma regra de tipo de campanha (ex.: _lead → Lead).'); return; }
+      const tipoSel = $('f-tipo').value;
+      if (!tipoSel) { show('err', 'Escolha o tipo de campanha desta análise.'); return; }
+      const cfg = { type: 'criativos', tipo_rules: tipoRules, tipo_campanha: tipoSel };
       const rules = tctl.getRules();
       if (rules.length) { cfg.temp_rules = rules; cfg.temp_overwrite = tctl.getOverwrite(); }
-      // Tipo de campanha (Lead/Venda) → filtro no relatório. Sem regras, o motor usa o padrão.
-      const tipoRules = tipoCtl.getRules();
-      if (tipoRules.length) cfg.tipo_rules = tipoRules;
       // Benchmark de criativo: fonte da comparação ↑/↓ dos KPIs de criativo.
       const funnel_bench = {};
       const addb = (k, id) => { const v = Number($(id).value); if (Number.isFinite(v)) funnel_bench[k] = v; };

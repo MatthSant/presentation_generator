@@ -68,9 +68,15 @@ def assemble(rows, config, content, opts=None):
     rules = cfg.get('temp_rules')
     if rules:
         rows = calc.apply_temp_rules(rows, rules, overwrite=bool(cfg.get('temp_overwrite')))
-    # Tipo de campanha (Lead/Venda) por ILIKE no nome — mesmas regras da temperatura,
-    # escolhidas na criação. Sem `tipo_rules` no config, usa o padrão (_lead/_venda).
+    # TIPO DE CAMPANHA — escolhido na CRIAÇÃO (obrigatório nas análises novas): as regras
+    # derivam `tipo_campanha` do nome da campanha (ILIKE) e a análise cobre SÓ o tipo
+    # selecionado. Filtra aqui, antes de qualquer agregação, então tudo (KPIs, fichas,
+    # dataset do deepen) já nasce recortado. Análises antigas (sem `tipo_campanha` no
+    # config) seguem sem filtro.
     rows = calc.apply_tipo_rules(rows, cfg.get('tipo_rules'))
+    sel_tipo = (cfg.get('tipo_campanha') or '').strip()
+    if sel_tipo:
+        rows = [r for r in rows if (r.get('tipo_campanha') or '').strip() == sel_tipo]
     dic = opts.get('dict') or {}
     mode = opts.get('mode') if opts.get('mode') in MODE_KPIS else 'resultado'
     bench = calc.resolve_bench(cfg)   # {hook_rate/hold_rate/ctr/connect_rate/conv_pagina: valor}
@@ -227,7 +233,11 @@ def assemble(rows, config, content, opts=None):
                         f'Criativos sem tráfego ({len(creatives) - len(valid)}) ficam fora dos totais.'})
     pg.add('cr-note', 'find-note', 12, 1)
 
+    # O recorte de tipo fica explícito no cabeçalho — a análise nasce filtrada e o
+    # consultor precisa ver isso ao ler os números.
     sub = f'{len(valid)} criativos com tráfego · investimento {money(total["invest"])} · {len(B["daily"])} dias'
+    if sel_tipo:
+        sub += f' · campanhas de {sel_tipo}'
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': 'Panorama de Criativos', 'sub': sub}, 'widgets': pan}
     layouts['s01'] = pg.items
 
@@ -331,7 +341,6 @@ def assemble(rows, config, content, opts=None):
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title']},
                           'controls': {'kind': 'criativos', 'pages': ['panorama', 'fichas'],
                                        'mode': mode, 'modes': MODES_OPT, 'temps': B['temps'],
-                                       'tipos': B['tipos'],
                                        'minInvestPresets': [100, 500, 1000]},
                           'nav': 'sidebar'},
                  'pages': pages}
