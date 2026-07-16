@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ -> pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf
-from common.report import eb   # builder de eyebrow compartilhado (KPIs ficam no kpi-strip local)
+from common.report import eb, apply_goal   # eyebrow + motor do rodapé "Bench X · ±%" dos cards
 
 # modo -> KPIs Macro (ordem da fonte). ★ = indicador principal do modo.
 KPIS_RESULTADO = ['invest', 'roas', 'retorno', 'leads', 'vendas', 'conv', 'cac', 'qualidade']
@@ -176,17 +176,78 @@ def assemble(rows, config, content, opts=None):
         item.update(bench_sub(k, v) or {'sub': f'méd {fmtm(k, avg.get(k))}', 'subTone': 'neutral'})
         return item
 
-    # KPIs Macro numa LINHA só (kpi-strip) — todos os indicadores do modo, com
-    # rodapé de comparação vs benchmark. Modo (Resultado × Captação) e filtros
-    # vivem no FAB (nível-relatório), não na página.
+    # KPIs Macro: cards à ESQUERDA (2 por linha) + FUNIL à direita — mesmo bloco do
+    # debriefing ("Indicadores de Captura"), espelhado. Coords manuais: o packer de
+    # linha não flui cards ao lado de um item alto.
     eb(pan, pg, 'cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
-    # Resultado (rótulos curtos) cabe numa linha; Captação (CPMQL projetado, Tx.
-    # Resposta…) respira melhor em 2 linhas de 4.
-    macro = {'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [bench_item(k) for k in MODE_KPIS[mode]]}
-    if mode == 'captacao':
-        macro['rows'] = 2
-    pan.append(macro)
-    pg.add('cr-kpi', 'kpi-strip', 12, 3 if mode == 'captacao' else 2)
+    for j, k in enumerate(MODE_KPIS[mode]):
+        wid = f'cr-k-{k}'
+        v = total.get(k)
+        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
+                'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v),
+                'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if k in STAR else '#7F77DD'}
+        # Só as métricas de criativo têm benchmark no app; as financeiras (ROAS, CAC,
+        # Retorno…) ficam com a média do lançamento como referência, sem pill.
+        b = bench_sub(k, v)
+        card['sub'] = b['sub'] if b else f'méd {fmtm(k, avg.get(k))}'
+        if b:
+            apply_goal(card, v, bench.get(k), calc.METRICS.get(k, {}).get('cost') is True,
+                       None, fmtm(k, bench.get(k)), None, 'Bench')
+            card.pop('sub', None)
+        if k in STAR:
+            card['emph'] = True
+        pan.append(card)
+        pg.at(wid, 'kpi-card', 0 if j % 2 == 0 else 3, 1 + (j // 2) * 2, 3, 2)
+
+    # Funil à direita. RESULTADO: vai até a VENDA, sem as etapas de qualificação
+    # (respostas/MQLs). CAPTAÇÃO: termina no lead qualificado. Etapas zeradas somem
+    # (ex.: dump sem pageviews) p/ o funil não quebrar.
+    steps_def = ([('Investimento', total.get('invest'), money(total.get('invest') or 0)),
+                  ('Impressões', total.get('impressoes'), None), ('Clicks', total.get('clicks'), None),
+                  ('Pageviews', total.get('pageviews'), None), ('Leads', total.get('leads'), None)]
+                 + ([('Vendas', total.get('vendas'), None)] if mode == 'resultado'
+                    else [('Respostas', total.get('respostas'), None), ('MQLs', total.get('mqls'), None)]))
+    fv = [(l, v, vl) for l, v, vl in steps_def if v]
+    fmig = lambda a, b: round(b / a * 100, 2) if a else 0.0
+    # Bench por transição — vem do benchmark escolhido na criação (mesmas 5 taxas).
+    TBENCH = {('Impressões', 'Clicks'): bench.get('ctr'),
+              ('Clicks', 'Pageviews'): bench.get('connect_rate'),
+              ('Pageviews', 'Leads'): bench.get('conv_pagina'),
+              # sem pageviews no dump, clicks→leads ≡ connect × conv. de página
+              ('Clicks', 'Leads'): ((bench.get('connect_rate') or 0) / 100.0 * (bench.get('conv_pagina') or 0)) or None}
+    ftr = []
+    for i in range(len(fv) - 1):
+        frm, to = fv[i][0], fv[i + 1][0]
+        if frm == 'Investimento':   # Investimento→Impressões é CUSTO (CPM), não taxa
+            ftr.append({'note': f"CPM {fmtm('cpm', total.get('cpm'))}", 'noteTone': 'neutral'})
+            continue
+        m = fmig(fv[i][1], fv[i + 1][1])
+        tr = {'migrate': m, 'loss': round(100 - m, 1)}
+        b = TBENCH.get((frm, to))
+        if b:
+            tr['bench'] = round(b, 1)
+            if m < b:
+                tr['gap'] = round(b - m, 1)
+        if frm == 'Impressões':
+            tr['decimals'] = 2      # CTR precisa de 2 casas
+        ftr.append(tr)
+    # MAIOR FURO = maior queda RELATIVA ao bench (gap ÷ bench), não a maior perda absoluta.
+    wi, wr = None, 0.0
+    for i, tr in enumerate(ftr):
+        if tr.get('gap') and tr.get('bench'):
+            rel = tr['gap'] / tr['bench']
+            if rel > wr:
+                wr, wi = rel, i
+    if wi is not None:
+        ftr[wi]['worst'] = True
+    fsub = ('do investimento à venda · taxas vs bench' if mode == 'resultado'
+            else 'do investimento ao lead qualificado · taxas vs bench')
+    pan.append({'id': 'cr-funil', 'type': 'funnel', 'title': 'Funil', 'sub': fsub,
+                'baseLabel': 'bench', 'hideLoss': True,
+                'steps': [{'label': l, 'value': v, **({'vlabel': vl} if vl else {})} for l, v, vl in fv],
+                'transitions': ftr})
+    pg.at('cr-funil', 'funnel', 6, 1, 6, 8)
+    pg.x = 0; pg.y = 1 + ((len(MODE_KPIS[mode]) + 1) // 2) * 2; pg.rowh = 0   # volta ao fluxo
 
     # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo,
     # todas comparadas ao BENCHMARK escolhido na criação (registro central do app).
