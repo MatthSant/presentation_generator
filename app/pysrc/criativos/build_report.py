@@ -452,12 +452,15 @@ def assemble(rows, config, content, opts=None):
             qkeys = ['cpm', 'hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']
         eb(fw, fg, f'{sid}-eb-qual', 'QUALIDADE DO CRIATIVO',
            ('custo, vídeo e página · vs benchmark' if m.get('is_video') else 'custo e página · vs benchmark'))
+        # Largura derivada da CONTAGEM: 6 métricas (vídeo) → w2; 4 (estático, sem
+        # hook/hold) → w3. Fixar w2 deixava o estático com 4 colunas vazias à direita.
+        qw = 12 // len(qkeys)
         for k in qkeys:
             wid = f'{sid}-q-{k}'
             card = kcard(wid, k, m.get(k))
             card['compact'] = True
             fw.append(card)
-            fg.add(wid, 'kpi-card', 2, 2)
+            fg.add(wid, 'kpi-card', qw, 2)
         for prefix, lbl, by, title in [('temp', 'Temperatura', c['by_temp'], 'Por temperatura'),
                                        ('camp', 'Campanha', c['by_campanha'], 'Por campanha'),
                                        ('pub', 'Público', c['by_publico'], 'Por público')]:
