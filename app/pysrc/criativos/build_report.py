@@ -253,11 +253,13 @@ def assemble(rows, config, content, opts=None):
     # benchmark (escolhido na criação). Vale nos DOIS modos: a qualidade do anúncio
     # explica o resultado tanto quanto a captação. Cards no mesmo padrão dos KPIs macro;
     # como TODAS têm bench, o rodapé "Bench X · ±%" aparece em cada uma.
-    eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · realizado vs benchmark')
-    for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
+    eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'custo, vídeo e página · realizado vs benchmark')
+    # Ordem do funil: custo da impressão (CPM) → retenção do vídeo → clique → página.
+    # CPM não tem benchmark no app (o registro só tem as 5 taxas), então fica sem pill.
+    for k in ['cpm', 'hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
         wid = f'cr-q-{k}'
         pan.append(kcard(wid, k, total.get(k)))
-        pg.add(wid, 'kpi-card', 2, 2)   # 5 na linha (10 de 12 colunas)
+        pg.add(wid, 'kpi-card', 2, 2)   # 6 na linha (fecha as 12 colunas)
 
     eb(pan, pg, 'cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
 
