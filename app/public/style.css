@@ -313,7 +313,10 @@ html, body {
 .funnel-card--compact .funnel-title { margin-bottom: 2px; }
 .funnel-card--compact .funnel-row { display: flex; align-items: center; gap: 10px; }
 .funnel-card--compact .funnel-row .funnel-bar { flex: 0 0 auto; }
-.funnel-card--compact .funnel-pills { padding: 0; justify-content: flex-start; flex-wrap: nowrap; }
+/* min-width:0 + a pill sem quebra: a tag ocupa a sobra da linha em vez de vazar. O
+   nowrap sozinho empurrava o texto p/ fora do card quando a barra era larga. */
+.funnel-card--compact .funnel-pills { padding: 0; justify-content: flex-start; flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.funnel-card--compact .funnel-pill { white-space: nowrap; }
 .funnel-pill { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
 .funnel-pill--loss { background: var(--purple-bg, #eeedfe); color: var(--purple, #7F77DD); }
 .funnel-pill--migrate { background: var(--ok-bg, #f0fdf4); color: var(--ok-fg, #15803d); }

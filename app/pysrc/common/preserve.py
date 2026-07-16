@@ -54,7 +54,11 @@ def preserve(out_dir, data, sections):
         detp['sections'] = []
         for sid in dets:
             sec = _load(os.path.join(out_dir, f'{sid}.json')) or {}
-            label = (sec.get('header', {}).get('title') or sid)[:42]
+            # O título do detalhamento é a PERGUNTA feita — costuma passar do espaço da
+            # sidebar. Corta com reticências: sem elas a frase morre no meio da palavra
+            # e parece bug ("...maior oportunidade em cr").
+            title = (sec.get('header', {}).get('title') or sid).strip()
+            label = title if len(title) <= 42 else title[:41].rstrip() + '…'
             detp['sections'].append({'id': sid, 'label': label})
 
     # 2) Página de perguntas preservada do data.json anterior (recriada sob

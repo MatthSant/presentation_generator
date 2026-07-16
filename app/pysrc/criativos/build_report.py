@@ -438,14 +438,21 @@ def assemble(rows, config, content, opts=None):
         fg.items.append({'id': f'{sid}-fun', 'type': 'funnel', 'x': 4, 'y': y_fun + 1, 'w': 8, 'h': 4})
         # Abaixo do MAIS ALTO entre o preview e a coluna da direita.
         fg.x = 0; fg.y = max(PREV_H, y_fun + 5); fg.rowh = 0
-        # DADOS DO CRIATIVO — só para vídeo (hook/hold/views só existem com views_totais>0).
+        # QUALIDADE DO CRIATIVO — as mesmas 5 métricas do Panorama, aqui no recorte
+        # deste criativo e comparadas ao benchmark. Antes só existia um strip de vídeo
+        # ("Dados do criativo"), que sumia nos estáticos e não comparava com nada.
+        # Hook/Hold só têm sentido com vídeo (views_totais>0) — nos estáticos saem.
+        qkeys = ['cpm', 'ctr', 'connect_rate', 'conv_pagina']
         if m.get('is_video'):
-            vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
-            vitems = [{'label': calc.METRICS[k]['label'], 'value': fmtm(k, m.get(k)),
-                       **(bench_sub(k, m.get(k)) or {})} for k in vid_keys]
-            eb(fw, fg, f'{sid}-eb-vid', 'DADOS DO CRIATIVO', 'retenção do vídeo')
-            fw.append({'id': f'{sid}-vid', 'type': 'kpi-strip', 'items': vitems})
-            fg.add(f'{sid}-vid', 'kpi-strip', 12, 2)
+            qkeys = ['cpm', 'hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']
+        eb(fw, fg, f'{sid}-eb-qual', 'QUALIDADE DO CRIATIVO',
+           ('custo, vídeo e página · vs benchmark' if m.get('is_video') else 'custo e página · vs benchmark'))
+        for k in qkeys:
+            wid = f'{sid}-q-{k}'
+            card = kcard(wid, k, m.get(k))
+            card['compact'] = True
+            fw.append(card)
+            fg.add(wid, 'kpi-card', 2, 2)
         for prefix, lbl, by, title in [('temp', 'Temperatura', c['by_temp'], 'Por temperatura'),
                                        ('camp', 'Campanha', c['by_campanha'], 'Por campanha'),
                                        ('pub', 'Público', c['by_publico'], 'Por público')]:

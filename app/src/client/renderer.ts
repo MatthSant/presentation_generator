@@ -1012,8 +1012,11 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
     w.steps.forEach((s, i) => {
       const bar = el('div', 'funnel-bar');
       bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
-      // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
-      bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
+      // Afunilamento: largura decresce por etapa, dando a forma de funil. No COMPACTO a
+      // barra divide a linha com a taxa, então parte de 68% (não 100%) — senão a 1ª
+      // barra ocupa a linha inteira e empurra a tag p/ fora do card.
+      const top = w.compact ? 68 : 100, taper = w.compact ? 34 : 54;
+      bar.style.width = `${(n > 1 ? top - i * (taper / (n - 1)) : top).toFixed(1)}%`;
       bar.appendChild(el('span', 'funnel-bar-l', s.label));
       bar.appendChild(el('span', 'funnel-bar-v', s.vlabel ?? (s.value ?? 0).toLocaleString('pt-BR')));
       // COMPACTO: a barra e a taxa dividem a MESMA linha (a taxa à direita), em vez de
