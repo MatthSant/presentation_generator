@@ -11,7 +11,7 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { Digest, DeepenCatalog } from './datasetCatalog.js';
 import type { LayoutItem } from '../shared/types.js';
-import { auditLayout, rowsToItems, packFallback, type Audit, type LayoutCell, type LayWidget } from './layoutAudit.js';
+import { auditLayout, normalizeRows, rowsToItems, packFallback, type Audit, type LayoutCell, type LayWidget } from './layoutAudit.js';
 import { CLAUDE_LOG } from './paths.js';
 import { isCreditError } from './creditError.js';
 import { nvidiaConfigured, nvidiaFallback } from './nvidiaFallback.js';
@@ -622,7 +622,9 @@ export async function layoutSection(widgets: LayWidget[], objetivo?: string): Pr
     }, 'layout');
     usage = sumUsage(usage, usageOf(msg));
     const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-    const rows = ((tu?.input as { rows?: LayoutCell[][] })?.rows) || [];
+    // normalizeRows impõe o que o prompt pede e o modelo ignora (a resposta sozinha no
+    // topo em w12) — sem isso ele espremia o highlight ao lado do gráfico.
+    const rows = normalizeRows(((tu?.input as { rows?: LayoutCell[][] })?.rows) || [], widgets);
     const audit = auditLayout(rows, widgets);
     last = { rows, audit };
     if (rows.length && !audit.hard.length && !audit.soft.length)

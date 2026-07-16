@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { auditLayout, rowsToItems, packFallback, layW, type LayWidget, type LayoutCell } from '../../src/server/layoutAudit.ts';
+import { auditLayout, normalizeRows, rowsToItems, packFallback, layW, type LayWidget, type LayoutCell } from '../../src/server/layoutAudit.ts';
 
 const W: LayWidget[] = [
   { id: 'ans', type: 'highlight' },
@@ -102,4 +102,30 @@ test('rowsToItems: converte rows em coordenadas contíguas sem estourar', () => 
   assert.equal(items.find((i) => i.id === 'k1')!.y, 2);     // y avança pela altura da 1ª linha
   assert.equal(items.find((i) => i.id === 'ch')!.x, 3);     // encosta após o kpi
   assert.equal(layW('chart'), 6);
+});
+
+/* normalizeRows — a garantia determinística do que o prompt pede e o modelo ignora. */
+test('normalizeRows: a resposta sai de junto do gráfico e vira linha própria em w12', () => {
+  // o erro real do agente: highlight (h2) espremido ao lado do chart (h4) → meia tela vazia
+  const rows: LayoutCell[][] = [[{ id: 'ans', w: 6, h: 2 }, { id: 'ch', w: 6, h: 4 }], [{ id: 'tb', w: 12, h: 4 }]];
+  const out = normalizeRows(rows, W);
+  assert.deepEqual(out[0], [{ id: 'ans', w: 12, h: 2 }]);
+  assert.deepEqual(out[1], [{ id: 'ch', w: 6, h: 4 }]);   // o gráfico segue na ordem, sem a resposta
+  assert.equal(out.length, 3);
+});
+
+test('normalizeRows: não mexe quando o 1º widget não é a resposta', () => {
+  const outros: LayWidget[] = [{ id: 'ch', type: 'chart' }, { id: 'tb', type: 'table' }];
+  const rows: LayoutCell[][] = [[{ id: 'ch', w: 6, h: 4 }, { id: 'tb', w: 6, h: 4 }]];
+  assert.deepEqual(normalizeRows(rows, outros), rows);
+});
+
+test('normalizeRows: agente esqueceu a resposta -> devolve como veio (o audit acusa)', () => {
+  const rows: LayoutCell[][] = [[{ id: 'ch', w: 6, h: 4 }]];
+  assert.deepEqual(normalizeRows(rows, W), rows);
+});
+
+test('vão vertical: h2 ao lado de h4 é sinalizado (o tile estica e sobra vazio)', () => {
+  const a = auditLayout([[{ id: 'k1', w: 6, h: 2 }, { id: 'ch', w: 6, h: 4 }]], [W[1], W[3]]);
+  assert.ok(a.soft.some((s) => /vão vertical/.test(s)), a.soft.join(' | '));
 });
