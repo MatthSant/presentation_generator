@@ -517,15 +517,15 @@ def assemble(rows, config, content, opts=None):
             fdef = 'leads' if 'leads' in fkeys else (fkeys[0] if fkeys else 'leads')
             fmetrics = [{'id': k, 'label': calc.METRICS[k]['label'], 'fmt': calc.METRICS[k]['fmt']} for k in fkeys]
             fpoints = [{'name': d['data'], 'vals': {k: d['m'].get(k) for k in fkeys}} for d in c['daily']]
-            eb(fw, fg, f'{sid}-eb-evo', 'EVOLUÇÃO NO TEMPO', 'duas métricas · barras e linha, escalas independentes')
-            # DUAL+COMBO (o mesmo do debriefing): 2º seletor plota uma segunda métrica no
-            # eixo da direita — 1ª em barras, 2ª em linha. Sem isso não dava p/ ver leads
-            # e investimento no mesmo dia, que é a leitura que interessa.
+            eb(fw, fg, f'{sid}-eb-evo', 'EVOLUÇÃO NO TEMPO', 'duas métricas · escalas independentes')
+            # DUAL sem combo: 2º seletor plota uma segunda métrica no eixo da direita,
+            # as duas em LINHA. Sem isso não dava p/ ver leads e investimento no mesmo
+            # dia, que é a leitura que interessa. (`combo` aqui viraria a 1ª em barras.)
             evo = {'id': f'{sid}-evo', 'type': 'evolution-picker', 'title': 'Evolução diária', 'height': 260,
                    'metrics': fmetrics, 'points': fpoints, 'current': fdef}
             snd = next((k for k in ('invest', 'cpl', 'cpmql') if k in fkeys and k != fdef), None)
             if snd:
-                evo.update({'current2': snd, 'combo': True})
+                evo['current2'] = snd
             fw.append(evo)
             fg.add(f'{sid}-evo', 'evolution-picker', 12, 4)
         # ONDE ESTE CRIATIVO RODOU — um heatmap com toggle de dimensão, no lugar das 3
