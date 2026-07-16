@@ -849,7 +849,9 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 
 /* ── LINK-CARD — grid de cards clicáveis (criativos → ficha) ── */
 .lc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; }
-.lc-card { text-align: left; cursor: pointer; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 15px 16px 16px; display: flex; flex-direction: column; gap: 12px; transition: border-color .14s var(--ease), box-shadow .14s var(--ease), transform .14s var(--ease); }
+/* font-family: inherit — o card é um <button>, e botão NÃO herda a fonte do body:
+   sem isto o card inteiro renderiza no default do browser (Arial), não em Poppins. */
+.lc-card { font-family: inherit; text-align: left; cursor: pointer; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 15px 16px 16px; display: flex; flex-direction: column; gap: 12px; transition: border-color .14s var(--ease), box-shadow .14s var(--ease), transform .14s var(--ease); }
 .lc-card:hover { border-color: var(--purple); box-shadow: var(--shadow-card); transform: translateY(-2px); }
 
 /* Identidade: nº da colocação + nome. O nome é um slug longo — quebra em 2 linhas em

@@ -227,7 +227,17 @@ export class Navigation {
       pBtn.append(num, lbl);
       pBtn.addEventListener('click', () => { const f = page.sections[0]; if (f) this.onSelect(page.id, f.id); });
       grp.appendChild(pBtn);
-      if (page.sections.length > 1) for (const sec of page.sections) this.appendSec(grp, page.id, sec);
+      this.sideHost!.appendChild(grp);
+    };
+    /** Página com VÁRIAS seções (ex.: Fichas): ela é um agrupamento, não um destino —
+     *  vira rótulo de texto e as seções é que são os itens navegáveis. Mesmo formato
+     *  de "Aprofundamentos". */
+    const groupPage = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }): void => {
+      label(page.label);
+      const grp = document.createElement('div');
+      grp.className = 'sn-group';
+      grp.dataset.group = page.id;
+      for (const sec of page.sections) this.appendSec(grp, page.id, sec);
       this.sideHost!.appendChild(grp);
     };
 
@@ -235,7 +245,11 @@ export class Navigation {
     const report = this.store.pages.filter((p) => p.id !== 'detalhamentos');
 
     label('Relatório');
-    report.forEach((page, i) => pageItem(page, i + 1));
+    let n = 0;   // só as páginas-destino são numeradas
+    for (const page of report) {
+      if (page.sections.length > 1) groupPage(page);
+      else pageItem(page, ++n);
+    }
 
     if (det && det.sections.length) {
       label('Aprofundamentos');
