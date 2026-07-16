@@ -290,7 +290,9 @@ def assemble(rows, config, content, opts=None):
     pg.add('cr-scatter', 'scatter-picker', 6, 5)
 
     eb(pan, pg, 'cr-eb-rank', 'CRIATIVOS POR DESEMPENHO', f'{len(valid)} criativos · clique no card para abrir a ficha · ordenado por {main_lbl}')
-    pan.append({'id': 'cr-rank', 'type': 'link-card', 'cards': rank_cards})
+    # ranked: os cards saem ordenados por `main` (ROAS/CPMQL) → o card numera 1..n e a
+    # barra passa a significar "distância até o 1º".
+    pan.append({'id': 'cr-rank', 'type': 'link-card', 'ranked': True, 'cards': rank_cards})
     pg.add('cr-rank', 'link-card', 12, 8)
     pan.append({'id': 'cr-note', 'type': 'find-note',
                 'text': 'ROAS líquido = faturamento/investimento − 1. Qualidade = MQLs/respostas. '

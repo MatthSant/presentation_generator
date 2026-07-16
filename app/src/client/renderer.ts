@@ -1727,20 +1727,49 @@ function renderGrpList(w: GrpListWidget): HTMLElement {
 /* ── link-card ── grid de cards clicáveis que abrem uma seção (ficha). Cada card:
  *  nome + sub + tags + métricas 2×2 + indicador principal com barra. O clique
  *  dispara 'goto-section' (o main navega). */
+/* Card de entidade ranqueada (criativos). Hierarquia em 3 alturas, como manda o
+ *  design system: identidade (rank + nome) → a MÉTRICA da ordenação, em tamanho de
+ *  herói → os secundários, em micro. A barra só existe com `ranked`: aí ela lê como
+ *  "distância até o 1º", que é o que a posição significa. */
 function renderLinkCard(w: LinkCardWidget): HTMLElement {
   const wrap = el('div', 'lc-wrap');
   if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
   const grid = el('div', 'lc-grid');
-  for (const c of w.cards || []) {
+  for (const [i, c] of (w.cards || []).entries()) {
     const card = el('button', 'lc-card') as HTMLButtonElement;
     card.type = 'button';
-    const head = el('div', 'lc-head');
-    head.append(el('div', 'lc-name', c.title), el('div', 'lc-sub', c.sub || ''));
-    card.appendChild(head);
+
+    const top = el('div', 'lc-top');
+    if (w.ranked) {
+      const r = el('span', 'lc-rank' + (i === 0 ? ' lc-rank--top' : ''), String(i + 1));
+      r.title = i === 0 ? 'Melhor colocado' : `${i + 1}º em ${c.main?.label || 'desempenho'}`;
+      top.appendChild(r);
+    }
+    const id = el('div', 'lc-id');
+    const name = el('div', 'lc-name', c.title);
+    name.title = c.title;                       // o nome quebra em 2 linhas; o resto fica no hover
+    id.appendChild(name);
+    if (c.sub) id.appendChild(el('div', 'lc-sub', c.sub));
+    top.appendChild(id);
+    card.appendChild(top);
+
     if (c.tags?.length) {
       const t = el('div', 'lc-tags');
       for (const tg of c.tags) t.appendChild(el('span', `lc-tag lc-tag-${tg.tone || 'n'}`, tg.label));
       card.appendChild(t);
+    }
+    if (c.main) {
+      const mn = el('div', `lc-main lc-main-${c.main.tone || 'p'}`);
+      mn.append(el('div', 'lc-main-l', c.main.label), el('div', 'lc-main-v', c.main.value));
+      if (w.ranked && typeof c.main.pct === 'number') {
+        const bar = el('div', 'lc-bar');
+        bar.title = i === 0 ? 'Melhor valor do recorte' : 'Proporção em relação ao 1º colocado';
+        const fill = el('div', 'lc-bar-f');
+        fill.style.width = `${Math.max(0, Math.min(100, c.main.pct))}%`;
+        bar.appendChild(fill);
+        mn.appendChild(bar);
+      }
+      card.appendChild(mn);
     }
     if (c.metrics?.length) {
       const m = el('div', 'lc-metrics');
@@ -1750,18 +1779,6 @@ function renderLinkCard(w: LinkCardWidget): HTMLElement {
         m.appendChild(cell);
       }
       card.appendChild(m);
-    }
-    if (c.main) {
-      const mn = el('div', `lc-main lc-main-${c.main.tone || 'p'}`);
-      mn.append(el('div', 'lc-main-l', c.main.label), el('div', 'lc-main-v', c.main.value));
-      if (typeof c.main.pct === 'number') {
-        const bar = el('div', 'lc-bar');
-        const fill = el('div', 'lc-bar-f');
-        fill.style.width = `${Math.max(0, Math.min(100, c.main.pct))}%`;
-        bar.appendChild(fill);
-        mn.appendChild(bar);
-      }
-      card.appendChild(mn);
     }
     if (c.gotoSection) {
       card.addEventListener('click', () => document.dispatchEvent(

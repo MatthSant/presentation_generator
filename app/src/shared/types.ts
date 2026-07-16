@@ -517,6 +517,9 @@ export interface LinkCard {
 export interface LinkCardWidget extends WidgetBase {
   type: 'link-card';
   title?: string;
+  /** Cards já vêm ORDENADOS por `main` → numera 1..n e a barra lê como "vs o 1º".
+   *  Opt-in: sem isso a posição não significa nada e o número mentiria. */
+  ranked?: boolean;
   cards: LinkCard[];
 }
 
