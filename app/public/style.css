@@ -2108,7 +2108,9 @@ body.edit-mode .tile-filter-badge { display:none; }
 .seg--soft .seg-opt.active { background: var(--bg); color: var(--purple); font-weight: 700; box-shadow: 0 1px 2px oklch(22% .02 285/.14); }
 .hm-host { overflow-x: auto; }
 .hm-host .hm-grid { grid-template-columns: minmax(150px,170px) repeat(var(--hm-cols,9), minmax(56px,1fr)); gap: 4px; min-width: 680px; }
-.hm-host .hm-th { font-size: 10.5px; padding: 2px 4px 9px; }
+/* header quebra em vez de vazar: a coluna tem 56px de mínimo e o `nowrap` herdado do
+   .hm-th base fazia rótulo longo pintar por cima do vizinho quando a tabela é densa. */
+.hm-host .hm-th { font-size: 10.5px; padding: 2px 4px 9px; white-space: normal; line-height: 1.2; align-self: end; }
 .hm-host .hm-rh { font-size: 12px; font-weight: 400; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; max-width: 168px; padding-right: 10px; }
 .hm-host .hm-cell { font-size: 11.5px; font-weight: 700; padding: 8px 4px; border-radius: 5px; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; text-align: center; }
 /* diverging calmo (hmd-*): tint translúcido suave + texto --fg (adapta tema). Só desvios

@@ -29,6 +29,17 @@ def gstatus(tone):
     return 'ok' if tone == 'pos' else ('bad' if tone == 'neg' else 'warn')
 
 
+def hmcls(d, tone):
+    """Classe de tint de uma célula de heatmap a partir do `dev()`. Tint calmo: perto
+    da referência (warn, ≤10%) fica neutro p/ a tabela não virar sopa de cor; o tom
+    forte só entra em desvio grande (≥15% p/ bom, >25% p/ ruim)."""
+    if d is None or tone in ('neutral', 'warn'):
+        return 'hmd-neu'
+    if tone == 'pos':
+        return 'hmd-pos2' if abs(d) >= 15 else 'hmd-pos1'
+    return 'hmd-neg2' if abs(d) > 25 else 'hmd-neg1'
+
+
 def goalcmp(real, meta, invert, hist, meta_fmt, hist_fmt, glabel='Meta'):
     """Rodapé de meta toggleável Meta↔Hist (substitui o pill — a base já mostra o
     desvio). glabel = 'Meta' ou 'Bench'. None quando não há meta formatada."""

@@ -16,7 +16,7 @@ from common.fmt import money, pctf, xf, intf
 from common.preserve import preserve, preserve_dataset
 # Builders de card/seção + motor de comparação Meta×Histórico — fonte canônica em common.report.
 from common.report import (dev as _dev, gstatus as _gstatus, goalcmp as _goalcmp,
-                           apply_goal as _apply_goal, km, ks, eb, fb, table)
+                           apply_goal as _apply_goal, hmcls as _hmcls, km, ks, eb, fb, table)
 
 
 def _pp(v):
@@ -785,14 +785,6 @@ def assemble(rows, config, content, opts=None):
         if fmt == 'pct2':
             return f'{v:.2f}%'
         return pctf(v)
-
-    def _hmcls(d, tone):
-        # tint calmo: perto da meta (warn, ≤10%) fica neutro p/ não virar sopa de cor.
-        if d is None or tone in ('neutral', 'warn'):
-            return 'hmd-neu'
-        if tone == 'pos':
-            return 'hmd-pos2' if abs(d) >= 15 else 'hmd-pos1'
-        return 'hmd-neg2' if abs(d) > 25 else 'hmd-neg1'
 
     def _garg_rows(segs, namekey, histsegs=None):
         # Cada célula carrega a comparação vs META (cls/title) e vs HISTÓRICO do mesmo

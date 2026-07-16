@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ -> pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf
-from common.report import eb, apply_goal   # eyebrow + motor do rodapé "Bench X · ±%" dos cards
+from common.report import eb, apply_goal, dev, hmcls   # eyebrow + motor do rodapé "Bench X · ±%" e do tint das células
 
 # modo -> KPIs Macro (ordem da fonte). ★ = indicador principal do modo.
 # Ordem = a do FUNIL (como o debriefing): dinheiro entra → leads → custo do lead →
@@ -33,11 +33,25 @@ MODE_SUB = {'resultado': 'performance de venda — ROAS, conversão, retorno (�
             'captacao': 'eficiência de captação — custo, qualidade, projeção (★ CPMQL projetado)'}
 MODE_RANK = {'resultado': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'Vendas', 'ROAS', 'CPL', 'Hook', 'Hold'],
              'captacao': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'CPL', 'CPMQL', 'CPM', 'CTR', 'Hook', 'Hold']}
-# Colunas das tabelas da ficha (por campanha/público) por modo — espelham as do HTML
-# fonte: além das básicas, qualificação, taxa de resposta, conversão de página, connect
-# rate e hook rate (todas já calculadas em calc.metrics()).
-MODE_BR = {'resultado': ['Invest.', 'Leads', 'Vendas', 'Tx.Conv', 'CAC', 'ROAS', 'Qualid.'],
-           'captacao': ['Invest.', 'Leads', 'CPL', 'CPM', 'CTR', 'Hook', 'Conv.Pág', 'ConnRate', 'Qualid.', 'Tx.Resp', 'CPMQL']}
+# Colunas das tabelas por dimensão da ficha (temperatura/campanha/público) na ORDEM DO
+# FUNIL: dinheiro → impressão → vídeo → clique → página → lead → qualificação → venda →
+# retorno. Cada tabela = os KPIs do modo MAIS as métricas de qualidade do criativo (que
+# valem nos dois modos, como na seção Qualidade). Derivado de MODE_KPIS: acrescentar um
+# KPI ao modo o coloca na tabela sozinho, sem uma segunda lista para esquecer de editar.
+BR_ORDER = ['invest', 'cpm', 'hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina',
+            'leads', 'cpl', 'tx_resposta', 'qualidade', 'cpmql',
+            'vendas', 'conv', 'cac', 'retorno', 'roas']
+BR_QUAL = ['cpm', 'hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']
+assert not set(KPIS_RESULTADO + KPIS_CAPTACAO) - set(BR_ORDER), 'BR_ORDER precisa cobrir todo KPI de modo'
+MODE_BR = {m: [k for k in BR_ORDER if k in BR_QUAL or k in ks] for m, ks in MODE_KPIS.items()}
+# Rótulo curto de cada indicador. Serve a dois consumidores: os aliases da tabela
+# `cr_creatives` (vocabulário que o deepen usa em `cols`) e o cabeçalho das colunas do
+# heatmap — onde `calc.METRICS[k]['label']` ("Conversão de Página") não cabe na coluna.
+SHORT = {'invest': 'Invest.', 'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Tx.Conv',
+         'cac': 'CAC', 'roas': 'ROAS', 'qualidade': 'Qualid.', 'cpl': 'CPL', 'cpm': 'CPM',
+         'ctr': 'CTR', 'hook_rate': 'Hook', 'hold_rate': 'Hold', 'conv_pagina': 'Conv.Pág',
+         'connect_rate': 'ConnRate', 'tx_resposta': 'Tx.Resp', 'cpmql': 'CPMQL',
+         'retorno': 'Retorno', 'videoviews': 'Videoviews'}
 MODES_OPT = [{'id': 'resultado', 'label': 'Resultado Final'}, {'id': 'captacao', 'label': 'Captação'}]
 # Eixos do scatter e métricas da evolução diária (esq, dir) — mudam por modo.
 SCATTER_XY = {'resultado': ('invest', 'retorno'), 'captacao': ('invest', 'cpmql')}
@@ -161,12 +175,6 @@ def assemble(rows, config, content, opts=None):
 
     dataset, sections, layouts = {}, {}, {}
 
-    def mny(v):
-        return money(v) if v is not None else '—'
-
-    def pcv(v):
-        return pctf(v) if v is not None else '—'
-
     # ── dataset: série diária + ranking (todas as colunas; o modo escolhe quais exibir) ──
     dataset['cr_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
         {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest'],
@@ -177,15 +185,10 @@ def assemble(rows, config, content, opts=None):
     # a chave (gráfico: y='conv') e às vezes o rótulo (table cols=['Tx.Conv']); com os
     # dois aliases ambos casam e a tabela não renderiza vazia. Valores numéricos crus
     # (gráficos e o banco precisam de número, não string formatada).
-    _CR_LABELS = {'invest': 'Invest.', 'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Tx.Conv',
-                  'cac': 'CAC', 'roas': 'ROAS', 'qualidade': 'Qualid.', 'cpl': 'CPL', 'cpm': 'CPM',
-                  'ctr': 'CTR', 'hook_rate': 'Hook', 'hold_rate': 'Hold', 'conv_pagina': 'Conv.Pág',
-                  'connect_rate': 'ConnRate', 'tx_resposta': 'Tx.Resp', 'cpmql': 'CPMQL',
-                  'retorno': 'Retorno', 'videoviews': 'Videoviews'}
 
     def _cr_row(c):
         row = {'criativo': c['name'], 'Criativo': c['name'], 'is_video': 1 if c['m']['is_video'] else 0}
-        for k, lab in _CR_LABELS.items():
+        for k, lab in SHORT.items():
             v = c['m'].get(k)
             row[k] = v
             row[lab] = v
@@ -360,23 +363,47 @@ def assemble(rows, config, content, opts=None):
             return 'n'
         return 'g' if roas > 0 else ('r' if roas < 0 else 'p')
 
-    def br_table(prefix, dimlabel, by_dim, i):
-        cols = [dimlabel] + MODE_BR[mode]
-        rws = []
-        for name, mm in by_dim.items():
-            if not mm['has_traffic']:
-                continue
-            rws.append({dimlabel: name, 'Invest.': mny(mm['invest']), 'Leads': intf(mm['leads']),
-                        'Vendas': intf(mm['vendas']), 'CPL': mny(mm['cpl']), 'CPMQL': mny(mm['cpmql']),
-                        'CPM': mny(mm['cpm']), 'CTR': pcv(mm['ctr']), 'ROAS': fmtm('roas', mm['roas']),
-                        'Tx.Conv': pcv(mm['conv']), 'CAC': mny(mm['cac']), 'Qualid.': pcv(mm['qualidade']),
-                        'Hook': pcv(mm['hook_rate']), 'Conv.Pág': pcv(mm['conv_pagina']),
-                        'ConnRate': pcv(mm['connect_rate']), 'Tx.Resp': pcv(mm['tx_resposta'])})
-        if not rws:
-            return None, None
-        name = f'cr_{i}_{prefix}'
-        dataset[name] = {'dims': [dimlabel], 'filters': [], 'rows': rws}
-        return cols, name
+    def br_tab(prefix, dimlabel, by_dim, i):
+        """Uma aba do heatmap da ficha — mesmo widget do "Gargalos no Funil" do
+        debriefing: uma célula por métrica, na ordem do funil.
+
+        Tint só onde EXISTE referência: benchmark de criativo (as de qualidade) ou sinal
+        (retorno/ROAS líquido, breakeven em 0). O resto fica neutro — colorir sem
+        referência seria inventar julgamento. O anel marca o maior furo da linha.
+        Coluna vazia em todos os segmentos (hook/hold num estático) não entra."""
+        segs = [(n, mm) for n, mm in by_dim.items() if mm['has_traffic']]
+        keys = [k for k in MODE_BR[mode] if any(mm.get(k) is not None for _, mm in segs)]
+        if not segs or not keys:
+            return None
+        cells = []
+        for name, mm in segs:
+            full = name or '—'
+            row, worst_i, worst_d = [], None, 0.0
+            for k in keys:
+                v, b = mm.get(k), bench.get(k)
+                val = fmtm(k, v)
+                cls, ttl = 'hmd-neu', f'{calc.METRICS[k]["label"]}: {val}'   # tooltip: nome por extenso
+                if b and v is not None:
+                    d, tone = dev(v, b, calc.METRICS[k].get('cost') is True)
+                    cls = hmcls(d, tone)
+                    ttl += f' · bench {fmtm(k, b)}' + (f' ({d:+.0f}%)' if d is not None else '')
+                    if tone in ('warn', 'neg') and d is not None and abs(d) > worst_d:
+                        worst_d, worst_i = abs(d), len(row)
+                elif k in ('retorno', 'roas') and v is not None:
+                    cls = 'hmd-pos1' if v > 0 else ('hmd-neg1' if v < 0 else 'hmd-neu')
+                    ttl += ' · acima de 0 = sobrou dinheiro'
+                row.append({'seg': full, 'segLabel': full if len(full) <= 30 else full[:29].rstrip() + '…',
+                            'etapa': SHORT[k], 'val': val, 'cls': cls, 'title': ttl})
+            if worst_i is not None:
+                row[worst_i]['cls'] += ' hm-worst'
+                row[worst_i]['title'] += ' · maior furo'
+            cells.extend(row)
+        dsname = f'cr_{i}_{prefix}'
+        dataset[dsname] = {'dims': ['seg', 'etapa'], 'filters': [], 'rows': cells}
+        return {'label': dimlabel, 'sub': 'etapa do funil e qualidade · verde acima do benchmark, vermelho abaixo',
+                'bind': {'dataset': dsname}, 'rowKey': 'seg', 'rowLabelKey': 'segLabel',
+                'rowTitleKey': 'seg', 'colKey': 'etapa', 'valKey': 'val',
+                'clsKey': 'cls', 'titleKey': 'title'}
 
     # Altura do preview na ficha, em linhas de grade. O bloco de cima (preview |
     # métricas + funil) tem de caber numa dobra — ver a modal de referência.
@@ -461,14 +488,23 @@ def assemble(rows, config, content, opts=None):
             card['compact'] = True
             fw.append(card)
             fg.add(wid, 'kpi-card', qw, 2)
-        for prefix, lbl, by, title in [('temp', 'Temperatura', c['by_temp'], 'Por temperatura'),
-                                       ('camp', 'Campanha', c['by_campanha'], 'Por campanha'),
-                                       ('pub', 'Público', c['by_publico'], 'Por público')]:
-            cols, dsname = br_table(prefix, lbl, by, i)
-            if cols:
-                eb(fw, fg, f'{sid}-eb-{prefix}', title.upper())
-                fw.append({'id': f'{sid}-{prefix}', 'type': 'table', 'title': title, 'cols': cols, 'bind': {'dataset': dsname}})
-                fg.add(f'{sid}-{prefix}', 'table', 12, 4)
+        # ONDE ESTE CRIATIVO RODOU — um heatmap com toggle de dimensão, no lugar das 3
+        # tabelas empilhadas: mesma leitura da fonte, um terço da altura e a comparação
+        # com o benchmark visível na célula (a tabela crua não comparava com nada).
+        brt = [t for t in [br_tab('temp', 'Temperatura', c['by_temp'], i),
+                           br_tab('camp', 'Campanha', c['by_campanha'], i),
+                           br_tab('pub', 'Público', c['by_publico'], i)] if t]
+        if brt:
+            eb(fw, fg, f'{sid}-eb-br', 'ONDE ESTE CRIATIVO RODOU', 'troque a dimensão',
+               info=('Cor das métricas de qualidade (CPM · Hook · Hold · CTR · Connect · Conversão de '
+                     'Página): desvio vs o benchmark da análise — verde = melhor, vermelho = pior, '
+                     'neutro = perto do benchmark (±10%). O anel marca a pior métrica de cada linha. '
+                     'Retorno e ROAS líquido: verde = sobrou dinheiro, vermelho = a mídia custou mais '
+                     'do que trouxe. As demais colunas são contexto — sem benchmark no app, sem cor.'))
+            # Sem `title`: o card mostra a aba ativa ("Temperatura"), que diz o que o
+            # eyebrow acima não diz. Com título fixo os dois repetiam a mesma frase.
+            fw.append({'id': f'{sid}-br', 'type': 'heatmap-toggle', 'tabs': brt})
+            fg.add(f'{sid}-br', 'heatmap-toggle', 12, 6)
         if c['daily']:
             dataset[f'cr_{i}_daily'] = {'dims': ['data'], 'filters': [], 'rows': [
                 {'data': d['data'], 'leads': d['m']['leads'], 'invest': d['m']['invest']} for d in c['daily']]}
