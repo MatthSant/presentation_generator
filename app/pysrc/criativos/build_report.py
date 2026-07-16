@@ -20,9 +20,12 @@ from common.fmt import money, pctf, xf, intf
 from common.report import eb, apply_goal   # eyebrow + motor do rodapé "Bench X · ±%" dos cards
 
 # modo -> KPIs Macro (ordem da fonte). ★ = indicador principal do modo.
-KPIS_RESULTADO = ['invest', 'roas', 'retorno', 'leads', 'cpl', 'vendas', 'conv', 'cac', 'qualidade', 'cpmql']
-# Hook/Hold ficam na seção "Qualidade do Criativo" (retenção do vídeo), não aqui.
-KPIS_CAPTACAO = ['invest', 'leads', 'cpl', 'cpm', 'ctr', 'tx_resposta', 'qualidade', 'cpmql']
+# Ordem = a do FUNIL (como o debriefing): dinheiro entra → leads → custo do lead →
+# qualificação → venda → custo da venda → retorno. ROAS fecha: é o desfecho.
+KPIS_RESULTADO = ['invest', 'leads', 'cpl', 'qualidade', 'cpmql', 'vendas', 'conv', 'cac', 'retorno', 'roas']
+# Mesma lógica: impressão (CPM) → clique (CTR) → lead → custo do lead → resposta →
+# qualificação → CPMQL (o desfecho da captação). Hook/Hold ficam na seção Qualidade.
+KPIS_CAPTACAO = ['invest', 'cpm', 'ctr', 'leads', 'cpl', 'tx_resposta', 'qualidade', 'cpmql']
 # Dois MODOS analíticos (toggle): trocam quais indicadores aparecem em TUDO.
 MODE_KPIS = {'resultado': KPIS_RESULTADO, 'captacao': KPIS_CAPTACAO}
 MODE_LABEL = {'resultado': 'Resultado Final', 'captacao': 'Captação em Andamento'}
@@ -246,15 +249,15 @@ def assemble(rows, config, content, opts=None):
     pg.at('cr-funil', 'funnel', 6, 1, 6, kpi_rows * 2)
     pg.x = 0; pg.y = 1 + kpi_rows * 2; pg.rowh = 0   # volta ao fluxo abaixo do bloco
 
-    # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo, todas
-    # com benchmark (escolhido na criação). Cards no mesmo padrão dos KPIs macro; como
-    # TODAS têm bench, aqui o rodapé "Bench X · ±%" aparece em cada uma.
-    if mode == 'captacao':
-        eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · realizado vs benchmark')
-        for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
-            wid = f'cr-q-{k}'
-            pan.append(kcard(wid, k, total.get(k)))
-            pg.add(wid, 'kpi-card', 2, 2)   # 5 na linha (10 de 12 colunas)
+    # Qualidade do criativo (vídeo/página) — as 5 métricas de criativo, todas com
+    # benchmark (escolhido na criação). Vale nos DOIS modos: a qualidade do anúncio
+    # explica o resultado tanto quanto a captação. Cards no mesmo padrão dos KPIs macro;
+    # como TODAS têm bench, o rodapé "Bench X · ±%" aparece em cada uma.
+    eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · realizado vs benchmark')
+    for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
+        wid = f'cr-q-{k}'
+        pan.append(kcard(wid, k, total.get(k)))
+        pg.add(wid, 'kpi-card', 2, 2)   # 5 na linha (10 de 12 colunas)
 
     eb(pan, pg, 'cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
 
