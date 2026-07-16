@@ -68,6 +68,9 @@ def assemble(rows, config, content, opts=None):
     rules = cfg.get('temp_rules')
     if rules:
         rows = calc.apply_temp_rules(rows, rules, overwrite=bool(cfg.get('temp_overwrite')))
+    # Tipo de campanha (Lead/Venda) por ILIKE no nome — mesmas regras da temperatura,
+    # escolhidas na criação. Sem `tipo_rules` no config, usa o padrão (_lead/_venda).
+    rows = calc.apply_tipo_rules(rows, cfg.get('tipo_rules'))
     dic = opts.get('dict') or {}
     mode = opts.get('mode') if opts.get('mode') in MODE_KPIS else 'resultado'
     bench = calc.resolve_bench(cfg)   # {hook_rate/hold_rate/ctr/connect_rate/conv_pagina: valor}
@@ -328,6 +331,7 @@ def assemble(rows, config, content, opts=None):
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title']},
                           'controls': {'kind': 'criativos', 'pages': ['panorama', 'fichas'],
                                        'mode': mode, 'modes': MODES_OPT, 'temps': B['temps'],
+                                       'tipos': B['tipos'],
                                        'minInvestPresets': [100, 500, 1000]},
                           'nav': 'sidebar'},
                  'pages': pages}

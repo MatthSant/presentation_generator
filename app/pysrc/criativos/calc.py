@@ -201,6 +201,21 @@ def apply_temp_rules(rows, rules, overwrite=False):
                            dst='temperatura_lead', overwrite=overwrite, fallback='N/C')
 
 
+# Tipo de campanha por ILIKE no nome da campanha — mesmo shape das regras de
+# temperatura (escolhido na criação). Sem regras no config, cai neste padrão.
+TIPO_RULES_DEFAULT = [{'contains': ['_lead'], 'label': 'Lead'},
+                      {'contains': ['_venda'], 'label': 'Venda'}]
+
+
+def apply_tipo_rules(rows, rules=None):
+    """Deriva `tipo_campanha` do `field_campaign_name` por ILIKE (1º match vence),
+    igual às regras de temperatura. `rules=None` usa TIPO_RULES_DEFAULT. Sempre
+    reclassifica (a coluna não vem do CSV). Não-casadas viram 'N/C'."""
+    norm = temp_util.normalize_rules(rules if rules is not None else TIPO_RULES_DEFAULT)
+    return temp_util.apply(rows, norm, src='field_campaign_name',
+                           dst='tipo_campanha', overwrite=True, fallback='N/C')
+
+
 def _distinct(rows, col):
     seen = []
     for r in rows:
@@ -226,18 +241,23 @@ def _trim_daily(daily):
 def build(rows, dic=None, opts=None):
     """Agrega por criativo (field_ad_name). Devolve criativos + dimensões + médias.
 
-    opts = { temp?: <temperatura ativa | None>, min_invest?: <float> } só afeta os
-    AGREGADOS globais (totais/médias/série) — cada criativo carrega seus próprios
-    recortes para a ficha. Filtros reativos finos ficam no render_view."""
+    opts = { temp?: <temperatura ativa | None>, tipo?: <tipo de campanha ativo | None>,
+    min_invest?: <float> } só afeta os AGREGADOS globais (totais/médias/série) — cada
+    criativo carrega seus próprios recortes para a ficha. Filtros reativos finos ficam
+    no render_view."""
     opts = opts or {}
     dic = dic or {}
     produto = produto_principal(rows)
     temps = _distinct(rows, 'temperatura_lead')   # todas (para as opções do filtro)
-    # Filtro de TEMPERATURA (recompute): restringe as linhas à temperatura ativa antes
-    # de agregar — assim todas as métricas refletem o recorte.
+    tipos = _distinct(rows, 'tipo_campanha')      # idem (Lead/Venda/N.C — vem das regras)
+    # Filtros de TEMPERATURA e TIPO DE CAMPANHA (recompute): restringem as linhas ao
+    # recorte ativo antes de agregar — assim todas as métricas refletem o recorte.
     sel_temp = opts.get('temp')
     if sel_temp:
         rows = [r for r in rows if (r.get('temperatura_lead') or '').strip() == sel_temp]
+    sel_tipo = opts.get('tipo')
+    if sel_tipo:
+        rows = [r for r in rows if (r.get('tipo_campanha') or '').strip() == sel_tipo]
 
     keys = []
     for r in rows:
@@ -299,6 +319,7 @@ def build(rows, dic=None, opts=None):
         'creatives': creatives,
         'valid': valid,
         'temps': temps,
+        'tipos': tipos,
         'campanhas': _distinct(rows, 'field_campaign_name'),
         'publicos': _distinct(rows, 'field_adset_name'),
         'total': total, 'avg': avg, 'daily': daily,

@@ -18,7 +18,8 @@
       <a href="#sec-cliente"><span class="n">1</span> Cliente</a>
       <a href="#sec-files"><span class="n">2</span> Arquivos</a>
       <a href="#sec-bench"><span class="n">3</span> Benchmark</a>
-      <a href="#sec-temp"><span class="n">4</span> Temperatura</a>
+      <a href="#sec-tipo"><span class="n">4</span> Tipo de campanha</a>
+      <a href="#sec-temp"><span class="n">5</span> Temperatura</a>
     </aside>
 
     <main class="cr-main">
@@ -77,6 +78,15 @@
         </div>
       </section>
 
+      <section class="card" id="sec-tipo">
+        <div class="card-hd">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+          <span class="t"><b>Tipo de campanha <span class="help" style="font-weight:600">(opcional)</span></b><small>Separa campanhas de captação (lead) das de venda pelo nome da campanha.</small></span>
+        </div>
+        <p class="help" style="margin-bottom:14px">Define o <code>tipo_campanha</code> por trecho do <strong>nome da campanha</strong> (ILIKE — 1ª regra que casar vence). Vira um <strong>filtro no relatório</strong>, para analisar só as campanhas do tipo certo. Campanhas sem match viram <code>N/C</code>.</p>
+        <div id="tipo-editor"></div>
+      </section>
+
       <section class="card" id="sec-temp">
         <div class="card-hd">
           <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
@@ -118,6 +128,13 @@
     $('f-client').addEventListener('change', applyClientTemp);
     applyClientTemp();
 
+    // Tipo de campanha: mesmo editor de regras da temperatura (pattern→label), com o
+    // padrão _lead/_venda. Sem overwrite — a coluna não vem do CSV, é sempre derivada.
+    const tipoCtl = window.mountTempRules($('tipo-editor'), {
+      showOverwrite: false, placeholder: 'Tipo (ex.: Lead)',
+      rules: [{ contains: ['_lead'], label: 'Lead' }, { contains: ['_venda'], label: 'Venda' }],
+    });
+
     $('f-csv').addEventListener('change', (e) => { CSV = e.target.files[0] || null; $('f-csv-name').textContent = CSV ? CSV.name : 'nenhum arquivo'; });
     $('f-dict').addEventListener('change', (e) => { DICT = e.target.files[0] || null; $('f-dict-name').textContent = DICT ? DICT.name : 'nenhum arquivo'; });
 
@@ -143,6 +160,9 @@
       const cfg = { type: 'criativos' };
       const rules = tctl.getRules();
       if (rules.length) { cfg.temp_rules = rules; cfg.temp_overwrite = tctl.getOverwrite(); }
+      // Tipo de campanha (Lead/Venda) → filtro no relatório. Sem regras, o motor usa o padrão.
+      const tipoRules = tipoCtl.getRules();
+      if (tipoRules.length) cfg.tipo_rules = tipoRules;
       // Benchmark de criativo: fonte da comparação ↑/↓ dos KPIs de criativo.
       const funnel_bench = {};
       const addb = (k, id) => { const v = Number($(id).value); if (Number.isFinite(v)) funnel_bench[k] = v; };
