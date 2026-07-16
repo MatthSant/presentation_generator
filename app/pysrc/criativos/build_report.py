@@ -88,6 +88,52 @@ def fmtm(key, v):
     return intf(v)
 
 
+def funnel(m, steps_def, bench, wid, title, sub):
+    """Widget de funil a partir das métricas `m` e das etapas `steps_def`
+    [(rótulo, valor, vlabel|None)]. Usado pelo Panorama (consolidado) e pela ficha
+    (um criativo) — mesma leitura dos dois lados.
+
+    As taxas de passagem comparam ao BENCHMARK escolhido na criação; a transição
+    Investimento→Impressões é CUSTO (CPM), não taxa. Etapa zerada some (dump sem
+    pageviews, p.ex.) para o funil não quebrar."""
+    fv = [(l, v, vl) for l, v, vl in steps_def if v]
+    mig = lambda a, b: round(b / a * 100, 2) if a else 0.0
+    tb = {('Impressões', 'Clicks'): bench.get('ctr'),
+          ('Clicks', 'Pageviews'): bench.get('connect_rate'),
+          ('Pageviews', 'Leads'): bench.get('conv_pagina'),
+          # sem pageviews no dump, clicks→leads ≡ connect × conv. de página
+          ('Clicks', 'Leads'): ((bench.get('connect_rate') or 0) / 100.0 * (bench.get('conv_pagina') or 0)) or None}
+    trs = []
+    for i in range(len(fv) - 1):
+        frm, to = fv[i][0], fv[i + 1][0]
+        if frm == 'Investimento':
+            trs.append({'note': f"CPM {fmtm('cpm', m.get('cpm'))}", 'noteTone': 'neutral'})
+            continue
+        r = mig(fv[i][1], fv[i + 1][1])
+        tr = {'migrate': r, 'loss': round(100 - r, 1)}
+        b = tb.get((frm, to))
+        if b:
+            tr['bench'] = round(b, 1)
+            if r < b:
+                tr['gap'] = round(b - r, 1)
+        if frm == 'Impressões':
+            tr['decimals'] = 2      # CTR precisa de 2 casas
+        trs.append(tr)
+    # MAIOR FURO = maior queda RELATIVA ao bench (gap ÷ bench), não a maior perda absoluta.
+    wi, wr = None, 0.0
+    for i, tr in enumerate(trs):
+        if tr.get('gap') and tr.get('bench'):
+            rel = tr['gap'] / tr['bench']
+            if rel > wr:
+                wr, wi = rel, i
+    if wi is not None:
+        trs[wi]['worst'] = True
+    return {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub,
+            'baseLabel': 'bench', 'hideLoss': True,
+            'steps': [{'label': l, 'value': v, **({'vlabel': vl} if vl else {})} for l, v, vl in fv],
+            'transitions': trs}
+
+
 def assemble(rows, config, content, opts=None):
     opts = opts or {}
     # Classificação de temperatura por ILIKE no nome da campanha (configurada na
@@ -227,52 +273,15 @@ def assemble(rows, config, content, opts=None):
         pg.at(wid, 'kpi-card', 0 if j % 2 == 0 else 3, 1 + (j // 2) * 2, 3, 2)
 
     # Funil à direita. RESULTADO: vai até a VENDA, sem as etapas de qualificação
-    # (respostas/MQLs). CAPTAÇÃO: termina no lead qualificado. Etapas zeradas somem
-    # (ex.: dump sem pageviews) p/ o funil não quebrar.
+    # (respostas/MQLs). CAPTAÇÃO: termina no lead qualificado.
     steps_def = ([('Investimento', total.get('invest'), money(total.get('invest') or 0)),
                   ('Impressões', total.get('impressoes'), None), ('Clicks', total.get('clicks'), None),
                   ('Pageviews', total.get('pageviews'), None), ('Leads', total.get('leads'), None)]
                  + ([('Vendas', total.get('vendas'), None)] if mode == 'resultado'
                     else [('Respostas', total.get('respostas'), None), ('MQLs', total.get('mqls'), None)]))
-    fv = [(l, v, vl) for l, v, vl in steps_def if v]
-    fmig = lambda a, b: round(b / a * 100, 2) if a else 0.0
-    # Bench por transição — vem do benchmark escolhido na criação (mesmas 5 taxas).
-    TBENCH = {('Impressões', 'Clicks'): bench.get('ctr'),
-              ('Clicks', 'Pageviews'): bench.get('connect_rate'),
-              ('Pageviews', 'Leads'): bench.get('conv_pagina'),
-              # sem pageviews no dump, clicks→leads ≡ connect × conv. de página
-              ('Clicks', 'Leads'): ((bench.get('connect_rate') or 0) / 100.0 * (bench.get('conv_pagina') or 0)) or None}
-    ftr = []
-    for i in range(len(fv) - 1):
-        frm, to = fv[i][0], fv[i + 1][0]
-        if frm == 'Investimento':   # Investimento→Impressões é CUSTO (CPM), não taxa
-            ftr.append({'note': f"CPM {fmtm('cpm', total.get('cpm'))}", 'noteTone': 'neutral'})
-            continue
-        m = fmig(fv[i][1], fv[i + 1][1])
-        tr = {'migrate': m, 'loss': round(100 - m, 1)}
-        b = TBENCH.get((frm, to))
-        if b:
-            tr['bench'] = round(b, 1)
-            if m < b:
-                tr['gap'] = round(b - m, 1)
-        if frm == 'Impressões':
-            tr['decimals'] = 2      # CTR precisa de 2 casas
-        ftr.append(tr)
-    # MAIOR FURO = maior queda RELATIVA ao bench (gap ÷ bench), não a maior perda absoluta.
-    wi, wr = None, 0.0
-    for i, tr in enumerate(ftr):
-        if tr.get('gap') and tr.get('bench'):
-            rel = tr['gap'] / tr['bench']
-            if rel > wr:
-                wr, wi = rel, i
-    if wi is not None:
-        ftr[wi]['worst'] = True
     fsub = ('do investimento à venda · taxas vs bench' if mode == 'resultado'
             else 'do investimento ao lead qualificado · taxas vs bench')
-    pan.append({'id': 'cr-funil', 'type': 'funnel', 'title': 'Funil', 'sub': fsub,
-                'baseLabel': 'bench', 'hideLoss': True,
-                'steps': [{'label': l, 'value': v, **({'vlabel': vl} if vl else {})} for l, v, vl in fv],
-                'transitions': ftr})
+    pan.append(funnel(total, steps_def, bench, 'cr-funil', 'Funil', fsub))
     # Funil acompanha a ALTURA da coluna de cards (2 por linha) — senão fica curto ao
     # lado dela (captação tem 10 KPIs = 5 linhas; resultado, 8 = 4).
     kpi_rows = (len(MODE_KPIS[mode]) + 1) // 2
@@ -388,19 +397,42 @@ def assemble(rows, config, content, opts=None):
                        'title': f'{c["name"]} · {c["platform"]}',
                        'caption': 'Sem link no dicionário — adicione a URL do anúncio para ver o preview.'})
         fg.items.append({'id': f'{sid}-embed', 'type': fw[-1]['type'], 'x': 0, 'y': 0, 'w': 4, 'h': 9})
-        fw.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'title': 'RESULTADO MACRO', 'caption': 'consolidado do criativo'})
+        # MÉTRICAS — compactas, 4 por linha. Eram 2 por linha (w=4) e esticavam para
+        # preencher a altura do preview, com metade do card vazio.
+        fw.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'title': 'MÉTRICAS', 'caption': 'consolidado do criativo'})
         fg.items.append({'id': f'{sid}-eb-macro', 'type': 'eyebrow', 'x': 4, 'y': 0, 'w': 8, 'h': 1})
         for j, k in enumerate(MACRO):
             star = k in STAR
-            fw.append({'id': f'{sid}-m-{k}', 'type': 'kpi-card', 'tier': 'feature',
-                       'label': calc.METRICS[k]['label'] + (' ★' if star else ''),
-                       'value': fmtm(k, m.get(k)), 'sub': f'média {fmtm(k, avg.get(k))}',
-                       'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if star else '#7F77DD'})
+            card = {'id': f'{sid}-m-{k}', 'type': 'kpi-card', 'tier': 'feature',
+                    'label': calc.METRICS[k]['label'] + (' ★' if star else ''),
+                    'value': fmtm(k, m.get(k)),
+                    'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if star else '#7F77DD'}
+            # "média X" aqui COMPARA (este criativo × o lançamento) — números diferentes,
+            # ao contrário do Panorama, onde o avg da razão é o próprio total.
+            if not calc.is_ratio(k) or avg.get(k) != m.get(k):
+                card['sub'] = f'média {fmtm(k, avg.get(k))}'
+            if INFO.get(k):
+                card['info'] = INFO[k]
+            if star:
+                card['emph'] = True
+            fw.append(card)
             fg.items.append({'id': f'{sid}-m-{k}', 'type': 'kpi-card',
-                             'x': 4 if j % 2 == 0 else 8, 'y': 1 + (j // 2) * 2, 'w': 4, 'h': 2})
-        # Abaixo do MAIS ALTO entre o preview (h=9) e a coluna de KPIs (2 por linha) —
-        # com 10 KPIs (captação) os cards passam de y=9 e um valor fixo os sobreporia.
-        fg.x = 0; fg.y = max(9, 1 + ((len(MACRO) + 1) // 2) * 2); fg.rowh = 0
+                             'x': 4 + (j % 4) * 2, 'y': 1 + (j // 4) * 2, 'w': 2, 'h': 2})
+        y_fun = 1 + ((len(MACRO) + 3) // 4) * 2
+
+        # CAMINHO ATÉ A VENDA — o mesmo funil do Panorama, no recorte deste criativo.
+        # Começa na impressão (o investimento do criativo já está nas métricas acima).
+        fw.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow', 'title': 'CAMINHO ATÉ A VENDA',
+                   'caption': 'etapa a etapa · taxas vs benchmark'})
+        fg.items.append({'id': f'{sid}-eb-fun', 'type': 'eyebrow', 'x': 4, 'y': y_fun, 'w': 8, 'h': 1})
+        fsteps = [('Impressões', m.get('impressoes'), None), ('Clicks', m.get('clicks'), None),
+                  ('Pageviews', m.get('pageviews'), None), ('Leads', m.get('leads'), None),
+                  ('Vendas', m.get('vendas'), None)]
+        fw.append(funnel(m, fsteps, bench, f'{sid}-fun', 'Caminho até a venda',
+                         'da impressão à compra · taxas vs benchmark'))
+        fg.items.append({'id': f'{sid}-fun', 'type': 'funnel', 'x': 4, 'y': y_fun + 1, 'w': 8, 'h': 6})
+        # Abaixo do MAIS ALTO entre o preview (h=9) e a coluna da direita.
+        fg.x = 0; fg.y = max(9, y_fun + 7); fg.rowh = 0
         # DADOS DO CRIATIVO — só para vídeo (hook/hold/views só existem com views_totais>0).
         if m.get('is_video'):
             vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
