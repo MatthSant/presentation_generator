@@ -216,6 +216,16 @@ def apply_tipo_rules(rows, rules=None):
                            dst='tipo_campanha', overwrite=True, fallback='N/C')
 
 
+def is_ratio(mk):
+    """Indicador de RAZÃO/CUSTO (taxa, ×, custo unitário)? Para esses, `avg` é a razão
+    AGREGADA — ou seja, IGUAL ao total (média simples de taxa distorce: um criativo de
+    R$5 pesaria igual a um de R$50k). Só os ADITIVOS (investimento, leads, vendas…) têm
+    média por criativo de verdade. Quem exibe usa isto p/ não mostrar "méd X" ao lado de
+    um X idêntico (comparar o número consigo mesmo)."""
+    meta = METRICS.get(mk, {})
+    return meta.get('fmt') in ('pct', 'x') or meta.get('cost') is True
+
+
 def _distinct(rows, col):
     seen = []
     for r in rows:
@@ -295,9 +305,8 @@ def build(rows, dic=None, opts=None):
     # criativo (total ÷ nº de criativos válidos), que é o que se espera de uma "média".
     n_valid = len(valid)
     avg = {}
-    for mk, meta in METRICS.items():
-        is_ratio = meta['fmt'] in ('pct', 'x') or meta.get('cost') is True
-        if is_ratio:
+    for mk in METRICS:
+        if is_ratio(mk):
             avg[mk] = total.get(mk)
         else:
             v = total.get(mk)

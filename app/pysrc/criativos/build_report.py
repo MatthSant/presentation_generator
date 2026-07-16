@@ -21,6 +21,7 @@ from common.report import eb, apply_goal   # eyebrow + motor do rodapé "Bench X
 
 # modo -> KPIs Macro (ordem da fonte). ★ = indicador principal do modo.
 KPIS_RESULTADO = ['invest', 'roas', 'retorno', 'leads', 'vendas', 'conv', 'cac', 'qualidade']
+# Hook/Hold ficam na seção "Qualidade do Criativo" (retenção do vídeo), não aqui.
 KPIS_CAPTACAO = ['invest', 'leads', 'cpl', 'cpm', 'ctr', 'tx_resposta', 'qualidade', 'cpmql']
 # Dois MODOS analíticos (toggle): trocam quais indicadores aparecem em TUDO.
 MODE_KPIS = {'resultado': KPIS_RESULTADO, 'captacao': KPIS_CAPTACAO}
@@ -186,14 +187,14 @@ def assemble(rows, config, content, opts=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v),
                 'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if k in STAR else '#7F77DD'}
-        # Só as métricas de criativo têm benchmark no app; as financeiras (ROAS, CAC,
-        # Retorno…) ficam com a média do lançamento como referência, sem pill.
-        b = bench_sub(k, v)
-        card['sub'] = b['sub'] if b else f'méd {fmtm(k, avg.get(k))}'
-        if b:
+        # Referência do card, em ordem: benchmark (só as métricas de criativo têm) →
+        # média por criativo → nada. Razão/custo NÃO ganha "méd": ali o avg é o próprio
+        # total (ver calc.is_ratio), então seria o número comparado consigo mesmo.
+        if bench.get(k) is not None:
             apply_goal(card, v, bench.get(k), calc.METRICS.get(k, {}).get('cost') is True,
                        None, fmtm(k, bench.get(k)), None, 'Bench')
-            card.pop('sub', None)
+        elif not calc.is_ratio(k):
+            card['sub'] = f'méd {fmtm(k, avg.get(k))}'
         if k in STAR:
             card['emph'] = True
         pan.append(card)
@@ -246,8 +247,11 @@ def assemble(rows, config, content, opts=None):
                 'baseLabel': 'bench', 'hideLoss': True,
                 'steps': [{'label': l, 'value': v, **({'vlabel': vl} if vl else {})} for l, v, vl in fv],
                 'transitions': ftr})
-    pg.at('cr-funil', 'funnel', 6, 1, 6, 8)
-    pg.x = 0; pg.y = 1 + ((len(MODE_KPIS[mode]) + 1) // 2) * 2; pg.rowh = 0   # volta ao fluxo
+    # Funil acompanha a ALTURA da coluna de cards (2 por linha) — senão fica curto ao
+    # lado dela (captação tem 10 KPIs = 5 linhas; resultado, 8 = 4).
+    kpi_rows = (len(MODE_KPIS[mode]) + 1) // 2
+    pg.at('cr-funil', 'funnel', 6, 1, 6, kpi_rows * 2)
+    pg.x = 0; pg.y = 1 + kpi_rows * 2; pg.rowh = 0   # volta ao fluxo abaixo do bloco
 
     # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo,
     # todas comparadas ao BENCHMARK escolhido na criação (registro central do app).
@@ -357,7 +361,9 @@ def assemble(rows, config, content, opts=None):
                        'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if star else '#7F77DD'})
             fg.items.append({'id': f'{sid}-m-{k}', 'type': 'kpi-card',
                              'x': 4 if j % 2 == 0 else 8, 'y': 1 + (j // 2) * 2, 'w': 4, 'h': 2})
-        fg.x = 0; fg.y = 9; fg.rowh = 0   # tabelas/gráfico fluem abaixo do bloco superior
+        # Abaixo do MAIS ALTO entre o preview (h=9) e a coluna de KPIs (2 por linha) —
+        # com 10 KPIs (captação) os cards passam de y=9 e um valor fixo os sobreporia.
+        fg.x = 0; fg.y = max(9, 1 + ((len(MACRO) + 1) // 2) * 2); fg.rowh = 0
         # DADOS DO CRIATIVO — só para vídeo (hook/hold/views só existem com views_totais>0).
         if m.get('is_video'):
             vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
