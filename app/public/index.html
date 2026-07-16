@@ -36,7 +36,13 @@
     .hm .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--divider); }
     /* guide cards */
     .hm .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    .hm .guide { text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 22px 20px; display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); }
+    .hm .guide { position: relative; text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 22px 22px 20px; display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); }
+    /* Aviso de limitação (i): canto sup. direito, âmbar; o texto vem do `limits` do
+       guias.json — sem o campo, o badge não aparece. */
+    .hm .guide .warn { position: absolute; top: 16px; right: 16px; width: 24px; height: 24px; border-radius: 50%; background: var(--amber-bg); color: var(--amber-text); display: grid; place-items: center; }
+    .hm .guide .warn > svg { width: 15px; height: 15px; }
+    .hm .guide .warn .tip { position: absolute; top: calc(100% + 8px); right: -4px; width: 244px; background: var(--amber-soft); border: 1px solid var(--amber); color: var(--amber-text); font-size: 12px; font-weight: 600; line-height: 1.5; text-align: left; padding: 9px 11px; border-radius: 9px; box-shadow: var(--shadow-lift); opacity: 0; visibility: hidden; transform: translateY(-3px); transition: opacity .15s var(--ease), visibility .15s var(--ease), transform .15s var(--ease); pointer-events: none; z-index: 5; }
+    .hm .guide .warn:hover .tip { opacity: 1; visibility: visible; transform: translateY(0); }
     .hm .guide:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); border-color: var(--purple-300, #c3a4f7); }
     .hm .guide .ic { width: 44px; height: 44px; padding: 0; border-radius: 12px; background: var(--purple-bg); color: var(--purple); display: grid; place-items: center; margin-bottom: 16px; transition: background .2s, color .2s; }
     .hm .guide .ic svg { width: 22px; height: 22px; }
@@ -164,6 +170,7 @@
       'debriefing-lancamento': `<svg viewBox="0 0 24 24" ${SW}><path d="M3 3v18h18"/><rect x="7" y="11" width="2.5" height="7"/><rect x="12" y="7" width="2.5" height="11"/><rect x="17" y="14" width="2.5" height="4"/></svg>`,
     };
     const BOOK = `<svg viewBox="0 0 24 24" ${SW}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>`;
+    const INFO = `<svg viewBox="0 0 24 24" ${SW}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`;
 
     // Nova análise → modal de escolha do tipo
     const NEW_TYPES = [
@@ -212,6 +219,7 @@
         document.getElementById('sec-guias').hidden = false;
         document.getElementById('guia-grid').innerHTML = guias.map(g => `
           <a class="guide" href="/guia/${encodeURIComponent(g.slug)}">
+            ${g.limits ? `<span class="warn" aria-label="Limitações desta análise">${INFO}<span class="tip">${esc(g.limits)}</span></span>` : ''}
             <span class="ic">${TYPE_ICON[g.slug] || BOOK}</span>
             <h3>${esc(g.title)}</h3>
             <p>${esc(g.summary || '')}</p>
