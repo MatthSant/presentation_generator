@@ -20,7 +20,7 @@ from common.fmt import money, pctf, xf, intf
 from common.report import eb, apply_goal   # eyebrow + motor do rodapé "Bench X · ±%" dos cards
 
 # modo -> KPIs Macro (ordem da fonte). ★ = indicador principal do modo.
-KPIS_RESULTADO = ['invest', 'roas', 'retorno', 'leads', 'vendas', 'conv', 'cac', 'qualidade']
+KPIS_RESULTADO = ['invest', 'roas', 'retorno', 'leads', 'cpl', 'vendas', 'conv', 'cac', 'qualidade', 'cpmql']
 # Hook/Hold ficam na seção "Qualidade do Criativo" (retenção do vídeo), não aqui.
 KPIS_CAPTACAO = ['invest', 'leads', 'cpl', 'cpm', 'ctr', 'tx_resposta', 'qualidade', 'cpmql']
 # Dois MODOS analíticos (toggle): trocam quais indicadores aparecem em TUDO.
@@ -169,13 +169,20 @@ def assemble(rows, config, content, opts=None):
         return {'sub': f'bench {fmtm(k, b)}' + ('' if ok is None else (' · ↑' if ok else ' · ↓')),
                 'subTone': 'neutral' if ok is None else ('pos' if ok else 'neg')}
 
-    def bench_item(k):
-        # Item do strip macro: valor + rodapé vs BENCHMARK (quando existe) ou vs
-        # MÉDIA do lançamento (financeiros — sem benchmark no app).
-        v = total.get(k)
-        item = {'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v)}
-        item.update(bench_sub(k, v) or {'sub': f'méd {fmtm(k, avg.get(k))}', 'subTone': 'neutral'})
-        return item
+    def kcard(wid, k, v):
+        # Card de KPI no padrão do debriefing: label + valor + rodapé "Bench X · ±%"
+        # (apply_goal, mesmo motor). Só as métricas de CRIATIVO têm benchmark no app;
+        # as demais ficam SEM referência — "méd" aqui seria o número comparado consigo
+        # mesmo nas razões (avg = total, ver calc.is_ratio) e ruído nas aditivas.
+        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
+                'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v),
+                'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if k in STAR else '#7F77DD'}
+        if bench.get(k) is not None:
+            apply_goal(card, v, bench.get(k), calc.METRICS.get(k, {}).get('cost') is True,
+                       None, fmtm(k, bench.get(k)), None, 'Bench')
+        if k in STAR:
+            card['emph'] = True
+        return card
 
     # KPIs Macro: cards à ESQUERDA (2 por linha) + FUNIL à direita — mesmo bloco do
     # debriefing ("Indicadores de Captura"), espelhado. Coords manuais: o packer de
@@ -183,21 +190,7 @@ def assemble(rows, config, content, opts=None):
     eb(pan, pg, 'cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
     for j, k in enumerate(MODE_KPIS[mode]):
         wid = f'cr-k-{k}'
-        v = total.get(k)
-        card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
-                'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v),
-                'icon': ICON.get(k, 'chart-bar'), 'iconColor': '#534AB7' if k in STAR else '#7F77DD'}
-        # Referência do card, em ordem: benchmark (só as métricas de criativo têm) →
-        # média por criativo → nada. Razão/custo NÃO ganha "méd": ali o avg é o próprio
-        # total (ver calc.is_ratio), então seria o número comparado consigo mesmo.
-        if bench.get(k) is not None:
-            apply_goal(card, v, bench.get(k), calc.METRICS.get(k, {}).get('cost') is True,
-                       None, fmtm(k, bench.get(k)), None, 'Bench')
-        elif not calc.is_ratio(k):
-            card['sub'] = f'méd {fmtm(k, avg.get(k))}'
-        if k in STAR:
-            card['emph'] = True
-        pan.append(card)
+        pan.append(kcard(wid, k, total.get(k)))
         pg.at(wid, 'kpi-card', 0 if j % 2 == 0 else 3, 1 + (j // 2) * 2, 3, 2)
 
     # Funil à direita. RESULTADO: vai até a VENDA, sem as etapas de qualificação
@@ -253,13 +246,15 @@ def assemble(rows, config, content, opts=None):
     pg.at('cr-funil', 'funnel', 6, 1, 6, kpi_rows * 2)
     pg.x = 0; pg.y = 1 + kpi_rows * 2; pg.rowh = 0   # volta ao fluxo abaixo do bloco
 
-    # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo,
-    # todas comparadas ao BENCHMARK escolhido na criação (registro central do app).
+    # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo, todas
+    # com benchmark (escolhido na criação). Cards no mesmo padrão dos KPIs macro; como
+    # TODAS têm bench, aqui o rodapé "Bench X · ±%" aparece em cada uma.
     if mode == 'captacao':
-        eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · comparação com benchmark (↑ acima / ↓ abaixo)')
-        pan.append({'id': 'cr-qual', 'type': 'kpi-strip',
-                    'items': [bench_item(k) for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']]})
-        pg.add('cr-qual', 'kpi-strip', 12, 2)
+        eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · realizado vs benchmark')
+        for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
+            wid = f'cr-q-{k}'
+            pan.append(kcard(wid, k, total.get(k)))
+            pg.add(wid, 'kpi-card', 2, 2)   # 5 na linha (10 de 12 colunas)
 
     eb(pan, pg, 'cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
 
