@@ -63,7 +63,8 @@ class App {
     body: () => Record<string, unknown>;
   }> = {
     // Criativos: MODO (resultado × captação) é um toggle na navbar (como o compare
-    // do debriefing); o FAB fica só com investimento mínimo + temperatura.
+    // do debriefing); o FAB fica só com investimento mínimo + temperatura. O TIPO de
+    // campanha não é filtro aqui: é escolhido na criação (a análise já nasce recortada).
     'criativos': {
       mount: (controls) => {
         const cc = controls as { mode?: string; modes?: Array<{ id: string; label: string }> };

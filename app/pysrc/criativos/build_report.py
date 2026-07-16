@@ -68,8 +68,18 @@ def assemble(rows, config, content, opts=None):
     rules = cfg.get('temp_rules')
     if rules:
         rows = calc.apply_temp_rules(rows, rules, overwrite=bool(cfg.get('temp_overwrite')))
+    # TIPO DE CAMPANHA — escolhido na CRIAÇÃO (obrigatório nas análises novas): as regras
+    # derivam `tipo_campanha` do nome da campanha (ILIKE) e a análise cobre SÓ o tipo
+    # selecionado. Filtra aqui, antes de qualquer agregação, então tudo (KPIs, fichas,
+    # dataset do deepen) já nasce recortado. Análises antigas (sem `tipo_campanha` no
+    # config) seguem sem filtro.
+    rows = calc.apply_tipo_rules(rows, cfg.get('tipo_rules'))
+    sel_tipo = (cfg.get('tipo_campanha') or '').strip()
+    if sel_tipo:
+        rows = [r for r in rows if (r.get('tipo_campanha') or '').strip() == sel_tipo]
     dic = opts.get('dict') or {}
     mode = opts.get('mode') if opts.get('mode') in MODE_KPIS else 'resultado'
+    bench = calc.resolve_bench(cfg)   # {hook_rate/hold_rate/ctr/connect_rate/conv_pagina: valor}
     B = calc.build(rows, dic, opts)   # opts: temp (filtro de temperatura) + min_invest
     creatives = B['creatives']
     valid = B['valid']
@@ -147,42 +157,43 @@ def assemble(rows, config, content, opts=None):
     pan, pg = [], Grid()
     total, avg = B['total'], B['avg']
 
-    def kcards(prefix, keys):
-        for k in keys:
-            star = k in STAR
-            pan.append({'id': f'{prefix}-{k}', 'type': 'kpi-card', 'tier': 'feature',
-                        'label': calc.METRICS[k]['label'] + (' ★' if star else ''),
-                        'value': fmtm(k, total.get(k)),
-                        'sub': f"média/criativo {fmtm(k, avg.get(k))}",
-                        'icon': ICON.get(k, 'chart-bar'),
-                        'iconColor': '#534AB7' if star else '#7F77DD'})
-            pg.add(f'{prefix}-{k}', 'kpi-card', 3, 2)
+    def bench_sub(k, v):
+        # Rodapé comparando `v` ao BENCHMARK da métrica (↑ acima / ↓ abaixo, custo
+        # invertido). Sem benchmark → None (o chamador cai na média). subTone colore.
+        b = bench.get(k)
+        if b is None:
+            return None
+        cost = calc.METRICS.get(k, {}).get('cost') is True
+        ok = None if v is None else ((v <= b) if cost else (v >= b))
+        return {'sub': f'bench {fmtm(k, b)}' + ('' if ok is None else (' · ↑' if ok else ' · ↓')),
+                'subTone': 'neutral' if ok is None else ('pos' if ok else 'neg')}
 
-    # Modo (Resultado × Captação) e filtros vivem no FAB (nível-relatório), não na página.
+    def bench_item(k):
+        # Item do strip macro: valor + rodapé vs BENCHMARK (quando existe) ou vs
+        # MÉDIA do lançamento (financeiros — sem benchmark no app).
+        v = total.get(k)
+        item = {'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''), 'value': fmtm(k, v)}
+        item.update(bench_sub(k, v) or {'sub': f'méd {fmtm(k, avg.get(k))}', 'subTone': 'neutral'})
+        return item
+
+    # KPIs Macro numa LINHA só (kpi-strip) — todos os indicadores do modo, com
+    # rodapé de comparação vs benchmark. Modo (Resultado × Captação) e filtros
+    # vivem no FAB (nível-relatório), não na página.
     eb(pan, pg, 'cr-eb-kpi', MODE_LABEL[mode].upper(), MODE_SUB[mode])
-    # KPIs Macro numa LINHA só (kpi-strip), como no original.
-    pan.append({'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [
-        {'label': calc.METRICS[k]['label'] + (' ★' if k in STAR else ''),
-         'value': fmtm(k, total.get(k)), 'sub': f'méd {fmtm(k, avg.get(k))}', 'subTone': 'neutral'}
-        for k in MODE_KPIS[mode]]})
-    pg.add('cr-kpi', 'kpi-strip', 12, 2)
+    # Resultado (rótulos curtos) cabe numa linha; Captação (CPMQL projetado, Tx.
+    # Resposta…) respira melhor em 2 linhas de 4.
+    macro = {'id': 'cr-kpi', 'type': 'kpi-strip', 'items': [bench_item(k) for k in MODE_KPIS[mode]]}
+    if mode == 'captacao':
+        macro['rows'] = 2
+    pan.append(macro)
+    pg.add('cr-kpi', 'kpi-strip', 12, 3 if mode == 'captacao' else 2)
 
-    # Captação: qualidade do criativo (vídeo/página) com comparação ao BENCHMARK
-    # (Hook 30% / Hold 25%) ou à MÉDIA do lançamento (CTR/Connect/Conv. de Página).
+    # Captação: qualidade do criativo (vídeo/página) — as 5 métricas de criativo,
+    # todas comparadas ao BENCHMARK escolhido na criação (registro central do app).
     if mode == 'captacao':
         eb(pan, pg, 'cr-eb-qual', 'QUALIDADE DO CRIATIVO', 'vídeo e página · comparação com benchmark (↑ acima / ↓ abaixo)')
-        qitems = []
-        for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']:
-            v = total.get(k)
-            bench = calc.BENCH.get(k)
-            ref = bench if bench is not None else avg.get(k)
-            sub = f'benchmark {pctf(bench)}' if bench is not None else f'média {fmtm(k, avg.get(k))}'
-            sub_tone = 'neutral'
-            if v is not None and ref:
-                sub_tone = 'pos' if v >= ref else 'neg'
-                sub += ' · ' + ('↑' if v >= ref else '↓')
-            qitems.append({'label': calc.METRICS[k]['label'], 'value': fmtm(k, v), 'sub': sub, 'subTone': sub_tone})
-        pan.append({'id': 'cr-qual', 'type': 'kpi-strip', 'items': qitems})
+        pan.append({'id': 'cr-qual', 'type': 'kpi-strip',
+                    'items': [bench_item(k) for k in ['hook_rate', 'hold_rate', 'ctr', 'connect_rate', 'conv_pagina']]})
         pg.add('cr-qual', 'kpi-strip', 12, 2)
 
     eb(pan, pg, 'cr-eb-graf', 'GRÁFICOS', 'evolução diária e dispersão dos criativos')
@@ -222,7 +233,11 @@ def assemble(rows, config, content, opts=None):
                         f'Criativos sem tráfego ({len(creatives) - len(valid)}) ficam fora dos totais.'})
     pg.add('cr-note', 'find-note', 12, 1)
 
+    # O recorte de tipo fica explícito no cabeçalho — a análise nasce filtrada e o
+    # consultor precisa ver isso ao ler os números.
     sub = f'{len(valid)} criativos com tráfego · investimento {money(total["invest"])} · {len(B["daily"])} dias'
+    if sel_tipo:
+        sub += f' · campanhas de {sel_tipo}'
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Panorama', 'title': 'Panorama de Criativos', 'sub': sub}, 'widgets': pan}
     layouts['s01'] = pg.items
 
@@ -285,7 +300,8 @@ def assemble(rows, config, content, opts=None):
         # DADOS DO CRIATIVO — só para vídeo (hook/hold/views só existem com views_totais>0).
         if m.get('is_video'):
             vid_keys = ['videoviews', 'hook_rate', 'hold_rate', 'connect_rate', 'ctr']
-            vitems = [{'label': calc.METRICS[k]['label'], 'value': fmtm(k, m.get(k))} for k in vid_keys]
+            vitems = [{'label': calc.METRICS[k]['label'], 'value': fmtm(k, m.get(k)),
+                       **(bench_sub(k, m.get(k)) or {})} for k in vid_keys]
             eb(fw, fg, f'{sid}-eb-vid', 'DADOS DO CRIATIVO', 'retenção do vídeo')
             fw.append({'id': f'{sid}-vid', 'type': 'kpi-strip', 'items': vitems})
             fg.add(f'{sid}-vid', 'kpi-strip', 12, 2)

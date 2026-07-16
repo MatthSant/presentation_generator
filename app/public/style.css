@@ -878,6 +878,9 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 .sp-r2row { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin: 2px 0 6px; }
 .sp-r2 { cursor: help; }
 .sp-r2note { font-size: 11px; font-weight: 600; color: var(--gray2); cursor: help; white-space: nowrap; }
+.sp-outlier { font-family: var(--font-sans), sans-serif; font-size: 11px; font-weight: 700; color: var(--gray2); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
+.sp-outlier:hover { border-color: var(--purple); color: var(--purple); }
+.sp-outlier.on { background: var(--purple); border-color: var(--purple); color: #fff; }
 .sp-r2note--warn { color: var(--amber, #b45309); }
 .sp-chart { width: 100%; }
 
@@ -1847,6 +1850,12 @@ body.edit-mode .tile-filter-badge { display:none; }
 }
 .kpi-strip .kpi { flex: 1; padding: 18px 22px; border-right: 1px solid var(--divider); }
 .kpi-strip .kpi:last-child { border-right: none; }
+/* Multi-linha (4 por linha): rótulos longos (captação) respiram em 2 linhas em
+   vez de espremer 8 numa só. Grade 4×2 — bordas internas, sem borda solta. */
+.kpi-strip--rows { flex-wrap: wrap; }
+.kpi-strip--rows .kpi { flex: 1 1 25%; box-sizing: border-box; border-bottom: 1px solid var(--divider); }
+.kpi-strip--rows .kpi:nth-child(4n) { border-right: none; }
+.kpi-strip--rows .kpi:nth-last-child(-n+4) { border-bottom: none; }
 .kpi-n { font-family: var(--font-mono); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 3px; }
 .kpi-n--sm { font-size: 19px; }
 .kpi-n .kpi-sep { color: var(--border-strong); font-weight: 500; margin: 0 3px; }

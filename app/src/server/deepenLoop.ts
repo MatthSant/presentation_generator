@@ -14,7 +14,7 @@
 import type { Bind, DataMap, Modal, Widget } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
 import { critiqueModal, sumUsage, type ModalUsage } from './claude.js';
-import { qualityIssues, qualitySuggestions } from './deepenQuality.js';
+import { qualityIssues, qualitySuggestions, missingAnswerWidget } from './deepenQuality.js';
 import { methodologySmell } from './deepenHistory.js';
 
 /** Forma frouxa do dataset (dims/filters opcionais) aceita pelos dois sítios de
@@ -61,6 +61,21 @@ const CAP = 60; // teto de linhas/categorias por widget no factsheet (controla t
 /** Resolve o bind de cada widget de dado num "factsheet": os números REAIS que ele
  *  mostra (categorias, séries, totais, linhas). É a verdade-base contra a qual o
  *  critic confere os números citados na prosa. */
+/** Remove widgets-placeholder VAZIOS (texto/título/valor em branco) que modelos
+ *  fracos às vezes emitem e nunca preenchem. Um bloco vazio é ruído — e um único
+ *  `highlight text is required` reprovava o detalhamento inteiro. Poda o vazio e
+ *  mantém o conteúdo real; NÃO baixa a qualidade (limpa, não fabrica). */
+export function pruneEmptyWidgets(widgets: Widget[]): Widget[] {
+  const blank = (v: unknown): boolean => v == null || String(v).trim() === '';
+  return (widgets || []).filter((raw) => {
+    const w = raw as { type?: string; text?: unknown; title?: unknown; value?: unknown; bind?: unknown };
+    if (w.type === 'highlight' || w.type === 'find-note') return !blank(w.text);
+    if (w.type === 'find-block' || w.type === 'ni' || w.type === 'ni-vertical') return !blank(w.title);
+    if (w.type === 'kpi') return !blank(w.value);
+    return true;   // chart/table validam por bind (schema/qualidade já pegam)
+  });
+}
+
 export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
   const sheet: unknown[] = [];
   for (const raw of widgets) {
@@ -68,13 +83,38 @@ export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
     if (!w.bind || (w.type !== 'chart' && w.type !== 'table' && w.type !== 'kpi')) continue;
     try {
       const r = resolveBind(w.bind, dataset);
+      // `totais` = soma por coluna. Só faz sentido p/ SÉRIE/gráfico de volume; numa
+      // TABELA de indicadores (custos por unidade, %, atingimento) somar colunas dá
+      // número SEM SENTIDO (ex.: "atingimento total 608%") que fazia o critic reprovar
+      // por "número não confere". Omitido p/ tabelas — o critic confere pelas `linhas`.
+      let totais = w.type === 'table' ? undefined : r.totals;
+      // Uma linha "Geral"/"Total" já É a soma das outras — se estiver entre as linhas,
+      // r.totals a conta de novo (dobra: Vendas 249+552+801=1602 em vez de 801). A linha
+      // agregada se identifica pelo VALOR da coluna de dimensão (bind.x), não pelo índice
+      // (categories é distinct(rows,x), não alinha 1:1 com rows). Subtrai o valor dela.
+      if (totais) {
+        const xcol = (w.bind as { x?: string }).x;
+        const AGG = /^(geral|total(?:\s+geral)?|todos|consolidado|acumulado)$/i;
+        const aggRows = xcol
+          ? r.rows.filter((row) => AGG.test(String((row as Record<string, unknown>)[xcol] ?? '').trim()))
+          : [];
+        if (aggRows.length) {
+          totais = { ...totais };
+          for (const col of Object.keys(totais)) {
+            for (const ag of aggRows) {
+              const gv = (ag as Record<string, unknown>)[col];
+              if (typeof gv === 'number') totais[col] -= gv;
+            }
+          }
+        }
+      }
       sheet.push({
         widget: w.type,
         titulo: w.title || w.label,
         dataset: w.bind.dataset,
         categorias: r.categories.slice(0, CAP),
         series: r.series.slice(0, 12).map((s) => ({ nome: s.name, valores: s.data.slice(0, CAP) })),
-        totais: r.totals,
+        totais,
         linhas: r.rows.slice(0, CAP),
       });
     } catch { /* bind inválido já é pego pelo schema — ignora aqui */ }
@@ -82,11 +122,17 @@ export function buildFactsheet(widgets: Widget[], dataset: DataMap): unknown[] {
   return sheet;
 }
 
-function repairMessage(objetivo: string | undefined, issues: string[]): string {
+function repairMessage(objetivo: string | undefined, issues: string[], factsheet?: unknown[]): string {
   const alvo = objetivo
     ? `A PERGUNTA ORIGINAL, que a saída DEVE responder, é: "${objetivo}". Não troque o alvo — ajuste a forma para respondê-la melhor.\n`
     : '';
-  return `${alvo}A saída anterior foi rejeitada por:\n- ${issues.join('\n- ')}\nCorrija TODOS esses pontos e reemita a saída final completa.`;
+  // DADOS REAIS resolvidos dos gráficos/tabelas da saída anterior: a prosa DEVE bater
+  // com estes números (é a mesma fonte que o revisor usa). Sem isso, o modelo "corrige"
+  // reescrevendo de memória e re-inventa a tendência → o critic reprova de novo.
+  const dados = (factsheet && factsheet.length)
+    ? `\n\nNÚMEROS REAIS que os gráficos/tabelas mostram — sua prosa tem que bater EXATAMENTE com eles; NÃO afirme tendência (queda/subida contínua, "despencou", "saturou") que a série NÃO mostra:\n${JSON.stringify(factsheet).slice(0, 2600)}`
+    : '';
+  return `${alvo}A saída anterior foi rejeitada por:\n- ${issues.join('\n- ')}\nCorrija TODOS esses pontos e reemita a saída final completa.${dados}`;
 }
 
 /** Reparo de POLIMENTO: a saída já passou (sem erro); só refina a FORMA. Tom suave
@@ -106,6 +152,7 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
   let issues: string[] = [];
   let lastBlocking: string[] = [];      // bloqueante/sugestão da última tentativa (p/ o residual final)
   let lastSuggestions: string[] = [];
+  let lastFactsheet: unknown[] = [];    // números REAIS da última saída válida → grounding do reparo
   // melhor versão SEM erro já obtida (e suas sugestões de forma pendentes). Protege a
   // entrega: se uma passada de polimento introduzir erro, devolvemos esta.
   let accepted: Modal | null = null;
@@ -123,7 +170,7 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
         : `Revisando o detalhamento (tentativa ${attempt + 1} de ${max})…`);
     const repair = attempt === 0 ? undefined
       : polishing ? polishMessage(inp.objetivo, issues)
-      : repairMessage(inp.objetivo, issues);
+      : repairMessage(inp.objetivo, issues, lastFactsheet);
     polishing = false;
     const r = await inp.generate(repair, prev);
     mocked = r.mocked;
@@ -136,17 +183,22 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     lastValid = cand; // renderável a partir daqui
 
     const widgets = (cand.widgets as Widget[]) ?? [];
+    // Factsheet (números REAIS dos binds) desta saída — usado pelo critic E injetado no
+    // próximo reparo p/ a prosa ficar grounded (mesma fonte que o revisor confere).
+    const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
+    lastFactsheet = factsheet;
     // Defeitos determinísticos (tabela vazia, gráfico ilegível, coluna inexistente) são
     // sempre BLOQUEANTES. O critic acrescenta o juízo semântico, já separado em
     // bloqueante × polimento. Só o bloqueante reprova; polimento entra no reparo mas
     // não trava a entrega — depois de N tentativas, nitpick de estilo não pode falhar.
-    let blocking = [...qualityIssues(widgets, inp.dataset as unknown as DataMap), ...methodologySmell(cand)];
+    const answerGap = missingAnswerWidget(widgets);
+    let blocking = [...qualityIssues(widgets, inp.dataset as unknown as DataMap), ...methodologySmell(cand),
+      ...(answerGap ? [answerGap] : [])];
     // Preferências de forma (ex.: excesso de gráficos) entram como SUGESTÃO: o reparo
     // tenta acatar, mas nunca reprovam — só erro bloqueia.
     let suggestions: string[] = qualitySuggestions(widgets);
     if (blocking.length === 0 && runCritic && !mocked) {
       inp.onProgress?.('Verificando a qualidade…');
-      const factsheet = buildFactsheet(widgets, inp.dataset as unknown as DataMap);
       const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet);
       if (crit.usage) usage = sumUsage(usage, crit.usage);
       if (!crit.ok) blocking = crit.blocking.length ? crit.blocking : ['o revisor concluiu que a saída não responde à pergunta original'];

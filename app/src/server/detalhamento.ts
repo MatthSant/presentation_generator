@@ -13,7 +13,7 @@ import { readJson } from './fsutil.js';
 import { BASE } from './paths.js';
 import { buildCatalog } from './datasetCatalog.js';
 import { generateModal, generateModalDeep, layoutSection, sumUsage, type DeepDeps } from './claude.js';
-import { gateAndRepair } from './deepenLoop.js';
+import { gateAndRepair, pruneEmptyWidgets } from './deepenLoop.js';
 import { runQuery } from './pygen.js';
 import { validateSection } from '../shared/validate.js';
 import { typeOf } from './typeRegistry.js';
@@ -106,13 +106,18 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
     dataset, objetivo, instrucao: inp.prompt, onProgress: inp.onProgress,
     generate: (repair, prevCand) => {
       const prev = prevCand ?? inp.prev;
+      // Recatalogar a cada tentativa: inclui as tabelas q-* JÁ criadas nas tentativas
+      // anteriores. Sem isso, o REPARO começa cego (catálogo velho) e RE-CONSULTA tudo
+      // de novo → trava minutos. Com elas no catálogo, o modelo reusa os dados e só
+      // conserta a prosa/bind conforme o feedback do critic.
+      const cat = repair ? buildCatalog(dataset) : catalog;
       if (deps) {
         const dp = repair ? `${framedPrompt}\n\n${repair}` : framedPrompt;
-        return generateModalDeep(dp, cardCtx, catalog, deps, prev, inp.fewShot, objetivo);
+        return generateModalDeep(dp, cardCtx, cat, deps, prev, inp.fewShot, objetivo, undefined, !!repair);
       }
-      return generateModal(framedPrompt, cardCtx, catalog, repair, prev, inp.fewShot, objetivo);
+      return generateModal(framedPrompt, cardCtx, cat, repair, prev, inp.fewShot, objetivo);
     },
-    normalize: (m) => ({ id: inp.resultId, title: 'Detalhamento', widgets: ensureIds(widgetsOf(m)) } as unknown as Modal),
+    normalize: (m) => ({ id: inp.resultId, title: 'Detalhamento', widgets: ensureIds(pruneEmptyWidgets(widgetsOf(m))) } as unknown as Modal),
     validateSchema: (m) => validate(((m as { widgets?: Widget[] }).widgets) ?? []),
   });
 

@@ -118,9 +118,22 @@ def main():
         args = json.loads(args_json) if args_json else {}
     except Exception:
         args = {}
+    # Config do relatório: benchmark escolhido na criação + regras de temperatura.
+    # Sem isso o deepen usava o benchmark default e ignorava a classificação de
+    # temperatura — divergindo do painel (benchmark_gap/por_temperatura errados).
+    config = {}
+    try:
+        if _cfg and os.path.exists(_cfg):
+            config = json.load(open(_cfg, encoding='utf-8'))
+    except Exception:
+        config = {}
     try:
         rows = calc.load_rows(dump)
+        rules = config.get('temp_rules')
+        if rules:
+            rows = calc.apply_temp_rules(rows, rules, overwrite=bool(config.get('temp_overwrite')))
         B = calc.build(rows, {}, {})
+        B['bench'] = calc.resolve_bench(config)
         B['_rows'] = rows
         out = qc.run(build_frame, EXTRA, B, fn, args)
     except Exception as e:

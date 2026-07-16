@@ -19,8 +19,26 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
 from common import temp as temp_util
 
-# Benchmarks embutidos (referência, %). Direção: True = maior é melhor.
-BENCH = {'hook_rate': 30.0, 'hold_rate': 25.0}
+# Benchmark de tráfego por tipo de funil — MESMO registro central do app
+# (/api/benchmarks: campos hook/hold/ctr/connect/conv_pag). O config carrega
+# `funnel_bench` (escolhido/editado na criação); sem ele, cai no fallback abaixo.
+FUNNEL_BENCH = {'hook': 30.0, 'hold': 30.0, 'ctr': 1.5, 'connect': 80.0, 'conv_pag': 40.0}
+# nomes do registro central → chaves de métrica de criativo (o que o calc calcula).
+_BENCH_MAP = {'hook': 'hook_rate', 'hold': 'hold_rate', 'ctr': 'ctr',
+              'connect': 'connect_rate', 'conv_pag': 'conv_pagina'}
+
+
+def resolve_bench(config):
+    """Benchmark do relatório com CHAVES de métrica de criativo. Mescla o
+    `funnel_bench` do config (escolhido na criação) sobre o fallback e traduz
+    p/ hook_rate/hold_rate/ctr/connect_rate/conv_pagina."""
+    fb = dict(FUNNEL_BENCH)
+    fb.update((config or {}).get('funnel_bench') or {})
+    return {_BENCH_MAP[k]: v for k, v in fb.items() if k in _BENCH_MAP and v is not None}
+
+
+# Fallback (chaves de criativo) usado como referência quando não há config.
+BENCH = resolve_bench(None)
 
 # Catálogo de indicadores: rótulo, formato, modo ('resultado'|'captacao'|'ambos'),
 # e se "maior é melhor" (cost=False) — guia os seletores de gráfico e a ordenação.
@@ -183,6 +201,21 @@ def apply_temp_rules(rows, rules, overwrite=False):
                            dst='temperatura_lead', overwrite=overwrite, fallback='N/C')
 
 
+# Tipo de campanha por ILIKE no nome da campanha — mesmo shape das regras de
+# temperatura (escolhido na criação). Sem regras no config, cai neste padrão.
+TIPO_RULES_DEFAULT = [{'contains': ['_lead'], 'label': 'Lead'},
+                      {'contains': ['_venda'], 'label': 'Venda'}]
+
+
+def apply_tipo_rules(rows, rules=None):
+    """Deriva `tipo_campanha` do `field_campaign_name` por ILIKE (1º match vence),
+    igual às regras de temperatura. `rules=None` usa TIPO_RULES_DEFAULT. Sempre
+    reclassifica (a coluna não vem do CSV). Não-casadas viram 'N/C'."""
+    norm = temp_util.normalize_rules(rules if rules is not None else TIPO_RULES_DEFAULT)
+    return temp_util.apply(rows, norm, src='field_campaign_name',
+                           dst='tipo_campanha', overwrite=True, fallback='N/C')
+
+
 def _distinct(rows, col):
     seen = []
     for r in rows:
@@ -210,7 +243,8 @@ def build(rows, dic=None, opts=None):
 
     opts = { temp?: <temperatura ativa | None>, min_invest?: <float> } só afeta os
     AGREGADOS globais (totais/médias/série) — cada criativo carrega seus próprios
-    recortes para a ficha. Filtros reativos finos ficam no render_view."""
+    recortes para a ficha. Filtros reativos finos ficam no render_view. O TIPO DE
+    CAMPANHA não entra aqui: é escolhido na criação e filtrado no assemble."""
     opts = opts or {}
     dic = dic or {}
     produto = produto_principal(rows)

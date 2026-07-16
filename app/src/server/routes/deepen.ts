@@ -18,7 +18,7 @@ import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { BASE } from '../paths.js';
 import { buildCatalog } from '../datasetCatalog.js';
 import { generateModal, generateModalDeep, rewriteQuestion, type DeepDeps } from '../claude.js';
-import { gateAndRepair } from '../deepenLoop.js';
+import { gateAndRepair, pruneEmptyWidgets } from '../deepenLoop.js';
 import { runQuery } from '../pygen.js';
 import { validateSection } from '../../shared/validate.js';
 import { typeOf, inferType } from '../typeRegistry.js';
@@ -133,13 +133,16 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         onProgress: (msg) => ctx.emitProgress?.(client, slug, msg),
         generate: (repair, prevCand) => {
           const p = prevCand ?? prev;
+          // Recataloga no reparo: inclui as q-* já criadas → o modelo reusa os dados e
+          // conserta em vez de re-consultar tudo (evita o thrash de minutos no reparo).
+          const cat = repair ? buildCatalog(dataset) : catalog;
           if (deps) {
             const dp = repair ? `${framedPrompt}\n\n${repair}` : framedPrompt;
-            return generateModalDeep(dp, cardCtx, catalog, deps, p, fewShot, objetivo, analysisType);
+            return generateModalDeep(dp, cardCtx, cat, deps, p, fewShot, objetivo, analysisType, !!repair);
           }
-          return generateModal(framedPrompt, cardCtx, catalog, repair, p, fewShot, objetivo, analysisType);
+          return generateModal(framedPrompt, cardCtx, cat, repair, p, fewShot, objetivo, analysisType);
         },
-        normalize: (m) => assignIds({ ...(m as Modal), id: modalId }),
+        normalize: (m) => assignIds({ ...(m as Modal), id: modalId, widgets: pruneEmptyWidgets(((m as Modal).widgets) ?? []) }),
         validateSchema: (m) => validate(m as Modal),
       });
       const mocked = gate.mocked;

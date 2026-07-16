@@ -57,7 +57,13 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
           // o gerador às vezes usa um RÓTULO onde a coluna é a chave. Faz a IA refazer com
           // os nomes EXATOS do catálogo.
           const cols = (w as { cols?: string[] }).cols ?? [];
-          const keys = Object.keys(r.rows[0] as Record<string, unknown>);
+          // UNIÃO das chaves de TODAS as linhas — não só a 1ª: tabelas de schema
+          // irregular (ex.: por_temperatura, onde a faixa orgânica N/C não tem ROAS/CPM
+          // por não ter mídia, mas Quente/Morno têm) davam falso-positivo quando a 1ª
+          // linha era a reduzida. Uma coluna que existe em QUALQUER linha é válida.
+          const keySet = new Set<string>();
+          for (const row of r.rows) for (const k of Object.keys(row as Record<string, unknown>)) keySet.add(k);
+          const keys = [...keySet];
           const lower = new Set(keys.map((k) => k.toLowerCase()));
           const missing = cols.filter((c) => !keys.includes(c) && !lower.has(c.toLowerCase()));
           if (missing.length) {
@@ -71,6 +77,18 @@ export function qualityIssues(widgets: Widget[], dataset: DataMap): string[] {
   }
 
   return issues;
+}
+
+/** Checagem modal-level (não por-widget): um detalhamento é ANÁLISE, não dado cru —
+ *  precisa de ao menos um widget de RESPOSTA em prosa (highlight/find-block/ação). Só
+ *  gráfico+tabela não responde à pergunta. O critic (LLM) já exige isso, mas um modelo
+ *  fraco (fallback) deixa passar — esta checagem é DETERMINÍSTICA, independe do modelo. */
+const ANSWER_TYPES = new Set(['highlight', 'find-block', 'ni', 'ni-vertical', 'find-note']);
+export function missingAnswerWidget(widgets: Widget[]): string | null {
+  if (widgets.length && !widgets.some((w) => ANSWER_TYPES.has((w as { type: string }).type))) {
+    return 'O detalhamento não tem NENHUM widget de resposta em prosa (highlight/find-block/ação) — só dados crus (gráfico/tabela) não respondem à pergunta. Adicione um highlight no topo com a RESPOSTA direta (o número decisivo) e, se couber, um achado ou ação.';
+  }
+  return null;
 }
 
 /** Sugestões de FORMA (não bloqueiam a entrega — o reparo tenta acatar, mas passar

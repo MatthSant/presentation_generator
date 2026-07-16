@@ -64,6 +64,10 @@ async function loggedCreate(client: Anthropic, params: Anthropic.MessageCreatePa
   const MAX_RETRIES = 3;
   for (let attempt = 0; ; attempt++) {
     try {
+      // Debug/ops: NVIDIA_FORCE_FALLBACK=1 simula "Anthropic sem crédito" p/ exercitar
+      // (e avaliar) TODO o fluxo pelo fallback gratuito do build.nvidia — sem gastar
+      // crédito. Off por default; só um erro sintético de crédito no 1º attempt.
+      if (attempt === 0 && process.env.NVIDIA_FORCE_FALLBACK === '1') throw Object.assign(new Error('credit balance is too low (forced)'), { status: 400 });
       const msg = await client.messages.create(params);
       logClaude(kind, params, { model: (msg as { model?: string }).model || MODEL, response: msg.content, usage: msg.usage, cost: costOf(msg.usage as Usage), stop_reason: msg.stop_reason });
       return msg;
@@ -231,10 +235,11 @@ const ANSWER_RULES = `RESPOSTA — claim-first e no alvo:
   não está disponível, nunca o invente.
 - MÉTRICA DERIVADA: CPA = CPL ÷ Taxa de Conversão. Para EXPLICAR o CPA, atribua sua variação a CPL vs.
   conversão — nunca liste o próprio CPA como um terceiro fator independente ao lado deles.
-- ROAS já vem PRONTO na coluna ROAS — NÃO recalcule nem some 1. ROAS = retorno por R$1 investido:
-  ROAS < 1 é PREJUÍZO (ROAS 0,64 = retornou só R$0,64, perdeu R$0,36 por real), ROAS = 1 empata, ROAS > 1
-  dá lucro. Nunca trate um ROAS < 1 como lucro nem o cite como se fosse > 1 (ex.: ler 0,64 como "1,64");
-  ESCALAR exige ROAS > 1 (idealmente bem acima), ROAS < 1 → PAUSAR/revisar.
+- ROAS já vem PRONTO na coluna ROAS e é LÍQUIDO (= Faturamento/Investimento − 1) — NÃO recalcule, NÃO
+  some 1, NÃO trate como bruto (Fat/Inv). É o LUCRO líquido por R$1 investido, com breakeven em 0 (não em 1):
+  ROAS < 0 é PREJUÍZO (ROAS −0,36 = perdeu R$0,36 por real), ROAS = 0 empata, ROAS > 0 dá lucro (ROAS 0,78 =
+  R$0,78 de lucro por real ⇒ 1,78× o investido em bruto; ROAS 1,05 = dobrou o dinheiro). Nunca trate um ROAS > 0
+  como prejuízo. ESCALAR exige ROAS bem acima de 0; ROAS < 0 → PAUSAR/revisar.
 - Use a métrica que o texto NOMEIA: se a frase diz "CPL", use o valor de CPL (não o de CPA); confira a ordem
   de grandeza (um CPL de leads costuma ser ~R$10–50, não milhares — um valor de milhares ali é quase sempre
   a métrica errada).
@@ -269,7 +274,7 @@ const DEEPEN_DOMAIN: Record<string, { what: string; focus: string }> = {
   },
   'debriefing-lancamento': {
     what: 'debriefing pós-campanha de UM lançamento: resultado vs META por escopo (pago × orgânico)/canal/temperatura/campanha/criativo/publico, captação, mídia (CPL/CPMQL/ROAS/CPM/CTR) e evolução semanal/diária',
-    focus: 'FOQUE no recorte do card. METAS/atingimento: estão em deb_kpis (um indicador por linha com value/meta/hist) e na consultar "atingimento" — para "a meta foi atingida?" compare value × meta DELA, não diga "meta não configurada". As metas existem SÓ no nível GLOBAL (vendas/leads/fat/qualif/CPL/CPMQL); NÃO há meta por canal/temperatura/criativo (a menos que a consultar retorne uma coluna de meta). NUNCA invente metas por dimensão (ex.: "Facebook meta 300", "quente meta 180") — reprova na qualidade. DIMENSÕES (param dimensao da consultar): escopo (pago × orgânico), canal (utm_source), temperatura (quente/frio/remarketing/advantage, só pago), campanha (field_campaign_name ← utm_campaign no orgânico), criativo (field_ad_name ← utm_content no orgânico), publico (adset, só pago), semana. Use "tabela" p/ ver TODAS as métricas de uma dimensão; use recorte_* p/ cruzar (ex.: ROAS por canal só do recorte_temperatura=quente). MÍDIA por dimensão: invest/ROAS/CPL/CPMQL/CPM/CTR existem em QUALQUER recorte com mídia paga (canal/criativo/campanha/temperatura/publico) — no ORGÂNICO vêm null (sem verba). Não diga mais que "canal não tem CPL/ROAS"; consulte a tabela. POR QUE um custo mudou (métrica secundária = detalhamento, não vira pergunta nova): "por que o CPL/CPMQL subiu?" → use "decomposicao" (CPL ← CPM[leilão]/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade paga) — o motor dá a contribuição % de cada fator; não faça a álgebra na mão. "ONDE a piora se concentra (um recorte ou geral)?" → use "onde_concentra" (varre criativo→publico→campanha→canal→temperatura; reporta pausados/novos). IMPACTO NA RECEITA de uma etapa do funil ("quanto a queda de qualificação/conversão custou de faturamento?") → use "impacto_receita" (ponte: Faturamento = Volume × Conversão(vendas/leads) × Ticket; dá Δ% e R$ por fator vs meta/histórico/janela) — NÃO calcule o contrafactual na mão. A ponte de receita NÃO inclui qualificação/MQL (o dado não mede conversão de MQL×não-MQL — atribuir receita à qualificação seria inventar); o impacto da qualidade do lead é de CUSTO → use decomposicao(cpmql). Saturação/evolução → "cruzar_dia" (uma métrica por dia × dimensão, multi-linha) ou dimensao=semana/dia — nesses use so_midia=sim p/ podar a cauda pós-lançamento (dias sem mídia paga distorcem a série). HISTÓRICO (vs lançamento anterior): use a consultar "variacao_hist" — sem dimensao dá Δ% dos KPIs globais (vendas/leads/fat/qualif/CPL/CPMQL/ROAS/invest); com dimensao=canal/temperatura/escopo compara os grupos que recorrem entre lançamentos. Se retornar nao_disponivel (sem hist_csv), o histórico de KPI global ainda está em deb_kpis.hist (via bind) — NUNCA invente histórico. TAXA/ROAS/CUSTO NUNCA SE SOMA entre grupos — p/ um total use incluir_geral=sim (Geral ponderado); % de composição e contagens (leads/vendas) podem somar. ATENÇÃO: temperatura/publico contam só lead PAGO — não misture com o total geral. A soma de vendas por canal/escopo pode NÃO fechar com o total (vendas sem atribuição) — reconheça num find-note ("X vendas sem canal atribuído"), não force nem invente. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
+    focus: 'FOQUE no recorte do card. METAS/atingimento: estão em deb_kpis (um indicador por linha com value/meta/hist) e na consultar "atingimento" — para "a meta foi atingida?" compare value × meta DELA, não diga "meta não configurada". As metas existem SÓ no nível GLOBAL (vendas/leads/fat/qualif/CPL/CPMQL); NÃO há meta por canal/temperatura/criativo (a menos que a consultar retorne uma coluna de meta). NUNCA invente metas por dimensão (ex.: "Facebook meta 300", "quente meta 180") — reprova na qualidade. DIMENSÕES (param dimensao da consultar): escopo (pago × orgânico), canal (utm_source), temperatura (quente/frio/remarketing/advantage, só pago), campanha (field_campaign_name ← utm_campaign no orgânico), criativo (field_ad_name ← utm_content no orgânico), publico (adset, só pago), semana. Use "tabela" p/ ver TODAS as métricas de uma dimensão; use recorte_* p/ cruzar (ex.: ROAS por canal só do recorte_temperatura=quente). MÍDIA por dimensão: invest/ROAS/CPL/CPMQL/CPM/CTR existem em QUALQUER recorte com mídia paga (canal/criativo/campanha/temperatura/publico) — no ORGÂNICO vêm null (sem verba). Não diga mais que "canal não tem CPL/ROAS"; consulte a tabela. POR QUE um custo mudou (métrica secundária = detalhamento, não vira pergunta nova): "por que o CPL/CPMQL subiu?" → use "decomposicao" (CPL ← CPM[leilão]/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade paga) — o motor dá a contribuição % de cada fator; não faça a álgebra na mão. ATENÇÃO: as colunas "Início" e "Recente" da decomposicao são o PRIMEIRO e o ÚLTIMO período (p/ explicar a VARIAÇÃO), NÃO o valor REALIZADO do lançamento. Para "o CPL/CPMQL ficou dentro da meta?" (nível realizado × meta) use o VALOR AGREGADO do KPI (deb_kpis value / a consultar "atingimento") — nunca o "Recente" da decomposicao (é só a última semana). Ex.: CPL realizado do lançamento = 15,05 (deb_kpis), não 15,90 (última semana). "ONDE a piora se concentra (um recorte ou geral)?" → use "onde_concentra" (varre criativo→publico→campanha→canal→temperatura; reporta pausados/novos). IMPACTO NA RECEITA de uma etapa do funil ("quanto a queda de qualificação/conversão custou de faturamento?") → use "impacto_receita" (ponte: Faturamento = Volume × Conversão(vendas/leads) × Ticket; dá Δ% e R$ por fator vs meta/histórico/janela) — NÃO calcule o contrafactual na mão. A ponte de receita NÃO inclui qualificação/MQL (o dado não mede conversão de MQL×não-MQL — atribuir receita à qualificação seria inventar); o impacto da qualidade do lead é de CUSTO → use decomposicao(cpmql). Saturação/evolução → "cruzar_dia" (uma métrica por dia × dimensão, multi-linha) ou dimensao=semana/dia — nesses use so_midia=sim p/ podar a cauda pós-lançamento (dias sem mídia paga distorcem a série). HISTÓRICO (vs lançamento anterior): use a consultar "variacao_hist" — sem dimensao dá Δ% dos KPIs globais (vendas/leads/fat/qualif/CPL/CPMQL/ROAS/invest); com dimensao=canal/temperatura/escopo compara os grupos que recorrem entre lançamentos. Se retornar nao_disponivel (sem hist_csv), o histórico de KPI global ainda está em deb_kpis.hist (via bind) — NUNCA invente histórico. TAXA/ROAS/CUSTO NUNCA SE SOMA entre grupos — p/ um total use incluir_geral=sim (Geral ponderado); % de composição e contagens (leads/vendas) podem somar. ATENÇÃO: temperatura/publico contam só lead PAGO — não misture com o total geral. A soma de vendas por canal/escopo pode NÃO fechar com o total (vendas sem atribuição) — reconheça num find-note ("X vendas sem canal atribuído"), não force nem invente. NÃO existe "critério/grupo de pesquisa" nem benchmark de respondentes neste tipo.',
   },
 };
 const DEFAULT_DOMAIN = { what: 'uma análise de marketing/dados', focus: 'FOQUE no assunto que o card mostra (deduza por card.title, card.bind e card.tabs).' };
@@ -473,6 +478,13 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   recalcule a PONDERADA (use os totais de invest/leads dos dados) — se o valor citado bate com ela, está
   CERTO, ainda que difira da média simples dos dias. Só marque FALSE se não bater NEM com a ponderada NEM
   com a média simples (aí é número inventado). A média SIMPLES de uma taxa é que é incorreta.
+  ROAS É LÍQUIDO (= Faturamento/Investimento − 1), NUNCA bruto (Fat/Inv): um ROAS de 0,78 com Faturamento
+  123.026 e Investimento 69.253 está CORRETO (123.026÷69.253 = 1,78; menos 1 = 0,78) — NÃO exija 1,78 nem
+  recalcule como Fat/Inv. Breakeven em 0 (não em 1): ROAS < 0 = prejuízo, ROAS > 0 = lucro (ROAS 1,05 =
+  dobrou o dinheiro). Só marque FALSE se o valor citado NÃO bater com Fat/Inv − 1. TAMBÉM é blocking o
+  ENQUADRAMENTO trocado: descrever um ROAS > 0 como "prejuízo"/"perda", ou dizer "prejuízo de R$X por real"
+  quando o ROAS é positivo (ROAS 0,78 é LUCRO de R$0,78 por real, NÃO perda de R$0,22) — reprove e mande
+  corrigir o enquadramento p/ lucro.
 - Classifique cada problema em DOIS baldes. Cada item: 1 linha ACIONÁVEL com a CORREÇÃO (o que fazer
   EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo), não só o defeito.
 - "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
@@ -491,7 +503,11 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   está certo); padronizar NOMENCLATURA entre sinônimos do MESMO conceito (ex.: "Taxa de Qualificação" ≈ "Taxa de
   Qualidade"); acrescentar contexto extra (ex.: nº absoluto de MQL ao lado da taxa). Esses NÃO tornam a saída errada.
 Não invente defeitos: se está bom e responde, answersQuestion=true, numbersGrounded=true, blocking=[]
-(suggestions pode ter 0+ itens). Na dúvida entre blocking e suggestion, é SEMPRE suggestion.`;
+(suggestions pode ter 0+ itens). Na dúvida entre blocking e suggestion, é SEMPRE suggestion.
+OBRIGATÓRIO: se marcar numbersGrounded=false, você TEM que listar em "blocking" o número EXATO que não
+confere + o valor certo dos dados ("prosa diz X; os dados mostram Y — troque para Y"). Um numbersGrounded=false
+SEM o número específico em blocking é inútil para o reparo — nesse caso NÃO reprove: marque numbersGrounded=true.
+O mesmo vale p/ answersQuestion=false: aponte em blocking o que a saída deixou de responder.`;
 
 /** Juízo semântico + NUMÉRICO de uma modal/seção já válida no schema: responde à
  *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
@@ -518,6 +534,13 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
   // Aprovação = responde + números batem + SEM defeito grave. Polimento (suggestions)
   // não reprova: depois de N tentativas, nitpick de estilo não pode travar a entrega.
   const ok = out.answersQuestion !== false && out.numbersGrounded !== false && blocking.length === 0;
+  // Reprovou mas NÃO listou o motivo? Sintetiza pelo flag que falhou. Sem isto o gate
+  // manda uma mensagem genérica ERRADA ("não responde à pergunta") mesmo quando o
+  // problema é número que não bate — e o modelo reescreve o que já estava certo, em loop.
+  if (!ok && blocking.length === 0) {
+    if (out.answersQuestion === false) blocking.push('A saída não responde diretamente à PERGUNTA ORIGINAL — reescreva focando em respondê-la (a conclusão principal tem que ser a resposta).');
+    if (out.numbersGrounded === false) blocking.push('Um ou mais números citados na prosa NÃO conferem com os dados reais dos gráficos/tabelas — corrija cada número p/ bater EXATAMENTE com os valores mostrados; se uma linha/coluna da tabela vier com valor sem sentido (ex.: um "total" que soma custos por unidade), REMOVA essa linha/coluna ou troque por um recorte que faça sentido.');
+  }
   return { ok, issues: [...blocking, ...suggestions], blocking, suggestions, usage: usageOf(msg) };
 }
 
@@ -751,24 +774,33 @@ function emitModalTool(tableNames: string[]): Anthropic.Tool {
 
 const MAX_TURNS = 8;
 
-export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string): Promise<ModalResult> {
+export async function generateModalDeep(prompt: string, card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps, prev?: unknown, fewShot?: FewShotExample[], objetivo?: string, analysisType?: string, forceEmit = false): Promise<ModalResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { modal: await mockModalDeep(card, catalog, deps), mocked: true };
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
+  const regInfo: Record<string, { num: string[]; dim: string[] }> = {};   // key → colunas (p/ o modelo escolher o dataset certo no reparo)
+  const queryCache = new Map<string, string>();   // (funcao+args) → tool_result: dedup de consultas repetidas (modelos fracos repetem a mesma)
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
   let usage: ModalUsage | undefined;
+  let consultaTurns = 0;   // rodadas que consultaram (sem emitir) — força emit após ~4
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     // No ÚLTIMO turno, FORÇA o emit_modal (tool_choice fixo) + avisa que acabou o
     // orçamento de consultas: sem isso, uma pergunta difícil esgota os turnos só
     // consultando e o loop estoura "sem emit_modal" — pior que um detalhamento
     // imperfeito (que ainda passa pelo gate de qualidade/reparo).
-    const lastTurn = turn === MAX_TURNS - 1;
+    // Força o emit no último turno OU depois de consultas demais (modelos fracos
+    // re-consultam em loop; ~4 rodadas já bastam). REPARO (forceEmit): os dados JÁ
+    // vieram e o feedback é sobre a modal anterior → emita já a versão corrigida no
+    // 1º turno, sem re-consultar (evita o thrash de re-análise no reparo).
+    const lastTurn = turn === MAX_TURNS - 1 || consultaTurns >= 4 || (forceEmit && turn === 0);
     if (lastTurn) {
-      messages.push({ role: 'user', content: 'Limite de consultas atingido. Emita AGORA o emit_modal com o melhor detalhamento possível a partir do que já consultou; o que faltar, reconheça num find-note — NÃO consulte mais.' });
+      messages.push({ role: 'user', content: forceEmit && turn === 0
+        ? 'Corrija a modal_anterior conforme a instrução usando os datasets JÁ criados (no catálogo) — NÃO consulte de novo. Emita AGORA o emit_modal com a versão corrigida completa.'
+        : 'Você já tem dados suficientes (ou o limite de consultas foi atingido). Emita AGORA o emit_modal com o melhor detalhamento a partir do que consultou; o que faltar, reconheça num find-note — NÃO consulte mais.' });
     }
     const names = [...catalog.tables.map((t) => t.name), ...registered];
     const msg = await loggedCreate(client, {
@@ -781,7 +813,12 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     usage = sumUsage(usage, usageOf(msg));
     messages.push({ role: 'assistant', content: msg.content });
     const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-    if (toolUses.length === 0) throw new Error('Claude não chamou nenhuma tool');
+    // Modelo fraco às vezes responde em TEXTO (sem tool) — não quebre o detalhamento:
+    // cobra a tool e segue (no último turno o tool_choice já obriga o emit_modal).
+    if (toolUses.length === 0) {
+      messages.push({ role: 'user', content: 'Você respondeu em texto — é OBRIGATÓRIO chamar uma tool. Chame "consultar" se falta um dado específico, senão chame "emit_modal" AGORA com o que já tem.' });
+      continue;
+    }
 
     // Um emit válido encerra o loop. No último turno devolve o que veio MESMO com
     // erro de schema — o gateAndRepair (fora daqui) ainda valida e repara; um
@@ -797,16 +834,49 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
     for (const t of toolUses) {
       if (t.name === 'emit_modal') {
         const errs = deps.validate ? deps.validate(t.input) : ['modal inválida'];
-        results.push({ type: 'tool_result', tool_use_id: t.id, content: JSON.stringify({ status: 'modal_invalida', erros: errs, instrucao: 'Corrija: gráficos/tabelas só com bind a um dataset_key retornado e colunas que existem nele.' }) });
+        // Mapa dataset_key → colunas (num/dim): a falha nº1 dos modelos fracos é bindar
+        // num key que NÃO tem a coluna (ex.: quer CPL+Leads mas o key só tem CPL). Damos
+        // o mapa p/ ele escolher o key certo (o que contém TODOS os y + o x).
+        results.push({ type: 'tool_result', tool_use_id: t.id, content: JSON.stringify({
+          status: 'modal_invalida', erros: errs, datasets: regInfo,
+          instrucao: 'Corrija SEM re-consultar. Para cada gráfico/tabela escolha o dataset_key em "datasets" cujas colunas contêm TUDO que você quer (x + todos os y). chart.y ∈ colunas numéricas do key (nomes EXATOS, nunca *_detail); x/series ∈ dimensões. Textos: highlight precisa de "text"; find-block/find-note precisam de "title"/"text". Depois emit_modal de novo.',
+        }) });
         continue;
       }
       const { funcao, ...args } = t.input as { funcao: string; [k: string]: unknown };
+      // Dedup: consulta idêntica já feita → devolve o MESMO resultado (mesmo dataset_key),
+      // sem re-rodar o motor nem criar tabela duplicada (que confundia a escolha do bind).
+      const cacheKey = JSON.stringify([funcao, args]);
+      const cached = queryCache.get(cacheKey);
+      if (cached) { results.push({ type: 'tool_result', tool_use_id: t.id, content: cached }); continue; }
       const r = await deps.runQuery(funcao, args);
-      const content = r.status === 'ok' && r.table
-        ? JSON.stringify({ status: 'ok', dataset_key: deps.registerTable(r.table, r.summary ?? ''), columns: Object.keys(r.table.rows[0] ?? {}), sample: r.table.rows.slice(0, 3), summary: r.summary })
-        : JSON.stringify({ status: r.status, motivo: r.motivo });
+      let content: string;
+      if (r.status === 'ok' && r.table) {
+        const rows = r.table.rows;
+        const cols = Object.keys(rows[0] ?? {});
+        // Colunas NUMÉRICAS (bind de chart y SÓ nelas) × DIMENSÕES (x/series) — dadas
+        // explícitas p/ o modelo não bindar num rótulo/coluna *_detail (string).
+        const numeric = cols.filter((c) => rows.some((row) => typeof row[c] === 'number'));
+        const dims = (r.table.dims ?? []).filter((d) => cols.includes(d));
+        const key = deps.registerTable(r.table, r.summary ?? '');
+        registered.push(key);
+        regInfo[key] = { num: numeric, dim: dims };
+        content = JSON.stringify({
+          status: 'ok', dataset_key: key, n_linhas: rows.length,
+          colunas_numericas: numeric, colunas_dimensao: dims, colunas: cols,
+          // Tabela pequena (série semanal etc.): manda TODAS as linhas p/ a prosa ser
+          // grounded na série completa — com 3 linhas o modelo extrapola tendência que
+          // não existe ("despencou/saturou"). Tabela grande: amostra de 12.
+          amostra: rows.slice(0, 12), summary: r.summary,
+          dica: 'No bind do gráfico use os NOMES EXATOS: y ∈ colunas_numericas, x/series ∈ colunas_dimensao. Um gráfico com 2+ métricas precisa de um dataset_key que tenha TODAS elas. A prosa deve refletir a SÉRIE INTEIRA (amostra) — não afirme tendência que os valores não mostram.',
+        });
+      } else {
+        content = JSON.stringify({ status: r.status, motivo: r.motivo });
+      }
+      queryCache.set(cacheKey, content);
       results.push({ type: 'tool_result', tool_use_id: t.id, content });
     }
+    if (toolUses.some((t) => t.name === 'consultar')) consultaTurns++;
     messages.push({ role: 'user', content: results });
   }
   throw new Error('loop de aprofundamento sem emit_modal');

@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { qualityIssues, qualitySuggestions } from '../../src/server/deepenQuality.js';
+import { qualityIssues, qualitySuggestions, missingAnswerWidget } from '../../src/server/deepenQuality.js';
 import type { DataMap, Widget } from '../../src/shared/types.js';
 
 const manyRows: Array<Record<string, unknown>> = [];
@@ -62,4 +62,30 @@ test('3+ gráficos viram SUGESTÃO (não bloqueante), 2 não', () => {
 test('detalhamento limpo não gera pendências', () => {
   const ws = [table('multi'), chart('multi')] as Widget[];
   assert.deepEqual(qualityIssues(ws, DS), []);
+});
+
+test('detalhamento só com dados crus (chart+table, sem prosa) é sinalizado', () => {
+  assert.ok(missingAnswerWidget([{ type: 'chart' }, { type: 'table' }] as Widget[]));
+});
+
+test('detalhamento com um widget de resposta (highlight/find-block) passa', () => {
+  assert.equal(missingAnswerWidget([{ type: 'highlight' }, { type: 'chart' }] as Widget[]), null);
+  assert.equal(missingAnswerWidget([{ type: 'table' }, { type: 'find-block' }] as Widget[]), null);
+  assert.equal(missingAnswerWidget([] as Widget[]), null);
+});
+
+test('tabela de schema irregular: coluna presente só em ALGUMAS linhas é válida (não falso-positivo)', () => {
+  // 1ª linha (orgânico) sem ROAS; outras têm — como em por_temperatura. Bindar ROAS deve passar.
+  const ds = {
+    temp: {
+      dims: ['temperatura'], filters: [],
+      rows: [
+        { temperatura: 'N/C', Retorno: 82207, Invest: 0 },              // sem ROAS (sem mídia)
+        { temperatura: 'Quente', Retorno: 22043, Invest: 11501, ROAS: 1.92 },
+        { temperatura: 'Morno', Retorno: 590, Invest: 3723, ROAS: 0.16 },
+      ],
+    },
+  } as unknown as DataMap;
+  const w = { id: 't', type: 'table', title: 'Por temperatura', cols: ['temperatura', 'ROAS'], bind: { dataset: 'temp' } } as unknown as Widget;
+  assert.deepEqual(qualityIssues([w], ds), []);
 });

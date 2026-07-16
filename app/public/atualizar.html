@@ -102,7 +102,9 @@
       ctr: 'CTR (%)', connect: 'Connect rate (%)', conv_pag: 'Conv. de página (%)',
     };
     // Chaves internas que o servidor controla — não editáveis aqui.
-    const HIDE = new Set(['type', 'client']);
+    // tipo_campanha tem card próprio (setupTipoEditor) — fora do form genérico, senão
+    // viraria um input de texto solto duplicando o select.
+    const HIDE = new Set(['type', 'client', 'tipo_campanha']);
     const label = (k) => LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const isNum = (v) => typeof v === 'number';
     const isDateKey = (k) => /data|date/i.test(k);
@@ -111,6 +113,7 @@
     let RETAINED = null;  // config completo retido (base p/ o merge no submit)
     let CLIENTS = [];     // clientes cadastrados (p/ o seletor)
     let TEMP_CTL = null;  // editor de regras de temperatura (substitui o JSON avançado)
+    let TIPO_CTL = null;  // editor de regras de tipo de campanha (criativos)
     let GOALS_FILE = null; // CSV de launch goals re-enviado (opcional)
     let DICT_FILE = null;  // CSV de dicionário de criativos re-enviado (opcional)
     let CAPS = null;       // capacidades de auxiliares vindas do registry (base-config)
@@ -133,6 +136,7 @@
         buildForm(d.config);
         setupCriteriosEditor(d.config);
         setupTempEditor(d.config);
+        setupTipoEditor(d.config);
         setupMetas(d.config);
         setupGoals(d.config);
         setupDict(d.config);
@@ -196,6 +200,7 @@
       // arrays / objetos complexos (ex.: criterios, channels) → JSON avançado
       for (const [k, v] of adv) {
         if (k === 'temp_rules') continue;  // editado pelo editor de regras (não JSON)
+        if (k === 'tipo_rules') continue;  // idem — editor de regras de tipo de campanha
         if (k === 'criterios') continue;   // editado pelo editor de grupos (chips), não JSON
         const det = document.createElement('details'); det.className = 'adv';
         const sm = document.createElement('summary'); sm.textContent = `${label(k)} (avançado · JSON)`; det.appendChild(sm);
@@ -261,6 +266,38 @@
           ? 'Regras do cliente carregadas — revise e clique em Atualizar.'
           : 'O cliente não tem regras próprias; carregado o padrão geral.';
       });
+    }
+
+    // Tipo de campanha (criativos): mesmas regras da criação + o tipo que a análise
+    // cobre. É OBRIGATÓRIO — a análise nasce recortada nesse tipo. Sem regras no config
+    // (análise antiga), começa com o padrão _lead/_venda para o consultor adotar.
+    function setupTipoEditor(cfg) {
+      if (!CAPS.campaignType) return;
+      const card = document.createElement('div');
+      card.className = 'u-card';
+      card.innerHTML =
+        '<p class="u-h">Tipo de campanha</p>'
+        + '<p class="u-hsub">Classifica pelo nome da campanha (ILIKE; 1ª regra que casar vence). A análise cobre SÓ o tipo escolhido abaixo.</p>'
+        + '<div id="tipo-editor"></div>'
+        + '<div class="fld" style="margin-top:14px; max-width:260px"><label>Tipo desta análise</label>'
+        + '<select id="u-tipo"></select></div>';
+      $('go').before(card);
+      TIPO_CTL = window.mountTempRules($('tipo-editor'), {
+        showOverwrite: false, placeholder: 'Tipo (ex.: Lead)',
+        rules: (cfg.tipo_rules && cfg.tipo_rules.length) ? cfg.tipo_rules
+          : [{ contains: ['_lead'], label: 'Lead' }, { contains: ['_venda'], label: 'Venda' }],
+      });
+      const sel = $('u-tipo');
+      const sync = () => {
+        const cur = sel.value || cfg.tipo_campanha || '';
+        const labels = [...new Set(TIPO_CTL.getRules().map((r) => r.label))];
+        sel.replaceChildren(...labels.map((l) => {
+          const o = document.createElement('option'); o.value = l; o.textContent = l; return o;
+        }));
+        if (labels.includes(cur)) sel.value = cur;
+      };
+      $('tipo-editor').addEventListener('input', sync);
+      sync();
     }
 
     // Metas (acompanhamento): igual ao criar — escolhe Manuais ou Launch goals (CSV).
@@ -361,6 +398,7 @@
         cfg[ta.dataset.json] = JSON.parse(ta.value);  // pode lançar → tratado no submit
       }
       if (TEMP_CTL) { cfg.temp_rules = TEMP_CTL.getRules(); cfg.temp_overwrite = TEMP_CTL.getOverwrite(); }
+      if (TIPO_CTL) { cfg.tipo_rules = TIPO_CTL.getRules(); cfg.tipo_campanha = $('u-tipo').value; }
       // Critérios: aplica os grupos editados nos chips de volta ao order+aliases.
       if (CRIT_EDS.length && Array.isArray(cfg.criterios)) {
         for (const c of CRIT_EDS) {
@@ -400,6 +438,14 @@
         } else {
           cfg.metas = {};        // launch goals: mantém o retido (cfg.goals_csv) ou o upload
         }
+      }
+      // Tipo de campanha é obrigatório onde existe — a análise nasce recortada nele.
+      if (TIPO_CTL && (!cfg.tipo_rules.length || !cfg.tipo_campanha)) {
+        const m = $('msg'); m.className = 'u-msg err';
+        m.textContent = cfg.tipo_rules.length
+          ? 'Escolha o tipo de campanha desta análise.'
+          : 'Defina ao menos uma regra de tipo de campanha (ex.: _lead → Lead).';
+        return;
       }
       const msg = $('msg'); msg.className = 'u-msg work'; msg.textContent = 'Atualizando análise…';
       $('go').disabled = true;

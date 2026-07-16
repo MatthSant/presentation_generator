@@ -419,6 +419,9 @@ export interface KpiStripItem {
 export interface KpiStripWidget extends WidgetBase {
   type: 'kpi-strip';
   items: KpiStripItem[];
+  /** >1 → o strip quebra em N linhas (4 por linha) em vez de espremer tudo numa
+   *  só. Usado quando há muitos itens com rótulos longos (ex.: captação). */
+  rows?: number;
 }
 
 /** One metric as an elevated card (vs the flat kpi-strip). `feature` = headline

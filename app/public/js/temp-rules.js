@@ -1,6 +1,7 @@
-// temp-rules.js — editor reutilizável de regras de temperatura (pattern→label com chips).
+// temp-rules.js — editor reutilizável de regras pattern→label com chips. Usado pela
+// temperatura e pelo TIPO DE CAMPANHA (mesmo shape; muda só o placeholder do label).
 //
-//   const ctl = window.mountTempRules(container, { rules, overwrite, showOverwrite });
+//   const ctl = window.mountTempRules(container, { rules, overwrite, showOverwrite, placeholder });
 //   ctl.getRules()  -> [{ contains: [termo,...], label }]   (descarta regras incompletas)
 //   ctl.getOverwrite() -> bool
 //   ctl.setRules(rules) / ctl.setOverwrite(bool)
@@ -73,7 +74,7 @@
       const chips = makeChips(rule.contains);
       const label = el('input', 'tr-label-in');
       label.type = 'text';
-      label.placeholder = 'Temperatura (ex.: Frio)';
+      label.placeholder = opts.placeholder || 'Temperatura (ex.: Frio)';
       label.value = rule.label || '';
       const del = el('button', 'tr-del', '×');
       del.type = 'button';

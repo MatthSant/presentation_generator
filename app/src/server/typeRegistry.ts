@@ -27,6 +27,7 @@ export interface AnalysisTypeDef {
   /** Capacidades de auxiliares (fonte única p/ os forms de criação/atualização —
    *  evita Sets hardcoded por tipo no client/servidor). */
   supportsTemperature?: boolean;   // classifica temperatura por regras (field_campaign_name)
+  supportsCampaignType?: boolean;  // tipo de campanha por regras + recorte OBRIGATÓRIO na criação
   supportsGoals?: boolean;         // aceita CSV de launch goals (metas por utm_source × dia)
   supportsDict?: boolean;          // aceita dicionário de criativos (field_ad_name → link)
   /** UI de metas nos forms: 'metas-toggle' = manuais × launch goals; 'upload' = só CSV. */
@@ -113,6 +114,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     label: 'Análise de Criativos',
     pysrcDir: 'criativos',
     supportsTemperature: true,
+    supportsCampaignType: true,
     supportsDict: true,
     supportsInsights: false,
     renderScript: 'render_view.py',   // recompute do toggle de modo (resultado × captação)
