@@ -286,6 +286,10 @@ def build(rows, dic=None, opts=None):
             'is_video': m['is_video'], 'no_data': not m['has_traffic'],
             'temps': _distinct(crows, 'temperatura_lead'),
             'm': m,
+            # CANAL = utm_source (meta-ads, google-ads…). `platform` acima é outra coisa:
+            # sai do link do anúncio (facebook.com → Facebook) e é fixa por criativo — não
+            # serve de recorte. O mesmo criativo pode rodar em mais de um canal.
+            'by_canal': {s: metrics([r for r in crows if (r.get('utm_source') or '').strip() == s], produto) for s in _distinct(crows, 'utm_source')},
             'by_temp': {t: metrics([r for r in crows if (r.get('temperatura_lead') or '').strip() == t], produto) for t in _distinct(crows, 'temperatura_lead')},
             'by_campanha': {c: metrics([r for r in crows if (r.get('field_campaign_name') or '').strip() == c], produto) for c in _distinct(crows, 'field_campaign_name')},
             'by_publico': {a: metrics([r for r in crows if (r.get('field_adset_name') or '').strip() == a], produto) for a in _distinct(crows, 'field_adset_name')},

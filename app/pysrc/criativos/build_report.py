@@ -531,7 +531,10 @@ def assemble(rows, config, content, opts=None):
         # ONDE ESTE CRIATIVO RODOU — um heatmap com toggle de dimensão, no lugar das 3
         # tabelas empilhadas: mesma leitura da fonte, um terço da altura e a comparação
         # com o benchmark visível na célula (a tabela crua não comparava com nada).
-        brt = [t for t in [br_tab('temp', 'Temperatura', c['by_temp'], i),
+        # Canal primeiro (como no debriefing): é o recorte mais grosso — o mesmo criativo
+        # pode rodar em meta-ads e google-ads, e o custo/qualidade muda por leilão.
+        brt = [t for t in [br_tab('canal', 'Canal', c['by_canal'], i),
+                           br_tab('temp', 'Temperatura', c['by_temp'], i),
                            br_tab('camp', 'Campanha', c['by_campanha'], i),
                            br_tab('pub', 'Público', c['by_publico'], i)] if t]
         if brt:
