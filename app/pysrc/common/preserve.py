@@ -59,7 +59,12 @@ def preserve(out_dir, data, sections):
             # e parece bug ("...maior oportunidade em cr").
             title = (sec.get('header', {}).get('title') or sid).strip()
             label = title if len(title) <= 42 else title[:41].rstrip() + '…'
-            detp['sections'].append({'id': sid, 'label': label})
+            # `title` sempre, mesmo quando igual ao label: declarar o título separado diz
+            # ao client que o `label` é abreviação de nav, e que o título de verdade é
+            # conteúdo da página (aqui, a pergunta feita). Só emitir no caso truncado
+            # deixaria a pergunta curta sem masthead — a MESMA página com cara diferente
+            # por causa de 1 caractere.
+            detp['sections'].append({'id': sid, 'label': label, 'title': title})
 
     # 2) Página de perguntas preservada do data.json anterior (recriada sob
     #    demanda pela rota, mas não deve sumir entre regenerações).

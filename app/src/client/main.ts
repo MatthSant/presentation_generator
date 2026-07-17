@@ -809,6 +809,11 @@ class App {
     const h = section.header || { title: '' };
     const wrap = document.createElement('header');
     wrap.className = 'sec-header';
+    // No modo sidebar o masthead some (contexto já no breadcrumb + item ativo) — mas isso
+    // só vale quando o item do nav É o título. Quando o motor declara um `title` à parte,
+    // o label é abreviação de nav e o título é CONTEÚDO: num aprofundamento ele é a
+    // pergunta feita, e o sub é a resposta. Some do nav, tem de aparecer na página.
+    if (this.store.sectionRef(section.id)?.title) wrap.classList.add('sec-header--keep');
     if (h.badge) { const b = document.createElement('div'); b.className = 'badge badge-p'; b.textContent = h.badge; wrap.appendChild(b); }
     const t = document.createElement('h1');
     t.className = 'sec-title';

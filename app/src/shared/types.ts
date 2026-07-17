@@ -887,7 +887,9 @@ export interface ReportMeta {
 export interface PageRef {
   id: string;
   label: string;
-  sections: { id: string; label: string }[];
+  /** `title` presente = o `label` é uma abreviação só de nav e o título de verdade é
+   *  CONTEÚDO da página (num aprofundamento, a pergunta feita). Ver common/preserve.py. */
+  sections: { id: string; label: string; title?: string }[];
   /** Special page renderers. Omitted → a normal section-grid page. "perguntas"
    *  renders the guiding-questions board instead of a section. */
   kind?: 'perguntas';

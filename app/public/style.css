@@ -846,8 +846,11 @@ body[data-nav="sidebar"] #update-btn:hover { background: var(--surface); color: 
 body[data-nav="sidebar"] #export-html-btn { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
 body[data-nav="sidebar"] #export-html-btn:hover { background: var(--purple-600); border-color: var(--purple-600); color: #fff; }
 body[data-nav="sidebar"] .tn-right .svg-ic { width: 16px; height: 16px; }
-/* masthead da seção é redundante no modo sidebar — contexto já no breadcrumb + item ativo */
+/* masthead da seção é redundante no modo sidebar — contexto já no breadcrumb + item ativo.
+   Exceto quando o nav teve de CORTAR o título (--keep): aí a página é o único lugar onde
+   ele cabe inteiro — ex.: a pergunta de um aprofundamento. */
 body[data-nav="sidebar"] .sec-header { display: none; }
+body[data-nav="sidebar"] .sec-header--keep { display: flex; margin-bottom: 22px; }
 /* chip "Dados até DD/MM" — pill verde à esquerda das ações */
 .tn-live { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--green-text); background: var(--green-bg); padding: 6px 12px; border-radius: var(--r-pill); white-space: nowrap; flex-shrink: 0; }
 .tn-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
