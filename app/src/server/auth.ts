@@ -32,10 +32,10 @@ export function verifyPassword(pw: string, stored: string): boolean {
 
 // --- users -------------------------------------------------------------------
 
-export function createUser(db: DB, email: string, password: string, role: Role = 'consultor'): User {
+export function createUser(db: DB, email: string, password: string, role: Role = 'consultor', mustChange = false): User {
   const id = crypto.randomUUID();
-  db.prepare('INSERT INTO users (id, email, pass_hash, role, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(id, email.toLowerCase().trim(), hashPassword(password), role, new Date().toISOString());
+  db.prepare('INSERT INTO users (id, email, pass_hash, role, created_at, must_change_password) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, email.toLowerCase().trim(), hashPassword(password), role, new Date().toISOString(), mustChange ? 1 : 0);
   return { id, email: email.toLowerCase().trim(), role };
 }
 
@@ -165,10 +165,23 @@ export function setUserRole(db: DB, id: string, role: Role): void {
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
 }
 
+/** Reset pelo ADMIN: senha temporária → força a troca no próximo login e derruba
+ *  as sessões existentes (o consultor precisa reentrar e escolher a própria). */
 export function setUserPassword(db: DB, id: string, password: string): void {
-  db.prepare('UPDATE users SET pass_hash = ? WHERE id = ?').run(hashPassword(password), id);
-  // Invalida sessões existentes ao trocar a senha.
+  db.prepare('UPDATE users SET pass_hash = ?, must_change_password = 1 WHERE id = ?').run(hashPassword(password), id);
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+}
+
+/** Troca feita pelo PRÓPRIO usuário: grava a nova senha e libera a flag. Mantém a
+ *  sessão atual — ele acabou de provar que sabia a senha anterior. */
+export function changeOwnPassword(db: DB, id: string, password: string): void {
+  db.prepare('UPDATE users SET pass_hash = ?, must_change_password = 0 WHERE id = ?').run(hashPassword(password), id);
+}
+
+/** True quando o usuário ainda usa uma senha temporária (definida pelo admin). */
+export function mustChangePassword(db: DB, id: string): boolean {
+  const row = db.prepare('SELECT must_change_password AS m FROM users WHERE id = ?').get(id) as { m: number } | undefined;
+  return !!row && row.m === 1;
 }
 
 /** Remove o usuário + suas sessões + sua posse de clientes (os clientes ficam órfãos). */

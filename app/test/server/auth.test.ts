@@ -8,7 +8,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { createApp, type CreatedApp } from '../../src/server/app.js';
 import { openDb, type DB } from '../../src/server/db.js';
-import { createUser, assignClient, hashPassword, verifyPassword } from '../../src/server/auth.js';
+import { createUser, assignClient, hashPassword, verifyPassword, mustChangePassword } from '../../src/server/auth.js';
 
 let tmp: string;
 let db: DB;
@@ -54,6 +54,34 @@ test('login → me → logout lifecycle', async () => {
 
   assert.equal((await agent.post('/auth/logout')).status, 200);
   assert.equal((await agent.get('/auth/me')).status, 401);
+});
+
+test('must-change-password: gate prende o usuário na troca até ele escolher a senha', async () => {
+  // consultor criado com senha temporária (mustChange=true)
+  const temp = createUser(db, 'novo@witly.com', 'temp123', 'consultor', true);
+  assert.equal(mustChangePassword(db, temp.id), true);
+
+  const agent = request.agent(created.app);
+  assert.equal((await agent.post('/auth/login').send({ email: 'novo@witly.com', password: 'temp123' })).status, 200);
+  assert.equal((await agent.get('/auth/me')).body.mustChange, true);
+
+  // preso: página redireciona p/ a troca, /api dá 403 com código
+  const page = await agent.get('/');
+  assert.equal(page.status, 302);
+  assert.equal(page.headers.location, '/trocar-senha.html');
+  const api = await agent.get('/api/analyses');
+  assert.equal(api.status, 403);
+  assert.equal(api.body.code, 'must_change_password');
+  // a própria tela de troca é acessível
+  assert.equal((await agent.get('/trocar-senha.html')).status, 200);
+
+  // senha atual errada → 403; troca ok → libera a flag e o gate
+  assert.equal((await agent.post('/auth/change-password').send({ current: 'errada', next: 'novasenha' })).status, 403);
+  assert.equal((await agent.post('/auth/change-password').send({ current: 'temp123', next: 'curta' })).status, 400);
+  assert.equal((await agent.post('/auth/change-password').send({ current: 'temp123', next: 'novasenha' })).status, 200);
+  assert.equal(mustChangePassword(db, temp.id), false);
+  assert.equal((await agent.get('/auth/me')).body.mustChange, false);
+  assert.equal((await agent.get('/api/analyses')).status, 200);   // gate liberado
 });
 
 test('gate: unauthenticated /api → 401, page → redirect, login page public', async () => {
