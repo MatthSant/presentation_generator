@@ -652,6 +652,9 @@ export interface ConsultarSpec {
 export interface DeepDeps {
   meta: {
     consultar?: ConsultarSpec;
+    /** Contexto de negócio do tipo (registry.deepenContext): fase da campanha, recortes
+     *  fixos… Viaja no 1º user turn (o meta inteiro é serializado na mensagem). */
+    contexto?: string;
     // Legado (conversao-perfil): usado pelo fallback da tool e por buildFactsheet.
     criterios?: Array<{ id: string; label: string }>; canais?: string[]; metricas?: string[];
   };

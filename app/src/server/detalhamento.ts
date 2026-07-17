@@ -38,6 +38,9 @@ export interface DetalheInput {
   objetivo?: string;
   /** Callback de progresso (estágio) → tela de carregamento. */
   onProgress?: (msg: string) => void;
+  /** Estado atual dos controles do relatório na hora da pergunta (ex.: {mode}) —
+   *  vira o `view` do registry.deepenContext. Ausente → default do relatório. */
+  view?: Record<string, unknown>;
 }
 
 export interface DetalheResult {
@@ -79,6 +82,14 @@ export async function generateDetalhamento(inp: DetalheInput): Promise<DetalheRe
   const deepenMeta = hasBase ? typeOf(baseConfig).buildDeepenMeta(baseConfig) : null;
 
   const analysisType = typeOf(baseConfig ?? undefined).type;
+  // Contexto de negócio (fase da campanha etc.): view do request quando o consultor
+  // perguntou olhando o relatório; fluxos sem tela (fila, rerun) caem no default do
+  // relatório (data.json meta.controls).
+  if (deepenMeta) {
+    const nav = readJson<{ meta?: { controls?: Record<string, unknown> } }>(path.join(inp.out, 'data.json'));
+    const contexto = typeOf(baseConfig).deepenContext?.(baseConfig, inp.view ?? nav?.meta?.controls);
+    if (contexto) deepenMeta.contexto = contexto;
+  }
   // Moldura: os prompts dos bancos são instruções — o modelo deve EXECUTÁ-las.
   const framedPrompt = `Execute esta análise sobre as tabelas e apresente os resultados (não descreva como fazê-la): ${inp.prompt}`;
 

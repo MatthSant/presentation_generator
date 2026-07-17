@@ -90,6 +90,14 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
     // (fallback conversao-perfil) quando meta.type falta num relatório de debriefing/acomp.
     const analysisType = inferType(dataset) ?? (hasBase ? typeOf(baseConfig) : typeOf(navMeta?.meta?.controls?.kind)).type;
     const deepenMeta = hasBase ? typeOf(analysisType).buildDeepenMeta(baseConfig) : null;
+    // Contexto de negócio (fase da campanha etc.): o client manda o estado ATUAL dos
+    // controles (body.view = o que o consultor está olhando); sem ele, o default do
+    // relatório (meta.controls). Vira meta.contexto no 1º turno do deep.
+    if (deepenMeta) {
+      const view = (body.view && typeof body.view === 'object' ? body.view : (navMeta?.meta?.controls as Record<string, unknown> | undefined)) as Record<string, unknown> | undefined;
+      const contexto = typeOf(analysisType).deepenContext?.(baseConfig, view);
+      if (contexto) deepenMeta.contexto = contexto;
+    }
     const fewShot = getFewShot(ctx.db, analysisType, 3);
     // Os prompts dos bancos (e do consultor) são instruções por design — a
     // moldura força o modelo a EXECUTAR a análise, não a descrever o método.
