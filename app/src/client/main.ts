@@ -838,14 +838,17 @@ class App {
     // No modo sidebar o masthead some (contexto já no breadcrumb + item ativo) — mas isso
     // só vale quando o item do nav É o título. Quando o motor declara um `title` à parte,
     // o label é abreviação de nav e o título é CONTEÚDO: num aprofundamento ele é a
-    // pergunta feita, e o sub é a resposta. Some do nav, tem de aparecer na página.
-    if (this.store.sectionRef(section.id)?.title) wrap.classList.add('sec-header--keep');
+    // pergunta feita. Some do nav, tem de aparecer na página.
+    const keep = !!this.store.sectionRef(section.id)?.title;
+    if (keep) wrap.classList.add('sec-header--keep');
     if (h.badge) { const b = document.createElement('div'); b.className = 'badge badge-p'; b.textContent = h.badge; wrap.appendChild(b); }
     const t = document.createElement('h1');
     t.className = 'sec-title';
     t.textContent = h.title || '';
     wrap.appendChild(t);
-    if (h.sub) { const s = document.createElement('p'); s.className = 'sm'; s.innerHTML = h.sub; wrap.appendChild(s); }
+    // Num aprofundamento (keep) o sub é a justificativa da pergunta — ruído sobre o
+    // título, que já é a própria pergunta. A resposta está no 1º card (highlight).
+    if (h.sub && !keep) { const s = document.createElement('p'); s.className = 'sm'; s.innerHTML = h.sub; wrap.appendChild(s); }
     return wrap;
   }
 
