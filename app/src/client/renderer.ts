@@ -63,7 +63,8 @@ function renderKpi(w: KpiWidget, ctx: RenderCtx): HTMLElement {
   let value: unknown = w.value;
   if (resolved && w.key && w.key in resolved.totals) value = resolved.totals[w.key];
   mv.textContent = formatValue(value, w.format);
-  mi.append(mv, el('div', 'ml', w.label));
+  // Rótulo ACIMA do valor — a ordem do kpi-card (kc), o card canônico do sistema.
+  mi.append(el('div', 'ml', w.label), mv);
   card.appendChild(mi);
   return card;
 }
@@ -1534,12 +1535,49 @@ function renderChannelTable(w: ChannelTableWidget): HTMLElement {
 /* ── cri-list ── lista de criativos ranqueados: thumb + nome (link) + meta +
  *  stats à direita (leads + CPMQL proj.). Substitui a tabela de criativos. */
 function renderCriList(w: CriListWidget): HTMLElement {
+  // Forma com escopos (tabs): toggle no topo à direita; o corpo é re-montado na troca.
+  // Cada aba já vem rankeada pelo motor — o client só escolhe qual mostrar.
+  const tabs = w.tabs && w.tabs.length ? w.tabs : null;
+  if (tabs) {
+    const wrap = el('div', 'cri-list');
+    const head = el('div', 'chart-head');
+    if (w.title) head.appendChild(el('div', 'chart-title', w.title));
+    const seg = el('div', 'seg seg--soft cri-seg');
+    head.appendChild(seg);
+    wrap.appendChild(head);
+    const body = el('div', 'cri-body');
+    wrap.appendChild(body);
+    let cur = Math.min(Number(uiGet(w.id, 'tab') ?? 0), tabs.length - 1);
+    const show = (i: number): void => {
+      const t = tabs[i];
+      if (!t) return;
+      cur = i; uiSet(w.id, 'tab', i);
+      body.replaceChildren(criBody({ ...w, rows: t.rows, caption: t.caption ?? w.caption }));
+      [...seg.children].forEach((b, k) => b.classList.toggle('active', k === i));
+    };
+    tabs.forEach((t, i) => {
+      const b = el('button', 'seg-opt', t.label) as HTMLButtonElement;
+      b.type = 'button';
+      b.addEventListener('click', () => show(i));
+      seg.appendChild(b);
+    });
+    show(cur < 0 ? 0 : cur);
+    return wrap;
+  }
   const wrap = el('div', 'cri-list');
   if (w.title) {
     const head = el('div', 'chart-head');
     head.appendChild(el('div', 'chart-title', w.title));
     wrap.appendChild(head);
   }
+  wrap.appendChild(criBody(w));
+  return wrap;
+}
+
+/** Corpo do cri-list: as linhas + a legenda. Compartilhado pelas duas formas. */
+function criBody(w: CriListWidget): HTMLElement {
+  const wrap = el('div');
+  if (!w.rows?.length) { wrap.appendChild(empty()); return wrap; }
   for (const r of w.rows) {
     const row = el('div', 'cri-row');
     const thumb = el('div', 'cri-thumb');
@@ -1587,9 +1625,22 @@ function renderStratGrid(w: StratGridWidget): HTMLElement {
 }
 
 function renderFindNote(w: FindNoteWidget): HTMLElement {
-  const p = el('p', 'find-note find-note-p');
-  p.innerHTML = safeHtml(w.text || '');
-  return p;
+  // Mesma anatomia do find-block--card (a referência): card com stripe da zona,
+  // números em negrito colorido e a "Implicação:" destacada quando o texto a traz.
+  // Diferença: find-note não tem tag nem título — é a nota, não o achado.
+  const div = el('div', 'find-note find-note-p');
+  const { body, impl } = splitImplication(w.text || '');
+  const p = el('p', 'fn-body');
+  p.innerHTML = highlightFigures(safeHtml(body));
+  div.appendChild(p);
+  if (impl) {
+    const f = el('div', 'fb-impl');
+    f.appendChild(el('span', 'fb-impl-tag', 'Implicação'));
+    const t = el('span', 'fb-impl-txt'); t.innerHTML = safeHtml(impl);
+    f.appendChild(t);
+    div.appendChild(f);
+  }
+  return div;
 }
 
 function renderHighlight(w: HighlightWidget): HTMLElement {
