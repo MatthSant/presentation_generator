@@ -501,8 +501,12 @@ class App {
         const r = await this.api.seguirPergunta(p.id, view);
         // The nav map changed (new section, maybe a new page) → reload + rebuild,
         // mas SEM roubar a tela do usuário (só o botão "Ver" navega).
+        // O layout TAMBÉM: o servidor gravou a disposição da seção nova e suprimiu o
+        // SSE (convenção: quem escreveu avisa) — sem rebuscar, o "Ver" renderizava a
+        // seção sem coordenadas (fluxo default desorganizado) até um F5.
         this.store.data = await this.api.getData();
         this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+        this.store.layout = await this.api.getLayout().catch(() => this.store.layout);
         this.nav.build();
         this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
         if (this.store.page(this.store.currentPageId)?.kind === 'perguntas') void this.renderPerguntas();
@@ -575,6 +579,7 @@ class App {
         const r = await this.api.addCustomPergunta(text, view);
         this.store.data = await this.api.getData();
         this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
+        this.store.layout = await this.api.getLayout().catch(() => this.store.layout);   // disposição da seção nova (SSE suprimido)
         this.nav.build();
         this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
         if (this.store.page(this.store.currentPageId)?.kind === 'perguntas') void this.renderPerguntas();
@@ -775,6 +780,7 @@ class App {
       run: async () => {
         await this.api.revisarDet(sectionId, comentario);
         this.store.dropSection(sectionId);
+        this.store.layout = await this.api.getLayout().catch(() => this.store.layout);   // a revisão redispõe os widgets novos
         if (this.store.currentSectionId === sectionId) await this.go(this.store.currentPageId, sectionId, true);
         return { toast: 'Aprofundamento revisado', view: () => void this.go(pageId, sectionId) };
       },

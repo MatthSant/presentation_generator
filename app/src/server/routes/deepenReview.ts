@@ -80,6 +80,10 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
       section.historyId = historyId;
       ctx.skipNextSSE.add(`${sectionId}.json`);
       writeJson(file, section);
+      // A revisão regenera os WIDGETS — a disposição nova (r.layout) tem de ir junto:
+      // manter a entrada antiga deixava coordenadas apontando p/ ids que podem nem
+      // existir mais, e o render saía quebrado (sem F5 que salvasse).
+      writeSectionLayout(dir, ctx, sectionId, r.layout);
       res.json({ ok: true, mocked: r.mocked, sectionId, historyId });
     } catch (e) {
       sendGenError(res, e);
@@ -198,6 +202,7 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
       section.historyId = newId;
       ctx.skipNextSSE.add(`${sectionId}.json`);
       writeJson(path.join(dir, `${sectionId}.json`), section);
+      writeSectionLayout(dir, ctx, sectionId, r.layout);   // replay criava a seção SEM disposição
       attachToDetalhamentos(dir, ctx, { id: sectionId, label: title.slice(0, 42) });
       res.json({ ok: true, mocked: r.mocked, pageId: 'detalhamentos', sectionId, historyId: newId });
     } catch (e) {
@@ -208,6 +213,17 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
 
 /** Garante a página Detalhamentos no data.json e registra a seção (mesma regra
  *  do perguntas.ts; duplicada aqui no mínimo necessário para o replay). */
+/** Grava a disposição de uma seção det-* no layout.json (mesma regra do
+ *  perguntas.ts: SSE suprimido — o fluxo que escreveu atualiza o client). */
+function writeSectionLayout(dir: string, ctx: Ctx, sectionId: string, items: Layout['sections'][string] | undefined): void {
+  if (!items?.length) return;
+  const layoutFile = path.join(dir, 'layout.json');
+  const layout = readJson<Layout>(layoutFile) || { sections: {} };
+  (layout.sections ||= {})[sectionId] = items;
+  ctx.skipNextSSE.add('layout.json');
+  writeJson(layoutFile, layout);
+}
+
 function attachToDetalhamentos(dir: string, ctx: Ctx, ref: { id: string; label: string }): void {
   const dataFile = path.join(dir, 'data.json');
   const data = readJson<ReportData>(dataFile) || ({ meta: {}, pages: [] } as ReportData);
