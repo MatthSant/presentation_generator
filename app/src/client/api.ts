@@ -111,6 +111,13 @@ export class Api {
     });
   }
 
+  /** Redispõe o aprofundamento no gabarito padrão (determinístico, sem IA). */
+  relayoutDet(sectionId: string): Promise<{ ok: boolean; layout: Layout['sections'][string] }> {
+    return this.json(`${this.base()}/det/${encodeURIComponent(sectionId)}/relayout`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+  }
+
   descartarDet(sectionId: string, motivo?: string): Promise<{ ok: boolean; sectionId: string; pageRemoved: boolean }> {
     return this.json(`${this.base()}/det/${encodeURIComponent(sectionId)}/descartar`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo }),

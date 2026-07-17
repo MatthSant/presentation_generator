@@ -17,6 +17,7 @@ import { sendGenError } from '../creditError.js';
 import type { ReportData, PageRef, Section, Layout } from '../../shared/types.js';
 import { analysisDir, isSafeSeg, readJson, writeJson } from '../fsutil.js';
 import { generateDetalhamento } from '../detalhamento.js';
+import { packFallback } from '../layoutAudit.js';
 import { rateDeepen, listHistory, getEntry, recordDeepen, getFewShot, approveDeepen, markRevised, markDiscarded } from '../deepenHistory.js';
 
 export function registerDeepenReview(app: Express, ctx: Ctx): void {
@@ -88,6 +89,21 @@ export function registerDeepenReview(app: Express, ctx: Ctx): void {
     } catch (e) {
       sendGenError(res, e);
     }
+  });
+
+  /** Reorganizar a DISPOSIÇÃO de um aprofundamento — determinístico, sem IA.
+   *  Aplica o packer de gabarito (packFallback) sobre os widgets como estão:
+   *  resposta no topo, kpis em linha própria cheia, evidência pareada com
+   *  conclusão. Não toca no conteúdo nem no histórico — é geometria, não geração. */
+  app.post('/api/:client/:slug/det/:sectionId/relayout', (req: Request, res: Response) => {
+    const { client, slug, sectionId } = req.params;
+    const dir = analysisDir(ctx.out, client, slug);
+    if (!dir || !isSafeSeg(sectionId) || !sectionId.startsWith('det-')) { res.status(400).json({ error: 'bad path' }); return; }
+    const section = readJson<Section>(path.join(dir, `${sectionId}.json`));
+    if (!section?.widgets?.length) { res.status(404).json({ error: 'seção não encontrada' }); return; }
+    const layout = packFallback(section.widgets.map((w) => ({ id: w.id, type: w.type })));
+    writeSectionLayout(dir, ctx, sectionId, layout);
+    res.json({ ok: true, layout });
   });
 
   /** Descartar um detalhamento já feito: remove a seção det-* do relatório

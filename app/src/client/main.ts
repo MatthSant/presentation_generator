@@ -309,7 +309,13 @@ class App {
         } catch (e) {
           this.toast(`Falha ao descartar: ${(e as Error).message}`);
         }
-      }, undefined, 'aprofundamento');
+      }, undefined, 'aprofundamento', async () => {
+        // Reorganizar: só geometria, sem IA e sem fila — aplica e re-renderiza na hora.
+        const r = await this.api.relayoutDet(section.id);
+        this.store.layout = { ...this.store.layout, sections: { ...this.store.layout.sections, [section.id]: r.layout } };
+        await this.go(this.store.currentPageId, section.id, true);
+        this.toast('Disposição reorganizada.');
+      });
       rt.classList.add('rate--section');
       host.appendChild(rt);
     }
@@ -605,6 +611,10 @@ class App {
   private static WAND = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg>';
   // lápis — "pedir revisão deste bloco" (dentro de detalhamento/aprofundamento)
   private static PENCIL = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>';
+  // ícones da barra de revisão (mesma família tabler stroke dos demais do app)
+  private static CHECK = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l9 -9"/></svg>';
+  private static LGRID = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="4" rx="1"/><rect x="4" y="11" width="7" height="9" rx="1"/><rect x="14" y="11" width="6" height="9" rx="1"/></svg>';
+  private static TRASH = '<svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg>';
   private static MODAL_REVISABLE = new Set(['chart', 'table', 'find-block', 'kpi', 'highlight', 'ni', 'ni-vertical']);
 
   /** Add a "detalhar" button to every content tile; "ver detalhe" once a modal
@@ -931,7 +941,7 @@ class App {
    *  itera via prev; seção det-* regenera a própria seção). */
   // `noun` = "detalhamento" (bloco do relatório) ou "aprofundamento" (board de
   // perguntas) — o rodapé de rating serve os dois fluxos; a nomenclatura segue a origem.
-  private buildRating(historyId: string, revisar?: (comentario: string) => void | Promise<void>, onDiscard?: (motivo: string) => void | Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento'): HTMLElement {
+  private buildRating(historyId: string, revisar?: (comentario: string) => void | Promise<void>, onDiscard?: (motivo: string) => void | Promise<void>, onApproved?: () => void, noun: 'detalhamento' | 'aprofundamento' = 'detalhamento', onRelayout?: () => Promise<void>): HTMLElement {
     const Noun = noun[0].toUpperCase() + noun.slice(1);
     const wrap = document.createElement('div');
     wrap.className = 'rate';
@@ -942,9 +952,9 @@ class App {
     const approve = document.createElement('button');
     approve.type = 'button';
     approve.className = 'btn btn--sm rate-approve';
-    approve.textContent = '✓ Aprovar';
+    approve.innerHTML = `${App.CHECK}Aprovar`;
     const setApproved = (): void => {
-      approve.textContent = '✓ Aprovado';
+      approve.innerHTML = `${App.CHECK}Aprovado`;
       approve.classList.add('on');
       approve.disabled = true;
       onApproved?.();   // revela a caixa "ajustar/aprofundar" (só após aprovar)
@@ -954,10 +964,13 @@ class App {
       catch (e) { this.toast(`Falha ao aprovar: ${(e as Error).message}`); }
     });
 
+    // Revisão de CONTEÚDO (regenera com IA) × reorganizar o LAYOUT (determinístico,
+    // instantâneo) — dois custos completamente diferentes, dois botões.
     const askRev = document.createElement('button');
     askRev.type = 'button';
     askRev.className = 'btn btn--sm';
-    askRev.textContent = '✎ Pedir revisão';
+    askRev.innerHTML = `${App.PENCIL}Revisar conteúdo`;
+    askRev.title = 'Regenera a análise com a IA a partir do seu comentário';
     const rev = document.createElement('form');
     rev.className = 'rate-fb';
     rev.hidden = true;
@@ -1016,12 +1029,26 @@ class App {
 
     wrap.append(lbl, approve);
     if (revisar) wrap.append(askRev, rev);
+    if (onRelayout) {
+      const rl = document.createElement('button');
+      rl.type = 'button';
+      rl.className = 'btn btn--sm';
+      rl.innerHTML = `${App.LGRID}Reorganizar layout`;
+      rl.title = 'Redistribui os blocos no gabarito padrão — instantâneo, não altera o conteúdo';
+      rl.addEventListener('click', async () => {
+        rl.disabled = true;
+        try { await onRelayout(); }
+        catch (e) { this.toast(`Falha ao reorganizar: ${(e as Error).message}`); }
+        finally { rl.disabled = false; }
+      });
+      wrap.append(rl);
+    }
     wrap.append(stars, fb);
     if (onDiscard) {
       const discard = document.createElement('button');
       discard.type = 'button';
       discard.className = 'btn btn--sm rate-discard';
-      discard.textContent = '🗑 Descartar';
+      discard.innerHTML = `${App.TRASH}Descartar`;
       // Descartar SEMPRE pede o motivo (sinal de qualidade): abre um form curto;
       // sem motivo não descarta (o "porquê" é o ponto).
       const df = document.createElement('form');
