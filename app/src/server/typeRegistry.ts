@@ -36,6 +36,11 @@ export interface AnalysisTypeDef {
   controlsKind?: string;
   /** Metadados do deep deepen (tool `consultar`). `null` → só modo raso (catálogo). */
   buildDeepenMeta(config: unknown): DeepDeps['meta'] | null;
+  /** Contexto de negócio do aprofundamento — vira `meta.contexto` no 1º turno do deep.
+   *  `view` é o estado ATUAL dos controles do relatório (ex.: o modo resultado ×
+   *  captação que o consultor está olhando ao perguntar); ausente → default do tipo.
+   *  É aqui que o tipo declara a FASE da campanha, recortes fixos etc. */
+  deepenContext?(config: unknown, view?: Record<string, unknown>): string | null;
 }
 
 interface PerfilConfig { criterios?: Array<{ id: string; label?: string }>; channels?: string[] }
@@ -142,6 +147,24 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
           },
         },
       };
+    },
+    deepenContext(config, view) {
+      // A FASE muda o que é veredito: em captação a venda ainda não fechou — julgar
+      // ROAS/CAC ali é condenar uma campanha que ainda está correndo. O modo que o
+      // consultor está OLHANDO ao perguntar (view.mode) é a fase; sem view, o default
+      // do relatório.
+      const cfg = (config ?? {}) as { tipo_campanha?: string };
+      const mode = String(view?.mode ?? 'resultado');
+      const fase = mode === 'captacao'
+        ? 'FASE DA CAMPANHA: captação em andamento — a venda ainda NÃO fechou. O desfecho a julgar é o '
+          + 'custo do lead qualificado (CPMQL projetado) e a qualidade da captação (CPL, CPM, CTR, hook/hold, '
+          + 'taxa de resposta, qualificação). NÃO use ROAS/CAC/vendas como veredito: ou ainda não existem, ou '
+          + 'estão incompletos — no máximo cite-os como sinal precoce, dizendo isso.'
+        : 'FASE DA CAMPANHA: resultado final — a campanha fechou. O desfecho a julgar é ROAS líquido '
+          + '(0 = empate, negativo = prejuízo), retorno e CAC; as métricas de captação explicam o COMO, '
+          + 'não o veredito.';
+      const tipo = (cfg.tipo_campanha || '').trim();
+      return fase + (tipo ? `\nTIPO DE CAMPANHA: ${tipo} — a análise já está recortada para campanhas deste tipo; não compare com o outro tipo.` : '');
     },
   },
   'historico-lancamentos': {

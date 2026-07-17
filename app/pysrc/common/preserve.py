@@ -95,6 +95,23 @@ def preserve(out_dir, data, sections):
     return data
 
 
+def preserve_layout(out_dir, layout):
+    """Reanexa ao layout novo as entradas de seções que o build NÃO produz.
+
+    A disposição de um aprofundamento (det-*) é escolhida pelo agente de layout no
+    deepen e gravada só no layout.json — o build reescreve o arquivo inteiro com as
+    seções sXX e a apagava em TODA regeneração. O det-*.json sobrevivia (preserve),
+    mas sem coordenadas o client cai no fluxo default por tipo, uma coluna dupla que
+    parece tabela. Mantém a entrada anterior de toda seção que o novo build não
+    redefiniu e cujo arquivo ainda existe no disco. Idempotente."""
+    prev = _load(os.path.join(out_dir, 'layout.json')) or {}
+    secs = layout.setdefault('sections', {})
+    for sid, items in (prev.get('sections') or {}).items():
+        if sid not in secs and os.path.exists(os.path.join(out_dir, f'{sid}.json')):
+            secs[sid] = items
+    return layout
+
+
 def prune_sections(out_dir, sections):
     """Apaga os `sXX.json` que a geração NÃO produziu mais.
 

@@ -54,10 +54,12 @@ export class Api {
     });
   }
 
-  deepen(secId: string, blockId: string, prompt: string, prev?: unknown): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean; datasetChanged?: boolean; historyId?: string }> {
+  deepen(secId: string, blockId: string, prompt: string, prev?: unknown, view?: Record<string, unknown>): Promise<{ ok: boolean; modal: { id: string }; mocked: boolean; datasetChanged?: boolean; historyId?: string }> {
+    // `view` = estado atual dos controles (ex.: {mode}) — o servidor injeta a fase da
+    // campanha no contexto do deepen (registry.deepenContext).
     return this.json(`${this.base()}/section/${encodeURIComponent(secId)}/deepen`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blockId, prompt, prev }),
+      body: JSON.stringify({ blockId, prompt, prev, view }),
     });
   }
 
@@ -71,9 +73,9 @@ export class Api {
 
   getPerguntas(): Promise<{ perguntas: Pergunta[] }> { return this.json(`${this.base()}/perguntas`); }
 
-  seguirPergunta(pid: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
+  seguirPergunta(pid: string, view?: Record<string, unknown>): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
     return this.json(`${this.base()}/perguntas/${encodeURIComponent(pid)}/seguir`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ view }),
     });
   }
   ignorarPergunta(pid: string): Promise<{ ok: boolean }> {
@@ -81,9 +83,9 @@ export class Api {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     });
   }
-  addCustomPergunta(pergunta: string): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
+  addCustomPergunta(pergunta: string, view?: Record<string, unknown>): Promise<{ ok: boolean; pageId: string; sectionId: string; mocked: boolean; historyId?: string }> {
     return this.json(`${this.base()}/perguntas/custom`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pergunta }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pergunta, view }),
     });
   }
 

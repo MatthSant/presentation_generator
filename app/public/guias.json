@@ -171,7 +171,6 @@
       "title": "Análise de Criativos",
       "tag": "Análise",
       "summary": "Desempenho anúncio a anúncio (Meta Ads) — investimento, ROAS, captação e qualidade de lead — com uma ficha por criativo e dois modos de leitura: Resultado Final e Captação em Andamento.",
-      "limits": "Completa, mas o visual ainda está sendo trabalhado para ficar em linha com o design system.",
       "report": { "client": "enxoval", "slug": "criativos" },
       "gerar": "/gerar-criativos.html",
       "montador": "criativos",

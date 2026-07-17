@@ -492,12 +492,13 @@ class App {
   /** Follow a question: the server generates its detalhamento as a new section on
    *  the Detalhamentos page; the queue refreshes the nav; "Ver" jumps to it. */
   private seguirPergunta(p: Pergunta): void {
+    const view = this.currentView();
     this.queue.add({
       kind: 'aprofundamento',
       label: 'Aprofundamento',
       sub: p.pergunta,
       run: async () => {
-        const r = await this.api.seguirPergunta(p.id);
+        const r = await this.api.seguirPergunta(p.id, view);
         // The nav map changed (new section, maybe a new page) → reload + rebuild,
         // mas SEM roubar a tela do usuário (só o botão "Ver" navega).
         this.store.data = await this.api.getData();
@@ -565,12 +566,13 @@ class App {
   }
 
   private criarPerguntaCustom(text: string): void {
+    const view = this.currentView();
     this.queue.add({
       kind: 'aprofundamento',
       label: 'Aprofundamento',
       sub: text,
       run: async () => {
-        const r = await this.api.addCustomPergunta(text);
+        const r = await this.api.addCustomPergunta(text, view);
         this.store.data = await this.api.getData();
         this.store.datasets = await this.api.getDataset().catch(() => this.store.datasets);
         this.nav.build();
@@ -781,14 +783,22 @@ class App {
 
   /** Enfileira um detalhamento de bloco. `sub` = rótulo humano (título do card).
    *  Não bloqueia: o job roda em 2º plano e o botão "Ver" abre o modal quando pronto. */
+  /** Estado atual dos controles relevante pro deepen (fase da campanha etc.).
+   *  Capturado na hora da PERGUNTA, não da execução — a fila pode rodar depois
+   *  de o consultor trocar o toggle. */
+  private currentView(): Record<string, unknown> | undefined {
+    return this.histMode ? { mode: this.histMode } : undefined;
+  }
+
   private runDeepen(secId: string, blockId: string, prompt: string, prev?: unknown, sub?: string): void {
     const pageId = this.store.currentPageId;
+    const view = this.currentView();
     this.queue.add({
       kind: 'detalhamento',
       label: prev ? 'Ajuste de detalhamento' : 'Detalhamento',
       sub: sub || prompt,
       run: async () => {
-        const r = await this.api.deepen(secId, blockId, prompt, prev);
+        const r = await this.api.deepen(secId, blockId, prompt, prev, view);
         // Deep mode added new aggregate tables → refresh the dataset before re-render.
         if (r.datasetChanged) this.store.datasets = await this.api.getDataset();
         this.store.dropSection(secId);

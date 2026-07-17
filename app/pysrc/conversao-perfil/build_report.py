@@ -26,7 +26,7 @@ sys.path.insert(0, _here)                    # irmãos (conv_calc)
 sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import conv_calc as cc
 from common.layout import Grid
-from common.preserve import preserve, preserve_dataset
+from common.preserve import preserve, preserve_dataset, preserve_layout
 # Builder de eyebrow compartilhado (só onde há Grid; as seções por critério usam
 # layout manual e widgets tipo-específicos — rank-card/heatmap-toggle — ficam inline).
 from common.report import eb
@@ -407,6 +407,7 @@ def build(csv_path, config, content, out_dir):
     # preserve FORA do assemble (padrão dos demais tipos): assemble é puro.
     preserve(out_dir, r['data'], r['sections'])   # detalhamentos, perguntas e modais sobrevivem à regeneração
     preserve_dataset(out_dir, r['dataset'])       # tabelas q-* dos detalhamentos sobrevivem
+    preserve_layout(out_dir, r['layout'])     # disposição dos det-* sobrevive
 
     def dump(name, obj): json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', r['dataset']); dump('data.json', r['data'])

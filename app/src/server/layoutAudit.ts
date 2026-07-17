@@ -68,6 +68,14 @@ export function auditLayout(rows: LayoutCell[][], widgets: LayWidget[]): Audit {
       if (Math.max(...hs) - Math.min(...hs) >= 2)
         soft.push(`linha ${ri + 1} mistura tiles de alturas muito diferentes (vão vertical) — agrupe alturas parecidas`);
     }
+    // SOFT — kpi em linha própria, cheia: o agente se perde com kpis — espreme um kpi
+    // ao lado de gráfico/conclusão (alturas nunca casam) ou deixa a fileira de kpis
+    // pela metade. Regra: linha com kpi é SÓ de kpis e fecha as 12 colunas.
+    const nMetric = row.filter((c) => METRIC.has(typeOf.get(c.id) || '')).length;
+    if (nMetric > 0 && nMetric < row.length)
+      soft.push(`linha ${ri + 1} mistura kpi com outros tipos — kpis ficam em linha própria, só de kpis`);
+    else if (nMetric === row.length && row.length > 0 && sum < 12)
+      soft.push(`linha ${ri + 1} é só de kpis mas soma ${sum} — estique-os até fechar 12 (2 kpis → w6, 3 → w4, 4 → w3)`);
   });
   for (const id of ids) if (!seen.has(id)) hard.push(`faltou posicionar o widget "${id}"`);
 
@@ -130,21 +138,55 @@ export function rowsToItems(rows: LayoutCell[][], typeOf: Map<string, string>): 
   return items;
 }
 
-/** Packer determinístico de fallback (gap-aware): a resposta no topo em w12; o
- *  resto preenche linhas até 12 na ordem em que o agente de análise os entregou
- *  (resposta → métricas → evidência → conclusão), o que já tende a parear. */
+/** Packer determinístico de fallback: agrupa RUNS consecutivos do mesmo papel e
+ *  distribui cada run em linhas CHEIAS e balanceadas.
+ *
+ *  A ordem do agente de análise (resposta → métricas → evidência → conclusão) já
+ *  conta a história e mantém a adjacência conclusão↔evidência; o que ele não garante
+ *  é geometria. Aqui, por construção: toda linha soma 12 (nada de "sobra 8"), papéis
+ *  não se misturam na mesma linha (alturas casam — sem vão vertical) e o texto de
+ *  largura cheia (resposta/nota) separa os blocos. É o mesmo gabarito das melhores
+ *  disposições que o agente de layout produz quando acerta. */
 export function packFallback(widgets: LayWidget[]): LayoutItem[] {
+  const roleOf = (t: string): 'metric' | 'data' | 'concl' | 'full' =>
+    METRIC.has(t) ? 'metric' : DATA.has(t) ? 'data' : CONCL.has(t) ? 'concl' : 'full';
+  // Cabem lado a lado sem apertar: 4 métricas (w3), 2 gráficos/tabelas (w6), 3 conclusões (w4).
+  const PER_ROW = { metric: 4, data: 2, concl: 3 } as const;
+
+  // runs consecutivos do mesmo papel (texto full nunca agrupa — cada um é um separador)
+  const runs: { role: ReturnType<typeof roleOf>; ws: LayWidget[] }[] = [];
+  for (const w of widgets) {
+    const role = roleOf(w.type);
+    const last = runs[runs.length - 1];
+    if (last && last.role === role && role !== 'full') last.ws.push(w);
+    else runs.push({ role, ws: [w] });
+  }
+
   const items: LayoutItem[] = [];
-  let x = 0, y = 0, rowH = 1;
-  const flush = (): void => { if (x > 0) { y += rowH; x = 0; rowH = 1; } };
-  widgets.forEach((wdg, i) => {
-    const t = wdg.type, h = layH(t);
-    // resposta de topo (1º highlight/find-note) sempre sozinha em largura cheia
-    let w = clampN(layW(t), 2, 12);
-    if (i === 0 && (t === 'highlight' || t === 'find-note')) w = 12;
-    if (w >= 12) { flush(); items.push({ id: wdg.id, type: t, x: 0, y, w: 12, h }); y += h; return; }
-    if (x + w > 12) flush();
-    items.push({ id: wdg.id, type: t, x, y, w, h }); x += w; rowH = Math.max(rowH, h);
-  });
+  let y = 0;
+  const placeRow = (row: LayWidget[]): void => {
+    const base = Math.floor(12 / row.length);
+    let extra = 12 - base * row.length;
+    const h = Math.max(...row.map((w) => layH(w.type)));
+    let x = 0;
+    for (const w of row) {
+      const wd = base + (extra-- > 0 ? 1 : 0);
+      items.push({ id: w.id, type: w.type, x, y, w: wd, h });
+      x += wd;
+    }
+    y += h;
+  };
+  for (const run of runs) {
+    if (run.role === 'full') {
+      const w = run.ws[0];
+      items.push({ id: w.id, type: w.type, x: 0, y, w: 12, h: layH(w.type) });
+      y += layH(w.type);
+      continue;
+    }
+    // linhas balanceadas: 5 métricas → 3+2 (não 4+1 com um kpi de 12 colunas no fim)
+    const nRows = Math.ceil(run.ws.length / PER_ROW[run.role]);
+    const per = Math.ceil(run.ws.length / nRows);
+    for (let i = 0; i < run.ws.length; i += per) placeRow(run.ws.slice(i, i + per));
+  }
   return items;
 }

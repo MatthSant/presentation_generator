@@ -161,7 +161,8 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
   /** Generate the detalhamento for a question and land it as a new section on the
    *  Detalhamentos page. Shared by "seguir" and "Adicionar pergunta". */
   async function buildSection(dir: string, client: string, slug: string, p: Pergunta, badge: string, label: string,
-    origem: 'pergunta' | 'custom', isAborted: () => boolean = () => false): Promise<{ sectionId: string; mocked: boolean; historyId: string }> {
+    origem: 'pergunta' | 'custom', isAborted: () => boolean = () => false,
+    view?: Record<string, unknown>): Promise<{ sectionId: string; mocked: boolean; historyId: string }> {
     const idbase = p.id.toLowerCase().replace(/[^a-z0-9]/g, '');
     const sectionId = `det-${idbase}-${crypto.randomBytes(3).toString('hex')}`;
     if (!isSafeSeg(sectionId)) throw new Error('id inválido');
@@ -175,7 +176,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       r = await generateDetalhamento({
         out: ctx.out, client, slug,
         srcSecId: p.deepen.sectionId, blockId: p.deepen.blockId, prompt: p.deepen.prompt,
-        resultId: sectionId, objetivo: p.pergunta,
+        resultId: sectionId, objetivo: p.pergunta, view,
         fewShot: getFewShot(ctx.db, analysisTypeOf(client, slug, dir), 3),
         onProgress: (msg) => ctx.emitProgress?.(client, slug, msg),
       });
@@ -254,7 +255,9 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     let clientGone = false;
     res.on('close', () => { if (!res.writableFinished) clientGone = true; });
     try {
-      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento', shortLabel(p.pergunta), 'pergunta', () => clientGone);
+      const bview = ((req.body || {}) as Record<string, unknown>).view;
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento', shortLabel(p.pergunta), 'pergunta', () => clientGone,
+        bview && typeof bview === 'object' ? bview as Record<string, unknown> : undefined);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, historyId });
     } catch (e) {
       sendGenError(res, e);
@@ -290,7 +293,8 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
     let clientGone = false;
     res.on('close', () => { if (!res.writableFinished) clientGone = true; });
     try {
-      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone);
+      const { sectionId, mocked, historyId } = await buildSection(dir, client, slug, p, 'Aprofundamento · Sua pergunta', `✎ ${shortLabel(text)}`, 'custom', () => clientGone,
+        body.view && typeof body.view === 'object' ? body.view as Record<string, unknown> : undefined);
       res.json({ ok: true, mocked, pageId: DET_PAGE_ID, sectionId, pergunta: p, historyId });
     } catch (e) {
       sendGenError(res, e);

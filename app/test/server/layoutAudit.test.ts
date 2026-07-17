@@ -25,12 +25,34 @@ test('auditLayout: widget faltando e repetido são HARD', () => {
 test('auditLayout: layout limpo e pareado não tem hard nem soft', () => {
   const rows: LayoutCell[][] = [
     [{ id: 'ans', w: 12, h: 2 }],
-    [{ id: 'k1', w: 3, h: 4 }, { id: 'k2', w: 3, h: 4 }, { id: 'ch', w: 6, h: 4 }],
-    [{ id: 'fb', w: 4, h: 4 }, { id: 'tb', w: 8, h: 4 }],
+    [{ id: 'k1', w: 6, h: 2 }, { id: 'k2', w: 6, h: 2 }],     // kpis em linha própria, cheia
+    [{ id: 'ch', w: 6, h: 4 }, { id: 'tb', w: 6, h: 4 }],
+    [{ id: 'fb', w: 12, h: 3 }],
   ];
   const a = auditLayout(rows, W);
   assert.deepEqual(a.hard, []);
   assert.deepEqual(a.soft, [], a.soft.join('|'));
+});
+
+test('auditLayout: kpi na linha de um gráfico é SOFT (linha própria)', () => {
+  const rows: LayoutCell[][] = [
+    [{ id: 'ans', w: 12, h: 2 }],
+    [{ id: 'k1', w: 3, h: 4 }, { id: 'k2', w: 3, h: 4 }, { id: 'ch', w: 6, h: 4 }],
+    [{ id: 'fb', w: 4, h: 4 }, { id: 'tb', w: 8, h: 4 }],
+  ];
+  const a = auditLayout(rows, W);
+  assert.ok(a.soft.some((m) => /linha própria/.test(m)), a.soft.join('|'));
+});
+
+test('auditLayout: linha só de kpis que não fecha 12 é SOFT', () => {
+  const rows: LayoutCell[][] = [
+    [{ id: 'ans', w: 12, h: 2 }],
+    [{ id: 'k1', w: 3, h: 2 }, { id: 'k2', w: 3, h: 2 }],     // soma 6 — metade vazia
+    [{ id: 'ch', w: 6, h: 4 }, { id: 'tb', w: 6, h: 4 }],
+    [{ id: 'fb', w: 12, h: 3 }],
+  ];
+  const a = auditLayout(rows, W);
+  assert.ok(a.soft.some((m) => /estique-os até fechar 12/.test(m)), a.soft.join('|'));
 });
 
 test('auditLayout: vão horizontal (linha rala) é SOFT', () => {
@@ -89,6 +111,44 @@ test('packFallback: sempre produz linhas ≤ 12 e cobre todos os widgets', () =>
   const ans = items.find((i) => i.id === 'a')!;
   assert.equal(ans.w, 12);
   assert.equal(ans.y, 0);
+});
+
+test('packFallback: toda linha soma exatamente 12 (sem "sobra 8")', () => {
+  const many: LayWidget[] = [
+    { id: 'a', type: 'highlight' }, { id: 'b', type: 'kpi' }, { id: 'c', type: 'kpi' },
+    { id: 'd', type: 'chart' }, { id: 'e', type: 'table' },
+    { id: 'f', type: 'find-block' }, { id: 'g', type: 'find-block' },
+  ];
+  const byY = new Map<number, number>();
+  for (const it of packFallback(many)) byY.set(it.y, (byY.get(it.y) ?? 0) + it.w);
+  for (const [yy, sum] of byY) assert.equal(sum, 12, `linha y=${yy} soma ${sum}`);
+});
+
+test('packFallback: papéis não se misturam na mesma linha (alturas casam)', () => {
+  const many: LayWidget[] = [
+    { id: 'a', type: 'highlight' },
+    { id: 'k1', type: 'kpi' }, { id: 'k2', type: 'kpi' },
+    { id: 'fb', type: 'find-block' },   // h3 — não pode cair na linha dos kpi (h2)
+    { id: 'ch', type: 'chart' },
+  ];
+  const items = packFallback(many);
+  const rowOf = new Map<number, string[]>();
+  for (const it of items) (rowOf.get(it.y) ?? rowOf.set(it.y, []).get(it.y)!).push(it.type);
+  for (const [, types] of rowOf) {
+    const kinds = new Set(types.map((t) => (t === 'kpi' ? 'metric' : t === 'find-block' ? 'concl' : t)));
+    assert.ok(kinds.size === 1, `linha mistura papéis: ${types.join(',')}`);
+  }
+});
+
+test('packFallback: run de 5 métricas balanceia 3+2, não 4+1', () => {
+  const many: LayWidget[] = [
+    { id: 'k1', type: 'kpi' }, { id: 'k2', type: 'kpi' }, { id: 'k3', type: 'kpi' },
+    { id: 'k4', type: 'kpi' }, { id: 'k5', type: 'kpi' },
+  ];
+  const items = packFallback(many);
+  const rows = [...new Set(items.map((i) => i.y))].map((yy) => items.filter((i) => i.y === yy));
+  assert.deepEqual(rows.map((r) => r.length).sort(), [2, 3]);
+  for (const r of rows) assert.equal(r.reduce((s, i) => s + i.w, 0), 12);
 });
 
 test('rowsToItems: converte rows em coordenadas contíguas sem estourar', () => {
