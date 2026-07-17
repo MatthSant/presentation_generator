@@ -156,6 +156,24 @@ test('renderWidget: unknown type renders an error card', () => {
   assert.ok(node.classList.contains('widget-error'));
 });
 
+test('renderWidget: table auto-heats a Gap column, leaves volume plain', () => {
+  const resolved: ResolvedBind = { categories: [], series: [], rows: [
+    { ind: 'Hook', leads: '751', gap: '-30%' },
+    { ind: 'CTR', leads: '295', gap: '+9%' },
+  ], totals: {} };
+  const node = renderWidget(
+    { id: 't', type: 'table', cols: ['ind', 'leads', 'gap'], bind: { dataset: 'd' } } as Widget,
+    ctxWith(resolved),
+  );
+  const bodyRows = [...node.querySelectorAll('tbody tr')];
+  const heatOn = (i: number): boolean => bodyRows.some((tr) => [...tr.children[i].classList].some((c) => /^c[a-z]/.test(c)));
+  assert.ok(heatOn(2), 'a coluna Gap deve pintar');
+  assert.ok(!heatOn(1), 'a coluna de volume (Leads, só positivos sem sinal) não pinta');
+  // sinal do heat: negativo → tom vermelho, positivo → verde
+  assert.ok([...bodyRows[0].children[2].classList].some((c) => c.startsWith('cs') || c === 'cn' || c === 'cxn'), '-30% é vermelho');
+  assert.ok([...bodyRows[1].children[2].classList].some((c) => c === 'cp' || c === 'cp2' || c === 'csp'), '+9% é verde');
+});
+
 test('renderWidget: def-step renders num, stats and HTML bullets', () => {
   const node = renderWidget({
     id: 'd1', type: 'def-step', num: '01', label: 'Base de dados', title: 'Universo analisado',

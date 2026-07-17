@@ -888,26 +888,52 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
   throw new Error('loop de aprofundamento sem emit_modal');
 }
 
-/** Offline deep modal: runs one real crosstab (card criterion × another factor)
- *  through the query catalog, registers it, and binds a chart to it. */
-async function mockModalDeep(card: CardCtx, _catalog: DeepenCatalog, deps: DeepDeps): Promise<unknown> {
+/** Offline deep modal: roda UMA consulta real pelo catálogo do tipo, registra a
+ *  tabela e prende um gráfico nela — prova o mecanismo sem chave de API.
+ *
+ *  A consulta sai do que o REGISTRY declara (`meta.consultar.funcoes`), não de um
+ *  nome fixo: `crosstab` só existe no conversao-perfil, então o mock devolvia
+ *  "Recorte não disponível: função 'crosstab' não existe no catálogo" nos outros
+ *  4 tipos — e gravava isso como se fosse um aprofundamento. */
+async function mockModalDeep(card: CardCtx, catalog: DeepenCatalog, deps: DeepDeps): Promise<unknown> {
+  const fns = (deps.meta.consultar?.funcoes ?? []).map((f) => f.id);
   const ids = (deps.meta.criterios ?? []).map((c) => c.id);
-  const bindName = (card.bind as { dataset?: string } | undefined)?.dataset || '';
-  const m = bindName.match(/^crit_([a-z0-9]+)_/i);
-  const criterio = (m && ids.includes(m[1]) ? m[1] : ids[0]) || ids[0];
-  const cruzar = ids.find((x) => x !== criterio) || criterio;
-  const canal = (deps.meta.canais ?? ['Geral'])[0] || 'Geral';
-
   const widgets: unknown[] = [];
-  const r = await deps.runQuery('crosstab', { criterio, cruzar_com: cruzar, canal });
-  if (r.status === 'ok' && r.table) {
-    const key = deps.registerTable(r.table, r.summary ?? '');
-    widgets.push({ type: 'find-note', text: `Cruzamento sob demanda: <strong>${criterio}</strong> × <strong>${cruzar}</strong> (${canal}). ${r.summary ?? ''} <em>[mock]</em>` });
-    widgets.push({ type: 'chart', title: r.summary ?? 'Cruzamento', chartType: 'bar', bind: { dataset: key, x: 'grupo', y: 'valor', series: 'cruzar' } });
-  } else {
-    widgets.push({ type: 'find-note', text: `Recorte não disponível: ${r.motivo ?? 'sem dados'}. <em>[mock]</em>` });
+
+  // 1ª opção: o crosstab do conversao-perfil (o único com args ricos e legado). Vale
+  // quando o registry o anuncia OU (legado) quando o tipo tem `criterios` mas não
+  // declarou `funcoes` — o conversao-perfil histórico.
+  // Senão, `tabela` — a genérica que TODO tipo com deep mode expõe (query_core).
+  let r: QueryReply | null = null;
+  let titulo = '';
+  const temCrosstab = fns.includes('crosstab') || (fns.length === 0 && ids.length > 0);
+  if (temCrosstab && ids.length) {
+    const bindName = (card.bind as { dataset?: string } | undefined)?.dataset || '';
+    const m = bindName.match(/^crit_([a-z0-9]+)_/i);
+    const criterio = (m && ids.includes(m[1]) ? m[1] : ids[0]) || ids[0];
+    const cruzar = ids.find((x) => x !== criterio) || criterio;
+    const canal = (deps.meta.canais ?? ['Geral'])[0] || 'Geral';
+    r = await deps.runQuery('crosstab', { criterio, cruzar_com: cruzar, canal });
+    titulo = `${criterio} × ${cruzar} (${canal})`;
+    if (r.status === 'ok' && r.table) {
+      const key = deps.registerTable(r.table, r.summary ?? '');
+      widgets.push({ type: 'find-note', text: `Cruzamento sob demanda: <strong>${titulo}</strong>. ${r.summary ?? ''} <em>[mock]</em>` });
+      widgets.push({ type: 'chart', title: r.summary ?? 'Cruzamento', chartType: 'bar', bind: { dataset: key, x: 'grupo', y: 'valor', series: 'cruzar' } });
+      return { id: 'modal-mock', title: `Detalhe — ${card.title ?? 'card'}`, widgets };
+    }
   }
-  return { id: 'modal-mock', title: `Detalhe — ${card.title ?? 'card'}`, widgets };
+  if (fns.includes('tabela')) {
+    r = await deps.runQuery('tabela', {});
+    if (r.status === 'ok' && r.table) {
+      const key = deps.registerTable(r.table, r.summary ?? '');
+      const cols = (r.table.dims || []).concat(Object.keys(r.table.rows[0] || {}).filter((k) => !(r!.table!.dims || []).includes(k))).slice(0, 5);
+      widgets.push({ type: 'find-note', text: `Consulta real pelo catálogo (<strong>tabela</strong>). ${r.summary ?? ''} <em>[mock]</em>` });
+      widgets.push({ type: 'table', title: r.summary || 'Panorama', cols, bind: { dataset: key } });
+      return { id: 'modal-mock', title: `Detalhe — ${card.title ?? 'card'}`, widgets };
+    }
+  }
+  // Nenhuma consulta serviu → cai no mock RASO (catálogo), que sempre tem o que mostrar.
+  return mockModal(catalog, card);
 }
 
 /** Offline modal: prose + the criterion's "variação por grupo" chart, bound to a

@@ -506,6 +506,21 @@ function renderChartTable(w: ChartTableWidget, ctx: RenderCtx): HTMLElement {
   return card;
 }
 
+/** Colunas de DIFERENÇA — as que pedem heat divergente (verde acima / vermelho abaixo).
+ *  Casa o cabeçalho, não o dado: gap, diff, desvio, variação, Δ, "vs bench/meta/média".
+ *  O deepen escreve o rótulo livremente, então aqui vale o vocabulário, não uma lista
+ *  fechada de nomes. */
+const DIFF_COL = /^\s*(gap|diff|dif|desvio|varia[çc][ãa]o|delta|Δ|[+\-−]?\s*%|vs\.?\s|.*\bvs\.?\s*(bench|benchmark|meta|m[ée]dia|hist)|.*\b(gap|diff|desvio|delta)\b)/i;
+/** A coluna é de diferença E os valores são lidos como número? (senão o heat não diz nada) */
+function isDiffCol(label: string, values: unknown[]): boolean {
+  if (!DIFF_COL.test(label)) return false;
+  const nums = values.map((v) => parseFloat(String(v).replace(/−/g, '-').replace(/[^0-9.-]/g, ''))).filter((n) => Number.isFinite(n));
+  // exige sinal (+/−) ou pelo menos um negativo: uma coluna só de positivos sem sinal
+  // costuma ser volume ("Leads"), não desvio.
+  const temSinal = values.some((v) => /[+\-−]/.test(String(v)));
+  return nums.length >= Math.max(2, values.length * 0.6) && (temSinal || nums.some((n) => n < 0));
+}
+
 /* ── heat class from a cell value ── diverging diff scale or long-term uplift scale */
 function heatClass(value: unknown, scale: 'diff' | 'uplift' | 'amp' | 'surv'): string {
   const n = parseFloat(String(value).replace(/−/g, '-').replace(/[^0-9.-]/g, ''));
@@ -619,6 +634,17 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
     rows = w.rows || [];
   }
 
+  // Heat AUTOMÁTICO na coluna de diferença: se o autor não declarou colorScale, detecta
+  // as colunas de gap/diff/desvio pelo cabeçalho + valores e aplica a escala divergente.
+  // É o pedido "quando tiver gap, coloca heatmap de fato" — determinístico, vale p/
+  // qualquer tabela (o deepen não precisa saber pedir). colorScale explícito tem prioridade.
+  const autoDiff: Record<number, 'diff'> = {};
+  cols.forEach((label, i) => {
+    if (w.colorScale?.[label]) return;
+    const vals = rows.map((r) => { const c = r[i]; return (c && typeof c === 'object') ? c.value : c; });
+    if (isDiffCol(label, vals)) autoDiff[i] = 'diff';
+  });
+
   for (const h of cols) {
     const th = el('th', '', h);
     const def = w.defs?.[h];
@@ -656,7 +682,7 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
         if (obj.cls) td.classList.add(obj.cls);
         if (obj.title) td.title = obj.title;
       }
-      const scale = w.colorScale?.[cols[i]];
+      const scale = w.colorScale?.[cols[i]] ?? autoDiff[i];
       if (scale) { const cls = heatClass(value, scale); if (cls) td.classList.add(cls); }
       tr.appendChild(td);
     });
