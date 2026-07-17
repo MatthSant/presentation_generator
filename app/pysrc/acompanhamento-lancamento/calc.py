@@ -541,6 +541,11 @@ def build(rows, config=None):
 
 
 def _creatives(day_rows, links):
+    # ÚLTIMO DIA COM VERBA: a régua de "ainda está no ar". Quem gastou nele está ATIVO;
+    # quem não gastou foi pausado (ou o anúncio acabou). É o último dia com investimento
+    # pago — não o último dia do dump, que pode ter só linha de conversão orgânica.
+    ultimo_dia = max((_date(r) for r in day_rows
+                      if is_paid(r) and _date(r) and fnum(r.get('invest_total')) > 0), default='')
     by_ad = {}
     for r in day_rows:
         if not is_paid(r):
@@ -548,8 +553,12 @@ def _creatives(day_rows, links):
         ad = (r.get('field_ad_name') or '').strip()
         if not ad:
             continue
-        a = by_ad.setdefault(ad, {'name': ad, 'invest': 0.0, 'leads_traf': 0.0, 'mqls': 0.0, 'respostas': 0.0, 'link': None})
-        a['invest'] += fnum(r.get('invest_total'))
+        a = by_ad.setdefault(ad, {'name': ad, 'invest': 0.0, 'leads_traf': 0.0, 'mqls': 0.0,
+                                  'respostas': 0.0, 'link': None, 'invest_ult': 0.0})
+        inv = fnum(r.get('invest_total'))
+        a['invest'] += inv
+        if ultimo_dia and _date(r) == ultimo_dia:
+            a['invest_ult'] += inv
         a['leads_traf'] += fnum(r.get('leads_trafego'))
         a['mqls'] += fnum(r.get('leads_mqls'))
         a['respostas'] += fnum(r.get('respostas'))
@@ -566,13 +575,26 @@ def _creatives(day_rows, links):
         out.append({'name': a['name'], 'link': a['link'] or links.get(a['name']),
                     'invest': round(a['invest'], 2), 'leads': round(a['leads_traf']),
                     'respostas': round(a['respostas']), 'cpl': cpl, 'taxa_qual': tq,
+                    'ativo': a['invest_ult'] > 0,
                     'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None)})
-    best = sorted(out, key=lambda c: -c['leads'])[:3]
-    # maior qualificação (taxa de qualidade) — só com base estatística mínima (≥20
-    # respostas), senão um criativo com pouquíssima pesquisa "ganha" por ruído.
-    eff = sorted([c for c in out if c['taxa_qual'] is not None and c['respostas'] >= 20],
-                 key=lambda c: -c['taxa_qual'])[:3]
-    return {'best': best, 'eff': eff}
+
+    def _rank(lst):
+        best = sorted(lst, key=lambda c: -c['leads'])[:3]
+        # maior qualificação (taxa de qualidade) — só com base estatística mínima (≥20
+        # respostas), senão um criativo com pouquíssima pesquisa "ganha" por ruído.
+        eff = sorted([c for c in lst if c['taxa_qual'] is not None and c['respostas'] >= 20],
+                     key=lambda c: -c['taxa_qual'])[:3]
+        return {'best': best, 'eff': eff}
+
+    # O top-3 é rankeado DENTRO de cada escopo: filtrar depois de cortar em 3 devolveria
+    # listas com 1 ou 0 criativos (e o "melhor ativo" sumiria só por não estar no top-3 geral).
+    ativos = [c for c in out if c['ativo']]
+    inativos = [c for c in out if not c['ativo']]
+    todos = _rank(out)
+    return {'best': todos['best'], 'eff': todos['eff'],   # compat: o escopo "Todos"
+            'ultimo_dia': ultimo_dia, 'ultimo_dia_label': _day_label(ultimo_dia),
+            'by_scope': {'ativo': _rank(ativos), 'inativo': _rank(inativos), 'todos': todos},
+            'n': {'ativo': len(ativos), 'inativo': len(inativos), 'todos': len(out)}}
 
 
 def _funnel(rows, bench=None, stages=None):

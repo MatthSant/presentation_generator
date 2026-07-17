@@ -789,12 +789,20 @@ export interface QuadrantScatterWidget extends WidgetBase {
 
 /** cri-list — lista de entidades ranqueadas (criativos): thumb + nome (link) +
  *  meta (sub-linha) + stats à direita (ex.: leads + CPMQL proj.). */
+export interface CriRow { name: string; link?: string; meta?: string;
+                          stats: { value: string; label: string; tone?: 'pos' | 'neg' | 'neutral' }[] }
+/** Uma aba de escopo do cri-list: rótulo + as linhas daquele recorte, já rankeadas
+ *  pelo motor (o top-N precisa ser calculado DENTRO do escopo, não filtrado depois). */
+export interface CriListTab { label: string; rows: CriRow[]; caption?: string; }
 export interface CriListWidget extends WidgetBase {
   type: 'cri-list';
   title?: string;
   caption?: string;
-  rows: { name: string; link?: string; meta?: string;
-          stats: { value: string; label: string; tone?: 'pos' | 'neg' | 'neutral' }[] }[];
+  /** Forma simples: uma lista só. */
+  rows?: CriRow[];
+  /** Forma com TOGGLE: N escopos precomputados (ex.: Ativo/Inativo/Todos). Quando
+   *  presente, um seg toggle aparece no topo à direita e `rows` é ignorado. */
+  tabs?: CriListTab[];
 }
 
 export type Widget =

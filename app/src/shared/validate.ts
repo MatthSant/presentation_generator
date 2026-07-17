@@ -238,9 +238,18 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'bar-list':
       if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'bar-list requires a rows array');
       break;
-    case 'cri-list':
-      if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'cri-list requires a rows array');
+    case 'cri-list': {
+      // Duas formas: `rows` (lista única) ou `tabs[]` (escopos precomputados).
+      const ctabs = Array.isArray(w.tabs) ? w.tabs : [];
+      if (ctabs.length === 0 && (!Array.isArray(w.rows) || w.rows.length === 0)) {
+        c.err(`${path}.rows`, 'cri-list requires a rows array or tabs[]');
+      }
+      ctabs.forEach((t, i) => {
+        if (!isObj(t) || !isNonEmptyStr((t as Obj).label)) c.err(`${path}.tabs[${i}].label`, 'cri-list tab requires a label');
+        else if (!Array.isArray((t as Obj).rows)) c.err(`${path}.tabs[${i}].rows`, 'cri-list tab requires a rows array');
+      });
       break;
+    }
     case 'meta-bars':
       if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'meta-bars requires a rows array');
       break;

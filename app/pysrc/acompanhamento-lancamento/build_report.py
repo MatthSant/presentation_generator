@@ -360,15 +360,37 @@ def assemble(rows, config, content, opts=None):
                 rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
                              'stats': [{'value': intf(c['leads']), 'label': 'leads'}, stat2]})
             return rows
+        # Escopos do toggle: ATIVO = gastou no último dia com verba (segue no ar);
+        # INATIVO = não gastou (pausado/encerrado). O top-3 é rankeado dentro de cada
+        # escopo — ver calc._creatives. Escopo vazio não vira aba.
+        n = cr.get('n') or {}
+        ult = cr.get('ultimo_dia_label') or ''
+        SCOPES = [('ativo', 'Ativo'), ('inativo', 'Inativo'), ('todos', 'Todos')]
+
+        def cri_tabs(key, eff=False):
+            tabs = []
+            for sk, slabel in SCOPES:
+                lst = ((cr.get('by_scope') or {}).get(sk) or {}).get(key) or []
+                if not lst:
+                    continue
+                tabs.append({'label': slabel, 'rows': cri_list_rows(lst, eff=eff)})
+            return tabs
+
+        ativo_nota = (f'Ativo = gastou em {ult}, o último dia com verba '
+                      f'({n.get("ativo", 0)} de {n.get("todos", 0)} criativos).' if ult else '')
         if cr['best']:
-            can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
-                        'rows': cri_list_rows(cr['best'])})
-            cg.add('can-cri-best', 'cri-list', 6, 4)
+            tabs = cri_tabs('best')
+            if tabs:
+                can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
+                            'caption': ativo_nota or None, 'tabs': tabs})
+                cg.add('can-cri-best', 'cri-list', 6, 4)
         if cr['eff']:
-            can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
-                        'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
-                        'rows': cri_list_rows(cr['eff'], eff=True)})
-            cg.add('can-cri-eff', 'cri-list', 6, 4)
+            tabs = cri_tabs('eff', eff=True)
+            if tabs:
+                can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
+                            'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
+                            'tabs': tabs})
+                cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}
     layouts['s03'] = cg.items
