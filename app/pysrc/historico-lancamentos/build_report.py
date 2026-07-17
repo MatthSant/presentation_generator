@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, xf, intf, safe, fmtval
-from common.preserve import preserve, preserve_dataset
+from common.preserve import preserve, preserve_dataset, preserve_layout
 # Builders de seção compartilhados. O kpi-card fica no `card()` local: o histórico
 # usa spark + delta vs. anterior (sem meta/goalCmp), que o km() de common não modela.
 from common.report import eb, fb
@@ -418,6 +418,7 @@ def build(csv_path, config, content, out_dir):
     r = assemble(rows, config, content, {})
     preserve(out_dir, r['data'], r['sections'])
     preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
+    preserve_layout(out_dir, r['layout'])     # disposição dos det-* sobrevive
     def dump(name, obj):
         json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])
