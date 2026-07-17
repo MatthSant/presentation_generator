@@ -210,7 +210,7 @@ function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
 
 /* ── eyebrow ── numbered zone separator (badge + title + caption + rule) */
 function renderEyebrow(w: EyebrowWidget): HTMLElement {
-  const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
+  const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.compact ? ' grp-eyebrow--compact' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
   if (w.info) wrap.appendChild(infoBadge(w.info));
@@ -398,7 +398,8 @@ function renderKpiCard(w: KpiCardWidget): HTMLElement {
   }
   const tintCls = (w.tier === 'volume' && w.tint) ? ` kc--tint-${w.tint}` : '';
   const emphCls = (feature && w.emph) ? ' kc--emph' : '';
-  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}${emphCls}`);
+  const cmpCls = w.compact ? ' kc--compact' : '';
+  const card = el('div', `card kc kc--${feature ? 'feature' : 'volume'}${tintCls}${emphCls}${cmpCls}`);
   const val = el('div', 'kc-val');
   val.innerHTML = String(w.value).replace(/\s\/\s/g, '<span class="kpi-sep">/</span>');
   if (feature) {
@@ -667,7 +668,7 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
 
 /* ── heatmap ── inline rows, or bound (pivot a long-format table so the channel
  *  toggle re-filters it: one dataset row per cell → grid). */
-interface HeatSpec { bind?: Bind; rowKey?: string; rowLabelKey?: string; rowTitleKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string; clsHistKey?: string; titleHistKey?: string }
+interface HeatSpec { bind?: Bind; rowKey?: string; rowLabelKey?: string; rowTitleKey?: string; rowClsKey?: string; colKey?: string; valKey?: string; clsKey?: string; titleKey?: string; clsHistKey?: string; titleHistKey?: string }
 function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: HeatRow[] } | null {
   const r = ctx.resolve(w.bind);
   if (!r || r.rows.length === 0) return null;
@@ -682,7 +683,7 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
   const rowOrder: string[] = [];
   // identidade da linha = rowKey (nome completo, único); rótulo exibido e tooltip opcionais.
   const byRow = new Map<string, Map<string, HeatCell>>();
-  const rowMeta = new Map<string, { label: string; title?: string }>();
+  const rowMeta = new Map<string, { label: string; title?: string; cls?: string }>();
   for (const row of r.rows) {
     const rk = String(row[rowKey] ?? '');
     const ck = String(row[colKey] ?? '');
@@ -693,6 +694,7 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
       rowMeta.set(rk, {
         label: w.rowLabelKey && row[w.rowLabelKey] != null ? String(row[w.rowLabelKey]) : rk,
         title: w.rowTitleKey && row[w.rowTitleKey] != null ? String(row[w.rowTitleKey]) : undefined,
+        cls: w.rowClsKey && row[w.rowClsKey] != null ? String(row[w.rowClsKey]) : undefined,
       });
     }
     byRow.get(rk)!.set(ck, {
@@ -704,6 +706,7 @@ function pivotHeatmap(w: HeatSpec, ctx: RenderCtx): { cols: string[]; rows: Heat
   const rows: HeatRow[] = rowOrder.map(rk => ({
     label: rowMeta.get(rk)!.label,
     title: rowMeta.get(rk)!.title,
+    cls: rowMeta.get(rk)!.cls,
     cells: cols.map(ck => byRow.get(rk)!.get(ck) ?? { value: '—' }),
   }));
   return { cols, rows };
@@ -716,11 +719,13 @@ function buildHeatGrid(cols: string[], rows: HeatRow[]): HTMLElement {
   grid.appendChild(el('div'));
   for (const c of cols) grid.appendChild(el('div', 'hm-th', c));
   for (const r of rows) {
-    const rh = el('div', 'hm-rh', r.label);
+    // r.cls marca a linha inteira (cabeçalho + células) — o grid é flat, então não há
+    // um <tr> onde pendurar a classe: ela vai em cada filho daquela linha.
+    const rh = el('div', `hm-rh${r.cls ? ` ${r.cls}` : ''}`, r.label);
     if (r.title && r.title !== r.label) rh.title = r.title;
     grid.appendChild(rh);
     for (const cell of r.cells || []) {
-      const td = el('div', `hm-cell ${cell.cls || 'hm-n'}`, formatValue(cell.value));
+      const td = el('div', `hm-cell ${cell.cls || 'hm-n'}${r.cls ? ` ${r.cls}` : ''}`, formatValue(cell.value));
       if (cell.title) td.title = cell.title;
       grid.appendChild(td);
     }
@@ -997,7 +1002,7 @@ function renderQaCard(w: QaCardWidget, ctx: RenderCtx): HTMLElement {
 /* ── funnel ── funil visual: barras degradê por etapa + pills perda/migram. */
 const FUNNEL_GRAD = ['#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#3B1675', '#2E084B'];
 function renderFunnel(w: FunnelWidget): HTMLElement {
-  const wrap = el('div', 'funnel-card');
+  const wrap = el('div', 'funnel-card' + (w.compact ? ' funnel-card--compact' : ''));
   if (w.title) wrap.appendChild(el('div', 'funnel-title', w.title));
   if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
   const hasHist = (w.transitions || []).some(t => t && t.benchHist != null);
@@ -1011,14 +1016,20 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
     w.steps.forEach((s, i) => {
       const bar = el('div', 'funnel-bar');
       bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
-      // Afunilamento: largura decresce por etapa (100% → ~46%), dando a forma de funil.
-      bar.style.width = `${(n > 1 ? 100 - i * (54 / (n - 1)) : 100).toFixed(1)}%`;
+      // Afunilamento: largura decresce por etapa, dando a forma de funil. No COMPACTO a
+      // barra divide a linha com a taxa, então parte de 68% (não 100%) — senão a 1ª
+      // barra ocupa a linha inteira e empurra a tag p/ fora do card.
+      const top = w.compact ? 68 : 100, taper = w.compact ? 34 : 54;
+      bar.style.width = `${(n > 1 ? top - i * (taper / (n - 1)) : top).toFixed(1)}%`;
       bar.appendChild(el('span', 'funnel-bar-l', s.label));
       bar.appendChild(el('span', 'funnel-bar-v', s.vlabel ?? (s.value ?? 0).toLocaleString('pt-BR')));
-      body!.appendChild(bar);
+      // COMPACTO: a barra e a taxa dividem a MESMA linha (a taxa à direita), em vez de
+      // empilhar conector+pill+conector entre as barras. Corta ~metade da altura.
+      const row = w.compact ? el('div', 'funnel-row') : null;
+      if (row) { row.appendChild(bar); body!.appendChild(row); } else { body!.appendChild(bar); }
       const t = w.transitions?.[i];
       if (t && i < n - 1) {
-        body!.appendChild(el('div', 'funnel-conn'));
+        if (!w.compact) body!.appendChild(el('div', 'funnel-conn'));
         const pills = el('div', 'funnel-pills');
         if (t.invalid) {
           pills.appendChild(el('span', 'funnel-pill funnel-pill--invalid', '⚠️ Dado inválido'));
@@ -1048,7 +1059,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
               `${below ? '⚠ ' : '✓ '}${t.migrate.toFixed(dec)}%${baseTxt}${furoTxt}`));
           }
         }
-        body!.appendChild(pills);
+        if (row) row.appendChild(pills); else body!.appendChild(pills);
       }
     });
     wrap.appendChild(body);
@@ -1727,20 +1738,105 @@ function renderGrpList(w: GrpListWidget): HTMLElement {
 /* ── link-card ── grid de cards clicáveis que abrem uma seção (ficha). Cada card:
  *  nome + sub + tags + métricas 2×2 + indicador principal com barra. O clique
  *  dispara 'goto-section' (o main navega). */
+/** Seletor de ordenação do link-card: reordena os cards no grid e RENUMERA os ranks
+ *  (senão o "1" passa a mentir depois de reordenar). Clicar na chave ativa inverte a
+ *  direção, como na sidebar. */
+function buildLcSort(w: LinkCardWidget, grid: HTMLElement, ranks: HTMLElement[]): HTMLElement {
+  const seg = el('div', 'seg lc-sort');
+  const keys = w.sortKeys || [];
+  let curKey = keys[0]?.key || 'name';
+  let dir = keys[0]?.asc ? 1 : -1;
+  const num = (e: HTMLElement, k: string): number => {
+    const v = Number(e.dataset[k]);
+    return Number.isFinite(v) ? v : (dir < 0 ? -Infinity : Infinity);   // sem valor vai p/ o fim
+  };
+  const apply = (): void => {
+    const cards = [...grid.querySelectorAll<HTMLElement>('.lc-card')];
+    cards.sort((a, b) => curKey === 'name'
+      ? dir * (a.dataset.name || '').localeCompare(b.dataset.name || '', 'pt-BR')
+      : dir * (num(a, curKey) - num(b, curKey)));
+    for (const c of cards) grid.appendChild(c);
+    // renumera: o rank é a posição NESTA ordem
+    cards.forEach((c, i) => {
+      const r = c.querySelector<HTMLElement>('.lc-rank');
+      if (!r) return;
+      r.textContent = String(i + 1);
+      r.classList.toggle('lc-rank--top', i === 0);
+      r.title = `${i + 1}º por ${keys.find((k) => k.key === curKey)?.label || curKey}`;
+    });
+    void ranks;
+    for (const b of seg.querySelectorAll<HTMLElement>('.seg-opt')) {
+      const on = b.dataset.key === curKey;
+      b.classList.toggle('active', on);
+      b.textContent = (keys.find((k) => k.key === b.dataset.key)?.label || '') + (on ? (dir < 0 ? ' ↓' : ' ↑') : '');
+    }
+  };
+  for (const k of keys) {
+    const b = el('button', 'seg-opt' + (k.key === curKey ? ' active' : '')) as HTMLButtonElement;
+    b.type = 'button'; b.dataset.key = k.key;
+    b.textContent = k.label + (k.key === curKey ? (dir < 0 ? ' ↓' : ' ↑') : '');
+    b.addEventListener('click', () => {
+      if (curKey === k.key) dir = -dir; else { curKey = k.key; dir = k.asc ? 1 : -1; }
+      apply();
+    });
+    seg.appendChild(b);
+  }
+  return seg;
+}
+
+/* Card de entidade ranqueada (criativos). Hierarquia em 3 alturas, como manda o
+ *  design system: identidade (rank + nome) → a MÉTRICA da ordenação, em tamanho de
+ *  herói → os secundários, em micro. A barra só existe com `ranked`: aí ela lê como
+ *  "distância até o 1º", que é o que a posição significa. */
 function renderLinkCard(w: LinkCardWidget): HTMLElement {
   const wrap = el('div', 'lc-wrap');
-  if (w.title) wrap.appendChild(el('div', 'chart-title', w.title));
   const grid = el('div', 'lc-grid');
-  for (const c of w.cards || []) {
+  const ranks: HTMLElement[] = [];   // renumerados a cada reordenação
+
+  // Cabeçalho: título + seletor de ordenação (quando o motor declara as chaves).
+  const hd = el('div', 'lc-hd');
+  if (w.title) hd.appendChild(el('div', 'chart-title', w.title));
+  if (w.sortKeys?.length) hd.appendChild(buildLcSort(w, grid, ranks));
+  if (hd.childNodes.length) wrap.appendChild(hd);
+
+  for (const [i, c] of (w.cards || []).entries()) {
     const card = el('button', 'lc-card') as HTMLButtonElement;
     card.type = 'button';
-    const head = el('div', 'lc-head');
-    head.append(el('div', 'lc-name', c.title), el('div', 'lc-sub', c.sub || ''));
-    card.appendChild(head);
+
+    const top = el('div', 'lc-top');
+    if (w.ranked) {
+      const r = el('span', 'lc-rank' + (i === 0 ? ' lc-rank--top' : ''), String(i + 1));
+      ranks.push(r);
+      top.appendChild(r);
+    }
+    const id = el('div', 'lc-id');
+    const name = el('div', 'lc-name', c.title);
+    name.title = c.title;                       // o nome quebra em 2 linhas; o resto fica no hover
+    id.appendChild(name);
+    if (c.sub) id.appendChild(el('div', 'lc-sub', c.sub));
+    top.appendChild(id);
+    card.appendChild(top);
+    // valores crus no DOM → o seletor de ordenação lê daqui
+    card.dataset.name = c.title;
+    for (const [k, v] of Object.entries(c.sort || {})) if (v != null) card.dataset[k] = String(v);
+
     if (c.tags?.length) {
       const t = el('div', 'lc-tags');
       for (const tg of c.tags) t.appendChild(el('span', `lc-tag lc-tag-${tg.tone || 'n'}`, tg.label));
       card.appendChild(t);
+    }
+    if (c.main) {
+      const mn = el('div', `lc-main lc-main-${c.main.tone || 'p'}`);
+      mn.append(el('div', 'lc-main-l', c.main.label), el('div', 'lc-main-v', c.main.value));
+      if (w.ranked && typeof c.main.pct === 'number') {
+        const bar = el('div', 'lc-bar');
+        bar.title = i === 0 ? 'Melhor valor do recorte' : 'Proporção em relação ao 1º colocado';
+        const fill = el('div', 'lc-bar-f');
+        fill.style.width = `${Math.max(0, Math.min(100, c.main.pct))}%`;
+        bar.appendChild(fill);
+        mn.appendChild(bar);
+      }
+      card.appendChild(mn);
     }
     if (c.metrics?.length) {
       const m = el('div', 'lc-metrics');
@@ -1750,18 +1846,6 @@ function renderLinkCard(w: LinkCardWidget): HTMLElement {
         m.appendChild(cell);
       }
       card.appendChild(m);
-    }
-    if (c.main) {
-      const mn = el('div', `lc-main lc-main-${c.main.tone || 'p'}`);
-      mn.append(el('div', 'lc-main-l', c.main.label), el('div', 'lc-main-v', c.main.value));
-      if (typeof c.main.pct === 'number') {
-        const bar = el('div', 'lc-bar');
-        const fill = el('div', 'lc-bar-f');
-        fill.style.width = `${Math.max(0, Math.min(100, c.main.pct))}%`;
-        bar.appendChild(fill);
-        mn.appendChild(bar);
-      }
-      card.appendChild(mn);
     }
     if (c.gotoSection) {
       card.addEventListener('click', () => document.dispatchEvent(

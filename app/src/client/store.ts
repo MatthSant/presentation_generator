@@ -8,7 +8,9 @@ import type {
   ReportData, DataMap, Layout, ActiveFilters, Section, PageRef, FilterDef,
 } from '../shared/types.js';
 
-export interface SectionRef { id: string; label: string; pageId: string; pageLabel: string; }
+/** `title` presente (ver common/preserve.py) = o `label` é abreviação só de nav e o
+ *  título é conteúdo da página, que precisa mostrá-lo inteiro. */
+export interface SectionRef { id: string; label: string; title?: string; pageId: string; pageLabel: string; }
 
 export class Store {
   data: ReportData = { meta: {}, pages: [] };
@@ -30,7 +32,7 @@ export class Store {
   allSections(): SectionRef[] {
     const out: SectionRef[] = [];
     for (const p of this.pages) {
-      for (const s of p.sections) out.push({ id: s.id, label: s.label, pageId: p.id, pageLabel: p.label });
+      for (const s of p.sections) out.push({ id: s.id, label: s.label, title: s.title, pageId: p.id, pageLabel: p.label });
     }
     return out;
   }

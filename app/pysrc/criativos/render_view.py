@@ -27,8 +27,12 @@ def main(argv):
     dict_csv = config.get('dict_csv')
     opts['dict'] = calc.load_dict(dict_csv) if dict_csv and os.path.exists(dict_csv) else {}
     r = assemble(rows, config, {}, opts)
+    # `pages` vai junto: os filtros (temperatura / investimento mínimo) mudam QUAIS
+    # criativos existem, então a lista de fichas da sidebar precisa acompanhar. O
+    # client mescla por id — aqui só saem as páginas do assemble (panorama/fichas);
+    # Aprofundamentos e Perguntas vivem no disco (preserve) e não podem se perder.
     out = json.dumps({'dataset': r['dataset'], 'sections': r['sections'],
-                      'layout': r['layout']['sections']}, ensure_ascii=False)
+                      'layout': r['layout']['sections'], 'pages': r['data']['pages']}, ensure_ascii=False)
     # UTF-8 explícito: o console Windows (cp1252) não codifica caracteres como ★.
     sys.stdout.buffer.write(out.encode('utf-8'))
     sys.stdout.buffer.write(b'\n')

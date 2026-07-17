@@ -199,7 +199,9 @@ export interface TableWidget extends WidgetBase {
 }
 
 export interface HeatCell { value: string | number; cls?: string; title?: string }
-export interface HeatRow { label: string; cells: HeatCell[]; title?: string }
+/** `cls` marca a linha inteira (cabeçalho + células) — ex.: `hm-ref` numa linha de
+ *  referência (média/base) que serve de régua para as demais, não é par delas. */
+export interface HeatRow { label: string; cells: HeatCell[]; title?: string; cls?: string }
 export interface HeatmapWidget extends WidgetBase {
   type: 'heatmap';
   /** Column headers. Optional when bound — derived from the `colKey` column. */
@@ -216,6 +218,8 @@ export interface HeatmapWidget extends WidgetBase {
   valKey?: string;
   clsKey?: string;
   titleKey?: string;
+  /** Coluna cuja 1ª ocorrência na linha vira a classe da LINHA (ver HeatRow.cls). */
+  rowClsKey?: string;
 }
 
 /** One tab of a heatmap-toggle: its own bound dataset + pivot keys. */
@@ -224,6 +228,11 @@ export interface HeatmapTab {
   sub?: string;
   bind: Bind;
   rowKey?: string;
+  /** Rótulo exibido e tooltip da linha, quando o `rowKey` (identidade) é longo demais
+   *  p/ caber — nome de campanha/público. Ausentes → mostra o próprio rowKey. */
+  rowLabelKey?: string;
+  rowTitleKey?: string;
+  rowClsKey?: string;
   colKey?: string;
   valKey?: string;
   clsKey?: string;
@@ -406,6 +415,9 @@ export interface EyebrowWidget extends WidgetBase {
   /** Divisor de grupo (cabeçalho de seção): estilo mais forte que um eyebrow comum,
    *  para abrir um bloco que contém sub-seções (que usam eyebrows normais). */
   divider?: boolean;
+  /** Sem a margem de separação de seção (50px). Para rótulo DENTRO de um bloco que
+   *  precisa caber numa dobra — a margem custa mais que o próprio rótulo. */
+  compact?: boolean;
   /** Tooltip (i) ao lado do título — ex.: critérios de cor/marcação de um widget. */
   info?: string;
 }
@@ -437,6 +449,9 @@ export interface KpiCardWidget extends WidgetBase {
   /** Destaque (feature): fundo roxo em degradê + texto claro — p/ a métrica-chave
    *  da seção (ex.: CPMQL nos KPIs macro). */
   emph?: boolean;
+  /** COMPACTO: padding e rótulo apertados, valor menor. Para grades de muitas métricas
+   *  dentro de um bloco que precisa caber numa dobra (ficha do criativo). */
+  compact?: boolean;
   /** Tom de fundo (tint) do card por categoria — p/g/a/r/n. Para grades de células
    *  categóricas (ex.: tipo de lead: roxo base, vermelho pago, verde orgânico). */
   tint?: ColorToken;
@@ -511,12 +526,22 @@ export interface LinkCard {
   tags?: Array<{ label: string; tone?: ColorToken }>;
   metrics?: Array<{ label: string; value: string }>;
   main?: { label: string; value: string; pct?: number; tone?: ColorToken };
+  /** Valores CRUS p/ ordenar (as métricas acima são strings formatadas). Chaveado
+   *  pelas `sortKeys` do widget. */
+  sort?: Record<string, number | null>;
   gotoPage?: string;
   gotoSection?: string;
 }
 export interface LinkCardWidget extends WidgetBase {
   type: 'link-card';
   title?: string;
+  /** Cards já vêm ORDENADOS por `main` → numera 1..n e a barra lê como "vs o 1º".
+   *  Opt-in: sem isso a posição não significa nada e o número mentiria. */
+  ranked?: boolean;
+  /** Liga o seletor de ordenação. `key` casa com `card.sort[key]`; a chave especial
+   *  `name` ordena pelo título (A-Z). A 1ª entrada é a ordem em que os cards chegam.
+   *  `asc` = menor primeiro é o "melhor" (custo, A-Z); default = maior primeiro. */
+  sortKeys?: Array<{ key: string; label: string; asc?: boolean }>;
   cards: LinkCard[];
 }
 
@@ -589,6 +614,10 @@ export interface FunnelWidget extends WidgetBase {
   baseLabel?: string;
   /** esconde a tag de perda (▼ X%) — só mostra a taxa de passagem vs bench + MAIOR FURO. */
   hideLoss?: boolean;
+  /** COMPACTO: a taxa fica ao LADO da barra, sem conectores — ~metade da altura.
+   *  Para quando o funil precisa caber numa dobra ao lado de outro bloco (ficha do
+   *  criativo). Sem isto, cada transição empilha conector+pill+conector entre as barras. */
+  compact?: boolean;
   /** vlabel = rótulo do valor (ex.: "R$ 151k" p/ uma etapa em dinheiro); default = value formatado. */
   steps: { label: string; value: number; vlabel?: string }[];
   /** Liga steps[i] → steps[i+1]; loss/migrate em %; worst = MAIOR FURO; invalid = dado inválido.
@@ -858,7 +887,9 @@ export interface ReportMeta {
 export interface PageRef {
   id: string;
   label: string;
-  sections: { id: string; label: string }[];
+  /** `title` presente = o `label` é uma abreviação só de nav e o título de verdade é
+   *  CONTEÚDO da página (num aprofundamento, a pergunta feita). Ver common/preserve.py. */
+  sections: { id: string; label: string; title?: string }[];
   /** Special page renderers. Omitted → a normal section-grid page. "perguntas"
    *  renders the guiding-questions board instead of a section. */
   kind?: 'perguntas';

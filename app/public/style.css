@@ -304,6 +304,21 @@ html, body {
 .funnel-bar-l { font-size: 12.5px; } .funnel-bar-v { font-size: 13px; font-weight: 750; }
 .funnel-conn { width: 2px; height: 9px; background: var(--border); align-self: center; }
 .funnel-pills { display: flex; gap: 7px; justify-content: center; align-items: center; padding: 4px 0; flex-wrap: wrap; }
+/* COMPACTO — a taxa ao LADO da barra, sem conector: metade da altura, p/ o funil caber
+   na dobra ao lado de outro bloco. A largura do afunilamento vem do style inline da
+   barra, então a linha alinha à esquerda e a pill ocupa o resto. */
+/* height:auto — o funnel-card normal usa height:100% p/ casar com o gráfico ao lado;
+   no compacto isso só criava um vazio embaixo das barras quando a linha era alta. */
+.funnel-card--compact { padding: 11px 13px; height: auto; }
+.funnel-card--compact .funnel-body { align-items: stretch; gap: 2px; }
+.funnel-card--compact .funnel-bar { height: 32px; }
+.funnel-card--compact .funnel-title { margin-bottom: 2px; }
+.funnel-card--compact .funnel-row { display: flex; align-items: center; gap: 10px; }
+.funnel-card--compact .funnel-row .funnel-bar { flex: 0 0 auto; }
+/* min-width:0 + a pill sem quebra: a tag ocupa a sobra da linha em vez de vazar. O
+   nowrap sozinho empurrava o texto p/ fora do card quando a barra era larga. */
+.funnel-card--compact .funnel-pills { padding: 0; justify-content: flex-start; flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.funnel-card--compact .funnel-pill { white-space: nowrap; }
 .funnel-pill { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
 .funnel-pill--loss { background: var(--purple-bg, #eeedfe); color: var(--purple, #7F77DD); }
 .funnel-pill--migrate { background: var(--ok-bg, #f0fdf4); color: var(--ok-fg, #15803d); }
@@ -768,6 +783,10 @@ body[data-nav-collapsed="1"] .sn-expand { display: inline-flex; }
 /* nav-item (página ou detalhamento); ativo = roxo com sombra. nowrap p/ não quebrar
    em 2 linhas (Poppins é mais larga que a fonte do mock — fonte um pouco menor). */
 .sn-page, .sn-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.74); padding: 8px 12px; border-radius: var(--r-md); transition: background .15s, color .15s; }
+/* Seção é FILHA da página (ex.: cada criativo dentro de "Fichas"): recua à esquerda e
+   perde o peso do rótulo da página, pra hierarquia se ler sozinha. O recuo vai no
+   padding (não margin) p/ o realce ativo continuar ocupando a linha inteira. */
+.sn-sec { font-weight: 500; padding-left: 26px; }
 .sn-page:hover, .sn-sec:hover { background: rgba(124,58,237,.32); color: #fff; }
 .sn-page-active, .sn-sec-active { background: var(--purple); color: #fff; }
 .sn-page-active:hover, .sn-sec-active:hover { background: var(--purple); }
@@ -827,8 +846,11 @@ body[data-nav="sidebar"] #update-btn:hover { background: var(--surface); color: 
 body[data-nav="sidebar"] #export-html-btn { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 8px 18px -8px rgba(124,58,237,.6); }
 body[data-nav="sidebar"] #export-html-btn:hover { background: var(--purple-600); border-color: var(--purple-600); color: #fff; }
 body[data-nav="sidebar"] .tn-right .svg-ic { width: 16px; height: 16px; }
-/* masthead da seção é redundante no modo sidebar — contexto já no breadcrumb + item ativo */
+/* masthead da seção é redundante no modo sidebar — contexto já no breadcrumb + item ativo.
+   Exceto quando o nav teve de CORTAR o título (--keep): aí a página é o único lugar onde
+   ele cabe inteiro — ex.: a pergunta de um aprofundamento. */
 body[data-nav="sidebar"] .sec-header { display: none; }
+body[data-nav="sidebar"] .sec-header--keep { display: flex; margin-bottom: 22px; }
 /* chip "Dados até DD/MM" — pill verde à esquerda das ações */
 .tn-live { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--green-text); background: var(--green-bg); padding: 6px 12px; border-radius: var(--r-pill); white-space: nowrap; flex-shrink: 0; }
 .tn-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
@@ -837,32 +859,55 @@ body[data-nav="sidebar"] .sec-header { display: none; }
 .embed-card { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
 .embed-title { font-size: 12px; font-weight: 600; color: var(--gray2); }
 /* proporção de Reels (vertical ~9:16, + chrome do post do Instagram) */
-.embed-ig { width: 100%; max-width: 360px; min-height: 720px; margin: 0 auto; display: block; border: none; border-radius: 8px; background: var(--surface); }
+/* aspect-ratio 9/16 em vez de min-height fixo: o preview ACOMPANHA a largura da coluna
+   e o bloco (preview + métricas + funil) cabe numa dobra. Os 720px fixos estouravam a
+   tela sozinhos. O iframe rola por dentro quando o post é mais alto. */
+.embed-ig { width: 100%; max-width: 360px; aspect-ratio: 9 / 16; max-height: 62vh; margin: 0 auto; display: block; border: none; border-radius: 8px; background: var(--surface); }
 .embed-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 200px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--gray2); font-size: 13px; }
 .embed-link { color: var(--purple); font-size: 13px; font-weight: 500; text-decoration: none; }
 .embed-link:hover { text-decoration: underline; }
 .embed-cap { font-size: 12px; color: var(--gray2); }
 
 /* ── LINK-CARD — grid de cards clicáveis (criativos → ficha) ── */
-.lc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.lc-card { text-align: left; cursor: pointer; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; transition: border-color .12s, box-shadow .12s; }
-.lc-card:hover { border-color: var(--purple); box-shadow: 0 2px 12px oklch(50% 0.05 280 / 0.08); }
-.lc-name { font-size: 13px; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lc-sub { font-size: 11px; color: var(--gray2); }
+.lc-hd { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.lc-hd .chart-title { margin: 0; }
+.lc-sort .seg-opt { font-size: 11.5px; font-weight: 500; padding: 6px 12px; font-variant-numeric: tabular-nums; }
+.lc-sort .seg-opt.active { font-weight: 700; }
+.lc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; }
+/* font-family: inherit — o card é um <button>, e botão NÃO herda a fonte do body:
+   sem isto o card inteiro renderiza no default do browser (Arial), não em Poppins. */
+.lc-card { font-family: inherit; text-align: left; cursor: pointer; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 15px 16px 16px; display: flex; flex-direction: column; gap: 12px; transition: border-color .14s var(--ease), box-shadow .14s var(--ease), transform .14s var(--ease); }
+.lc-card:hover { border-color: var(--purple); box-shadow: var(--shadow-card); transform: translateY(-2px); }
+
+/* Identidade: nº da colocação + nome. O nome é um slug longo — quebra em 2 linhas em
+   vez de cortar com "…" (o resto fica no title), como a sidebar já faz. */
+/* ESCADA DE PESO — só o herói é bold. Se tudo é negrito, nada tem peso: o destaque
+   vem do CONTRASTE (800 no herói · 600 na identidade · 500 no resto). */
+.lc-top { display: flex; align-items: flex-start; gap: 9px; }
+.lc-rank { flex: 0 0 auto; width: 21px; height: 21px; border-radius: 6px; background: var(--surface); color: var(--gray2); font-size: 10.5px; font-weight: 600; display: grid; place-items: center; font-variant-numeric: tabular-nums; cursor: help; }
+.lc-rank--top { background: var(--purple-bg); color: var(--purple); font-weight: 700; }
+.lc-id { min-width: 0; }   /* sem isso o line-clamp não recolhe dentro do flex */
+.lc-name { font-size: 13.5px; font-weight: 600; letter-spacing: -.012em; line-height: 1.3; color: var(--fg); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.lc-sub { font-size: 11px; font-weight: 400; color: var(--gray2); margin-top: 3px; }
+
 .lc-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.lc-tag { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 20px; background: var(--surface); color: var(--gray2); }
+.lc-tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface); color: var(--gray2); }
 .lc-tag-g { background: var(--ok-bg); color: var(--ok-fg); } .lc-tag-r { background: var(--err-bg); color: var(--err-fg); }
 .lc-tag-a { background: #FAEEDA; color: #854F0B; } .lc-tag-b { background: #E6F1FB; color: #0C447C; } .lc-tag-p { background: var(--purple-bg); color: var(--purple); }
-.lc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
-.lc-m-v { font-size: 15px; font-weight: 600; color: var(--fg); }
-.lc-m-l { font-size: 10.5px; color: var(--gray2); }
-.lc-main { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--divider); }
-.lc-main-l { font-size: 10.5px; color: var(--gray2); }
-.lc-main-v { font-size: 18px; font-weight: 700; color: var(--purple); }
+
+/* A métrica da ORDENAÇÃO é o herói do card: é por ela que a lista existe. */
+.lc-main { margin-top: auto; }
+.lc-main-l { font-size: 9.5px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--gray2); }
+.lc-main-v { font-size: 25px; font-weight: 800; letter-spacing: -.025em; line-height: 1.12; margin-top: 3px; color: var(--purple); font-variant-numeric: tabular-nums; }
 .lc-main-g .lc-main-v { color: var(--ok-fg); } .lc-main-r .lc-main-v { color: var(--err-fg); }
-.lc-bar { height: 5px; border-radius: 3px; background: var(--surface); margin-top: 6px; overflow: hidden; }
-.lc-bar-f { height: 100%; background: var(--purple); }
+.lc-bar { height: 4px; border-radius: var(--r-pill); background: var(--surface); margin-top: 10px; overflow: hidden; cursor: help; }
+.lc-bar-f { height: 100%; border-radius: inherit; background: var(--purple); }
 .lc-main-g .lc-bar-f { background: var(--ok-fg); } .lc-main-r .lc-bar-f { background: var(--err-fg); }
+
+/* Secundários: micro, para não competir com o herói. */
+.lc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding-top: 13px; border-top: 1px solid var(--divider); }
+.lc-m-v { font-size: 14px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+.lc-m-l { font-size: 9.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin-top: 1px; }
 
 /* ── SCATTER-PICKER — dispersão com 2 dropdowns (X/Y) ── */
 .sp-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -1827,6 +1872,9 @@ body.edit-mode .tile-filter-badge { display:none; }
 
 /* — Group eyebrow (numbered zone separator) — */
 .grp-eyebrow { display: flex; align-items: center; gap: 14px; margin: 30px 0 20px; }
+/* COMPACTO: os 50px de margem separam SEÇÕES num fluxo; dentro de um bloco que precisa
+   caber na dobra (ficha do criativo) eles custam 84px por rótulo de 18px. */
+.grp-eyebrow--compact { margin: 2px 0 8px; }
 .grp-eyebrow .ge-i {
   width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -1869,6 +1917,15 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc { padding: 13px 15px; display: flex; flex-direction: column; height: 100%; }
 .kc--volume { padding: 12px 13px 11px; }
 .kc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+/* COMPACTO — card de métrica dentro de um bloco que precisa caber na dobra (ficha do
+   criativo): 10 deles dividem a tela com o preview e o funil. Aperta o padding e a
+   cabeça (o badge (i) sozinho levava a head de ~14px p/ 34px). */
+.kc--compact { padding: 9px 11px; }
+.kc--compact .kc-head { margin-bottom: 3px; align-items: center; }
+.kc--compact .kc-lbl { font-size: 9.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--gray2); line-height: 1.25; }
+.kc--compact .kc-val { font-size: 16px; }
+.kc--compact .kc-valrow { margin-bottom: 0; }
+.kc--compact .th-i { width: 13px; height: 13px; line-height: 13px; font-size: 9px; flex: 0 0 auto; align-self: center; }
 .kc--feature .kc-head { align-items: center; margin-bottom: 6px; }
 .kc--volume .kc-head { margin-bottom: 5px; }
 .kc-ico { width: 31px; height: 31px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }
@@ -2054,7 +2111,9 @@ body.edit-mode .tile-filter-badge { display:none; }
 .seg--soft .seg-opt.active { background: var(--bg); color: var(--purple); font-weight: 700; box-shadow: 0 1px 2px oklch(22% .02 285/.14); }
 .hm-host { overflow-x: auto; }
 .hm-host .hm-grid { grid-template-columns: minmax(150px,170px) repeat(var(--hm-cols,9), minmax(56px,1fr)); gap: 4px; min-width: 680px; }
-.hm-host .hm-th { font-size: 10.5px; padding: 2px 4px 9px; }
+/* header quebra em vez de vazar: a coluna tem 56px de mínimo e o `nowrap` herdado do
+   .hm-th base fazia rótulo longo pintar por cima do vizinho quando a tabela é densa. */
+.hm-host .hm-th { font-size: 10.5px; padding: 2px 4px 9px; white-space: normal; line-height: 1.2; align-self: end; }
 .hm-host .hm-rh { font-size: 12px; font-weight: 400; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; max-width: 168px; padding-right: 10px; }
 .hm-host .hm-cell { font-size: 11.5px; font-weight: 700; padding: 8px 4px; border-radius: 5px; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; text-align: center; }
 /* diverging calmo (hmd-*): tint translúcido suave + texto --fg (adapta tema). Só desvios
@@ -2065,6 +2124,11 @@ body.edit-mode .tile-filter-badge { display:none; }
 .hm-host .hm-cell.hmd-neg1 { background: rgba(239,68,68,.10); color: var(--fg); font-weight: 600; }
 .hm-host .hm-cell.hmd-neg2 { background: rgba(239,68,68,.20); color: var(--fg); font-weight: 700; }
 .hm-host .hm-cell.hm-worst { box-shadow: inset 0 0 0 1.5px rgba(220,38,38,.6); font-weight: 700; }
+/* linha de REFERÊNCIA (média/base): régua das linhas de cima, não par delas — separada
+   por um filete e recuada no tom, p/ o olho não a ler como mais um segmento. */
+.hm-host .hm-ref { border-top: 1px solid var(--border); margin-top: 5px; padding-top: 9px; }
+.hm-host .hm-rh.hm-ref { font-style: italic; color: var(--gray2); }
+.hm-host .hm-cell.hm-ref { background: transparent; color: var(--gray2); font-weight: 600; }
 
 /* — Section bar band: match the base page-band's near-white gradient — */
 #section-bar { background: linear-gradient(180deg, oklch(99% 0.004 285), #fff); }

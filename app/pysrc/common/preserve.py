@@ -12,6 +12,7 @@ pós-geração e precisa sobreviver:
 histórico). Idempotente; análises novas (dir vazio) passam ilesas."""
 import json
 import os
+import re
 
 
 def _load(path):
@@ -53,8 +54,17 @@ def preserve(out_dir, data, sections):
         detp['sections'] = []
         for sid in dets:
             sec = _load(os.path.join(out_dir, f'{sid}.json')) or {}
-            label = (sec.get('header', {}).get('title') or sid)[:42]
-            detp['sections'].append({'id': sid, 'label': label})
+            # O título do detalhamento é a PERGUNTA feita — costuma passar do espaço da
+            # sidebar. Corta com reticências: sem elas a frase morre no meio da palavra
+            # e parece bug ("...maior oportunidade em cr").
+            title = (sec.get('header', {}).get('title') or sid).strip()
+            label = title if len(title) <= 42 else title[:41].rstrip() + '…'
+            # `title` sempre, mesmo quando igual ao label: declarar o título separado diz
+            # ao client que o `label` é abreviação de nav, e que o título de verdade é
+            # conteúdo da página (aqui, a pergunta feita). Só emitir no caso truncado
+            # deixaria a pergunta curta sem masthead — a MESMA página com cara diferente
+            # por causa de 1 caractere.
+            detp['sections'].append({'id': sid, 'label': label, 'title': title})
 
     # 2) Página de perguntas preservada do data.json anterior (recriada sob
     #    demanda pela rota, mas não deve sumir entre regenerações).
@@ -83,3 +93,26 @@ def preserve(out_dir, data, sections):
             sec['historyId'] = prev['historyId']
 
     return data
+
+
+def prune_sections(out_dir, sections):
+    """Apaga os `sXX.json` que a geração NÃO produziu mais.
+
+    O build grava todas as seções do assemble, mas nunca removia as antigas: se a
+    análise ENCOLHE (ex.: um filtro passa a recortar o dump, ou o CSV novo tem menos
+    entidades), os arquivos sobram apontando para datasets que já não existem — o
+    relatório não os mostra (data.json não os referencia), mas o validate acusa e o
+    diretório vira lixo acumulado.
+
+    Só mexe no padrão `s<dígitos>.json` — det-*.json (detalhamentos) e o resto ficam.
+    """
+    if not os.path.isdir(out_dir):
+        return 0
+    keep = set(sections or {})
+    n = 0
+    for f in os.listdir(out_dir):
+        m = re.fullmatch(r'(s\d+)\.json', f)
+        if m and m.group(1) not in keep:
+            os.remove(os.path.join(out_dir, f))
+            n += 1
+    return n

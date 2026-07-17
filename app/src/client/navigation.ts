@@ -227,15 +227,30 @@ export class Navigation {
       pBtn.append(num, lbl);
       pBtn.addEventListener('click', () => { const f = page.sections[0]; if (f) this.onSelect(page.id, f.id); });
       grp.appendChild(pBtn);
-      if (page.sections.length > 1) for (const sec of page.sections) this.appendSec(grp, page.id, sec);
+      this.sideHost!.appendChild(grp);
+    };
+    /** Página com VÁRIAS seções (ex.: Fichas): ela é um agrupamento, não um destino —
+     *  vira rótulo de texto e as seções é que são os itens navegáveis. Mesmo formato
+     *  de "Aprofundamentos". */
+    const groupPage = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }): void => {
+      label(page.label);
+      const grp = document.createElement('div');
+      grp.className = 'sn-group';
+      grp.dataset.group = page.id;
+      for (const sec of page.sections) this.appendSec(grp, page.id, sec);
       this.sideHost!.appendChild(grp);
     };
 
     const det = this.store.pages.find((p) => p.id === 'detalhamentos');
     const report = this.store.pages.filter((p) => p.id !== 'detalhamentos');
+    // Listas longas (ex.: Fichas, com uma seção por criativo) vão para o FIM: as
+    // páginas-destino e os aprofundamentos ficam alcançáveis sem rolar a lista toda.
+    const groups = report.filter((p) => p.sections.length > 1);
+    const items = report.filter((p) => p.sections.length <= 1);
 
     label('Relatório');
-    report.forEach((page, i) => pageItem(page, i + 1));
+    let n = 0;   // só as páginas-destino são numeradas
+    for (const page of items) pageItem(page, ++n);
 
     if (det && det.sections.length) {
       label('Aprofundamentos');
@@ -245,6 +260,8 @@ export class Navigation {
       for (const sec of det.sections) this.appendSec(grp, det.id, sec);
       this.sideHost.appendChild(grp);
     }
+
+    for (const page of groups) groupPage(page);
   }
 
   /** Item de seção (sub-página / detalhamento) na árvore lateral. */

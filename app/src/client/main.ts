@@ -407,7 +407,19 @@ class App {
       this.store.datasets = r.dataset;
       for (const sid of Object.keys(r.sections)) this.store.putSection(r.sections[sid]);
       this.store.layout = { ...this.store.layout, sections: { ...this.store.layout.sections, ...r.layout } };
-      await this.go(this.store.currentPageId, this.store.currentSectionId, true);
+      // O filtro pode mudar QUAIS seções existem (ex.: criativos fora do investimento
+      // mínimo somem) → a nav precisa acompanhar. Mescla por id: as páginas que vivem
+      // no disco (Aprofundamentos, Perguntas) não vêm do assemble e ficam como estão.
+      if (r.pages?.length) {
+        const fresh = new Map(r.pages.map((p) => [p.id, p]));
+        this.store.data.pages = this.store.pages.map((p) => fresh.get(p.id) || p);
+        this.nav.build();
+      }
+      // A seção aberta pode ter sumido no novo recorte — cai para a 1ª disponível.
+      const cur = this.store.currentSectionId;
+      const stillThere = this.store.pages.some((p) => p.sections.some((s) => s.id === cur));
+      const target = stillThere ? cur : (this.store.page(this.store.currentPageId)?.sections[0]?.id || cur);
+      await this.go(this.store.currentPageId, target, true);
       window.scrollTo({ top: y });
     } catch (e) {
       this.toast(`Falha ao recalcular: ${(e as Error).message}`);
@@ -797,6 +809,11 @@ class App {
     const h = section.header || { title: '' };
     const wrap = document.createElement('header');
     wrap.className = 'sec-header';
+    // No modo sidebar o masthead some (contexto já no breadcrumb + item ativo) — mas isso
+    // só vale quando o item do nav É o título. Quando o motor declara um `title` à parte,
+    // o label é abreviação de nav e o título é CONTEÚDO: num aprofundamento ele é a
+    // pergunta feita, e o sub é a resposta. Some do nav, tem de aparecer na página.
+    if (this.store.sectionRef(section.id)?.title) wrap.classList.add('sec-header--keep');
     if (h.badge) { const b = document.createElement('div'); b.className = 'badge badge-p'; b.textContent = h.badge; wrap.appendChild(b); }
     const t = document.createElement('h1');
     t.className = 'sec-title';

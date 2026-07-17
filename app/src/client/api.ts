@@ -1,8 +1,10 @@
 /* api.ts — typed fetch wrappers around the server routes. */
 
-import type { ReportData, DataMap, Section, Layout, LayoutItem, Pergunta } from '../shared/types.js';
+import type { ReportData, DataMap, Section, Layout, LayoutItem, Pergunta, PageRef } from '../shared/types.js';
 
-export interface HistoricoView { dataset: DataMap; sections: Record<string, Section>; layout: Record<string, LayoutItem[]>; }
+/** `pages` é opcional: só os tipos cujo filtro muda QUAIS seções existem (criativos)
+ *  devolvem. Vem só com as páginas do assemble — o client mescla por id. */
+export interface HistoricoView { dataset: DataMap; sections: Record<string, Section>; layout: Record<string, LayoutItem[]>; pages?: PageRef[]; }
 
 export class Api {
   constructor(private client: string, private slug: string) {}

@@ -60,10 +60,12 @@ export function auditLayout(rows: LayoutCell[][], widgets: LayWidget[]): Audit {
     const loneFull = row.length === 1 && sum >= 12;
     if (!loneFull && row.length > 0 && row.length <= 2 && gap >= 5)
       soft.push(`linha ${ri + 1} deixa ~${gap} colunas vazias — preencha a linha ou pareie tiles`);
-    // SOFT — vão vertical: alturas muito diferentes lado a lado.
+    // SOFT — vão vertical: alturas diferentes lado a lado. Limiar 2 (não 3): o tile
+    // ESTICA até a altura da linha, então h2 ao lado de h4 já deixa o menor com metade
+    // vazia — era justamente o par highlight+gráfico que passava batido.
     if (row.length >= 2) {
       const hs = row.map((c) => c.h ?? layH(typeOf.get(c.id) || ''));
-      if (Math.max(...hs) - Math.min(...hs) >= 3)
+      if (Math.max(...hs) - Math.min(...hs) >= 2)
         soft.push(`linha ${ri + 1} mistura tiles de alturas muito diferentes (vão vertical) — agrupe alturas parecidas`);
     }
   });
@@ -91,6 +93,22 @@ export function auditLayout(rows: LayoutCell[][], widgets: LayWidget[]): Audit {
       soft.push(`a conclusão "${w.id}" está solta, sem o gráfico/tabela/métrica que a sustenta por perto`);
   }
   return { hard, soft };
+}
+
+/** Normaliza as rows do agente ANTES de auditar/posicionar.
+ *
+ *  O prompt PEDE que a resposta fique sozinha no topo em largura cheia, mas o modelo
+ *  ignora com frequência e espreme o highlight (h2) ao lado de um gráfico (h4) — como
+ *  o tile estica até a altura da linha, sobra meia tela de vazio embaixo do texto.
+ *  Regra que dá para impor sem adivinhar intenção: a RESPOSTA (1º widget, quando é
+ *  highlight/find-note) fica só, em w12. Deixar isso no prompt e torcer não funciona. */
+export function normalizeRows(rows: LayoutCell[][], widgets: LayWidget[]): LayoutCell[][] {
+  const first = widgets[0];
+  if (!first || (first.type !== 'highlight' && first.type !== 'find-note')) return rows;
+  const cell = rows.flat().find((c) => c.id === first.id);
+  if (!cell) return rows;                                    // agente esqueceu: o audit acusa
+  const rest = rows.map((r) => r.filter((c) => c.id !== first.id)).filter((r) => r.length);
+  return [[{ ...cell, w: 12, h: cell.h ?? layH(first.type) }], ...rest];
 }
 
 /** rows (do agente) → itens de grade com coordenadas x/y/h. */
