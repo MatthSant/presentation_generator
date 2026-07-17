@@ -68,6 +68,14 @@ export function auditLayout(rows: LayoutCell[][], widgets: LayWidget[]): Audit {
       if (Math.max(...hs) - Math.min(...hs) >= 2)
         soft.push(`linha ${ri + 1} mistura tiles de alturas muito diferentes (vão vertical) — agrupe alturas parecidas`);
     }
+    // SOFT — kpi em linha própria, cheia: o agente se perde com kpis — espreme um kpi
+    // ao lado de gráfico/conclusão (alturas nunca casam) ou deixa a fileira de kpis
+    // pela metade. Regra: linha com kpi é SÓ de kpis e fecha as 12 colunas.
+    const nMetric = row.filter((c) => METRIC.has(typeOf.get(c.id) || '')).length;
+    if (nMetric > 0 && nMetric < row.length)
+      soft.push(`linha ${ri + 1} mistura kpi com outros tipos — kpis ficam em linha própria, só de kpis`);
+    else if (nMetric === row.length && row.length > 0 && sum < 12)
+      soft.push(`linha ${ri + 1} é só de kpis mas soma ${sum} — estique-os até fechar 12 (2 kpis → w6, 3 → w4, 4 → w3)`);
   });
   for (const id of ids) if (!seen.has(id)) hard.push(`faltou posicionar o widget "${id}"`);
 

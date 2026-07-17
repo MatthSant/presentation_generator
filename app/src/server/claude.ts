@@ -583,9 +583,10 @@ DISPOSIÇÃO CLARA (qualidade — também verificada):
 - CADA conclusão ao lado da SUA evidência: ponha o find-block/kpi/ni que LÊ um gráfico/tabela na MESMA linha
   (ou imediatamente acima/abaixo) do gráfico/tabela que ele explica. Nunca deixe um gráfico/tabela sem a
   leitura dele por perto, nem uma conclusão solta longe do dado que a sustenta.
+- KPIs EM LINHA PRÓPRIA, CHEIA: agrupe os kpis numa linha SÓ de kpis, esticados até fechar as 12
+  colunas (2 kpis → w6 cada; 3 → w4; 4 → w3). NUNCA ponha kpi na mesma linha de gráfico/tabela/conclusão.
 - SEM VÃOS HORIZONTAIS: encha cada linha (alvo: somar ~12). Não deixe um tile pequeno sozinho numa linha
-  se ele cabe ao lado de outro. Ex.: 2 kpis (w3) + 1 gráfico (w6) = 12; find-block (w4) + tabela (w8) = 12;
-  par de find-block (6+6).
+  se ele cabe ao lado de outro. Ex.: find-block (w4) + tabela (w8) = 12; par de find-block (6+6).
 - SEM VÃOS VERTICAIS: na mesma linha, use tiles de ALTURA parecida (não ponha um kpi h2 ao lado de uma
   tabela h6 — eles abrem um buraco embaixo do menor). Agrupe alturas próximas.
 - Tamanhos típicos: tabela/gráfico w6–12 h4–6; kpi w3–4 h2–3; find-block/ni w4–6 h3; find-note/eyebrow w12 h1.

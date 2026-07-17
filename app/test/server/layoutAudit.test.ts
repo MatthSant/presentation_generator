@@ -25,12 +25,34 @@ test('auditLayout: widget faltando e repetido são HARD', () => {
 test('auditLayout: layout limpo e pareado não tem hard nem soft', () => {
   const rows: LayoutCell[][] = [
     [{ id: 'ans', w: 12, h: 2 }],
-    [{ id: 'k1', w: 3, h: 4 }, { id: 'k2', w: 3, h: 4 }, { id: 'ch', w: 6, h: 4 }],
-    [{ id: 'fb', w: 4, h: 4 }, { id: 'tb', w: 8, h: 4 }],
+    [{ id: 'k1', w: 6, h: 2 }, { id: 'k2', w: 6, h: 2 }],     // kpis em linha própria, cheia
+    [{ id: 'ch', w: 6, h: 4 }, { id: 'tb', w: 6, h: 4 }],
+    [{ id: 'fb', w: 12, h: 3 }],
   ];
   const a = auditLayout(rows, W);
   assert.deepEqual(a.hard, []);
   assert.deepEqual(a.soft, [], a.soft.join('|'));
+});
+
+test('auditLayout: kpi na linha de um gráfico é SOFT (linha própria)', () => {
+  const rows: LayoutCell[][] = [
+    [{ id: 'ans', w: 12, h: 2 }],
+    [{ id: 'k1', w: 3, h: 4 }, { id: 'k2', w: 3, h: 4 }, { id: 'ch', w: 6, h: 4 }],
+    [{ id: 'fb', w: 4, h: 4 }, { id: 'tb', w: 8, h: 4 }],
+  ];
+  const a = auditLayout(rows, W);
+  assert.ok(a.soft.some((m) => /linha própria/.test(m)), a.soft.join('|'));
+});
+
+test('auditLayout: linha só de kpis que não fecha 12 é SOFT', () => {
+  const rows: LayoutCell[][] = [
+    [{ id: 'ans', w: 12, h: 2 }],
+    [{ id: 'k1', w: 3, h: 2 }, { id: 'k2', w: 3, h: 2 }],     // soma 6 — metade vazia
+    [{ id: 'ch', w: 6, h: 4 }, { id: 'tb', w: 6, h: 4 }],
+    [{ id: 'fb', w: 12, h: 3 }],
+  ];
+  const a = auditLayout(rows, W);
+  assert.ok(a.soft.some((m) => /estique-os até fechar 12/.test(m)), a.soft.join('|'));
 });
 
 test('auditLayout: vão horizontal (linha rala) é SOFT', () => {
