@@ -16,6 +16,13 @@
       "port": 3132
     },
     {
+      "name": "dev-mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["_dev_mock.mjs"],
+      "cwd": "app",
+      "port": 3133
+    },
+    {
       "name": "verify-authoff",
       "runtimeExecutable": "node",
       "runtimeArgs": ["C:/Users/Matheus/AppData/Local/Temp/_verify_launch.mjs"],
