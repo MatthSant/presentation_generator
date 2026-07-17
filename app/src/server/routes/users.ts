@@ -62,7 +62,8 @@ export function registerUsers(app: Express, ctx: Ctx): void {
     if (!EMAIL_RE.test(email)) { res.status(400).json({ error: 'e-mail inválido' }); return; }
     if (password.length < 6) { res.status(400).json({ error: 'senha precisa de ao menos 6 caracteres' }); return; }
     if (emailTaken(ctx.db, email)) { res.status(409).json({ error: 'e-mail já cadastrado' }); return; }
-    const u = createUser(ctx.db, email, password, role);
+    // A senha aqui é TEMPORÁRIA (o admin a conhece) → o consultor troca no 1º login.
+    const u = createUser(ctx.db, email, password, role, true);
     if (Array.isArray(b.clients)) setUserClients(ctx.db, u.id, b.clients.map(String));
     res.json({ ok: true, id: u.id });
   });

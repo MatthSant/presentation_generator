@@ -121,6 +121,47 @@
     @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
     .hm .home-empty { border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: 52px 24px; text-align: center; color: var(--gray); line-height: 1.7; }
     .hm .home-empty code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; background: var(--surface); border: 1px solid var(--border); padding: 2px 6px; border-radius: 5px; color: var(--fg); }
+    /* welcome (primeiro acesso, sem análise) */
+    .hm .welcome-hero { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 34px 34px 32px; background: linear-gradient(135deg, color-mix(in srgb, var(--purple) 8%, var(--bg)), var(--bg) 62%); }
+    .hm .welcome-hero::after { content: ''; position: absolute; top: -60px; right: -40px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--purple) 16%, transparent), transparent 68%); pointer-events: none; }
+    .hm .wh-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--purple); background: var(--purple-bg); border-radius: var(--r-pill); padding: 6px 13px; }
+    .hm .welcome-hero h2 { font-size: 27px; font-weight: 800; letter-spacing: -.03em; margin: 15px 0 0; max-width: 620px; line-height: 1.15; }
+    .hm .welcome-hero p { font-size: 15px; color: var(--gray); line-height: 1.6; margin: 11px 0 0; max-width: 620px; }
+    .hm .wh-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+    .hm .wh-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; border-radius: 10px; padding: 11px 18px; cursor: pointer; text-decoration: none; border: 1px solid transparent; }
+    .hm .wh-btn svg { width: 17px; height: 17px; }
+    .hm .wh-btn.primary { color: #fff; background: var(--purple); box-shadow: 0 3px 12px rgba(124,58,237,.3); }
+    .hm .wh-btn.primary:hover { background: var(--purple-600); }
+    .hm .wh-btn.ghost { color: var(--fg); background: var(--bg); border-color: var(--border-strong); }
+    .hm .wh-btn.ghost:hover { border-color: var(--purple-300, #c3a4f7); color: var(--purple); }
+    /* card de tipo (grid de criação) — variante clicável do guide */
+    .hm .tcard { position: relative; text-align: left; background: var(--card, #fff); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 20px 20px 18px; display: flex; flex-direction: column; text-decoration: none; color: inherit; cursor: pointer; transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease); }
+    .hm .tcard:hover { box-shadow: var(--shadow-lift); transform: translateY(-3px); border-color: var(--purple-300, #c3a4f7); }
+    .hm .tcard .ic { width: 40px; height: 40px; border-radius: 11px; background: var(--purple-bg); color: var(--purple); display: grid; place-items: center; margin-bottom: 14px; transition: background .2s, color .2s; }
+    .hm .tcard .ic svg { width: 20px; height: 20px; }
+    .hm .tcard:hover .ic { background: var(--purple); color: #fff; }
+    .hm .tcard h3 { font-size: 15.5px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; }
+    .hm .tcard p { font-size: 13px; color: var(--gray); line-height: 1.5; margin-top: 7px; flex: 1; }
+    .hm .tcard .go { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--purple); margin-top: 14px; opacity: 0; transform: translateX(-4px); transition: opacity .2s, transform .2s; }
+    .hm .tcard .go svg { width: 14px; height: 14px; }
+    .hm .tcard:hover .go { opacity: 1; transform: none; }
+    /* tour guiado (coach-marks) */
+    .tour-catch { position: fixed; inset: 0; z-index: 9000; }
+    .tour-spot { position: fixed; z-index: 9001; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(15,12,25,.58), 0 0 0 3px var(--purple); pointer-events: none; transition: all .25s var(--ease); }
+    .tour-pop { position: fixed; z-index: 9002; width: 300px; max-width: calc(100vw - 32px); background: var(--bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.28); padding: 17px 18px 15px; transition: top .25s var(--ease), left .25s var(--ease); }
+    .tour-pop .tp-step { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); }
+    .tour-pop h4 { font-size: 16px; font-weight: 800; letter-spacing: -.02em; margin: 6px 0 0; }
+    .tour-pop p { font-size: 13.5px; color: var(--gray); line-height: 1.55; margin: 8px 0 0; }
+    .tour-pop .tp-foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+    .tour-pop .tp-dots { display: flex; gap: 5px; margin-right: auto; }
+    .tour-pop .tp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
+    .tour-pop .tp-dot.on { background: var(--purple); }
+    .tour-pop button { font: inherit; font-size: 13px; font-weight: 700; border-radius: 8px; padding: 7px 13px; cursor: pointer; border: 1px solid transparent; }
+    .tour-pop .tp-skip { margin-right: auto; background: none; color: var(--gray2); padding: 7px 4px; }
+    .tour-pop .tp-skip:hover { color: var(--fg); }
+    .tour-pop .tp-back { background: var(--bg); border-color: var(--border-strong); color: var(--fg); }
+    .tour-pop .tp-next { background: var(--purple); color: #fff; }
+    .tour-pop .tp-next:hover { background: var(--purple-600); }
     @media (max-width: 980px) { .hm .grid3 { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 640px) { .hm .grid3 { grid-template-columns: 1fr; } .hm .navbar { padding: 0 16px; } .hm .page { padding: 28px 16px 70px; } }
   </style>
@@ -231,6 +272,37 @@
     newModal.addEventListener('click', e => { if (e.target === newModal) closeModal(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && newModal.classList.contains('open')) closeModal(); });
     nmNext.addEventListener('click', () => { if (chosen) location.href = chosen; });
+    const PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+
+    // Primeiro acesso (sem nenhuma análise): hero de boas-vindas + os tipos como
+    // cards de criação. A seção de Guias separada é redundante aqui — os cards de
+    // tipo já apresentam cada análise — então some.
+    function renderWelcome(list) {
+      const guiasSec = document.getElementById('sec-guias');
+      if (guiasSec) guiasSec.hidden = true;
+      const lead = document.querySelector('.hm .lead');
+      if (lead) lead.textContent = 'Você ainda não tem análises. Crie a primeira em segundos.';
+      const cards = NEW_TYPES.map(t => `
+        <a class="tcard" href="${t.href}">
+          <span class="ic">${TYPE_ICON[t.slug] || BOOK}</span>
+          <h3>${esc(t.title)}</h3>
+          <p>${esc(t.desc)}</p>
+          <span class="go">Criar ${ARROW}</span>
+        </a>`).join('');
+      list.innerHTML = `
+        <div class="welcome-hero">
+          <span class="wh-eyebrow">Comece por aqui</span>
+          <h2>Vamos criar sua primeira análise</h2>
+          <p>O Witly Grimório transforma seus dados de campanha em dashboards prontos para o cliente — com achados, aprofundamentos por IA e exportação. Escolha um tipo abaixo para começar.</p>
+          <div class="wh-actions">
+            <button class="wh-btn primary" type="button" onclick="document.getElementById('new-btn').click()">${PLUS}Nova análise</button>
+            <button class="wh-btn ghost" type="button" id="wh-tour">Fazer o tour</button>
+          </div>
+        </div>
+        <div class="sec-label">Tipos de análise</div>
+        <div class="grid3">${cards}</div>`;
+    }
+
     // Guias
     try {
       const guias = ((await (await fetch('/guias.json')).json()).guias) || [];
@@ -253,7 +325,7 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows = await res.json();
       if (!rows.length) {
-        list.innerHTML = `<div class="home-empty">Nenhuma análise encontrada em <code>output/</code>.<br>Crie uma em <b>Nova análise</b>.</div>`;
+        renderWelcome(list);
       } else {
         const groups = new Map();
         for (const r of rows) { if (!groups.has(r.client)) groups.set(r.client, { name: r.clientName || r.client, slug: r.client, items: [] }); groups.get(r.client).items.push(r); }
@@ -330,6 +402,65 @@
       if (!r.ok) { alert('Não deu para descartar: ' + (d.error || `HTTP ${r.status}`)); return; }
       card.remove();
     }
+
+    // ── Tour guiado (coach-marks) ────────────────────────────────────────────
+    const TOUR_KEY = 'witly_tour_v1';
+    const TOUR_STEPS = [
+      { sel: '#new-btn', title: 'Crie uma análise', text: 'Todo relatório começa aqui: escolha o tipo, suba o CSV e o Witly monta o dashboard pronto para o cliente.' },
+      { sel: 'a[href="/config.html"]', title: 'Clientes e configurações', text: 'Cadastre clientes, ajuste benchmarks e acompanhe o uso da IA. Administradores também criam usuários por aqui.' },
+      { sel: '.welcome-hero .grid3, #home-list .grid3', title: 'Os tipos de análise', text: 'Cada tipo responde uma pergunta diferente — acompanhamento, debriefing, criativos, conversão e histórico. Abra o guia de cada um quando quiser.' },
+    ];
+
+    function startTour() {
+      // Passos cujo alvo não existe nesta tela são pulados (ex.: sem o grid de tipos).
+      const steps = TOUR_STEPS.map(s => ({ ...s, el: document.querySelector(s.sel) })).filter(s => s.el);
+      if (!steps.length) return;
+      let i = 0;
+      const back = document.createElement('div'); back.className = 'tour-catch';
+      const spot = document.createElement('div'); spot.className = 'tour-spot';
+      const pop = document.createElement('div'); pop.className = 'tour-pop';
+      document.body.append(back, spot, pop);
+      const finish = () => {
+        localStorage.setItem(TOUR_KEY, 'done');
+        [back, spot, pop].forEach(n => n.remove());
+        removeEventListener('resize', reposition); removeEventListener('scroll', reposition, true);
+      };
+      back.addEventListener('click', finish);   // clicar fora encerra
+      function reposition() {
+        const r = steps[i].el.getBoundingClientRect(), pad = 6;
+        spot.style.top = (r.top - pad) + 'px'; spot.style.left = (r.left - pad) + 'px';
+        spot.style.width = (r.width + pad * 2) + 'px'; spot.style.height = (r.height + pad * 2) + 'px';
+        const pw = 300, gap = 12;
+        let top = r.bottom + gap;
+        if (top + 170 > innerHeight) top = Math.max(gap, r.top - 170 - gap);
+        pop.style.top = top + 'px';
+        pop.style.left = Math.min(Math.max(12, r.left), innerWidth - pw - 12) + 'px';
+      }
+      function render() {
+        const st = steps[i], last = i === steps.length - 1;
+        const dots = steps.map((_, k) => `<span class="tp-dot ${k === i ? 'on' : ''}"></span>`).join('');
+        pop.innerHTML = `
+          <div class="tp-step">Passo ${i + 1} de ${steps.length}</div>
+          <h4>${esc(st.title)}</h4>
+          <p>${esc(st.text)}</p>
+          <div class="tp-foot">
+            <div class="tp-dots">${dots}</div>
+            ${i > 0 ? '<button class="tp-back" type="button">Voltar</button>' : '<button class="tp-skip" type="button">Pular</button>'}
+            <button class="tp-next" type="button">${last ? 'Concluir' : 'Próximo'}</button>
+          </div>`;
+        pop.querySelector('.tp-next').onclick = () => { if (last) finish(); else goto(i + 1); };
+        const b = pop.querySelector('.tp-back'); if (b) b.onclick = () => goto(i - 1);
+        const s = pop.querySelector('.tp-skip'); if (s) s.onclick = finish;
+        reposition();
+      }
+      function goto(n) { i = n; steps[i].el.scrollIntoView({ block: 'center' }); render(); }
+      goto(0);
+      addEventListener('resize', reposition); addEventListener('scroll', reposition, true);
+    }
+
+    // Reabrir pelo botão do welcome; auto-abrir uma vez no primeiro acesso.
+    document.getElementById('wh-tour')?.addEventListener('click', startTour);
+    if (!localStorage.getItem(TOUR_KEY)) setTimeout(startTour, 650);
   </script>
   <script>
     fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {

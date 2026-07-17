@@ -11,7 +11,8 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import type { Ctx } from '../context.js';
 import {
   authenticate, createSession, sessionUser, destroySession,
-  readSidCookie, setSidCookie, clearSidCookie, clientOwner, type User,
+  readSidCookie, setSidCookie, clearSidCookie, clientOwner,
+  mustChangePassword, changeOwnPassword, type User,
 } from '../auth.js';
 
 export interface AuthedRequest extends Request { user?: User }
@@ -19,6 +20,11 @@ export interface AuthedRequest extends Request { user?: User }
 const ASSET = /\.(css|js|map|png|jpe?g|svg|gif|woff2?|ttf|ico)$/i;
 function isPublic(p: string): boolean {
   return p.startsWith('/auth/') || p === '/login.html' || ASSET.test(p) || /^\/(js|assets|fonts)\//.test(p);
+}
+// Páginas/rotas liberadas MESMO com troca de senha pendente — senão o consultor
+// preso na flag não conseguiria nem abrir a própria tela de troca.
+function isPwGateExempt(p: string): boolean {
+  return p === '/trocar-senha.html' || p === '/auth/change-password' || p === '/auth/logout';
 }
 
 // Rotas globais (não escopadas por cliente) com 2+ segmentos — o gate de tenant
@@ -45,7 +51,19 @@ export function installAuth(app: Express, ctx: Ctx): void {
   app.get('/auth/me', (req, res) => {
     const user = sessionUser(ctx.db, readSidCookie(req));
     if (!user) { res.status(401).json({ error: 'not authenticated' }); return; }
-    res.json({ email: user.email, role: user.role });
+    res.json({ email: user.email, role: user.role, mustChange: mustChangePassword(ctx.db, user.id) });
+  });
+
+  // Troca da PRÓPRIA senha (exige a atual). Libera a flag must_change_password.
+  app.post('/auth/change-password', (req, res) => {
+    const user = sessionUser(ctx.db, readSidCookie(req));
+    if (!user) { res.status(401).json({ error: 'not authenticated' }); return; }
+    const { current, next } = (req.body || {}) as { current?: string; next?: string };
+    if (!current || !next) { res.status(400).json({ error: 'senha atual e nova obrigatórias' }); return; }
+    if (next.length < 6) { res.status(400).json({ error: 'a nova senha precisa de ao menos 6 caracteres' }); return; }
+    if (!authenticate(ctx.db, user.email, current)) { res.status(403).json({ error: 'senha atual incorreta' }); return; }
+    changeOwnPassword(ctx.db, user.id, next);
+    res.json({ ok: true });
   });
 
   app.use((req: AuthedRequest, res: Response, next: NextFunction) => {
@@ -58,6 +76,13 @@ export function installAuth(app: Express, ctx: Ctx): void {
       res.redirect('/login.html'); return;
     }
     req.user = user;
+
+    // Senha temporária pendente: prende o usuário na tela de troca até ele escolher a
+    // própria. Segurança — não só UX: a senha que o admin definiu é conhecida por ele.
+    if (!isPwGateExempt(p) && mustChangePassword(ctx.db, user.id)) {
+      if (p.startsWith('/api/')) { res.status(403).json({ error: 'troca de senha obrigatória', code: 'must_change_password' }); return; }
+      res.redirect('/trocar-senha.html'); return;
+    }
 
     const m = GLOBAL_API.test(p) ? null : p.match(/^\/(?:api|report)\/([^/]+)\/[^/]+/);
     if (m) {

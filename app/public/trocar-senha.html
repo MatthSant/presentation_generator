@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Definir senha — Witly Grimório</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { background: var(--bg-page); display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
+    .lg-card { width: 380px; max-width: 92vw; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.12); padding: 30px 28px; }
+    .lg-logo { height: 22px; width: auto; display: block; margin-bottom: 18px; }
+    .lg-title { font-size: 20px; font-weight: 750; letter-spacing: -.02em; margin: 0 0 4px; }
+    .lg-sub { font-size: 13px; color: var(--gray); margin: 0 0 20px; line-height: 1.55; }
+    .lg-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 13px; }
+    .lg-field label { font-size: 12px; font-weight: 700; color: var(--fg); }
+    .lg-field input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: var(--font-sans), sans-serif; font-size: 14px; color: var(--fg); outline: none; }
+    .lg-field input:focus { border-color: var(--purple); }
+    .lg-hint { font-size: 11.5px; color: var(--gray2); margin-top: -4px; }
+    .lg-btn { width: 100%; margin-top: 6px; font-size: 14px; font-weight: 800; color: #fff; background: var(--purple); border: none; border-radius: 9px; padding: 11px; cursor: pointer; box-shadow: 0 3px 12px rgba(124,58,237,.3); }
+    .lg-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .lg-msg { display: none; margin-top: 12px; font-size: 13px; border-radius: 8px; padding: 9px 12px; }
+    .lg-msg.show { display: block; }
+    .lg-msg.err { color: var(--fg); background: color-mix(in srgb, var(--red) 9%, var(--bg)); border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); }
+    .lg-msg.ok  { color: var(--green-text); background: var(--green-bg); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); }
+  </style>
+</head>
+<body>
+  <form class="lg-card" id="fm">
+    <img class="lg-logo" src="/assets/witly-logo.png" alt="Witly Grimório" />
+    <h1 class="lg-title">Defina sua senha</h1>
+    <p class="lg-sub">Sua conta foi criada com uma senha temporária. Escolha uma senha só sua para continuar.</p>
+    <div class="lg-field"><label for="current">Senha temporária</label><input id="current" type="password" autocomplete="current-password" required /></div>
+    <div class="lg-field"><label for="next">Nova senha</label><input id="next" type="password" autocomplete="new-password" minlength="6" required /><span class="lg-hint">Ao menos 6 caracteres.</span></div>
+    <div class="lg-field"><label for="confirm">Confirme a nova senha</label><input id="confirm" type="password" autocomplete="new-password" required /></div>
+    <button class="lg-btn" id="btn" type="submit">Salvar e entrar</button>
+    <div class="lg-msg" id="msg"></div>
+  </form>
+  <script type="module">
+    const fm = document.getElementById('fm');
+    const msg = document.getElementById('msg');
+    const btn = document.getElementById('btn');
+    const show = (kind, text) => { msg.className = `lg-msg show ${kind}`; msg.textContent = text; };
+
+    // Já não precisa trocar (entrou aqui por link antigo) → manda pra home.
+    try { const me = await (await fetch('/auth/me')).json(); if (me && me.mustChange === false) location.href = '/'; }
+    catch { location.href = '/login.html'; }
+
+    fm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className = 'lg-msg';
+      const current = document.getElementById('current').value;
+      const next = document.getElementById('next').value;
+      const confirm = document.getElementById('confirm').value;
+      if (next.length < 6) { show('err', 'A nova senha precisa de ao menos 6 caracteres.'); return; }
+      if (next !== confirm) { show('err', 'A confirmação não bate com a nova senha.'); return; }
+      if (next === current) { show('err', 'A nova senha precisa ser diferente da temporária.'); return; }
+      btn.disabled = true; btn.textContent = 'Salvando…';
+      try {
+        const res = await fetch('/auth/change-password', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current, next }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'falha ao salvar');
+        show('ok', 'Senha definida. Entrando…');
+        setTimeout(() => { location.href = '/'; }, 700);
+      } catch (e2) {
+        show('err', e2.message);
+        btn.disabled = false; btn.textContent = 'Salvar e entrar';
+      }
+    });
+  </script>
+</body>
+</html>

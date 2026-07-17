@@ -122,6 +122,10 @@ export function openDb(dbPath: string): DB {
   // papel do usuário — 'admin' | 'consultor' (só admin gerencia usuários).
   try { handle.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'consultor'"); }
   catch { /* coluna já existe */ }
+  // troca de senha obrigatória: 1 quando o admin definiu uma senha temporária
+  // (criação/reset) e o consultor ainda não escolheu a própria. 0 = ok.
+  try { handle.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0'); }
+  catch { /* coluna já existe */ }
   // status do fluxo de revisão — 'pendente' | 'aprovado' | 'revisado'.
   try { handle.exec("ALTER TABLE deepen_history ADD COLUMN status TEXT NOT NULL DEFAULT 'pendente'"); }
   catch { /* coluna já existe */ }
