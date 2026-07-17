@@ -582,13 +582,15 @@ function renderChartToggle(w: ChartToggleWidget, ctx: RenderCtx): HTMLElement {
 /* ── table ── */
 function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   const wrap = el('div');
+  const tw = el('div', 'tw');
+  // Título DENTRO do card (como no chart e no heatmap-toggle) — flutuando acima,
+  // o card parecia começar sem cabeçalho e o lápis/controles do tile desalinhavam.
   if (w.title && !ctx.afterEyebrow) {
     const tt = el('div', 'tbl-title');
     tt.appendChild(el('span', 'tt-name', w.title));
     if (w.sub) tt.appendChild(el('span', 'tt-sub', w.sub));
-    wrap.appendChild(tt);
+    tw.appendChild(tt);
   }
-  const tw = el('div', 'tw');
   const table = el('table');
   const thead = el('thead');
   const hrow = el('tr');
