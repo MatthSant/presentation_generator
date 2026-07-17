@@ -12,7 +12,7 @@ import path from 'node:path';
 import type { Express, Request } from 'express';
 import type { Ctx } from '../context.js';
 import { analysisDir, readJson, writeJson } from '../fsutil.js';
-import { clientsOf } from '../auth.js';
+import { visibleClients } from '../auth.js';
 import type { AuthedRequest } from './authRoutes.js';
 
 /** Conjunto de "client/slug" arquivados — consumido pelo filtro de /api/analyses. */
@@ -21,10 +21,11 @@ export function archivedKeys(db: Ctx['db']): Set<string> {
   return new Set(rows.map((r) => `${r.client}/${r.slug}`));
 }
 
-/** Clientes que o usuário possui (multi-tenant); null quando auth está off (dev/testes). */
+/** Clientes que o usuário enxerga (multi-tenant); null = todos (auth off ou política
+ *  de acesso compartilhado — ver visibleClients). */
 function ownedOf(ctx: Ctx, req: Request): Set<string> | null {
   const user = (req as AuthedRequest).user;
-  return ctx.auth && user ? clientsOf(ctx.db, user.id) : null;
+  return ctx.auth && user ? visibleClients(ctx.db, user.id) : null;
 }
 
 function listDirs(dir: string): string[] {

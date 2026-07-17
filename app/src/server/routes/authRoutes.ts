@@ -11,7 +11,7 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import type { Ctx } from '../context.js';
 import {
   authenticate, createSession, sessionUser, destroySession,
-  readSidCookie, setSidCookie, clearSidCookie, clientOwner,
+  readSidCookie, setSidCookie, clearSidCookie, visibleClients,
   mustChangePassword, changeOwnPassword, type User,
 } from '../auth.js';
 
@@ -87,12 +87,13 @@ export function installAuth(app: Express, ctx: Ctx): void {
     const m = GLOBAL_API.test(p) ? null : p.match(/^\/(?:api|report)\/([^/]+)\/[^/]+/);
     if (m) {
       const client = decodeURIComponent(m[1]);
-      const owner = clientOwner(ctx.db, client);
-      const isGenerate = req.method === 'POST' && /\/generate$/.test(p);
-      if (owner === null) {
+      const vis = visibleClients(ctx.db, user.id);   // null = enxerga todos (política atual)
+      if (vis && !vis.has(client)) {
+        // Isolamento ligado e cliente não visível → 404 (nem descobrível). Exceção: POST
+        // /generate pode reivindicar um cliente novo. Com acesso compartilhado (vis=null)
+        // o gate não filtra — a existência do cliente é resolvida pela própria rota.
+        const isGenerate = req.method === 'POST' && /\/generate$/.test(p);
         if (!isGenerate) { res.status(404).json({ error: 'not found' }); return; }
-      } else if (owner !== user.id) {
-        res.status(404).json({ error: 'not found' }); return;
       }
     }
     next();

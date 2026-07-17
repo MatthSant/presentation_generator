@@ -94,7 +94,10 @@ test('gate: unauthenticated /api → 401, page → redirect, login page public',
   assert.equal((await request(created.app).get('/login.html')).status, 200);
 });
 
-test('multi-tenant: a consultant sees/opens only the clients they own', async () => {
+test('acesso compartilhado: qualquer consultor logado vê/abre todos os clientes', async () => {
+  // Política atual (visibleClients → null): sem isolamento por consultor. B abre e lista
+  // um cliente de A. Reativar o isolamento = trocar visibleClients por clientsOf (e este
+  // teste volta a exigir posse).
   writeFixture('acme', 'an1', 'data.json', { meta: { client: 'ACME', title: 'A' }, pages: [{ id: 'p', sections: [{ id: 's01' }] }] });
   assignClient(db, userA.id, 'acme');
 
@@ -103,14 +106,14 @@ test('multi-tenant: a consultant sees/opens only the clients they own', async ()
   const b = request.agent(created.app);
   await b.post('/auth/login').send({ email: 'b@witly.com', password: 'senhaB' });
 
-  assert.equal((await a.get('/api/acme/an1/data')).status, 200);   // owner
-  assert.equal((await b.get('/api/acme/an1/data')).status, 404);   // not owner → not even discoverable
+  assert.equal((await a.get('/api/acme/an1/data')).status, 200);   // dono
+  assert.equal((await b.get('/api/acme/an1/data')).status, 200);   // não-dono também abre
 
-  assert.equal((await a.get('/api/analyses')).body.length, 1);     // A sees its analysis
-  assert.deepEqual((await b.get('/api/analyses')).body, []);       // B sees nothing
+  assert.equal((await a.get('/api/analyses')).body.length, 1);
+  assert.equal((await b.get('/api/analyses')).body.length, 1);     // B vê a análise de A
 });
 
-test('tenant: unclaimed client is 404 for reads (only generate may claim it)', async () => {
+test('cliente inexistente → 404 (a rota resolve a existência)', async () => {
   const a = request.agent(created.app);
   await a.post('/auth/login').send({ email: 'a@witly.com', password: 'senhaA' });
   assert.equal((await a.get('/api/novo/an1/data')).status, 404);

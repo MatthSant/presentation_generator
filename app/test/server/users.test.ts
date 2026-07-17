@@ -67,21 +67,26 @@ test('o novo usuário consegue logar com a senha definida', async () => {
   assert.equal((await loginAs('novo@witly.com', 'abcdef').then((a) => a.get('/auth/me'))).status, 200);
 });
 
-test('atribuição de clientes substitui a posse e filtra a home', async () => {
+test('atribuição de clientes persiste a posse (registro de user_clients)', async () => {
   fs.mkdirSync(path.join(tmp, 'acme', 'an1'), { recursive: true });
   fs.writeFileSync(path.join(tmp, 'acme', 'an1', 'data.json'),
     JSON.stringify({ meta: { client: 'ACME', title: 'A' }, pages: [{ id: 'p', sections: [{ id: 's01' }] }] }), 'utf8');
 
   const admin = await loginAs('admin@witly.com', 'senhaAdmin');
   const consId = (await admin.get('/api/users')).body.users.find((u: { email: string }) => u.email === 'cons@witly.com').id;
+  const clientsOf = async () => (await admin.get('/api/users')).body.users.find((u: { id: string }) => u.id === consId).clients;
 
   assert.equal((await admin.post(`/api/users/${consId}/clients`).send({ clients: ['acme'] })).status, 200);
-  const cons = await loginAs('cons@witly.com', 'senhaCons');
-  assert.equal((await cons.get('/api/acme/an1/data')).status, 200);    // agora é dono
-  assert.equal((await cons.get('/api/analyses')).body.length, 1);
+  assert.deepEqual(await clientsOf(), ['acme']);                       // posse registrada
+  await admin.post(`/api/users/${consId}/clients`).send({ clients: [] });
+  assert.deepEqual(await clientsOf(), []);                            // substituída
 
-  await admin.post(`/api/users/${consId}/clients`).send({ clients: [] }); // remove
-  assert.equal((await cons.get('/api/acme/an1/data')).status, 404);
+  // Acesso é COMPARTILHADO hoje (visibleClients → null): o consultor abre e lista o
+  // cliente independentemente da posse. A posse volta a filtrar quando o isolamento
+  // for reativado (visibleClients → clientsOf).
+  const cons = await loginAs('cons@witly.com', 'senhaCons');
+  assert.equal((await cons.get('/api/acme/an1/data')).status, 200);
+  assert.equal((await cons.get('/api/analyses')).body.length, 1);
 });
 
 test('reset de senha derruba sessão antiga e vale a nova', async () => {

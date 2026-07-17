@@ -117,6 +117,15 @@ export function clientsOf(db: DB, userId: string): Set<string> {
   const rows = db.prepare('SELECT client FROM user_clients WHERE user_id = ?').all(userId) as Array<{ client: string }>;
   return new Set(rows.map((r) => r.client));
 }
+
+/** Clientes que um usuário ENXERGA/acessa. `null` = TODOS (isolamento multi-tenant
+ *  desligado). Política atual (decisão temporária): acesso compartilhado — todo
+ *  consultor vê todos os clientes. Para reativar o isolamento por consultor, troque o
+ *  corpo por `return clientsOf(_db, _userId);`. É a ÚNICA chave: home, arquivo e o gate
+ *  de acesso passam por aqui. */
+export function visibleClients(_db: DB, _userId: string): Set<string> | null {
+  return null;
+}
 export function unassignClient(db: DB, userId: string, client: string): void {
   db.prepare('DELETE FROM user_clients WHERE user_id = ? AND client = ?').run(userId, client);
 }
