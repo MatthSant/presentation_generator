@@ -2210,11 +2210,15 @@ body.edit-mode .tile-filter-badge { display:none; }
 /* Per-chart outlier toggle (histórico) */
 .dash-tile { position: relative; }
 /* — rating ★1–5 do detalhamento (modal e rodapé das seções det-*) — */
-.rate { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--divider); }
-.rate--section { justify-content: flex-end; margin: 26px 0 6px; }
+.rate { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--divider); }
+.rate .btn .svg-ic { width: 13px; height: 13px; }
+/* rodapé da seção det-*: painel no sistema (card + raio + sombra), pergunta à
+   esquerda e ações à direita — antes era uma fileira solta sobre um filete. */
+.rate--section { margin: 26px 0 6px; padding: 11px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-card); }
+.rate--section .rate-lbl { margin-right: auto; }
 .rate-lbl { font-size: 12px; font-weight: 600; color: var(--gray2); }
 .rate-stars { display: inline-flex; gap: 2px; }
-.rate-star { background: none; border: none; font-size: 20px; line-height: 1; color: var(--border-strong); cursor: pointer; padding: 0 2px; transition: color .12s, transform .12s; }
+.rate-star { background: none; border: none; font-size: 17px; line-height: 1; color: var(--border-strong); cursor: pointer; padding: 0 2px; transition: color .12s, transform .12s; }
 .rate-star:hover { transform: scale(1.15); color: var(--amber); }
 .rate-star.on { color: var(--amber); }
 .rate-fb { display: flex; gap: 8px; flex: 1 1 260px; }
