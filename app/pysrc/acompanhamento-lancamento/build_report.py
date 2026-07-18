@@ -302,9 +302,24 @@ def assemble(rows, config, content, opts=None):
            'retorno já na captação — quanto a venda de ingressos paga o tráfego antes de abrir o carrinho')
         expo = B['tot'].get('exposicao')
         meta_expo = B['meta'].get('exposicao')
+        # A fórmula sozinha não responde "de onde veio esse número". O (i) traz o
+        # EXTRATO com o valor de cada parcela — é o que o consultor precisa quando o
+        # caixa está no vermelho e ele quer saber qual linha pesou.
+        _s = B['tot_sums']
+        _linhas = [('Receita de ingressos', _s['fat_gen'], 1), ('Receita de order bumps', _s['fat_bump'], 1),
+                   ('Reembolso', _s['refund_gen'] + _s['refund_bump'], -1),
+                   ('Imposto sobre a venda', _s['stax_gen'] + _s['stax_bump'], -1),
+                   ('Taxa do broker', _s['broker_gen'] + _s['broker_bump'], -1),
+                   ('Investimento em mídia', _s['invest'], -1),
+                   ('Imposto sobre a mídia', _s['ptax'], -1)]
+        _w = max(len(n) for n, _, _ in _linhas)
+        _extrato = '\n'.join(f"{'+' if sg > 0 else '−'} {n.ljust(_w)}  {money_exact(v)}"
+                             for n, v, sg in _linhas if v)
         ecard = {'id': 'pan-expo', 'type': 'kpi-card', 'tier': 'feature', 'emph': True,
                  'label': calc.LABELS['exposicao'], 'value': vfmt('exposicao', expo),
-                 'sub': 'receita ingresso + bump − reembolso − imposto − taxa broker − invest − imposto invest',
+                 'info': (f"{_extrato}\n{'─' * (_w + 16)}\n= {'Exposição de caixa'.ljust(_w)}  "
+                          f"{vfmt('exposicao', expo)}\n\nPositivo: o ingresso já pagou o tráfego antes "
+                          f"de abrir o carrinho. Negativo: caixa exposto — julgue contra a meta."),
                  'icon': 'coin', 'iconColor': '#3B6D11'}
         if expo is not None:
             ecard['flag'] = {'text': 'caixa positivo' if expo >= 0 else 'caixa exposto',
