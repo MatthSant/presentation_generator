@@ -278,7 +278,7 @@ def assemble(rows, config, content, opts=None):
         # 80–95% atenção (âmbar), <80% abaixo (vermelho). 98,4% deixa de ser âmbar.
         pan.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta To Date', 'value': f'{intf(leads_tot)} / {intf(mtd)}',
-                    'sub': f'leads captados vs meta esperada até {B["corte_label"]}',
+                    'sub': f'{NOUN} {"vendidos" if PAGO else "captados"} vs meta esperada até {B["corte_label"]}',
                     'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 95 else ('neg' if atd < 80 else 'neutral')})
         hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
