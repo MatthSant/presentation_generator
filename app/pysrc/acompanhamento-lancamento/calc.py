@@ -37,12 +37,17 @@ LABELS = {
     'retorno_pago': 'Retorno líquido', 'retorno_geral': 'Retorno líquido',
     'receita_ing': 'Receita com Ingressos', 'receita_bump': 'Receita com Order Bumps',
     'taxa_bump': 'Taxa de Order Bump', 'bumps': 'Order Bumps',
+    'ticket_medio': 'Ticket Médio',
 }
 # KPIs por mecânica. O pago decide por EXPOSIÇÃO DE CAIXA (verde/vermelho), não por
 # volume+CPL — por isso os cards de Resultado e os Intermediários são outros.
 KPI_MACRO_PAGO = ['exposicao', 'custo_ing_pago', 'roas_geral', 'taxa_bump', 'taxa_qual', 'ingressos']
-KPI_INTER_PAGO = ['investimento', 'receita_ing', 'receita_bump', 'taxa_bump',
-                  'taxa_qual', 'ingressos_pago', 'ingressos_org']
+# Duas linhas de três, agrupadas por assunto: em cima o DINHEIRO que entrou (as duas
+# receitas e o ticket que elas produzem), embaixo a ALAVANCA do bump e a qualidade da
+# base. Investimento saiu daqui — é o denominador do resultado, foi para lá.
+# O split pago × orgânico virou a pizza ao lado, não card.
+KPI_INTER_PAGO = ['receita_ing', 'receita_bump', 'ticket_medio',
+                  'bumps', 'taxa_bump', 'taxa_qual']
 FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pageviews', 'Pageviews'),
                  ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls', 'MQLs')]
 # PAGO: a etapa de leads vira INGRESSOS e o funil BIFURCA no fim — saiu a pesquisa,
@@ -246,6 +251,10 @@ def derive(s, pago=False):
         'retorno_pago': (round(s['fat_pago'] - s['invest'], 2) if (s['fat_pago'] or s['invest']) else None),
         'retorno_geral': (round(receita - s['invest'], 2) if (receita or s['invest']) else None),
         'taxa_bump': pct(s['bumps'], s['ing']),
+        # TICKET MÉDIO = receita TOTAL ÷ ingressos, com o order bump dentro. É o teto do
+        # que se pode pagar por ingresso, e o bump entra porque também paga o tráfego —
+        # medir só o ingresso subestimaria o CAC suportável.
+        'ticket_medio': div(receita, s['ing']),
     } if pago else {}
     return dict({
         'leads': round(s['leads']),
@@ -550,12 +559,13 @@ def build(rows, config=None):
         fb.update(FUNNEL_BENCH_PAGO)     # fixos da mecânica, antes do config do cliente
     fb.update(config.get('funnel_bench') or {})
     # sem pageviews, conv. de página = leads/clicks ≡ connect × conv_página → o
-    # benchmark é o produto dos dois (ex.: 80% × 40% = 32%). NO PAGO isso não vale: a
-    # spec proíbe aplicar o bench de 5% a Cliques→Ingressos (são métricas diferentes),
-    # então sem pageviews o indicador fica SEM referência em vez de ganhar uma inventada.
-    if not has_pageviews:
-        fb['conv_pag'] = None if pago else round(fb['connect'] * fb['conv_pag'] / 100, 1)
-    for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag'):
+    # benchmark é o produto dos dois (ex.: 80% × 40% = 32%). NO PAGO o bench de 5% vale
+    # para a etapa que termina em ingresso, com ou sem pageviews no meio (é assim que a
+    # campanha é operada) — o que muda é o RÓTULO, que passa a dizer Cliques→Ingressos
+    # em vez de "Conv. de Página", para não prometer uma etapa que a base não tem.
+    if not has_pageviews and not pago:
+        fb['conv_pag'] = round(fb['connect'] * fb['conv_pag'] / 100, 1)
+    for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag', 'taxa_bump'):
         if fb.get(k) is not None:
             metas.setdefault(k, fb[k])
     if not has_pageviews and not pago:
@@ -571,7 +581,10 @@ def build(rows, config=None):
     mc = metas.get('cpl')
     if mc is not None and tot_sums['leads_pago']:
         metas.setdefault('investimento', round(mc * tot_sums['leads_pago'], 2))
-    mstatus = {m: meta_status(tot.get(m), metas.get(m), m in COST) for m in set(KPI_MACRO + KPI_TRAF)}
+    # No pago o semáforo precisa cobrir os KPIs do pago também — senão taxa_bump fica
+    # sem o bench de 20% e o card diz "abaixo do benchmark" sem mostrar qual.
+    _mset = set(KPI_MACRO + KPI_TRAF) | (set(KPI_MACRO_PAGO + KPI_INTER_PAGO) if pago else set())
+    mstatus = {m: meta_status(tot.get(m), metas.get(m), m in COST) for m in _mset}
     # investimento: gastar abaixo do projetado é bom → semáforo de custo
     if metas.get('investimento') is not None:
         mstatus['investimento'] = meta_status(tot.get('investimento'), metas['investimento'], cost=True)
@@ -626,11 +639,12 @@ def build(rows, config=None):
     # a etapa Pageviews sai do funil e Cliques→Leads usa o bench combinado (fb['conv_pag']).
     fork = fork_bench = None
     if pago:
-        # PAGO: termina em Ingressos e bifurca (MQLs · Order Bumps). SEM pageviews o
-        # bench de 5% NÃO vai para Cliques→Ingressos — são métricas diferentes (spec).
+        # PAGO: termina em Ingressos e bifurca (MQLs · Order Bumps). O bench de 5% é da
+        # etapa que FECHA em ingresso — sem pageviews ela vira Cliques→Ingressos e o
+        # bench continua valendo (é a régua com que a campanha é operada).
         fstages = FUNNEL_STAGES_PAGO if has_pageviews else [st for st in FUNNEL_STAGES_PAGO if st[0] != 'pageviews']
         bench = ([fb['ctr'], fb['connect'], fb['conv_pag']] if has_pageviews
-                 else [fb['ctr'], None])
+                 else [fb['ctr'], fb['conv_pag']])
         fork, fork_bench = FUNNEL_FORK_PAGO, fb.get('taxa_bump')
     elif has_pageviews:
         fstages = FUNNEL_STAGES
@@ -641,11 +655,18 @@ def build(rows, config=None):
     funnel_total = _funnel(rows_corte, bench, fstages, fork, fork_bench)
     funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages, fork, fork_bench)
 
-    risks_macro = _risks(KPI_MACRO, tot, mstatus, trends)
-    risks_traf = _risks(traf_metrics, tot, mstatus, trends)
+    # Rótulos resolvidos por análise: o nome da métrica depende do que a BASE tem.
+    # Sem pageviews o funil pago fecha em Cliques→Ingressos, e chamar isso de
+    # "Conv. de Página" anunciaria uma etapa que não foi medida.
+    labels = dict(LABELS)
+    if pago and not has_pageviews:
+        labels['conv_pag'] = 'Cliques → Ingressos'
+
+    risks_macro = _risks(KPI_MACRO, tot, mstatus, trends, labels=labels)
+    risks_traf = _risks(traf_metrics, tot, mstatus, trends, labels=labels)
 
     return {
-        'pago': pago, 'fb': fb,
+        'pago': pago, 'fb': fb, 'labels': labels,
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
         'corte': corte, 'corte_label': _day_label(corte),
         'report_date': config.get('data_report') or '', 'dia_campanha': dia_campanha, 'n_dias': n_dias,
@@ -674,7 +695,8 @@ def _creatives(day_rows, links):
         if not ad:
             continue
         a = by_ad.setdefault(ad, {'name': ad, 'invest': 0.0, 'leads_traf': 0.0, 'mqls': 0.0,
-                                  'respostas': 0.0, 'link': None, 'invest_ult': 0.0})
+                                  'respostas': 0.0, 'link': None, 'invest_ult': 0.0,
+                                  'fat_gen': 0.0, 'fat_bump': 0.0, 'bumps': 0.0})
         inv = fnum(r.get('invest_total'))
         a['invest'] += inv
         if ultimo_dia and _date(r) == ultimo_dia:
@@ -682,6 +704,11 @@ def _creatives(day_rows, links):
         a['leads_traf'] += fnum(r.get('leads_trafego'))
         a['mqls'] += fnum(r.get('leads_mqls'))
         a['respostas'] += fnum(r.get('respostas'))
+        # Receita por anúncio: só existe no lançamento pago (colunas vazias no clássico,
+        # onde somam 0 e o ranking por exposição simplesmente não é usado).
+        a['fat_gen'] += fnum(r.get('faturamento_gen'))
+        a['fat_bump'] += fnum(r.get('faturamento_bump'))
+        a['bumps'] += fnum(r.get('vendas_bump'))
         if not a['link']:
             lk = (r.get('link_criativo') or '').strip()
             if lk:
@@ -692,11 +719,19 @@ def _creatives(day_rows, links):
             continue
         cpl = div(a['invest'], a['leads_traf'])
         tq = pct(a['mqls'], a['respostas'])
+        rec = a['fat_gen'] + a['fat_bump']
         out.append({'name': a['name'], 'link': a['link'] or links.get(a['name']),
                     'invest': round(a['invest'], 2), 'leads': round(a['leads_traf']),
                     'respostas': round(a['respostas']), 'cpl': cpl, 'taxa_qual': tq,
                     'ativo': a['invest_ult'] > 0,
-                    'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None)})
+                    'cpmql_proj': (round(cpl * 100 / tq, 2) if (cpl is not None and tq) else None),
+                    # Exposição por criativo: APROXIMAÇÃO — receita menos investimento,
+                    # sem impostos/reembolso/broker, porque não há rateio confiável
+                    # dessas deduções por anúncio. Serve para ordenar, não para fechar
+                    # caixa (o número de caixa da campanha é o card de Exposição).
+                    'bumps': round(a['bumps']), 'receita': round(rec, 2),
+                    'expo': round(rec - a['invest'], 2),
+                    'roas': div(rec, a['invest'])})
 
     def _rank(lst):
         best = sorted(lst, key=lambda c: -c['leads'])[:3]
@@ -704,7 +739,13 @@ def _creatives(day_rows, links):
         # respostas), senão um criativo com pouquíssima pesquisa "ganha" por ruído.
         eff = sorted([c for c in lst if c['taxa_qual'] is not None and c['respostas'] >= 20],
                      key=lambda c: -c['taxa_qual'])[:3]
-        return {'best': best, 'eff': eff}
+        # PAGO: o par que decide é melhor × PIOR exposição — quem está devolvendo o
+        # investimento e quem está queimando. Só criativos com verba entram: sem
+        # investimento a exposição é receita pura e o ranking viraria orgânico.
+        com_verba = [c for c in lst if c['invest'] > 0]
+        top_expo = sorted(com_verba, key=lambda c: -c['expo'])[:3]
+        bot_expo = sorted(com_verba, key=lambda c: c['expo'])[:3]
+        return {'best': best, 'eff': eff, 'top_expo': top_expo, 'bot_expo': bot_expo}
 
     # O top-3 é rankeado DENTRO de cada escopo: filtrar depois de cortar em 3 devolveria
     # listas com 1 ou 0 criativos (e o "melhor ativo" sumiria só por não estar no top-3 geral).
@@ -712,6 +753,7 @@ def _creatives(day_rows, links):
     inativos = [c for c in out if not c['ativo']]
     todos = _rank(out)
     return {'best': todos['best'], 'eff': todos['eff'],   # compat: o escopo "Todos"
+            'top_expo': todos['top_expo'], 'bot_expo': todos['bot_expo'],
             'ultimo_dia': ultimo_dia, 'ultimo_dia_label': _day_label(ultimo_dia),
             'by_scope': {'ativo': _rank(ativos), 'inativo': _rank(inativos), 'todos': todos},
             'n': {'ativo': len(ativos), 'inativo': len(inativos), 'todos': len(out)}}
@@ -780,7 +822,8 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None):
 TREND_RISK_PCT = 15   # piora mínima (em 3d, na direção ruim) p/ virar risco de tendência
 
 
-def _risks(metrics, tot, mstatus, trends, top=2):
+def _risks(metrics, tot, mstatus, trends, top=2, labels=None):
+    LABELS = labels or globals()['LABELS']
     cand = []
     for m in metrics:
         st = mstatus.get(m)

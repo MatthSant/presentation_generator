@@ -631,6 +631,14 @@ export interface FunnelWidget extends WidgetBase {
                   /** casas decimais da taxa nesta transição (default 1; ex.: 2 p/ CTR). */
                   decimals?: number;
                   benchHist?: number; gapHist?: number; worst?: boolean; invalid?: boolean }[];
+  /** BIFURCAÇÃO: caminhos que saem da ÚLTIMA etapa em PARALELO, não em sequência.
+   *  Todos dividem o mesmo denominador (o valor da última etapa), então as taxas NÃO
+   *  somam 100% — um ingresso pode virar MQL e comprar order bump ao mesmo tempo.
+   *  Renderiza lado a lado, abaixo de um separador "bifurcação". */
+  branches?: { label: string; value: number; vlabel?: string; migrate?: number;
+               bench?: number; baseLabel?: string;
+               /** cor da barra do ramo (default: roxo do tronco). */
+               color?: string }[];
 }
 
 /** strat-grid — perguntas estratégicas: N colunas (cards), cada uma com título e

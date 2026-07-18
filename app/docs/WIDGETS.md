@@ -30,6 +30,7 @@ métricas merecem destaque individual com tendência.
 | `heatmap` | `HeatmapWidget` | Grid de calor pivotado. |
 | `heatmap-toggle` | `HeatmapToggleWidget` | Heatmap com abas (`.seg--soft`) trocando a métrica plotada. |
 | `chart-toggle` | `ChartToggleWidget` | N gráficos no mesmo card, trocados por abas. |
+| `funnel` | `FunnelWidget` | Etapas em sequência com taxa de passagem, perda e MAIOR FURO por transição. `compact` para caber ao lado de outro bloco. **`branches`** = bifurcação: caminhos que saem da ÚLTIMA etapa em **paralelo**, dividindo o mesmo denominador — as taxas não somam 100% (ex.: o ingresso vira MQL *e* compra order bump). Use quando a jornada deixa de ser linear; para etapas encadeadas, `steps`. |
 
 ## Controles
 

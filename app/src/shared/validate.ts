@@ -229,9 +229,14 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
       }
       break;
     }
-    case 'funnel':
+    case 'funnel': {
       if (!Array.isArray(w.steps) || w.steps.length === 0) c.err(`${path}.steps`, 'funnel requires a steps array');
+      const br = Array.isArray(w.branches) ? w.branches : [];
+      br.forEach((b, i) => {
+        if (!isObj(b) || !isNonEmptyStr((b as Obj).label)) c.err(`${path}.branches[${i}].label`, 'funnel branch requires a label');
+      });
       break;
+    }
     case 'strat-grid':
       if (!Array.isArray(w.cols) || w.cols.length === 0) c.err(`${path}.cols`, 'strat-grid requires a cols array');
       break;

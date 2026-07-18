@@ -1091,6 +1091,33 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
         if (row) row.appendChild(pills); else body!.appendChild(pills);
       }
     });
+    // Bifurcação: ramos que saem da ÚLTIMA etapa em paralelo. Lado a lado e de largura
+    // igual, porque não há ordem entre eles — quem desenhasse em sequência sugeriria um
+    // afunilamento que não existe (as taxas não somam 100%, dividem o mesmo denominador).
+    const branches = w.branches || [];
+    if (branches.length) {
+      body.appendChild(el('div', 'funnel-fork-sep', 'bifurcação'));
+      const forkRow = el('div', 'funnel-fork');
+      for (const b of branches) {
+        const col = el('div', 'funnel-fork-col');
+        const bar = el('div', 'funnel-bar funnel-bar--branch');
+        if (b.color) bar.style.background = b.color;
+        bar.appendChild(el('span', 'funnel-bar-l', b.label));
+        bar.appendChild(el('span', 'funnel-bar-v', b.vlabel ?? (b.value ?? 0).toLocaleString('pt-BR')));
+        col.appendChild(bar);
+        if (b.migrate != null) {
+          const below = b.bench != null && b.migrate < b.bench;
+          const baseTxt = b.bench != null
+            ? ` · ${b.baseLabel || w.baseLabel || 'meta'} ${b.bench.toFixed(b.bench % 1 ? 1 : 0)}%` : '';
+          const pills = el('div', 'funnel-pills');
+          pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
+            `${below ? '⚠ ' : '✓ '}${b.migrate.toFixed(1)}%${baseTxt}`));
+          col.appendChild(pills);
+        }
+        forkRow.appendChild(col);
+      }
+      body.appendChild(forkRow);
+    }
     wrap.appendChild(body);
   }
 

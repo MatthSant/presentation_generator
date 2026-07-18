@@ -45,14 +45,15 @@ ICON = {'leads': ('users', '#7C3AED'), 'investimento': ('coin', '#534AB7'), 'cpl
         'roas_pago': ('bolt', '#3B6D11'), 'roas_geral': ('bolt', '#3B6D11'),
         'receita_ing': ('coin', '#534AB7'), 'receita_bump': ('star', '#854F0B'),
         'taxa_bump': ('star', '#854F0B'), 'bumps': ('star', '#854F0B'),
+        'ticket_medio': ('credit-card', '#854F0B'),
         'retorno_pago': ('database', '#3B6D11'), 'retorno_geral': ('database', '#3B6D11')}
 
 
-# Números de DECISÃO do pago (posição de caixa): precisam do valor cheio. money()
-# abrevia acima de mil (R$ 4.498,77 vira "R$ 4k") — perda de 12% na leitura de um
-# saldo. money() é compartilhado por todos os tipos, então não se mexe nele: aqui
+# Números de DECISÃO do pago (posição de caixa, ticket): precisam do valor cheio.
+# money() abrevia acima de mil (R$ 4.498,77 vira "R$ 4k") — perda de 12% na leitura de
+# um saldo. money() é compartilhado por todos os tipos, então não se mexe nele: aqui
 # essas métricas usam precisão total.
-EXACT_MONEY = {'exposicao', 'retorno_pago', 'retorno_geral'}
+EXACT_MONEY = {'exposicao', 'retorno_pago', 'retorno_geral', 'ticket_medio'}
 
 # (i) das métricas do PAGO. A diferença entre os pares confunde — ROAS×ROI e CAC×custo
 # por ingresso não são a mesma conta em bases diferentes, e ler um pelo outro leva a
@@ -75,6 +76,12 @@ INFO_PAGO = {
                   'incremental. Abaixo do benchmark é dinheiro deixado na mesa.'),
     'ingressos_pago': 'Ingressos vendidos a partir de tráfego pago (linhas com investimento).',
     'ingressos_org': 'Ingressos vendidos sem mídia paga — entram na receita sem custo de aquisição.',
+    'ticket_medio': ('Receita total (ingressos + order bumps) ÷ ingressos vendidos. É o teto do '
+                     'que se pode pagar para adquirir um ingresso: enquanto o CAC estiver abaixo '
+                     'dele, cada venda a mais melhora a exposição de caixa. O bump entra na conta '
+                     'porque também paga o tráfego.'),
+    'bumps': 'Quantidade de order bumps vendidos no período.',
+    'investimento': 'Total gasto em mídia paga no período. É o denominador de ROAS, ROI e CAC.',
     'receita_ing': 'Receita bruta da venda dos ingressos (faturamento_gen), antes de impostos e taxas.',
     'receita_bump': 'Receita bruta dos order bumps (faturamento_bump), antes de impostos e taxas.',
 }
@@ -87,7 +94,10 @@ def money_exact(v):
     return f"{'-' if v < 0 else ''}R$ {s}"
 
 
-def vfmt(metric, v):
+def vfmt(metric, v, pago=False):
+    """`pago=True` desabreviatura TODO valor monetário: no lançamento pago os reais são
+    a decisão (caixa, ticket, receita), e "R$ 7k" para R$ 6.956,00 além de perder
+    precisão contradiz o extrato do (i) da exposição, que lista o valor cheio."""
     if v is None:
         return '—'
     if metric in PCT:
@@ -96,7 +106,7 @@ def vfmt(metric, v):
         return f'{v:.2f}×'.replace('.', ',')
     if metric in INT:
         return intf(v)
-    if metric in EXACT_MONEY:
+    if metric in EXACT_MONEY or pago:
         return money_exact(v)
     return money(v)
 
@@ -108,6 +118,15 @@ def assemble(rows, config, content, opts=None):
     # na captação, e a decisão do dia vira "estou no verde ou no vermelho?". Troca os
     # KPIs, o funil e o vocabulário (lead → ingresso). Ver docs da spec.
     PAGO = B['pago']
+    # Rótulos vêm do calc, não do módulo: alguns dependem do que a base tem
+    # (ex.: sem pageviews, "Conv. de Página" vira "Cliques → Ingressos").
+    LAB = B['labels']
+    # Fecha o modo sobre o formatador: todo vfmt() daqui para baixo já sabe se é pago.
+    # globals() porque o `def` abaixo torna `vfmt` local em toda a função.
+    _vfmt = globals()['vfmt']
+
+    def vfmt(metric, v):                                  # noqa: F811
+        return _vfmt(metric, v, PAGO)
     dataset, sections, layouts = {}, {}, {}
 
     def add_table(name, dims, rows_):
@@ -152,7 +171,7 @@ def assemble(rows, config, content, opts=None):
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
         flag_txt, flag_tone = trend_delta(metric)
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
-                'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
+                'label': LAB[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
         if sub:
             card['sub'] = sub
@@ -170,7 +189,10 @@ def assemble(rows, config, content, opts=None):
             glabel = 'Meta (proj.)' if metric == 'investimento' else ('Bench' if metric in BENCH_METRICS else 'Meta')
             card['goal'] = {'label': f"{glabel} {vfmt(metric, meta)}", 'delta': f"{st['dev']:+.0f}%", 'status': st['cls']}
         arr.append(card)
-        pg.add(wid, 'kpi-card', w, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
+        # pg=None: o chamador posiciona à mão (pg.at) — layout 2D que o packer de
+        # linha única não expressa, ex.: KPIs em duas linhas ao lado de um gráfico.
+        if pg is not None:
+            pg.add(wid, 'kpi-card', w, 2)   # w:2 → 6 KPIs numa linha só; h:2 — card compacto (h:4 desperdiçava metade da altura)
 
     def risk_blocks(arr, pg, risks, prefix):
         for i, r in enumerate(risks):
@@ -245,7 +267,7 @@ def assemble(rows, config, content, opts=None):
                    for t, v in B['temp'].items() if v.get('leads')])
     # agregados (não têm widget próprio; alimentam perguntas norteadoras + deep mode)
     add_table('acom_kpis', ['metric'], [
-        {'metric': m, 'label': calc.LABELS[m], 'grupo': 'macro' if m in calc.KPI_MACRO else 'trafego',
+        {'metric': m, 'label': LAB[m], 'grupo': 'macro' if m in calc.KPI_MACRO else 'trafego',
          'value': B['tot'].get(m), 'd3': B['d3'].get(m), 'meta': B['meta'].get(m),
          'dev': (B['meta_status'].get(m) or {}).get('dev'), 'cls': (B['meta_status'].get(m) or {}).get('cls'),
          'trend_dir': B['trend'].get(m, {}).get('dir'), 'trend_pct': B['trend'].get(m, {}).get('pct')}
@@ -343,7 +365,7 @@ def assemble(rows, config, content, opts=None):
         _extrato = '\n'.join(f"{'+' if sg > 0 else '−'} {n.ljust(_w)}  {money_exact(v)}"
                              for n, v, sg in _linhas if v)
         ecard = {'id': 'pan-expo', 'type': 'kpi-card', 'tier': 'feature', 'emph': True,
-                 'label': calc.LABELS['exposicao'], 'value': vfmt('exposicao', expo),
+                 'label': LAB['exposicao'], 'value': vfmt('exposicao', expo),
                  'info': (f"{_extrato}\n{'─' * (_w + 16)}\n= {'Exposição de caixa'.ljust(_w)}  "
                           f"{vfmt('exposicao', expo)}\n\nPositivo: o ingresso já pagou o tráfego antes "
                           f"de abrir o carrinho. Negativo: caixa exposto — julgue contra a meta."),
@@ -357,7 +379,13 @@ def assemble(rows, config, content, opts=None):
                              'delta': ('acima' if expo >= meta_expo else 'abaixo'),
                              'status': 'ok' if expo >= meta_expo else 'bad'}
         pan.append(ecard)
-        pg.add('pan-expo', 'kpi-card', 4, 2)
+        # Duas linhas com leituras diferentes: em cima o CAIXA em reais (o que sobrou e
+        # o que foi gasto para chegar lá), embaixo os quatro múltiplos de eficiência.
+        # O investimento sobe para cá porque é o denominador de ROAS, CAC e ROI — sem
+        # ele à vista os múltiplos ficam sem escala: 1,49× sobre R$ 4 mil e sobre
+        # R$ 400 mil são decisões diferentes.
+        pg.add('pan-expo', 'kpi-card', 8, 2)
+        kcard(pan, pg, 'investimento', w=4, sub='mídia paga no período')
         # Dois pares, cada um com seu escopo: o do PAGO isola a eficiência da mídia
         # (ROAS + CAC); o GERAL mostra o resultado com o orgânico junto (ROI + custo
         # por ingresso). O retorno em reais vai no rodapé do card de múltiplo.
@@ -365,15 +393,29 @@ def assemble(rows, config, content, opts=None):
                        ('roas_geral', 'retorno_geral'), ('custo_ing_geral', None)):
             escopo = 'tráfego pago' if m.endswith('_pago') else 'pago + orgânico'
             sub = f"{escopo} · retorno {vfmt(ret, B['tot'].get(ret))}" if ret else escopo
-            kcard(pan, pg, m, w=2, sub=sub)
+            kcard(pan, pg, m, w=3, sub=sub)
 
         risk_section(pan, pg, B['risks_macro'], 'pan', 'RISCOS IDENTIFICADOS')
 
         # ── KPIs INTERMEDIÁRIOS — a explicação (as alavancas do resultado) ─────
+        # Duas linhas de três à ESQUERDA (dinheiro em cima, bump e qualidade embaixo) e
+        # a origem do ingresso como pizza à DIREITA, ocupando as duas linhas: a
+        # proporção pago × orgânico se lê de relance num setor, não em dois números
+        # soltos que o olho ainda precisa dividir.
         eb(pan, pg, 'pan-eb-kpi', 'KPIS INTERMEDIÁRIOS',
            'as alavancas por trás do resultado · valor geral · 3 dias · tendência · meta')
-        for m in calc.KPI_INTER_PAGO:
-            kcard(pan, pg, m)
+        inter_y = pg.y + pg.rowh if pg.x else pg.y
+        for i, m in enumerate(calc.KPI_INTER_PAGO):
+            wid = f'k-{m}'
+            kcard(pan, None, m, w=2)                     # card sem layout automático…
+            pg.at(wid, 'kpi-card', (i % 3) * 2, inter_y + (i // 3) * 2, 2, 2)   # …posicionado à mão
+        pan.append({'id': 'pan-donut-orig', 'type': 'chart', 'chartType': 'donut',
+                    'title': 'Origem do ingresso', 'height': 240,
+                    'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'ingressos',
+                    'legendValues': True,
+                    'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
+        pg.at('pan-donut-orig', 'chart', 6, inter_y, 6, 4)
+        pg.cursor_to(inter_y + 4)
     else:
         eb(pan, pg, 'pan-eb-kpi', 'KPIS MACRO', '6 indicadores · valor geral · 3 dias · tendência · meta')
         for m in calc.KPI_MACRO:
@@ -474,8 +516,25 @@ def assemble(rows, config, content, opts=None):
     # criativos do último dia (best/worst)
     cr = B['criativos']
     if cr['best'] or cr['eff']:
+        # No PAGO o critério de "melhor criativo" muda: volume de lead não decide nada
+        # quando o lead já pagou. O que decide é quanto cada anúncio devolveu do que
+        # custou — por isso o par vira melhor × pior EXPOSIÇÃO, e o ROAS aparece na
+        # linha sem ordenar (múltiplo alto sobre verba minúscula não move o caixa).
         eb(can, cg, 'can-eb-cri', 'CRIATIVOS',
-           f"maior volume e maior qualificação · campanha até {B['corte_label']}")
+           (f"melhor e pior exposição de caixa · campanha até {B['corte_label']}" if PAGO
+            else f"maior volume e maior qualificação · campanha até {B['corte_label']}"))
+
+        def cri_expo_rows(lst):
+            rows = []
+            for c in lst:
+                nb = c['bumps']
+                meta = (f"{money_exact(c['invest'])} invest · CAC {vfmt('custo_ing_pago', c['cpl'])} · "
+                        f"ROAS {vfmt('roas_pago', c['roas'])} · {intf(nb)} bump{'' if nb == 1 else 's'}")
+                rows.append({'name': c['name'], 'link': c.get('link') or None, 'meta': meta,
+                             'stats': [{'value': intf(c['leads']), 'label': 'ingressos'},
+                                       {'value': money_exact(c['expo']), 'label': 'exposição',
+                                        'tone': 'pos' if c['expo'] >= 0 else 'neg'}]})
+            return rows
 
         def cri_list_rows(lst, eff=False):
             rows = []
@@ -497,30 +556,44 @@ def assemble(rows, config, content, opts=None):
         ult = cr.get('ultimo_dia_label') or ''
         SCOPES = [('ativo', 'Ativo'), ('inativo', 'Inativo'), ('todos', 'Todos')]
 
-        def cri_tabs(key, eff=False):
+        def cri_tabs(key, eff=False, expo=False):
             tabs = []
             for sk, slabel in SCOPES:
                 lst = ((cr.get('by_scope') or {}).get(sk) or {}).get(key) or []
                 if not lst:
                     continue
-                tabs.append({'label': slabel, 'rows': cri_list_rows(lst, eff=eff)})
+                rows = cri_expo_rows(lst) if expo else cri_list_rows(lst, eff=eff)
+                tabs.append({'label': slabel, 'rows': rows})
             return tabs
 
         ativo_nota = (f'Ativo = gastou em {ult}, o último dia com verba '
                       f'({n.get("ativo", 0)} de {n.get("todos", 0)} criativos).' if ult else '')
-        if cr['best']:
-            tabs = cri_tabs('best')
-            if tabs:
-                can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
-                            'caption': ativo_nota or None, 'tabs': tabs})
-                cg.add('can-cri-best', 'cri-list', 6, 4)
-        if cr['eff']:
-            tabs = cri_tabs('eff', eff=True)
-            if tabs:
-                can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
-                            'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
-                            'tabs': tabs})
-                cg.add('can-cri-eff', 'cri-list', 6, 4)
+        EXPO_NOTA = ('Exposição por criativo = receita (ingresso + bump) − investimento. '
+                     'Aproximação: impostos, reembolso e taxa do broker não têm rateio por '
+                     'anúncio e ficam de fora — serve para ordenar, não para fechar caixa.')
+        if PAGO:
+            for wid, key, title, cap in (
+                    ('can-cri-best', 'top_expo', 'Melhor exposição de caixa', ativo_nota),
+                    ('can-cri-eff', 'bot_expo', 'Pior exposição de caixa', EXPO_NOTA)):
+                tabs = cri_tabs(key, expo=True)
+                if tabs:
+                    can.append({'id': wid, 'type': 'cri-list', 'title': title,
+                                'caption': cap or None, 'tabs': tabs})
+                    cg.add(wid, 'cri-list', 6, 4)
+        else:
+            if cr['best']:
+                tabs = cri_tabs('best')
+                if tabs:
+                    can.append({'id': 'can-cri-best', 'type': 'cri-list', 'title': 'Maior volume',
+                                'caption': ativo_nota or None, 'tabs': tabs})
+                    cg.add('can-cri-best', 'cri-list', 6, 4)
+            if cr['eff']:
+                tabs = cri_tabs('eff', eff=True)
+                if tabs:
+                    can.append({'id': 'can-cri-eff', 'type': 'cri-list', 'title': 'Maior qualificação',
+                                'caption': 'Corte: só criativos com ≥ 20 respostas de pesquisa — base mínima para a taxa de qualidade ser confiável.',
+                                'tabs': tabs})
+                    cg.add('can-cri-eff', 'cri-list', 6, 4)
     sections['s03'] = {'id': 's03', 'header': {'badge': 'Canais', 'title': 'Canais e Audiência',
                        'sub': 'Origem, temperatura, tipo de lead e criativos do último dia.'}, 'widgets': can}
     layouts['s03'] = cg.items
@@ -536,17 +609,9 @@ def assemble(rows, config, content, opts=None):
     # ingresso, já nos KPIs de Resultado) e resposta/qualidade estão nos Intermediários.
     traf = (list(B['traf_metrics']) if PAGO
             else list(dict.fromkeys([*B['traf_metrics'], 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql'])))
-    # No PAGO as métricas sem coluna na base NÃO somem: entram como "sem dado na fonte".
-    # Zero e ausência de dado são coisas diferentes — omitir esconde que falta
-    # preenchimento na origem; mostrar "—" com a coluna que faltou é acionável.
-    faltando = []
-    if PAGO:
-        for m, col, ok in (('hook', 'views_totais', B['has_views']),
-                           ('hold', 'views_50pc', B['has_views']),
-                           ('connect', 'pageviews', B['has_pageviews'])):
-            if not ok:
-                traf.append(m)
-                faltando.append((m, col))
+    # Métrica sem a coluna na base não vira card: um "—" ocupa o mesmo espaço de um
+    # indicador real e obriga a ler o rodapé para descobrir que não é um resultado ruim,
+    # é ausência de dado. O que falta na origem é assunto do dicionário, não do painel.
     n = len(traf)
     if n <= 4:
         counts = [n]
@@ -557,14 +622,11 @@ def assemble(rows, config, content, opts=None):
         a = (n + 2) // 3
         b = (n - a + 1) // 2
         counts = [a, b, n - a - b]
-    falta_col = dict(faltando)
     i = 0
     for c in counts:
         w = max(2, 12 // c)
         for _ in range(c):
-            m = traf[i]
-            kcard(tra, tg, m, 'kt', w=w,
-                  sub=(f'sem dado na fonte · {falta_col[m]} = 0' if m in falta_col else None))
+            kcard(tra, tg, traf[i], 'kt', w=w)
             i += 1
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais
@@ -591,12 +653,22 @@ def assemble(rows, config, content, opts=None):
                 trans.append(t)
             else:
                 trans.append({})
-        tra.append({'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, 'steps': steps, 'transitions': trans})
-        tg.add(wid, 'funnel', w, 7)
+        wg = {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, 'steps': steps, 'transitions': trans}
+        # Bifurcação: no pago o ingresso segue por DOIS caminhos paralelos a partir da
+        # última etapa (vira MQL na pesquisa · compra order bump). Verde no bump porque
+        # é receita incremental; roxo no MQL porque é qualificação, não dinheiro.
+        fork = (stages[-1].get('fork') if stages else None) or []
+        if fork:
+            wg['branches'] = [{'label': f['label'], 'value': f['value'], 'migrate': f['migracao'],
+                               **({'bench': f['bench'], 'baseLabel': 'bench'} if f.get('bench') else {}),
+                               'color': '#0F7A54' if f['key'] == 'bumps_pago' else '#4A3F9E'}
+                              for f in fork]
+        tra.append(wg)
+        tg.add(wid, 'funnel', w, 9 if fork else 7)
     funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total'])
     funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d'])
     sections['s04'] = {'id': 's04', 'header': {'badge': 'Tráfego', 'title': 'Indicadores de Tráfego Pago',
-                       'sub': f"{', '.join(calc.LABELS[m] for m in B['traf_metrics'])} e funil de conversão."}, 'widgets': tra}
+                       'sub': f"{', '.join(LAB[m] for m in B['traf_metrics'])} e funil de conversão."}, 'widgets': tra}
     layouts['s04'] = tg.items
 
     # ── merge: dashboard de leitura rápida numa ÚNICA página ──────────────────
