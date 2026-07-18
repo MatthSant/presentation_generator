@@ -440,10 +440,13 @@ def load_goals(path, field_conversion, corte):
 
 def build(rows, config=None):
     config = config or {}
-    # MECÂNICA do lançamento (escolhida na criação, não é toggle de leitura):
-    # 'classico' = lead entra de graça · 'pago' = o lead COMPRA o ingresso, então há
-    # receita e retorno já na captação e a métrica que manda é a exposição de caixa.
-    pago = str(config.get('mecanica') or 'classico').strip().lower() == 'pago'
+    # MECÂNICA do lançamento — sai do TIPO DE FUNIL escolhido na criação (fonte única;
+    # `mecanica` fica como override explícito). 'lancamento-pago' = o lead COMPRA o
+    # ingresso, então há receita e retorno já na captação e a métrica que manda é a
+    # exposição de caixa. Não é toggle de leitura: o lançamento é pago ou não é.
+    _mec = str(config.get('mecanica') or '').strip().lower()
+    pago = (_mec == 'pago' if _mec
+            else str(config.get('tipo_funil') or '').strip().lower() == 'lancamento-pago')
     fc = config.get('field_conversion')
     if not fc:
         fcs = sorted({r.get('field_conversion', '') for r in rows if r.get('field_conversion')})
