@@ -35,5 +35,6 @@ app/.base/
 
 # Dev local / temporários — nunca versionar
 app/_dev_authoff.mjs
+app/_dev_mock.mjs
 app/_tmp_*.json
 Witly Design System-handoff.zip
