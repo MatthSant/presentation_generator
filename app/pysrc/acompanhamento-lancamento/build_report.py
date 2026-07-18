@@ -396,13 +396,21 @@ def assemble(rows, config, content, opts=None):
         # esquerda e em destaque, porque é a leitura que decide o dia).
         kcard(pan, pg, 'receita', w=3, sub='ingressos + order bumps')
         kcard(pan, pg, 'investimento', w=3, sub='mídia paga no período')
-        # Dois pares, cada um com seu escopo: o do PAGO isola a eficiência da mídia
-        # (ROAS + CAC); o GERAL mostra o resultado com o orgânico junto (ROI + custo
-        # por ingresso). O retorno em reais vai no rodapé do card de múltiplo.
+        # Estes quatro não são quatro irmãos: são DOIS pares (retorno × custo) em DOIS
+        # recortes (só anúncio × tudo). Lado a lado como iguais, o leitor tem de
+        # reconstruir esse pareamento a cada vez — e ler ROAS como se fosse ROI é
+        # justamente o erro caro. A fonte resolvia com card dentro de card; aqui o
+        # recorte vira um RÓTULO estreito sobre cada par, que é o que ele é: um
+        # cabeçalho de subgrupo, não um container. Com o rótulo em cima, o escopo sai
+        # do rodapé dos cards — repetido quatro vezes ele só reforçava a impressão de
+        # que os quatro eram peças soltas do mesmo tipo.
+        for wid, titulo, cap in (
+                ('pan-eb-esc-pago', 'TRÁFEGO PAGO', 'só o que veio de anúncio'),
+                ('pan-eb-esc-ger', 'PAGO + ORGÂNICO', 'toda a base, orgânico incluído')):
+            eb(pan, pg, wid, titulo, cap, w=6, compact=True)
         for m, ret in (('roas_pago', 'retorno_pago'), ('custo_ing_pago', None),
                        ('roas_geral', 'retorno_geral'), ('custo_ing_geral', None)):
-            escopo = 'tráfego pago' if m.endswith('_pago') else 'pago + orgânico'
-            sub = f"{escopo} · retorno {vfmt(ret, B['tot'].get(ret))}" if ret else escopo
+            sub = f"retorno líquido {vfmt(ret, B['tot'].get(ret))}" if ret else None
             kcard(pan, pg, m, w=3, sub=sub)
 
         risk_section(pan, pg, B['risks_macro'], 'pan', 'RISCOS IDENTIFICADOS')
