@@ -54,6 +54,31 @@ ICON = {'leads': ('users', '#7C3AED'), 'investimento': ('coin', '#534AB7'), 'cpl
 # essas métricas usam precisão total.
 EXACT_MONEY = {'exposicao', 'retorno_pago', 'retorno_geral'}
 
+# (i) das métricas do PAGO. A diferença entre os pares confunde — ROAS×ROI e CAC×custo
+# por ingresso não são a mesma conta em bases diferentes, e ler um pelo outro leva a
+# decisão errada. O texto diz a FÓRMULA e o que muda entre eles.
+INFO_PAGO = {
+    'roas_pago': ('Retorno sobre a mídia contando SÓ a receita que veio de anúncio '
+                  '(linhas com investimento) ÷ investimento. Lê-se como múltiplo: 3,00× = '
+                  'cada R$ 1 de mídia virou R$ 3 de receita paga. É a eficiência isolada '
+                  'da mídia, sem o orgânico ajudando.'),
+    'roas_geral': ('Retorno contando TODA a receita — vendas do pago E do orgânico — ÷ '
+                   'investimento em mídia. Fica acima do ROAS porque o orgânico entra na '
+                   'receita sem custar mídia.'),
+    'custo_ing_pago': ('Custo de aquisição: investimento ÷ ingressos vindos de anúncio. '
+                       'É a eficiência da mídia, e é ESTE que vai contra a meta — o ticket '
+                       'do ingresso define quanto se pode pagar.'),
+    'custo_ing_geral': ('Investimento ÷ TODOS os ingressos, inclusive os orgânicos. É o custo '
+                        'real da base e fica sempre abaixo do CAC, porque o orgânico dilui.'),
+    'taxa_bump': ('Quantos order bumps foram vendidos para cada ingresso. É a alavanca que '
+                  'melhora a exposição de caixa SEM custar mídia — cada bump é receita '
+                  'incremental. Abaixo do benchmark é dinheiro deixado na mesa.'),
+    'ingressos_pago': 'Ingressos vendidos a partir de tráfego pago (linhas com investimento).',
+    'ingressos_org': 'Ingressos vendidos sem mídia paga — entram na receita sem custo de aquisição.',
+    'receita_ing': 'Receita bruta da venda dos ingressos (faturamento_gen), antes de impostos e taxas.',
+    'receita_bump': 'Receita bruta dos order bumps (faturamento_bump), antes de impostos e taxas.',
+}
+
 
 def money_exact(v):
     if v is None:
@@ -131,6 +156,8 @@ def assemble(rows, config, content, opts=None):
                 'icon': ic, 'iconColor': color}
         if sub:
             card['sub'] = sub
+        if PAGO and INFO_PAGO.get(metric):
+            card['info'] = INFO_PAGO[metric]
         if metric == 'cpmql':   # métrica-chave (maior correlação c/ vendas) em destaque roxo
             card['emph'] = True
         # tendência 3d (vs início) — inline ao lado do valor, presente em todas as métricas
@@ -331,8 +358,11 @@ def assemble(rows, config, content, opts=None):
                              'status': 'ok' if expo >= meta_expo else 'bad'}
         pan.append(ecard)
         pg.add('pan-expo', 'kpi-card', 4, 2)
-        for m, ret in (('custo_ing_pago', None), ('roas_pago', 'retorno_pago'),
-                       ('custo_ing_geral', None), ('roas_geral', 'retorno_geral')):
+        # Dois pares, cada um com seu escopo: o do PAGO isola a eficiência da mídia
+        # (ROAS + CAC); o GERAL mostra o resultado com o orgânico junto (ROI + custo
+        # por ingresso). O retorno em reais vai no rodapé do card de múltiplo.
+        for m, ret in (('roas_pago', 'retorno_pago'), ('custo_ing_pago', None),
+                       ('roas_geral', 'retorno_geral'), ('custo_ing_geral', None)):
             escopo = 'tráfego pago' if m.endswith('_pago') else 'pago + orgânico'
             sub = f"{escopo} · retorno {vfmt(ret, B['tot'].get(ret))}" if ret else escopo
             kcard(pan, pg, m, w=2, sub=sub)

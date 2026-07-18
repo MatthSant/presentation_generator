@@ -28,8 +28,12 @@ LABELS = {
     # inteira (lead → ingresso, CPL → custo por ingresso). Ver spec.
     'ingressos': 'Ingressos', 'ingressos_pago': 'Ingressos via Pago',
     'ingressos_org': 'Ingressos via Orgânico', 'exposicao': 'Exposição de caixa',
-    'custo_ing_pago': 'Custo por ingresso', 'custo_ing_geral': 'Custo por ingresso',
-    'roas_pago': 'ROAS', 'roas_geral': 'ROAS',
+    # Os dois recortes têm NOMES diferentes de propósito — não são a mesma métrica em
+    # bases diferentes. Tráfego pago: CAC (custo de aquisição via anúncio) e ROAS
+    # (retorno contando SÓ a venda que veio de anúncio). Geral: custo por ingresso
+    # (diluído no orgânico) e ROI (retorno contando TODA a receita).
+    'custo_ing_pago': 'CAC', 'custo_ing_geral': 'Custo por Ingresso',
+    'roas_pago': 'ROAS', 'roas_geral': 'ROI',
     'retorno_pago': 'Retorno líquido', 'retorno_geral': 'Retorno líquido',
     'receita_ing': 'Receita com Ingressos', 'receita_bump': 'Receita com Order Bumps',
     'taxa_bump': 'Taxa de Order Bump', 'bumps': 'Order Bumps',
