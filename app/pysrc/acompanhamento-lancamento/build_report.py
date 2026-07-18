@@ -82,6 +82,9 @@ INFO_PAGO = {
                      'porque também paga o tráfego.'),
     'bumps': 'Quantidade de order bumps vendidos no período.',
     'investimento': 'Total gasto em mídia paga no período. É o denominador de ROAS, ROI e CAC.',
+    'receita': ('Receita bruta total: ingressos + order bumps, antes de impostos, reembolso '
+                'e taxa do broker. É a maior parcela positiva da exposição de caixa — o (i) '
+                'do card de Exposição mostra o extrato completo.'),
     'receita_ing': 'Receita bruta da venda dos ingressos (faturamento_gen), antes de impostos e taxas.',
     'receita_bump': 'Receita bruta dos order bumps (faturamento_bump), antes de impostos e taxas.',
 }
@@ -199,9 +202,12 @@ def assemble(rows, config, content, opts=None):
             impact = RISK_IMPACT.get(r['metric'], '')
             art = 'do benchmark' if r['metric'] in BENCH_METRICS else 'da meta'
             if r['reason'] == 'trend':
-                txt = 'Em alta nos últimos 3 dias' if r['trend_dir'] == 'up' else 'Em queda nos últimos 3 dias'
+                up = r['trend_dir'] == 'up'
+                txt = 'Em alta nos últimos 3 dias' if up else 'Em queda nos últimos 3 dias'
                 stat = {'value': vfmt(r['metric'], r['value']), 'delta': txt, 'tone': 'warn'}
-                tag, tagColor = f"↗ {r['label']}", 'a'
+                # a seta segue a DIREÇÃO do movimento, não o fato de ser risco: um ↗ ao
+                # lado de "em queda" faz o leitor duvidar de qual dos dois está certo.
+                tag, tagColor = f"{'↗' if up else '↘'} {r['label']}", 'a'
                 detail = f"Dentro {art}, mas piorando rápido nos últimos dias. {impact}"
             else:
                 sym = '⚠' if r['cls'] == 'warn' else '✕'
@@ -384,8 +390,12 @@ def assemble(rows, config, content, opts=None):
         # O investimento sobe para cá porque é o denominador de ROAS, CAC e ROI — sem
         # ele à vista os múltiplos ficam sem escala: 1,49× sobre R$ 4 mil e sobre
         # R$ 400 mil são decisões diferentes.
-        pg.add('pan-expo', 'kpi-card', 8, 2)
-        kcard(pan, pg, 'investimento', w=4, sub='mídia paga no período')
+        pg.add('pan-expo', 'kpi-card', 6, 2)
+        # A linha de cima é a conta da exposição na ordem em que ela se forma: o que
+        # entrou (receita), o que saiu (investimento) e o que sobrou (exposição, à
+        # esquerda e em destaque, porque é a leitura que decide o dia).
+        kcard(pan, pg, 'receita', w=3, sub='ingressos + order bumps')
+        kcard(pan, pg, 'investimento', w=3, sub='mídia paga no período')
         # Dois pares, cada um com seu escopo: o do PAGO isola a eficiência da mídia
         # (ROAS + CAC); o GERAL mostra o resultado com o orgânico junto (ROI + custo
         # por ingresso). O retorno em reais vai no rodapé do card de múltiplo.
@@ -431,26 +441,68 @@ def assemble(rows, config, content, opts=None):
     # (o eyebrow do grupo é o divisor injetado no merge — não duplicar aqui)
     evo, eg = [], Grid()
 
-    def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None):
+    def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None,
+              goals=None):
         c = {'id': wid, 'type': 'chart', 'chartType': ctype, 'title': title, 'height': 280,
              'pct': pct, 'valueFormat': vf, 'bind': {'dataset': 'acom_daily', 'x': 'dia', 'y': y}}
         if ctype == 'bar':
             c['colors'] = ['#AFA9EC', '#534AB7']; c['highlightLast'] = 3   # últimas 3 = roxo forte
         else:
             c['colors'] = [color]
+        if goals:
+            c['goalLines'] = [g for g in goals if g.get('value') is not None]
         if trendkey:
             txt, tone = trend_badge(trendkey)
             if txt:
                 c['badge'] = {'text': txt, 'tone': tone}
         evo.append(c)
         eg.add(wid, 'chart', w, 4)
-    chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6, trendkey='leads')
-    chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6, trendkey='investimento')
-    chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4, trendkey='cpl')
-    chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4, trendkey='taxa_qual')
-    chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4, trendkey='cpmql')
+    if PAGO:
+        # A evolução do pago acompanha a MECÂNICA do pago: CPL e CPMQL não existem aqui
+        # (viraram CAC), e o que se lê dia a dia é se o caixa está virando. Ordem:
+        # o que entrou e o que saiu → o custo → a exposição (dia e acumulada) → as
+        # alavancas com sua régua (ROAS, qualidade, bump, CTR).
+        _fb = B['fb']
+        chart('evo-ing', 'Ingressos por dia', 'ingressos', 'bar', False, 'int', w=4, trendkey='ingressos')
+        chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=4, trendkey='investimento')
+        chart('evo-cac', 'CAC por dia (R$)', 'custo_ing_pago', 'line', False, 'money',
+              '#185FA5', w=4, trendkey='custo_ing_pago')
+        # Exposição por dia: barra que cruza o zero — é o único gráfico onde o SINAL é a
+        # informação, então a linha de referência em 0 (ou na meta) tem que estar lá.
+        _mexpo = B['meta'].get('exposicao')
+        chart('evo-expo-dia', 'Exposição de caixa · por dia', 'expo', 'bar', False, 'money',
+              w=6, trendkey='exposicao',
+              goals=[{'value': _mexpo, 'label': f"Meta {vfmt('exposicao', _mexpo)}", 'color': '#B3261E'}]
+              if _mexpo is not None else None)
+        chart('evo-expo-cum', 'Exposição de caixa · acumulada', 'expo_cum', 'area', False, 'money',
+              '#3B6D11', w=6,
+              goals=[{'value': _mexpo, 'label': 'Ponto de equilíbrio', 'color': '#B3261E'}]
+              if _mexpo is not None else None)
+        chart('evo-roas', 'ROI por dia', 'roas_geral', 'line', False, 'x', '#3B6D11', w=3,
+              trendkey='roas_geral',
+              goals=[{'value': 1.0, 'label': 'Equilíbrio 1,00×', 'color': '#B3261E'}])
+        chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'line', True, 'pct', '#EF9F27', w=3,
+              trendkey='taxa_qual',
+              goals=([{'value': B['meta']['taxa_qual'], 'label': 'Meta'}]
+                     if B['meta'].get('taxa_qual') else None))
+        chart('evo-bump', 'Taxa de Order Bump (%)', 'taxa_bump', 'bar', True, 'pct', w=3,
+              trendkey='taxa_bump',
+              goals=([{'value': _fb['taxa_bump'], 'label': 'Bench', 'color': '#854F0B'}]
+                     if _fb.get('taxa_bump') else None))
+        chart('evo-ctr', 'CTR (%)', 'ctr', 'line', True, 'pct', '#534AB7', w=3, trendkey='ctr',
+              goals=([{'value': _fb['ctr'], 'label': 'Bench', 'color': '#854F0B'}]
+                     if _fb.get('ctr') else None))
+        _sub = ('Ingressos, investimento, CAC, exposição de caixa (dia e acumulada), '
+                'ROI, qualidade, order bump e CTR ao longo dos dias.')
+    else:
+        chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6, trendkey='leads')
+        chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6, trendkey='investimento')
+        chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4, trendkey='cpl')
+        chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4, trendkey='taxa_qual')
+        chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4, trendkey='cpmql')
+        _sub = 'Leads, investimento, CPL, qualidade e CPMQL ao longo dos dias.'
     sections['s02'] = {'id': 's02', 'header': {'badge': 'Evolução', 'title': 'Evolução Diária',
-                       'sub': 'Leads, investimento, CPL, qualidade e CPMQL ao longo dos dias.'}, 'widgets': evo}
+                       'sub': _sub}, 'widgets': evo}
     layouts['s02'] = eg.items
 
     # ════ s03 — Canais & Audiência ═════════════════════════════════════════
@@ -636,12 +688,27 @@ def assemble(rows, config, content, opts=None):
     def funnel_widget(wid, title, sub, stages, w=6):
         # Widget de funil visual: barras degradê por etapa + pills perda/migram por
         # transição + MAIOR FURO (relativo ao benchmark) + dado inválido.
-        steps = [{'label': s['label'], 'value': s['value']} for s in stages]
+        steps = [dict({'label': s['label'], 'value': s['value']},
+                      **({'vlabel': money_exact(s['value'])} if s.get('money') else {}))
+                 for s in stages]
         trans = []
         for i in range(len(stages) - 1):
             tr = stages[i].get('trans') or {}
             if tr.get('invalid'):
                 trans.append({'invalid': True})
+            elif 'nota_cpm' in tr:
+                # Investimento → Impressões: o "câmbio" de reais para alcance. Custo
+                # MENOR é melhor, então o tom inverte em relação às taxas de passagem.
+                cpm, bm, gap = tr.get('nota_cpm'), tr.get('bench'), tr.get('gap')
+                txt = f"CPM {vfmt('cpm', cpm)}" if cpm is not None else 'CPM —'
+                if bm is not None:
+                    txt += f" · bench {vfmt('cpm', bm)}"
+                tone = 'neutral' if gap is None else ('neg' if gap > 15 else ('warn' if gap > 0 else 'pos'))
+                t = {'note': txt, 'noteTone': tone}
+                if tr.get('maior_furo'):
+                    t['note'] += ' · MAIOR FURO'
+                    t['noteTone'] = 'neg'
+                trans.append(t)
             elif 'migracao' in tr:
                 t = {'loss': tr['perda'], 'migrate': tr['migracao']}
                 if tr.get('bench'):
@@ -726,6 +793,19 @@ RISK_IMPACT = {
     'hold': 'O anúncio chama atenção mas não sustenta — as pessoas saem antes do convite. Fortalecer o corpo do vídeo.',
     'ctr': 'Baixo interesse no convite do anúncio — incongruência entre anúncio e oferta, ou convite pouco atrativo.',
     'connect': 'Pessoas clicam mas não chegam na página — provável problema de velocidade ou performance técnica da página.',
+    # PAGO — o impacto é sempre traduzido para a exposição de caixa, que é a decisão
+    # do dia nessa mecânica (escalar ou segurar), não para volume de lead.
+    'exposicao': 'Caixa exposto: a venda de ingressos ainda não cobriu o que foi gasto em mídia. Cada dia nesse ritmo aumenta o valor em risco antes de abrir o carrinho.',
+    'custo_ing_pago': 'O custo de aquisição do ingresso pressiona a exposição de caixa e come a margem antes mesmo da abertura do carrinho.',
+    'custo_ing_geral': 'Mesmo diluído no orgânico o ingresso sai caro — sinal de que o orgânico não está compensando o custo da mídia.',
+    'roas_pago': 'O tráfego pago não está se pagando: a receita das linhas com investimento ficou abaixo do que elas custaram.',
+    'roas_geral': 'A venda de ingressos ainda não paga o tráfego — abaixo de 1,00× cada real investido aumenta a exposição de caixa.',
+    'taxa_bump': 'Order bump convertendo abaixo do benchmark — receita incremental perdida, e é a alavanca que aliviaria a exposição sem custar mídia.',
+    'ticket_medio': 'O ticket define o teto do que se pode pagar por ingresso — quando ele cede, o CAC sustentável aperta junto.',
+    'ingressos': 'Ritmo de venda de ingressos define se a base se forma até o fim da captação.',
+    'receita_ing': 'É a maior parcela positiva da exposição de caixa — quando cede, o caixa sente na hora.',
+    'receita_bump': 'Parcela que entra sem custo de mídia — perder aqui é perder margem limpa.',
+    'receita': 'Entra direto na exposição de caixa — é o lado positivo da conta que paga o tráfego.',
 }
 
 

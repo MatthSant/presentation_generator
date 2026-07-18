@@ -1973,6 +1973,15 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--compact .kc-valrow { margin-bottom: 0; }
 .kc--compact .th-i { width: 13px; height: 13px; line-height: 13px; font-size: 9px; flex: 0 0 auto; align-self: center; }
 .kc--feature .kc-head { align-items: center; margin-bottom: 6px; }
+/* ALINHAMENTO ENTRE CARDS VIZINHOS — o rótulo ocupa 1 ou 2 linhas conforme o nome
+   ("CAC" × "RECEITA COM ORDER BUMPS"), e sem reserva o valor de cada card começa numa
+   altura diferente: a linha inteira sai serrilhada. Reservando duas linhas, os valores
+   nascem na mesma base. O rodapé de meta já se prende embaixo (margin-top:auto).
+   Fora do compacto, onde a head é apertada de propósito para caber na dobra. */
+.kc--feature:not(.kc--compact) .kc-head { align-items: flex-start; min-height: 29px; }
+.kc--feature:not(.kc--compact) .kc-lbl { line-height: 1.3; }
+/* o (i) e a pill voltam ao centro da PRIMEIRA linha do rótulo, não do bloco reservado */
+.kc--feature:not(.kc--compact) .kc-head > .pill { margin-top: 1px; }
 .kc--volume .kc-head { margin-bottom: 5px; }
 .kc-ico { width: 31px; height: 31px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }
 .kc--volume .kc-ico { width: 27px; height: 27px; border-radius: 8px; }

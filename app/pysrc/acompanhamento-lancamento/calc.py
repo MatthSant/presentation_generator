@@ -37,7 +37,7 @@ LABELS = {
     'retorno_pago': 'Retorno líquido', 'retorno_geral': 'Retorno líquido',
     'receita_ing': 'Receita com Ingressos', 'receita_bump': 'Receita com Order Bumps',
     'taxa_bump': 'Taxa de Order Bump', 'bumps': 'Order Bumps',
-    'ticket_medio': 'Ticket Médio',
+    'ticket_medio': 'Ticket Médio', 'receita': 'Receita Total',
 }
 # KPIs por mecânica. O pago decide por EXPOSIÇÃO DE CAIXA (verde/vermelho), não por
 # volume+CPL — por isso os cards de Resultado e os Intermediários são outros.
@@ -53,7 +53,11 @@ FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pagevi
 # PAGO: a etapa de leads vira INGRESSOS e o funil BIFURCA no fim — saiu a pesquisa,
 # entrou o order bump. As duas pontas medem coisas distintas do mesmo ingresso:
 # MQLs = qualidade da base · Order Bumps = receita incremental já no caixa.
-FUNNEL_STAGES_PAGO = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'),
+# O funil abre no INVESTIMENTO: a primeira conversão que a campanha faz é dinheiro em
+# impressão, e é onde o CPM entra como taxa. Sem essa etapa o funil começa num número
+# que ninguém controla (impressões) em vez do único que o gestor decide (a verba).
+FUNNEL_STAGES_PAGO = [('invest', 'Investimento'), ('imp', 'Impressões'),
+                      ('clicks', 'Cliques no Link'),
                       ('pageviews', 'Pageviews'), ('ing_pago', 'Ingressos')]
 FUNNEL_FORK_PAGO = [('mqls_pond', 'MQLs'), ('bumps_pago', 'Order Bumps')]
 # Benchmark de migração esperada por transição do funil (i → i+1). O "maior furo"
@@ -239,6 +243,7 @@ def derive(s, pago=False):
         'ingressos_org': round(s['ing'] - s['ing_pago']),
         'receita_ing': round(s['fat_gen'], 2),
         'receita_bump': round(s['fat_bump'], 2),
+        'receita': round(receita, 2),
         'bumps': round(s['bumps']),
         'exposicao': exposicao_caixa(s),
         # DOIS custos por ingresso: o PAGO (invest ÷ ingressos de tráfego) é a
@@ -570,13 +575,23 @@ def build(rows, config=None):
             metas.setdefault(k, fb[k])
     if not has_pageviews and not pago:
         metas['conv_pag'] = fb['conv_pag']   # leads/clicks usa o bench combinado, não a meta de página
-    # CPM-bench derivado (ao contrário da meta de CPL): CPM = CPL × CTR × (clicks→leads) ÷ 10.
+    # CPM-bench derivado percorrendo o funil AO CONTRÁRIO: se a campanha bater as taxas
+    # de benchmark, cada mil impressões produz (ctr × conv) conversões, e o custo por
+    # conversão que se pretende pagar fixa quanto vale esse milheiro.
+    #   CPM = custo_alvo × ctr% × conv% ÷ 10
+    # O custo-alvo é o CPL no clássico e o CAC no pago — é a única diferença; sem ele
+    # (campanha sem meta de custo) o CPM fica sem referência, e não uma inventada.
     _clb = fb['conv_pag'] if not has_pageviews else (fb.get('connect', 0) / 100.0 * fb.get('conv_pag', 0))
-    _cplm = metas.get('cpl')
-    if _cplm and fb.get('ctr') and _clb:
-        metas.setdefault('cpm', round(_cplm * fb['ctr'] * _clb / 10.0, 2))
+    _custo_alvo = metas.get('custo_ing_pago') if pago else metas.get('cpl')
+    if _custo_alvo and fb.get('ctr') and _clb:
+        metas.setdefault('cpm', round(_custo_alvo * fb['ctr'] * _clb / 10.0, 2))
     # leads (KPI macro) usa a meta to-date como referência do semáforo
     metas.setdefault('leads', metas.get('_leads_td'))
+    if pago:
+        # ROAS de 1,00× é o ponto de equilíbrio — abaixo disso a venda de ingresso não
+        # paga o tráfego. Não é uma meta arbitrária, é a definição de "no vermelho".
+        metas.setdefault('roas_geral', 1.0)
+        metas.setdefault('ingressos', metas.get('_ingressos_td'))
     # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos
     mc = metas.get('cpl')
     if mc is not None and tot_sums['leads_pago']:
@@ -643,8 +658,10 @@ def build(rows, config=None):
         # etapa que FECHA em ingresso — sem pageviews ela vira Cliques→Ingressos e o
         # bench continua valendo (é a régua com que a campanha é operada).
         fstages = FUNNEL_STAGES_PAGO if has_pageviews else [st for st in FUNNEL_STAGES_PAGO if st[0] != 'pageviews']
-        bench = ([fb['ctr'], fb['connect'], fb['conv_pag']] if has_pageviews
-                 else [fb['ctr'], fb['conv_pag']])
+        # bench[0] = transição Investimento→Impressões, que é CPM (nota) e não taxa:
+        # entra por cpm_bench, não por esta lista.
+        bench = ([None, fb['ctr'], fb['connect'], fb['conv_pag']] if has_pageviews
+                 else [None, fb['ctr'], fb['conv_pag']])
         fork, fork_bench = FUNNEL_FORK_PAGO, fb.get('taxa_bump')
     elif has_pageviews:
         fstages = FUNNEL_STAGES
@@ -652,8 +669,9 @@ def build(rows, config=None):
     else:
         fstages = [st for st in FUNNEL_STAGES if st[0] != 'pageviews']
         bench = [fb['ctr'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
-    funnel_total = _funnel(rows_corte, bench, fstages, fork, fork_bench)
-    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages, fork, fork_bench)
+    _cpmb = metas.get('cpm')
+    funnel_total = _funnel(rows_corte, bench, fstages, fork, fork_bench, _cpmb)
+    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages, fork, fork_bench, _cpmb)
 
     # Rótulos resolvidos por análise: o nome da métrica depende do que a BASE tem.
     # Sem pageviews o funil pago fecha em Cliques→Ingressos, e chamar isso de
@@ -662,8 +680,13 @@ def build(rows, config=None):
     if pago and not has_pageviews:
         labels['conv_pag'] = 'Cliques → Ingressos'
 
-    risks_macro = _risks(KPI_MACRO, tot, mstatus, trends, labels=labels)
-    risks_traf = _risks(traf_metrics, tot, mstatus, trends, labels=labels)
+    # Riscos avaliam os KPIs DA MECÂNICA — no pago, ROAS/CAC/order bump/exposição são
+    # o que decide, e a lista clássica (CPL/CPMQL) nem existe. Sem isso, um relatório
+    # com exposição negativa e bump pela metade não levantava nenhum alerta.
+    _rset = (list(dict.fromkeys(KPI_MACRO_PAGO + KPI_INTER_PAGO)) if pago else KPI_MACRO)
+    # top maior no pago: são mais KPIs com meta, e cortar em 2 escondia furo relevante.
+    risks_macro = _risks(_rset, tot, mstatus, trends, top=4 if pago else 2, labels=labels)
+    risks_traf = _risks(traf_metrics, tot, mstatus, trends, top=3 if pago else 2, labels=labels)
 
     return {
         'pago': pago, 'fb': fb, 'labels': labels,
@@ -759,7 +782,7 @@ def _creatives(day_rows, links):
             'n': {'ativo': len(ativos), 'inativo': len(inativos), 'todos': len(out)}}
 
 
-def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None):
+def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench=None):
     """Funil de tráfego pago. `bench` = lista de migração esperada por transição
     (i→i+1). O maior furo é a transição com maior queda RELATIVA ao seu benchmark
     (`gap = (bench − migração)/bench`), não a maior perda absoluta. `stages` permite
@@ -773,18 +796,35 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None):
     # MQLs rateados pelo mix de tráfego: a pesquisa não distingue se o ingresso veio
     # de anúncio ou de orgânico, então o funil PAGO leva só a fatia proporcional.
     mix_pago = (s['ing_pago'] / s['ing']) if s['ing'] else 0
-    vals = {'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
+    vals = {'invest': s['invest'], 'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
             'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls'],
             'ing_pago': s['ing_pago'], 'mqls_pond': s['mqls'] * mix_pago,
             'bumps_pago': s['bumps'] * mix_pago}
     # Etapa zerada é PULADA (dado ausente), nunca desenhada como zero — ver spec.
-    stages = [{'key': k, 'label': lbl, 'value': round(vals[k])} for k, lbl in stage_defs
-              if vals.get(k) or k == stage_defs[0][0]]
+    # Etapa em REAIS mantém os centavos (o build formata o rótulo); as de contagem
+    # arredondam, porque meia impressão não existe.
+    stages = [{'key': k, 'label': lbl,
+               'value': round(vals[k], 2) if k == 'invest' else round(vals[k]),
+               **({'money': True} if k == 'invest' else {})}
+              for k, lbl in stage_defs if vals.get(k) or k == stage_defs[0][0]]
     gaps = []
     for i in range(len(stages) - 1):
         cur, nxt = stages[i]['value'], stages[i + 1]['value']
         if cur <= 0:
             stages[i]['trans'] = None
+            continue
+        if stages[i]['key'] == 'invest':
+            # Investimento → Impressões não é taxa de passagem: reais viram impressões,
+            # e o preço dessa conversão é o CPM. Vai como NOTA (custo), com o bench
+            # derivado do CAC. Custo é melhor quando MENOR — o tom inverte.
+            cpm = div(cur * 1000, nxt)
+            t = {'nota_cpm': round(cpm, 2) if cpm is not None else None}
+            if cpm is not None and cpm_bench:
+                t['bench'] = round(cpm_bench, 2)
+                t['gap'] = round((cpm - cpm_bench) / cpm_bench * 100, 1)   # + = caro
+                if t['gap'] > 0:
+                    gaps.append((i, t['gap']))
+            stages[i]['trans'] = t
             continue
         if nxt > cur:
             stages[i]['trans'] = {'invalid': True}
