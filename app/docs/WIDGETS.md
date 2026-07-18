@@ -24,12 +24,12 @@ métricas merecem destaque individual com tendência.
 
 | Widget | Interface | Quando usar |
 |---|---|---|
-| `chart` | `ChartWidget` | Gráfico ApexCharts (`chartType`: bar, line, area, donut, mixed, …). Sempre via `bind` quando o dado vem do dataset. `valueFormat`: `pct\|money\|x\|int` (pt-BR). `dashLast` para linha "Média" tracejada. `outliers` para vir com Tukey/IQR aplicado. |
+| `chart` | `ChartWidget` | Gráfico ApexCharts (`chartType`: bar, line, area, donut, mixed, …). Sempre via `bind` quando o dado vem do dataset. `valueFormat`: `pct\|money\|x\|int` (pt-BR). `dashLast` para linha "Média" tracejada. `outliers` para vir com Tukey/IQR aplicado. `goalLines` para réguas horizontais (meta/bench/equilíbrio). **Duas séries num card**: `bind.y` em array + `seriesNames` (a série herdaria o nome cru da coluna) + `seriesTypes` (`['bar','line']` — sem isso o `mixed` vindo de bind cai tudo em barra) + `secondaryAxis` quando as unidades diferem. |
 | `table` | `TableWidget` | Tabela bind/inline. Células ricas (`TableCell` objeto) suportam `delta`/`rel`/`tone` → pill de variação + % relativo. |
 | `chart-table` | `ChartTableWidget` | **Bloco combinado**: gráfico em cima + tabela comparativa embaixo num card único com header padronizado (ponto + título + régua). `table` opcional (só gráfico com header). Usado nas quebras do histórico; serve a qualquer série × recorte. |
 | `heatmap` | `HeatmapWidget` | Grid de calor pivotado. |
 | `heatmap-toggle` | `HeatmapToggleWidget` | Heatmap com abas (`.seg--soft`) trocando a métrica plotada. |
-| `chart-toggle` | `ChartToggleWidget` | N gráficos no mesmo card, trocados por abas. |
+| `chart-toggle` | `ChartToggleWidget` | N gráficos no mesmo card, trocados por abas. Use quando as séries **não podem dividir eixo** (R$ × múltiplo; 28% × 1,6%): sobrepor achata a menor contra o eixo, que é perder o dado. Quando as unidades convivem, prefira um `chart` único com `bind.y` em array. |
 | `funnel` | `FunnelWidget` | Etapas em sequência com taxa de passagem, perda e MAIOR FURO por transição. `compact` para caber ao lado de outro bloco. **`branches`** = bifurcação: caminhos que saem da ÚLTIMA etapa em **paralelo**, dividindo o mesmo denominador — as taxas não somam 100% (ex.: o ingresso vira MQL *e* compra order bump). Use quando a jornada deixa de ser linear; para etapas encadeadas, `steps`. |
 
 ## Controles

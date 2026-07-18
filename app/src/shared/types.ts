@@ -172,6 +172,14 @@ export interface ChartWidget extends WidgetBase {
   highlightLast?: number;
   /** Linhas de meta tracejadas (referência horizontal): meta total / to-date. */
   goalLines?: { value: number; label?: string; color?: string }[];
+  /** Rótulo de cada série, por posição — necessário com `bind.y` em array, onde a
+   *  série herda o nome CRU da coluna ("invest", "expo_cum") e a legenda vira jargão
+   *  de dataset. Com uma série só, `bind.name` já resolve. */
+  seriesNames?: string[];
+  /** `mixed` + bind: tipo de cada série por posição ('bar' | 'line' | 'area'). Sem
+   *  isto o mixed vindo de bind cai tudo em barra — a mistura só existia com `series`
+   *  inline. Barra × linha é o que sinaliza que as séries não dividem escala. */
+  seriesTypes?: ('bar' | 'line' | 'area')[];
 }
 
 export type TableCell = string | number | {

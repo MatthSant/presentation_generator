@@ -118,8 +118,11 @@ function humanizeKey(k: string): string {
 }
 function labelSeriesNames(series: ResolvedSeries[], w: ChartWidget): ResolvedSeries[] {
   const yRaw = typeof w.bind?.y === 'string' ? w.bind.y : undefined;
-  return series.map(s => {
+  return series.map((s, i) => {
     const name = String(s.name ?? '');
+    // rótulo explícito por posição vence tudo (bind.y em array)
+    const given = w.seriesNames?.[i];
+    if (given) return { ...s, name: given };
     let label = name;
     if (series.length === 1 && w.bind && !w.bind.name && yRaw && name === yRaw && w.title) {
       label = stripUnit(w.title);
@@ -160,7 +163,10 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
       return wrap;
     }
     const cleaned = (w as { outliers?: boolean }).outliers ? dropOutliers(resolved.series) : resolved.series;
-    const series = labelSeriesNames(cleaned, w);
+    const named = labelSeriesNames(cleaned, w);
+    const series = w.seriesTypes?.length
+      ? named.map((s, i) => (w.seriesTypes![i] ? { ...s, type: w.seriesTypes![i] } : s))
+      : named;
     def = defFromResolved(w.chartType, { categories: resolved.categories, series }, {
       height, colors: w.colors, distributed: w.distributed, diverging: w.diverging, pct: w.pct,
       axisMin: w.axisMin, axisMax: w.axisMax, meanLine: w.meanLine,

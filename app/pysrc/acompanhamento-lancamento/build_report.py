@@ -441,59 +441,96 @@ def assemble(rows, config, content, opts=None):
     # (o eyebrow do grupo é o divisor injetado no merge — não duplicar aqui)
     evo, eg = [], Grid()
 
-    def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None,
-              goals=None):
-        c = {'id': wid, 'type': 'chart', 'chartType': ctype, 'title': title, 'height': 280,
+    def chart_def(title, y, ctype, pct, vf, color='#534AB7', goals=None,
+                  names=None, sec=None, secSuffix=None, colors=None, types=None):
+        c = {'chartType': ctype, 'title': title, 'height': 280,
              'pct': pct, 'valueFormat': vf, 'bind': {'dataset': 'acom_daily', 'x': 'dia', 'y': y}}
-        if ctype == 'bar':
+        if colors:
+            c['colors'] = colors
+        elif ctype == 'bar':
             c['colors'] = ['#AFA9EC', '#534AB7']; c['highlightLast'] = 3   # últimas 3 = roxo forte
         else:
             c['colors'] = [color]
+        if names:
+            c['seriesNames'] = names
+        if types:
+            c['seriesTypes'] = types
+        if sec is not None:
+            c['secondaryAxis'] = sec
+            if secSuffix:
+                c['secondaryAxisSuffix'] = secSuffix
         if goals:
-            c['goalLines'] = [g for g in goals if g.get('value') is not None]
+            gl = [g for g in goals if g.get('value') is not None]
+            if gl:
+                c['goalLines'] = gl
+        return c
+
+    def chart(wid, title, y, ctype, pct, vf, color='#534AB7', w=6, trendkey=None,
+              goals=None, names=None, sec=None, secSuffix=None, colors=None, types=None):
+        c = dict({'id': wid, 'type': 'chart'},
+                 **chart_def(title, y, ctype, pct, vf, color, goals, names, sec, secSuffix,
+                             colors, types))
         if trendkey:
             txt, tone = trend_badge(trendkey)
             if txt:
                 c['badge'] = {'text': txt, 'tone': tone}
         evo.append(c)
         eg.add(wid, 'chart', w, 4)
+
+    def ctoggle(wid, title, specs, w=6):
+        """Um cartão, N séries em ABAS — para métricas que não podem dividir eixo
+        (R$ × múltiplo, 28% × 1,6%). Sobrepor achataria a menor contra o eixo."""
+        # o rótulo da série vem da ABA: sem título no gráfico, a legenda cairia no nome
+        # cru da coluna ("ctr", "custo_ing_pago").
+        evo.append({'id': wid, 'type': 'chart-toggle', 'title': title,
+                    'tabs': [{'label': lbl,
+                              'chart': chart_def(None, y, ct, pct, vf, col or '#534AB7', gl,
+                                                 names=[lbl])}
+                             for lbl, y, ct, pct, vf, col, gl in specs]})
+        eg.add(wid, 'chart-toggle', w, 4)
     if PAGO:
         # A evolução do pago acompanha a MECÂNICA do pago: CPL e CPMQL não existem aqui
-        # (viraram CAC), e o que se lê dia a dia é se o caixa está virando. Ordem:
-        # o que entrou e o que saiu → o custo → a exposição (dia e acumulada) → as
-        # alavancas com sua régua (ROAS, qualidade, bump, CTR).
-        _fb = B['fb']
-        chart('evo-ing', 'Ingressos por dia', 'ingressos', 'bar', False, 'int', w=4, trendkey='ingressos')
-        chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=4, trendkey='investimento')
-        chart('evo-cac', 'CAC por dia (R$)', 'custo_ing_pago', 'line', False, 'money',
-              '#185FA5', w=4, trendkey='custo_ing_pago')
-        # Exposição por dia: barra que cruza o zero — é o único gráfico onde o SINAL é a
-        # informação, então a linha de referência em 0 (ou na meta) tem que estar lá.
-        _mexpo = B['meta'].get('exposicao')
-        chart('evo-expo-dia', 'Exposição de caixa · por dia', 'expo', 'bar', False, 'money',
-              w=6, trendkey='exposicao',
-              goals=[{'value': _mexpo, 'label': f"Meta {vfmt('exposicao', _mexpo)}", 'color': '#B3261E'}]
-              if _mexpo is not None else None)
-        chart('evo-expo-cum', 'Exposição de caixa · acumulada', 'expo_cum', 'area', False, 'money',
-              '#3B6D11', w=6,
+        # (viraram CAC), e o que se lê dia a dia é se o caixa está virando.
+        #
+        # NOVE séries em nove cartões viram mais moldura do que dado numa campanha de
+        # poucos dias. Aqui elas cabem em QUATRO, sem perder nenhuma:
+        #   • quando as unidades convivem, as séries entram no MESMO gráfico e passam a
+        #     se ler juntas (venda × gasto; exposição do dia × acumulada);
+        #   • quando não convivem, vão para ABAS — sobrepor CTR de 1,6% com qualidade de
+        #     28% achataria a primeira contra o eixo, que é perder o dado de fato.
+        _fb, _mexpo = B['fb'], B['meta'].get('exposicao')
+        _bt, _bc = _fb.get('taxa_bump'), _fb.get('ctr')
+        _mq = B['meta'].get('taxa_qual')
+        # 1) O par que responde "vale a pena?": o que entrou e o que saiu, no mesmo dia.
+        chart('evo-ing-inv', 'Ingressos × Investimento por dia', ['ingressos', 'invest'],
+              'mixed', False, 'int', w=6, trendkey='ingressos',
+              names=['Ingressos', 'Investimento (R$)'], sec=[1], secSuffix=' R$',
+              colors=['#534AB7', '#EF9F27'], types=['bar', 'line'])
+        # 2) Exposição: a barra do dia mostra o fôlego diário, a linha acumulada mostra
+        #    a posição — e a leitura que importa é uma CONTRA a outra (um dia ruim
+        #    depois de semanas boas não é o mesmo que um dia ruim no vermelho).
+        chart('evo-expo', 'Exposição de caixa · por dia e acumulada', ['expo', 'expo_cum'],
+              'mixed', False, 'money', w=6, trendkey='exposicao',
+              names=['Exposição do dia', 'Acumulada'], types=['bar', 'line'],
+              colors=['#97C459', '#3B6D11'],
               goals=[{'value': _mexpo, 'label': 'Ponto de equilíbrio', 'color': '#B3261E'}]
               if _mexpo is not None else None)
-        chart('evo-roas', 'ROI por dia', 'roas_geral', 'line', False, 'x', '#3B6D11', w=3,
-              trendkey='roas_geral',
-              goals=[{'value': 1.0, 'label': 'Equilíbrio 1,00×', 'color': '#B3261E'}])
-        chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'line', True, 'pct', '#EF9F27', w=3,
-              trendkey='taxa_qual',
-              goals=([{'value': B['meta']['taxa_qual'], 'label': 'Meta'}]
-                     if B['meta'].get('taxa_qual') else None))
-        chart('evo-bump', 'Taxa de Order Bump (%)', 'taxa_bump', 'bar', True, 'pct', w=3,
-              trendkey='taxa_bump',
-              goals=([{'value': _fb['taxa_bump'], 'label': 'Bench', 'color': '#854F0B'}]
-                     if _fb.get('taxa_bump') else None))
-        chart('evo-ctr', 'CTR (%)', 'ctr', 'line', True, 'pct', '#534AB7', w=3, trendkey='ctr',
-              goals=([{'value': _fb['ctr'], 'label': 'Bench', 'color': '#854F0B'}]
-                     if _fb.get('ctr') else None))
-        _sub = ('Ingressos, investimento, CAC, exposição de caixa (dia e acumulada), '
-                'ROI, qualidade, order bump e CTR ao longo dos dias.')
+        # 3) e 4) Abas: R$ com múltiplo, e três percentuais de escalas distantes.
+        ctoggle('evo-efic', 'Custo e retorno por dia', [
+            ('CAC', 'custo_ing_pago', 'line', False, 'money', '#185FA5', None),
+            ('ROI', 'roas_geral', 'line', False, 'x', '#3B6D11',
+             [{'value': 1.0, 'label': 'Equilíbrio 1,00×', 'color': '#B3261E'}]),
+        ], w=6)
+        ctoggle('evo-taxas', 'Taxas vs. referência', [
+            ('Qualidade', 'taxa_qual', 'line', True, 'pct', '#EF9F27',
+             [{'value': _mq, 'label': 'Meta'}] if _mq else None),
+            ('Order Bump', 'taxa_bump', 'bar', True, 'pct', None,
+             [{'value': _bt, 'label': 'Bench', 'color': '#854F0B'}] if _bt else None),
+            ('CTR', 'ctr', 'line', True, 'pct', '#534AB7',
+             [{'value': _bc, 'label': 'Bench', 'color': '#854F0B'}] if _bc else None),
+        ], w=6)
+        _sub = ('Ingressos × investimento, exposição de caixa (dia e acumulada), '
+                'custo e retorno, e as taxas contra a referência.')
     else:
         chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6, trendkey='leads')
         chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6, trendkey='investimento')
