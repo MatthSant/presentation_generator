@@ -24,10 +24,12 @@ from common.preserve import preserve, preserve_dataset, preserve_layout
 # avaliativo (±10%) do km() de common.
 from common.report import eb, fb
 
-PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect'}
-INT = {'leads'}  # contagem — nem % nem dinheiro
+PCT = {'taxa_resp', 'taxa_qual', 'conv_pag', 'hook', 'hold', 'ctr', 'connect', 'taxa_bump'}
+INT = {'leads', 'ingressos', 'ingressos_pago', 'ingressos_org', 'bumps'}  # contagem
+MULT = {'roas_pago', 'roas_geral'}   # ROAS é MÚLTIPLO (1,49×), não dinheiro nem %
 # Métricas de funil/mídia cujo alvo é um BENCHMARK (não uma meta da campanha).
-BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag', 'cpm'}
+# taxa_bump e conv_pag no pago são benchmarks FIXOS da mecânica (20% e 5%).
+BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag', 'cpm', 'taxa_bump'}
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
 FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).
@@ -35,7 +37,29 @@ ICON = {'leads': ('users', '#7C3AED'), 'investimento': ('coin', '#534AB7'), 'cpl
         'taxa_resp': ('arrows-left-right', '#3B6D11'), 'taxa_qual': ('circle-check', '#534AB7'),
         'conv_pag': ('target', '#185FA5'), 'cpm': ('database', '#534AB7'), 'hook': ('bolt', '#EF9F27'),
         'hold': ('trending-up', '#854F0B'), 'ctr': ('trending-up', '#3B6D11'),
-        'connect': ('refresh', '#185FA5')}
+        'connect': ('refresh', '#185FA5'),
+        # PAGO
+        'exposicao': ('coin', '#3B6D11'), 'ingressos': ('users', '#7C3AED'),
+        'ingressos_pago': ('credit-card', '#185FA5'), 'ingressos_org': ('users', '#3B6D11'),
+        'custo_ing_pago': ('credit-card', '#185FA5'), 'custo_ing_geral': ('credit-card', '#534AB7'),
+        'roas_pago': ('bolt', '#3B6D11'), 'roas_geral': ('bolt', '#3B6D11'),
+        'receita_ing': ('coin', '#534AB7'), 'receita_bump': ('star', '#854F0B'),
+        'taxa_bump': ('star', '#854F0B'), 'bumps': ('star', '#854F0B'),
+        'retorno_pago': ('database', '#3B6D11'), 'retorno_geral': ('database', '#3B6D11')}
+
+
+# Números de DECISÃO do pago (posição de caixa): precisam do valor cheio. money()
+# abrevia acima de mil (R$ 4.498,77 vira "R$ 4k") — perda de 12% na leitura de um
+# saldo. money() é compartilhado por todos os tipos, então não se mexe nele: aqui
+# essas métricas usam precisão total.
+EXACT_MONEY = {'exposicao', 'retorno_pago', 'retorno_geral'}
+
+
+def money_exact(v):
+    if v is None:
+        return '—'
+    s = f'{abs(v):,.2f}'.replace(',', '§').replace('.', ',').replace('§', '.')
+    return f"{'-' if v < 0 else ''}R$ {s}"
 
 
 def vfmt(metric, v):
@@ -43,14 +67,22 @@ def vfmt(metric, v):
         return '—'
     if metric in PCT:
         return pctf(v)
+    if metric in MULT:
+        return f'{v:.2f}×'.replace('.', ',')
     if metric in INT:
         return intf(v)
+    if metric in EXACT_MONEY:
+        return money_exact(v)
     return money(v)
 
 
 def assemble(rows, config, content, opts=None):
     config = config or {}
     B = calc.build(rows, config)
+    # MECÂNICA: no lançamento PAGO o lead compra o ingresso — há receita e retorno já
+    # na captação, e a decisão do dia vira "estou no verde ou no vermelho?". Troca os
+    # KPIs, o funil e o vocabulário (lead → ingresso). Ver docs da spec.
+    PAGO = B['pago']
     dataset, sections, layouts = {}, {}, {}
 
     def add_table(name, dims, rows_):
@@ -90,13 +122,15 @@ def assemble(rows, config, content, opts=None):
             parts.append(f"meta {vfmt(metric, meta)} · {st['dev']:+.0f}% {sym}")
         return ' · '.join(parts)
 
-    def kcard(arr, pg, metric, prefix='k', w=2):
+    def kcard(arr, pg, metric, prefix='k', w=2, sub=None):
         wid = f'{prefix}-{metric}'
         ic, color = ICON.get(metric, ('chart-bar', '#534AB7'))
         flag_txt, flag_tone = trend_delta(metric)
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': calc.LABELS[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
+        if sub:
+            card['sub'] = sub
         if metric == 'cpmql':   # métrica-chave (maior correlação c/ vendas) em destaque roxo
             card['emph'] = True
         # tendência 3d (vs início) — inline ao lado do valor, presente em todas as métricas
@@ -156,11 +190,22 @@ def assemble(rows, config, content, opts=None):
             row['hook'] = d['hook']; row['hold'] = d['hold']
         if B['has_pageviews']:
             row['connect'] = d['connect']
+        if PAGO:
+            # séries próprias do pago: ingressos (acumulado), a exposição POR DIA
+            # (verde/vermelho) e a CUMULATIVA (melhorando ou piorando no tempo).
+            row.update({'ingressos': d['ingressos'], 'cum_ing': d['cum_ing'],
+                        'expo': d['exposicao'], 'expo_cum': d['expo_cum'],
+                        'custo_ing_pago': d['custo_ing_pago'], 'roas_geral': d['roas_geral'],
+                        'taxa_bump': d['taxa_bump']})
         _daily.append(row)
     add_table('acom_daily', ['dia'], _daily)
     sp = B['split']
-    add_table('acom_origem', ['origem'], [{'origem': 'Pago', 'leads': sp['leads_pago']},
-                                          {'origem': 'Orgânico', 'leads': sp['leads_org']}])
+    add_table('acom_origem', ['origem'],
+              [{'origem': 'Pago', 'leads': B['tot']['ingressos_pago']},
+               {'origem': 'Orgânico', 'leads': B['tot']['ingressos_org']}]
+              if PAGO else
+              [{'origem': 'Pago', 'leads': sp['leads_pago']},
+               {'origem': 'Orgânico', 'leads': sp['leads_org']}])
     # canais orgânicos por utm_source (top 8) — alimenta o breakdown da seção Canais
     add_table('acom_canais', ['canal'], [{'canal': c['source'], 'leads': c['leads']}
                                          for c in B['canais_org'][:8]])
@@ -186,14 +231,17 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s01 — Visão Geral ════════════════════════════════════════════════
     pan, pg = [], Grid()
+    # No PAGO o "lead" é um INGRESSO comprado — o vocabulário muda na interface toda.
+    NOUN = 'ingressos' if PAGO else 'leads'
     eb(pan, pg, 'pan-eb-vg', 'CAPTAÇÃO',
-       f"leads captados, origem e atingimento de meta · dia {B['dia_campanha']} · dados até {B['corte_label']}")
+       f"{NOUN} {'vendidos' if PAGO else 'captados'}, origem e atingimento de meta · dia {B['dia_campanha']} · dados até {B['corte_label']}")
 
-    # acumulado de leads (barras, últimas 3 destacadas) + linhas de meta + número-destaque
-    mt = B['meta'].get('_leads_total')
-    mtd = B['meta'].get('_leads_td')
-    leads_tot = B['tot_sums']['leads']
-    cum_chart = {'id': 'pan-cum', 'type': 'chart', 'chartType': 'bar', 'title': 'Total de Leads Captados',
+    # acumulado (barras, últimas 3 destacadas) + linhas de meta + número-destaque
+    mt = B['meta'].get('_ingressos_total' if PAGO else '_leads_total')
+    mtd = B['meta'].get('_ingressos_td' if PAGO else '_leads_td')
+    leads_tot = B['tot']['ingressos'] if PAGO else B['tot_sums']['leads']
+    cum_chart = {'id': 'pan-cum', 'type': 'chart', 'chartType': 'bar',
+                 'title': 'Ingressos Vendidos · acumulado' if PAGO else 'Total de Leads Captados',
                  'headline': {'value': intf(leads_tot), 'caption': f"acumulado até {B['corte_label']}"},
                  'height': 230, 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
                  'categories': B['series']['labels'], 'series': [{'name': 'Acumulado', 'data': B['series']['cum']}]}
@@ -221,7 +269,7 @@ def assemble(rows, config, content, opts=None):
         # então é o card de DESTAQUE (roxo escuro), não um semáforo de performance.
         pan.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'tier': 'feature', 'band': True,
                     'label': 'Atingimento · Meta Geral', 'value': f'{intf(leads_tot)} / {intf(mt)}',
-                    'sub': 'leads captados vs meta total da campanha',
+                    'sub': f'{NOUN} {"vendidos" if PAGO else "captados"} vs meta total da campanha',
                     'delta': f'{at:.1f}%', 'deltaTone': 'emph'})
         hero_lay.append({'id': 'pan-meta-geral', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     if mtd:
@@ -245,11 +293,48 @@ def assemble(rows, config, content, opts=None):
     pg.items = hero_lay
     pg.x, pg.y, pg.rowh = 0, bottom, 0
 
-    eb(pan, pg, 'pan-eb-kpi', 'KPIS MACRO', '6 indicadores · valor geral · 3 dias · tendência · meta')
-    for m in calc.KPI_MACRO:
-        kcard(pan, pg, m)
+    if PAGO:
+        # ── KPIs de RESULTADO — a decisão (escalar ou não) ────────────────────
+        # A exposição vem primeiro e em destaque: é a métrica que comanda o dia.
+        # Depois os dois recortes de eficiência (tráfego pago × geral), cada um com
+        # ROAS (múltiplo) e retorno (reais líquidos) — coisas diferentes, lado a lado.
+        eb(pan, pg, 'pan-eb-res', 'KPIS DE RESULTADO',
+           'retorno já na captação — quanto a venda de ingressos paga o tráfego antes de abrir o carrinho')
+        expo = B['tot'].get('exposicao')
+        meta_expo = B['meta'].get('exposicao')
+        ecard = {'id': 'pan-expo', 'type': 'kpi-card', 'tier': 'feature', 'emph': True,
+                 'label': calc.LABELS['exposicao'], 'value': vfmt('exposicao', expo),
+                 'sub': 'receita ingresso + bump − reembolso − imposto − taxa broker − invest − imposto invest',
+                 'icon': 'coin', 'iconColor': '#3B6D11'}
+        if expo is not None:
+            ecard['flag'] = {'text': 'caixa positivo' if expo >= 0 else 'caixa exposto',
+                             'tone': 'pos' if expo >= 0 else 'neg'}
+        if meta_expo is not None and expo is not None:
+            # meta de exposição é combinada com o cliente (default 0 = não expor caixa)
+            ecard['goal'] = {'label': f"Meta {vfmt('exposicao', meta_expo)}",
+                             'delta': ('acima' if expo >= meta_expo else 'abaixo'),
+                             'status': 'ok' if expo >= meta_expo else 'bad'}
+        pan.append(ecard)
+        pg.add('pan-expo', 'kpi-card', 4, 2)
+        for m, ret in (('custo_ing_pago', None), ('roas_pago', 'retorno_pago'),
+                       ('custo_ing_geral', None), ('roas_geral', 'retorno_geral')):
+            escopo = 'tráfego pago' if m.endswith('_pago') else 'pago + orgânico'
+            sub = f"{escopo} · retorno {vfmt(ret, B['tot'].get(ret))}" if ret else escopo
+            kcard(pan, pg, m, w=2, sub=sub)
 
-    risk_section(pan, pg, B['risks_macro'], 'pan', 'PRINCIPAIS RISCOS')
+        risk_section(pan, pg, B['risks_macro'], 'pan', 'RISCOS IDENTIFICADOS')
+
+        # ── KPIs INTERMEDIÁRIOS — a explicação (as alavancas do resultado) ─────
+        eb(pan, pg, 'pan-eb-kpi', 'KPIS INTERMEDIÁRIOS',
+           'as alavancas por trás do resultado · valor geral · 3 dias · tendência · meta')
+        for m in calc.KPI_INTER_PAGO:
+            kcard(pan, pg, m)
+    else:
+        eb(pan, pg, 'pan-eb-kpi', 'KPIS MACRO', '6 indicadores · valor geral · 3 dias · tendência · meta')
+        for m in calc.KPI_MACRO:
+            kcard(pan, pg, m)
+
+        risk_section(pan, pg, B['risks_macro'], 'pan', 'PRINCIPAIS RISCOS')
 
     sections['s01'] = {'id': 's01', 'header': {'badge': 'Visão Geral', 'title': B['nome'],
                        'sub': f"Acompanhamento tático · dia {B['dia_campanha']} · emitido {B['report_date'] or '—'}"}, 'widgets': pan}
@@ -397,11 +482,26 @@ def assemble(rows, config, content, opts=None):
 
     # ════ s04 — Tráfego Pago ═══════════════════════════════════════════════
     tra, tg = [], Grid()
-    eb(tra, tg, 'tra-eb-kpi', 'INDICADORES DE TRÁFEGO PAGO', 'mídia + custo e qualidade do lead pago')
+    eb(tra, tg, 'tra-eb-kpi', 'INDICADORES DE TRÁFEGO PAGO',
+       'qualidade da mídia' if PAGO else 'mídia + custo e qualidade do lead pago')
     # mídia (omite hook/hold/connect sem dado) + conversão, em LINHAS UNIFORMES:
     # 12÷(nº da linha) → larguras iguais por linha. Ex.: no fallback (7 cards) vira
     # 4 em cima (w3) + 3 embaixo (w4), em vez de fluir 5+2 com larguras desiguais.
-    traf = list(dict.fromkeys([*B['traf_metrics'], 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql']))
+    # No PAGO ficam SÓ as métricas de mídia: CPL/CPMQL não existem (viraram custo por
+    # ingresso, já nos KPIs de Resultado) e resposta/qualidade estão nos Intermediários.
+    traf = (list(B['traf_metrics']) if PAGO
+            else list(dict.fromkeys([*B['traf_metrics'], 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql'])))
+    # No PAGO as métricas sem coluna na base NÃO somem: entram como "sem dado na fonte".
+    # Zero e ausência de dado são coisas diferentes — omitir esconde que falta
+    # preenchimento na origem; mostrar "—" com a coluna que faltou é acionável.
+    faltando = []
+    if PAGO:
+        for m, col, ok in (('hook', 'views_totais', B['has_views']),
+                           ('hold', 'views_50pc', B['has_views']),
+                           ('connect', 'pageviews', B['has_pageviews'])):
+            if not ok:
+                traf.append(m)
+                faltando.append((m, col))
     n = len(traf)
     if n <= 4:
         counts = [n]
@@ -412,11 +512,14 @@ def assemble(rows, config, content, opts=None):
         a = (n + 2) // 3
         b = (n - a + 1) // 2
         counts = [a, b, n - a - b]
+    falta_col = dict(faltando)
     i = 0
     for c in counts:
         w = max(2, 12 // c)
         for _ in range(c):
-            kcard(tra, tg, traf[i], 'kt', w=w)
+            m = traf[i]
+            kcard(tra, tg, m, 'kt', w=w,
+                  sub=(f'sem dado na fonte · {falta_col[m]} = 0' if m in falta_col else None))
             i += 1
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais

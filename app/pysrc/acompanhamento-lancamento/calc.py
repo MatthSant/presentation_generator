@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 from common import temp as temp_util
 
 # Métricas de custo (menor é melhor) — direção da tendência e do desvio vs meta.
-COST = {'cpl', 'cpmql', 'cpm'}
+COST = {'cpl', 'cpmql', 'cpm', 'custo_ing_pago', 'custo_ing_geral'}
 KPI_MACRO = ['investimento', 'leads', 'cpl', 'taxa_resp', 'taxa_qual', 'cpmql']
 KPI_TRAF = ['cpm', 'hook', 'hold', 'ctr', 'connect', 'conv_pag']
 LABELS = {
@@ -24,15 +24,38 @@ LABELS = {
     'taxa_resp': 'Taxa de Resposta', 'taxa_qual': 'Taxa de Qualidade', 'conv_pag': 'Conv. de Página',
     'cpm': 'CPM', 'hook': 'Hook Rate', 'hold': 'Hold Rate', 'ctr': 'CTR (Link)', 'connect': 'Connect Rate',
     'leads': 'Leads',
+    # ── PAGO: o lead COMPROU o ingresso, então o vocabulário muda na interface
+    # inteira (lead → ingresso, CPL → custo por ingresso). Ver spec.
+    'ingressos': 'Ingressos', 'ingressos_pago': 'Ingressos via Pago',
+    'ingressos_org': 'Ingressos via Orgânico', 'exposicao': 'Exposição de caixa',
+    'custo_ing_pago': 'Custo por ingresso', 'custo_ing_geral': 'Custo por ingresso',
+    'roas_pago': 'ROAS', 'roas_geral': 'ROAS',
+    'retorno_pago': 'Retorno líquido', 'retorno_geral': 'Retorno líquido',
+    'receita_ing': 'Receita com Ingressos', 'receita_bump': 'Receita com Order Bumps',
+    'taxa_bump': 'Taxa de Order Bump', 'bumps': 'Order Bumps',
 }
+# KPIs por mecânica. O pago decide por EXPOSIÇÃO DE CAIXA (verde/vermelho), não por
+# volume+CPL — por isso os cards de Resultado e os Intermediários são outros.
+KPI_MACRO_PAGO = ['exposicao', 'custo_ing_pago', 'roas_geral', 'taxa_bump', 'taxa_qual', 'ingressos']
+KPI_INTER_PAGO = ['investimento', 'receita_ing', 'receita_bump', 'taxa_bump',
+                  'taxa_qual', 'ingressos_pago', 'ingressos_org']
 FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pageviews', 'Pageviews'),
                  ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls', 'MQLs')]
+# PAGO: a etapa de leads vira INGRESSOS e o funil BIFURCA no fim — saiu a pesquisa,
+# entrou o order bump. As duas pontas medem coisas distintas do mesmo ingresso:
+# MQLs = qualidade da base · Order Bumps = receita incremental já no caixa.
+FUNNEL_STAGES_PAGO = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'),
+                      ('pageviews', 'Pageviews'), ('ing_pago', 'Ingressos')]
+FUNNEL_FORK_PAGO = [('mqls_pond', 'MQLs'), ('bumps_pago', 'Order Bumps')]
 # Benchmark de migração esperada por transição do funil (i → i+1). O "maior furo"
 # é a transição com maior queda RELATIVA ao seu benchmark — não a maior perda
 # absoluta (senão Impressões→Cliques, com CTR ~1-2%, venceria sempre).
 #   0 imp→clicks  = CTR · 1 clicks→pageviews = Connect · 2 pageviews→leads = Conv. página
 #   3 leads→respostas = Taxa de Resposta (meta/histórico) · 4 respostas→mqls = Qualidade (meta/histórico)
 FUNNEL_BENCH = {'hook': 30.0, 'hold': 30.0, 'ctr': 1.5, 'connect': 80.0, 'conv_pag': 40.0}
+# PAGO: benchmarks FIXOS da mecânica (não se pergunta ao cliente) — conv. de página 5%
+# e taxa de order bump 20%. Aplicados por cima do FUNNEL_BENCH quando mecanica='pago'.
+FUNNEL_BENCH_PAGO = {'conv_pag': 5.0, 'taxa_bump': 20.0}
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 
@@ -140,12 +163,22 @@ def campaign_name(r):
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
 _RAW = ['leads', 'leads_pago', 'invest', 'imp', 'clicks', 'pageviews', 'leads_traf',
-        'mqls', 'respostas', 'novos', 'antigos', 'cli', 'vendas', 'fat', 'views_tot', 'views_50']
+        'mqls', 'respostas', 'novos', 'antigos', 'cli', 'vendas', 'fat', 'views_tot', 'views_50',
+        # ── lançamento PAGO: ingresso (_gen) + order bump (_bump) ──────────────
+        # Só `_gen` e `_bump` são captação. `_sale`/`_presale`/`_upsell` são da etapa
+        # de VENDAS e ficam fora deste relatório de propósito.
+        'ing', 'ing_pago', 'fat_gen', 'fat_bump', 'fat_pago', 'bumps',
+        'refund_gen', 'refund_bump', 'stax_gen', 'stax_bump', 'broker_gen', 'broker_bump', 'ptax']
 _SRC = {'leads': 'leads', 'invest': 'invest_total', 'imp': 'impressoes', 'clicks': 'link_clicks',
         'pageviews': 'pageviews', 'leads_traf': 'leads_trafego', 'mqls': 'leads_mqls',
         'respostas': 'respostas', 'novos': 'leads_novo', 'antigos': 'leads_antigos',
         'cli': 'cliente_inscrito', 'vendas': 'vendas', 'fat': 'faturamento',
-        'views_tot': 'views_totais', 'views_50': 'views_50pc'}
+        'views_tot': 'views_totais', 'views_50': 'views_50pc',
+        'ing': 'vendas_gen', 'fat_gen': 'faturamento_gen', 'bumps': 'vendas_bump',
+        'fat_bump': 'faturamento_bump', 'refund_gen': 'refunded_value_gen',
+        'refund_bump': 'refunded_value_bump', 'stax_gen': 'sales_tax_gen',
+        'stax_bump': 'sales_tax_bump', 'broker_gen': 'broker_fee_gen',
+        'broker_bump': 'broker_fee_bump', 'ptax': 'paidmedia_tax'}
 
 
 def _sum(rows):
@@ -156,19 +189,67 @@ def _sum(rows):
             s[k] += fnum(r.get(col))
         if paid:
             s['leads_pago'] += fnum(r.get('leads'))
+            # recortes PAGOS do lançamento pago: o ROAS/retorno "do tráfego pago" só
+            # conta a receita de linhas com investimento (ver spec).
+            s['ing_pago'] += fnum(r.get('vendas_gen'))
+            s['fat_pago'] += fnum(r.get('faturamento_gen')) + fnum(r.get('faturamento_bump'))
     return s
 
 
-def derive(s):
-    """Indicadores derivados de um bloco de somas brutas (None onde sem base)."""
+def exposicao_caixa(s):
+    """EXPOSIÇÃO DE CAIXA — quanto se está no verde/vermelho durante a captação.
+
+        + faturamento_gen + faturamento_bump      receita (ingresso + order bump)
+        − refunded_value_gen/_bump                LÍQUIDA de reembolso
+        − sales_tax_gen/_bump                     imposto sobre a venda
+        − broker_fee_gen/_bump                    taxa do broker de pagamento
+        − invest_total − paidmedia_tax            mídia + imposto sobre a mídia
+
+    Positivo = o ingresso já pagou o tráfego antes de abrir o carrinho (escalar).
+    Negativo = caixa exposto — julgar contra a meta combinada com o cliente.
+    None quando não há receita NEM investimento (nada aconteceu no recorte)."""
+    receita = s['fat_gen'] + s['fat_bump']
+    if not receita and not s['invest']:
+        return None
+    deducoes = (s['refund_gen'] + s['refund_bump'] + s['stax_gen'] + s['stax_bump']
+                + s['broker_gen'] + s['broker_bump'])
+    return round(receita - deducoes - s['invest'] - s['ptax'], 2)
+
+
+def derive(s, pago=False):
+    """Indicadores derivados de um bloco de somas brutas (None onde sem base).
+
+    `pago=True` (lançamento pago) acrescenta a camada de caixa e troca a base da taxa
+    de resposta: no pago o denominador é o INGRESSO vendido (vendas_gen), não `leads`."""
     cpl = div(s['invest'], s['leads_pago'])
     tq = pct(s['mqls'], s['respostas'])
-    return {
+    receita = s['fat_gen'] + s['fat_bump']
+    extra_pago = {
+        'ingressos': round(s['ing']),
+        'ingressos_pago': round(s['ing_pago']),
+        'ingressos_org': round(s['ing'] - s['ing_pago']),
+        'receita_ing': round(s['fat_gen'], 2),
+        'receita_bump': round(s['fat_bump'], 2),
+        'bumps': round(s['bumps']),
+        'exposicao': exposicao_caixa(s),
+        # DOIS custos por ingresso: o PAGO (invest ÷ ingressos de tráfego) é a
+        # eficiência da mídia e é o que vai contra a meta; o GERAL dilui no orgânico.
+        'custo_ing_pago': div(s['invest'], s['leads_traf']),
+        'custo_ing_geral': div(s['invest'], s['ing']),
+        # ROAS = múltiplo (eficiência) · retorno = reais já líquidos do investimento.
+        'roas_pago': div(s['fat_pago'], s['invest']),
+        'roas_geral': div(receita, s['invest']),
+        'retorno_pago': (round(s['fat_pago'] - s['invest'], 2) if (s['fat_pago'] or s['invest']) else None),
+        'retorno_geral': (round(receita - s['invest'], 2) if (receita or s['invest']) else None),
+        'taxa_bump': pct(s['bumps'], s['ing']),
+    } if pago else {}
+    return dict({
         'leads': round(s['leads']),
         'investimento': round(s['invest'], 2),
         'cpl': cpl,
         'cpmql': (round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None),
-        'taxa_resp': pct(s['respostas'], s['leads']),
+        # No PAGO a base da taxa de resposta é o INGRESSO vendido; no clássico, o lead.
+        'taxa_resp': pct(s['respostas'], s['ing'] if pago else s['leads']),
         'taxa_qual': tq,
         'cpm': div(s['invest'] * 1000, s['imp']),
         'ctr': pct(s['clicks'], s['imp']),
@@ -179,7 +260,7 @@ def derive(s):
         # (≡ connect × conv_página); com pageviews, conv_página = leads/pageviews
         'connect': pct(s['pageviews'], s['clicks']) if s['pageviews'] else None,
         'conv_pag': pct(s['leads_traf'], s['pageviews']) if s['pageviews'] else pct(s['leads_traf'], s['clicks']),
-    }
+    }, **extra_pago)
 
 
 # métricas expostas no modo-fundo (mesmo conjunto do derive)
@@ -359,6 +440,10 @@ def load_goals(path, field_conversion, corte):
 
 def build(rows, config=None):
     config = config or {}
+    # MECÂNICA do lançamento (escolhida na criação, não é toggle de leitura):
+    # 'classico' = lead entra de graça · 'pago' = o lead COMPRA o ingresso, então há
+    # receita e retorno já na captação e a métrica que manda é a exposição de caixa.
+    pago = str(config.get('mecanica') or 'classico').strip().lower() == 'pago'
     fc = config.get('field_conversion')
     if not fc:
         fcs = sorted({r.get('field_conversion', '') for r in rows if r.get('field_conversion')})
@@ -385,13 +470,21 @@ def build(rows, config=None):
     first_leads = next((d for d in dates if _sum(by_date[d])['leads'] > 0), dates[0] if dates else '')
     days = []
     cum = 0
+    cum_ing = 0
+    cum_expo = 0.0
     for d in dates:
         s = _sum(by_date[d])
         cum += s['leads']
-        dd = derive(s)
+        dd = derive(s, pago)
         dd.update({'date': d, 'label': _day_label(d), 'sums': s,
                    'leads': round(s['leads']), 'cum': round(cum),
                    'leads_pago': round(s['leads_pago']), 'leads_org': round(s['leads'] - s['leads_pago'])})
+        if pago:
+            # acumulados do pago: ingressos (hero da captação) e a exposição CUMULATIVA
+            # — é ela que mostra se a campanha está melhorando ou piorando no tempo.
+            cum_ing += s['ing']
+            cum_expo += (dd['exposicao'] or 0)
+            dd.update({'cum_ing': round(cum_ing), 'expo_cum': round(cum_expo, 2)})
         days.append(dd)
     # só dias dentro da campanha (>= primeiro dia com leads)
     days = [d for d in days if d['date'] >= first_leads]
@@ -400,7 +493,7 @@ def build(rows, config=None):
 
     rows_corte = [r for d in dates for r in by_date[d]]
     tot_sums = _sum(rows_corte)
-    tot = derive(tot_sums)
+    tot = derive(tot_sums, pago)
     # disponibilidade de dados de mídia/página na base. Sem vídeo (views) → omite
     # hook/hold; sem pageviews → omite connect e a conv. de página vira leads/clicks.
     has_views = tot_sums['views_tot'] > 0
@@ -410,7 +503,7 @@ def build(rows, config=None):
                     and not (m == 'connect' and not has_pageviews)]
     last3 = days[-3:]
     d3_sums = _sum([r for d in last3 for r in by_date[d['date']]])
-    d3 = derive(d3_sums)
+    d3 = derive(d3_sums, pago)
 
     def serie(k):
         return [d.get(k) for d in days]
@@ -421,7 +514,14 @@ def build(rows, config=None):
         'cpl': serie('cpl'), 'cpmql': serie('cpmql'), 'taxa_qual': serie('taxa_qual'),
         'cpm': serie('cpm'),
     }
-    trends = {m: trend(serie(m), m in COST) for m in set(KPI_MACRO + KPI_TRAF) if m != 'investimento'}
+    if pago:
+        # No pago o acumulado do hero é de INGRESSOS; a exposição entra em duas formas.
+        series.update({'cum': serie('cum_ing'), 'ingressos': serie('ingressos'),
+                       'expo': serie('exposicao'), 'expo_cum': serie('expo_cum'),
+                       'custo_ing_pago': serie('custo_ing_pago'), 'roas_geral': serie('roas_geral'),
+                       'taxa_bump': serie('taxa_bump')})
+    _tset = set((KPI_MACRO_PAGO + KPI_INTER_PAGO) if pago else KPI_MACRO) | set(KPI_TRAF)
+    trends = {m: trend(serie(m), m in COST) for m in _tset if m != 'investimento'}
     trends['investimento'] = trend([round(d['sums']['invest'], 2) for d in days])
     trends['leads'] = trend([d['leads'] for d in days])
 
@@ -439,15 +539,19 @@ def build(rows, config=None):
     # meta-padrão dos KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
     # config['funnel_bench'] sobrescreve; senão cai no FUNNEL_BENCH (fallback).
     fb = dict(FUNNEL_BENCH)
+    if pago:
+        fb.update(FUNNEL_BENCH_PAGO)     # fixos da mecânica, antes do config do cliente
     fb.update(config.get('funnel_bench') or {})
     # sem pageviews, conv. de página = leads/clicks ≡ connect × conv_página → o
-    # benchmark é o produto dos dois (ex.: 80% × 40% = 32%).
+    # benchmark é o produto dos dois (ex.: 80% × 40% = 32%). NO PAGO isso não vale: a
+    # spec proíbe aplicar o bench de 5% a Cliques→Ingressos (são métricas diferentes),
+    # então sem pageviews o indicador fica SEM referência em vez de ganhar uma inventada.
     if not has_pageviews:
-        fb['conv_pag'] = round(fb['connect'] * fb['conv_pag'] / 100, 1)
+        fb['conv_pag'] = None if pago else round(fb['connect'] * fb['conv_pag'] / 100, 1)
     for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag'):
         if fb.get(k) is not None:
             metas.setdefault(k, fb[k])
-    if not has_pageviews:
+    if not has_pageviews and not pago:
         metas['conv_pag'] = fb['conv_pag']   # leads/clicks usa o bench combinado, não a meta de página
     # CPM-bench derivado (ao contrário da meta de CPL): CPM = CPL × CTR × (clicks→leads) ÷ 10.
     _clb = fb['conv_pag'] if not has_pageviews else (fb.get('connect', 0) / 100.0 * fb.get('conv_pag', 0))
@@ -513,19 +617,28 @@ def build(rows, config=None):
     # benchmark de migração por transição (fb já montado acima) — os dois últimos
     # saem da meta de taxa_resp/taxa_qual (ou histórico, quando houver). Sem pageviews,
     # a etapa Pageviews sai do funil e Cliques→Leads usa o bench combinado (fb['conv_pag']).
-    if has_pageviews:
+    fork = fork_bench = None
+    if pago:
+        # PAGO: termina em Ingressos e bifurca (MQLs · Order Bumps). SEM pageviews o
+        # bench de 5% NÃO vai para Cliques→Ingressos — são métricas diferentes (spec).
+        fstages = FUNNEL_STAGES_PAGO if has_pageviews else [st for st in FUNNEL_STAGES_PAGO if st[0] != 'pageviews']
+        bench = ([fb['ctr'], fb['connect'], fb['conv_pag']] if has_pageviews
+                 else [fb['ctr'], None])
+        fork, fork_bench = FUNNEL_FORK_PAGO, fb.get('taxa_bump')
+    elif has_pageviews:
         fstages = FUNNEL_STAGES
         bench = [fb['ctr'], fb['connect'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
     else:
         fstages = [st for st in FUNNEL_STAGES if st[0] != 'pageviews']
         bench = [fb['ctr'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
-    funnel_total = _funnel(rows_corte, bench, fstages)
-    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages)
+    funnel_total = _funnel(rows_corte, bench, fstages, fork, fork_bench)
+    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages, fork, fork_bench)
 
     risks_macro = _risks(KPI_MACRO, tot, mstatus, trends)
     risks_traf = _risks(traf_metrics, tot, mstatus, trends)
 
     return {
+        'pago': pago, 'fb': fb,
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
         'corte': corte, 'corte_label': _day_label(corte),
         'report_date': config.get('data_report') or '', 'dia_campanha': dia_campanha, 'n_dias': n_dias,
@@ -597,19 +710,27 @@ def _creatives(day_rows, links):
             'n': {'ativo': len(ativos), 'inativo': len(inativos), 'todos': len(out)}}
 
 
-def _funnel(rows, bench=None, stages=None):
+def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None):
     """Funil de tráfego pago. `bench` = lista de migração esperada por transição
     (i→i+1). O maior furo é a transição com maior queda RELATIVA ao seu benchmark
     (`gap = (bench − migração)/bench`), não a maior perda absoluta. `stages` permite
-    omitir etapas sem dado (ex.: Pageviews ausente)."""
+    omitir etapas sem dado (ex.: Pageviews ausente). `fork` = ramos que saem da última
+    etapa (lançamento pago: MQLs e Order Bumps a partir do ingresso)."""
     stage_defs = stages or FUNNEL_STAGES
     bench = bench or [None] * (len(stage_defs) - 1)
     s = _sum(rows)
     leads_total = s['leads'] or 0
     resp_pond = s['respostas'] * (s['leads_pago'] / leads_total) if leads_total else 0
+    # MQLs rateados pelo mix de tráfego: a pesquisa não distingue se o ingresso veio
+    # de anúncio ou de orgânico, então o funil PAGO leva só a fatia proporcional.
+    mix_pago = (s['ing_pago'] / s['ing']) if s['ing'] else 0
     vals = {'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
-            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls']}
-    stages = [{'key': k, 'label': lbl, 'value': round(vals[k])} for k, lbl in stage_defs]
+            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls'],
+            'ing_pago': s['ing_pago'], 'mqls_pond': s['mqls'] * mix_pago,
+            'bumps_pago': s['bumps'] * mix_pago}
+    # Etapa zerada é PULADA (dado ausente), nunca desenhada como zero — ver spec.
+    stages = [{'key': k, 'label': lbl, 'value': round(vals[k])} for k, lbl in stage_defs
+              if vals.get(k) or k == stage_defs[0][0]]
     gaps = []
     for i in range(len(stages) - 1):
         cur, nxt = stages[i]['value'], stages[i + 1]['value']
@@ -630,6 +751,22 @@ def _funnel(rows, bench=None, stages=None):
         stages[i]['trans'] = t
     if gaps:                                            # maior furo = maior queda vs benchmark
         stages[max(gaps, key=lambda x: x[1])[0]]['trans']['maior_furo'] = True
+    if fork:
+        # Bifurcação (pago): as duas pontas saem da ÚLTIMA etapa (ingressos), cada uma
+        # com sua própria migração — não são etapas em sequência.
+        base = stages[-1]['value'] if stages else 0
+        ramos = []
+        for k, lbl in fork:
+            v = round(vals.get(k) or 0)
+            if not v:
+                continue
+            r = {'key': k, 'label': lbl, 'value': v,
+                 'migracao': (round(v / base * 100, 1) if base else None)}
+            if k == 'bumps_pago' and fork_bench:
+                r['bench'] = round(fork_bench, 1)
+            ramos.append(r)
+        if ramos:
+            stages[-1]['fork'] = ramos
     return stages
 
 
