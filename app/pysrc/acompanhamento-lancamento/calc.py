@@ -107,6 +107,40 @@ def div(a, b, nd=4):
     return round(a / b, nd) if b > 0 else None
 
 
+# O dump traz a MESMA dimensão em DUAS famílias de coluna: a da VENDA (`data`,
+# `utm_*`, `field_conversion`) e a da INTEGRAÇÃO DE MÍDIA (`data_traf`, `utm_*_traf`,
+# `conversion_traf`). Linha que veio só do tráfego tem a família da venda inteiramente
+# vazia; linha que veio só da venda, o contrário; e quando as duas existem elas
+# carregam o mesmo valor — é duplicação de coluna, não duas dimensões diferentes.
+TRAF_ALIAS = {'field_conversion': 'conversion_traf', 'data': 'data_traf',
+              'utm_source': 'utm_source_traf', 'utm_medium': 'utm_medium_traf',
+              'utm_campaign': 'utm_campaign_traf', 'utm_content': 'utm_content_traf'}
+
+
+def merge_traf_columns(rows):
+    """Preenche a coluna canônica com a da família `_traf` quando ela está vazia.
+
+    Sem isto o motor — que lê só a canônica — descarta a linha de mídia inteira: no
+    dump real são 137 de 278 linhas, metade do investimento e das impressões saindo
+    da conta sem erro nenhum aparecer.
+
+    A canônica SEMPRE vence quando as duas existem. Se um dia divergirem, o dado da
+    venda manda e nada muda em silêncio. Dump sem a família `_traf` passa intacto.
+    """
+    if not rows or not any(a in rows[0] for a in TRAF_ALIAS.values()):
+        return rows
+    out = []
+    for r in rows:
+        d = dict(r)
+        for canon, traf in TRAF_ALIAS.items():
+            if not str(d.get(canon) or '').strip():
+                v = str(r.get(traf) or '').strip()
+                if v:
+                    d[canon] = v
+        out.append(d)
+    return out
+
+
 def _date(r):
     return str(r.get('data', '')).strip()[:10]
 
@@ -142,16 +176,27 @@ def infer_temp(name, rules=None):
     return temp_util.classify(name, rules, 'Indefinido')
 
 
+_VAZIO = ('', 'null', 'none', 'nan', '-', '(none)')
+
+
+def _sem_valor(s):
+    """Além dos vazios clássicos, MACRO DE UTM NÃO RESOLVIDA (`{{ad.id}}`,
+    `{{campaign.id}}`): o link foi montado com o placeholder e a plataforma não
+    substituiu. É ausência de rastreio, não um nome — deixar passar coloca
+    "{{ad.id}}" no ranking de criativos como se fosse um anúncio."""
+    return s.lower() in _VAZIO or (s.startswith('{{') and s.endswith('}}'))
+
+
 def norm_source(v):
-    """utm_source normalizado: vazios/null/'-' viram 'Não trackeado'."""
+    """utm_source normalizado: vazios/null/'-'/macro não resolvida → 'Não trackeado'."""
     s = str(v if v is not None else '').strip()
-    return 'Não trackeado' if s.lower() in ('', 'null', 'none', 'nan', '-', '(none)') else s
+    return 'Não trackeado' if _sem_valor(s) else s
 
 
 def _coalesce(*vals):
     for v in vals:
         s = str(v if v is not None else '').strip()
-        if s and s.lower() not in ('null', 'none', 'nan', '-', '(none)'):
+        if not _sem_valor(s):
             return s
     return 'Não trackeado'
 
@@ -458,6 +503,10 @@ def load_goals(path, field_conversion, corte):
 
 def build(rows, config=None):
     config = config or {}
+    # Antes de qualquer leitura: reconcilia a família `_traf` com a canônica. Feito
+    # aqui e não em cada acesso porque calc, render_view e query_api entram todos por
+    # este ponto — normalizar na porta deixa um esquema só para o motor inteiro.
+    rows = merge_traf_columns(rows)
     # MECÂNICA do lançamento — sai do TIPO DE FUNIL escolhido na criação (fonte única;
     # `mecanica` fica como override explícito). 'lancamento-pago' = o lead COMPRA o
     # ingresso, então há receita e retorno já na captação e a métrica que manda é a
