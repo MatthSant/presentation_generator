@@ -102,10 +102,9 @@
         // e conversion_traf preenchido. Filtrar só por uma delas descarta metade do dump.
         return `-- Lançamento PAGO — o lead compra o ingresso (há caixa já na captação)
 -- Origem: VW_V2_inscricoes_pago_res · uma linha por utm × anúncio × dia
-SELECT *
-FROM "VW_V2_inscricoes_pago_res" v
-WHERE COALESCE(v.conversion_traf, v.field_conversion) = '${fc}'
-ORDER BY COALESCE(v.data, v.data_traf), COALESCE(v.utm_source, v.utm_source_traf), v.field_ad_name;`;
+select *
+FROM "VW_V2_inscricoes_pago_res" vrtccp
+where coalesce (conversion_traf, vrtccp.field_conversion) = '${fc}';`;
       }
       return `-- Métricas diárias do lançamento (acompanhamento tático)\n-- Origem: VW_V2_inscricoes_res_METRICAS\nSELECT\n  ${COLS.join(',\n  ')}\nFROM "VW_V2_inscricoes_res_METRICAS"\nWHERE field_conversion = '${fc}'\nORDER BY data, utm_source, field_campaign_name, field_ad_name;`;
     }
