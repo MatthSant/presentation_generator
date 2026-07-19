@@ -198,14 +198,20 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
 function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
   const lg = el('div', 'chart-goal-legend');
   const srcSeries = Array.isArray(w.series) ? w.series : (Array.isArray(def?.series) ? def!.series : []);
-  const primColor = (w.colors && w.colors[w.colors.length - 1]) || '#7C3AED';
-  for (const s of srcSeries as { name?: string }[]) {
-    if (!s?.name) continue;
+  const arr = srcSeries as { name?: string }[];
+  // cor POR SÉRIE — com duas séries, repetir a mesma cor em ambos os swatches faz a
+  // legenda dizer o oposto do gráfico. Uma série só mantém o comportamento antigo
+  // (última cor da paleta, que é a de destaque das barras).
+  const cor = (i: number) => (arr.length > 1
+    ? (w.colors?.[i] || '#7C3AED')
+    : (w.colors?.[w.colors.length - 1] || '#7C3AED'));
+  arr.forEach((s, i) => {
+    if (!s?.name) return;
     const item = el('span', 'cgl-item');
-    const sw = el('span', 'cgl-sw'); sw.style.background = primColor;
+    const sw = el('span', 'cgl-sw'); sw.style.background = cor(i);
     item.append(sw, el('span', 'cgl-lbl', s.name));
     lg.appendChild(item);
-  }
+  });
   for (const g of w.goalLines || []) {
     const item = el('span', 'cgl-item');
     const sw = el('span', 'cgl-sw cgl-sw--dash'); sw.style.color = g.color || '#EF9F27';
@@ -1184,9 +1190,24 @@ function renderBarList(w: BarListWidget): HTMLElement {
       const fill = el('div', 'bl-fill');
       fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
       if (r.color) fill.style.background = r.color;
-      track.appendChild(fill); row.appendChild(track);
+      track.appendChild(fill);
+      // marca de meta: traço na MESMA escala da barra, então "passei" ou "não passei"
+      // se lê pela posição, sem precisar comparar dois números. Depois do fill para
+      // ficar por cima dele.
+      if (r.goal && r.goal.value > 0) {
+        const gm = el('div', 'bl-goal');
+        gm.style.left = `${Math.min(100, (r.goal.value / max) * 100)}%`;
+        gm.title = r.goal.label || `Meta ${r.goal.value}`;
+        track.appendChild(gm);
+      }
+      row.appendChild(track);
       row.appendChild(el('span', 'bl-val', r.value));
-      row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+      if (r.goal?.delta) {
+        const st = r.goal.status || 'neutral';
+        row.appendChild(el('span', `bl-pct bl-goal-d bl-goal-d--${st}`, r.goal.delta));
+      } else {
+        row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+      }
     }
     rowsEl.appendChild(row);
   }

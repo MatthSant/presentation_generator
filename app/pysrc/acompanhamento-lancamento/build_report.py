@@ -256,7 +256,13 @@ def assemble(rows, config, content, opts=None):
             row.update({'ingressos': d['ingressos'], 'cum_ing': d['cum_ing'],
                         'expo': d['exposicao'], 'expo_cum': d['expo_cum'],
                         'custo_ing_pago': d['custo_ing_pago'], 'roas_geral': d['roas_geral'],
-                        'taxa_bump': d['taxa_bump']})
+                        'taxa_bump': d['taxa_bump'],
+                        # séries do bloco de evolução do pago
+                        'receita': d['receita'], 'roas_pago': d['roas_pago'],
+                        'custo_ing_geral': d['custo_ing_geral'],
+                        'ingressos_pago': d['ingressos_pago'],
+                        'ingressos_org': d['ingressos_org'],
+                        'ticket_medio': d['ticket_medio']})
         _daily.append(row)
     add_table('acom_daily', ['dia'], _daily)
     sp = B['split']
@@ -535,39 +541,66 @@ def assemble(rows, config, content, opts=None):
         #     se ler juntas (venda × gasto; exposição do dia × acumulada);
         #   • quando não convivem, vão para ABAS — sobrepor CTR de 1,6% com qualidade de
         #     28% achataria a primeira contra o eixo, que é perder o dado de fato.
-        _fb, _mexpo = B['fb'], B['meta'].get('exposicao')
-        _bt, _bc = _fb.get('taxa_bump'), _fb.get('ctr')
-        _mq = B['meta'].get('taxa_qual')
-        # 1) O par que responde "vale a pena?": o que entrou e o que saiu, no mesmo dia.
-        chart('evo-ing-inv', 'Ingressos × Investimento por dia', ['ingressos', 'invest'],
-              'mixed', False, 'int', w=6, trendkey='ingressos',
-              names=['Ingressos', 'Investimento (R$)'], sec=[1], secSuffix=' R$',
-              colors=['#534AB7', '#EF9F27'], types=['bar', 'line'])
-        # 2) Exposição: a barra do dia mostra o fôlego diário, a linha acumulada mostra
-        #    a posição — e a leitura que importa é uma CONTRA a outra (um dia ruim
-        #    depois de semanas boas não é o mesmo que um dia ruim no vermelho).
-        chart('evo-expo', 'Exposição de caixa · por dia e acumulada', ['expo', 'expo_cum'],
-              'mixed', False, 'money', w=6, trendkey='exposicao',
-              names=['Exposição do dia', 'Acumulada'], types=['bar', 'line'],
+        _mexpo = B['meta'].get('exposicao')
+        _mcac = B['meta'].get('custo_ing_pago')
+        # LINHA 1 — CAIXA: o que entrou, o que saiu, o que sobrou. Nesta ordem, porque
+        # é a ordem em que a conta se forma.
+        chart('evo-receita', 'Receita por dia', 'receita', 'bar', False, 'money',
+              w=4, trendkey='receita')
+        chart('evo-invest', 'Investimento por dia', 'invest', 'bar', False, 'money',
+              w=4, trendkey='investimento', colors=['#EF9F27'])
+        # a barra do dia mostra o fôlego diário e a linha acumulada mostra a posição —
+        # um dia fraco depois de semanas boas não é a mesma coisa que um dia fraco no
+        # vermelho, e isso só aparece com as duas juntas.
+        chart('evo-expo', 'Exposição de caixa', ['expo', 'expo_cum'],
+              'mixed', False, 'money', w=4, trendkey='exposicao',
+              names=['Do dia', 'Acumulada'], types=['bar', 'line'],
               colors=['#97C459', '#3B6D11'],
-              goals=[{'value': _mexpo, 'label': 'Ponto de equilíbrio', 'color': '#B3261E'}]
+              goals=[{'value': _mexpo, 'label': 'Equilíbrio', 'color': '#B3261E'}]
               if _mexpo is not None else None)
-        # 3) e 4) Abas: R$ com múltiplo, e três percentuais de escalas distantes.
-        ctoggle('evo-efic', 'Custo e retorno por dia', [
-            ('CAC', 'custo_ing_pago', 'line', False, 'money', '#185FA5', None),
-            ('ROI', 'roas_geral', 'line', False, 'x', '#3B6D11',
-             [{'value': 1.0, 'label': 'Equilíbrio 1,00×', 'color': '#B3261E'}]),
-        ], w=6)
-        ctoggle('evo-taxas', 'Taxas vs. referência', [
-            ('Qualidade', 'taxa_qual', 'line', True, 'pct', '#EF9F27',
-             [{'value': _mq, 'label': 'Meta'}] if _mq else None),
-            ('Order Bump', 'taxa_bump', 'bar', True, 'pct', None,
-             [{'value': _bt, 'label': 'Bench', 'color': '#854F0B'}] if _bt else None),
-            ('CTR', 'ctr', 'line', True, 'pct', '#534AB7',
-             [{'value': _bc, 'label': 'Bench', 'color': '#854F0B'}] if _bc else None),
-        ], w=6)
-        _sub = ('Ingressos × investimento, exposição de caixa (dia e acumulada), '
-                'custo e retorno, e as taxas contra a referência.')
+        # LINHA 2 — INGRESSOS E EFICIÊNCIA. Os dois pares de custo e de retorno dividem
+        # eixo porque são a MESMA unidade em bases diferentes (R$ e múltiplo): é a
+        # distância entre as duas linhas que mostra o quanto o orgânico está segurando.
+        chart('evo-ing', 'Ingressos por dia · pago e orgânico',
+              ['ingressos_pago', 'ingressos_org'], 'stacked', False, 'int', w=4,
+              trendkey='ingressos', names=['Pago', 'Orgânico'], colors=['#534AB7', '#97C459'])
+        chart('evo-custo', 'Custo por ingresso', ['custo_ing_pago', 'custo_ing_geral'],
+              'line', False, 'money', w=4, trendkey='custo_ing_pago',
+              names=['CAC (pago)', 'Geral'], colors=['#185FA5', '#9AB6D6'],
+              goals=[{'value': _mcac, 'label': 'Meta CAC', 'color': '#B3261E'}] if _mcac else None)
+        chart('evo-retorno', 'Retorno por dia', ['roas_pago', 'roas_geral'],
+              'line', False, 'x', w=4, trendkey='roas_geral',
+              names=['ROAS (pago)', 'ROI (geral)'], colors=['#3B6D11', '#97C459'],
+              goals=[{'value': 1.0, 'label': 'Equilíbrio 1,00×', 'color': '#B3261E'}])
+        # LINHA 3 — COMPARADOR LIVRE. As duas linhas acima fixam os pares que sempre
+        # importam; aqui o consultor cruza qualquer par, em eixos independentes, para
+        # a pergunta que o painel não anteviu. Abre em CTR × CAC: é a ponte entre o
+        # que a mídia entrega e o que ela custa.
+        _EVO_M = ['ingressos', 'ingressos_pago', 'ingressos_org', 'investimento', 'receita',
+                  'receita_ing', 'receita_bump', 'exposicao', 'custo_ing_pago', 'custo_ing_geral',
+                  'roas_pago', 'roas_geral', 'ticket_medio', 'bumps', 'taxa_bump',
+                  'taxa_resp', 'taxa_qual', 'cpm', 'ctr', 'conv_pag']
+        _FMT = {'int': ('ingressos', 'ingressos_pago', 'ingressos_org', 'bumps'),
+                'pct': ('taxa_bump', 'taxa_resp', 'taxa_qual', 'ctr', 'conv_pag'),
+                'x': ('roas_pago', 'roas_geral')}
+
+        def _fmt_of(m):
+            for f, keys in _FMT.items():
+                if m in keys:
+                    return f
+            return 'money'
+        _dias = B['days']
+        _evo_keys = [m for m in _EVO_M if any(d.get(m) is not None for d in _dias)]
+        evo.append({'id': 'evo-cmp', 'type': 'evolution-picker',
+                    'title': 'Comparar duas métricas', 'height': 330,
+                    'metrics': [{'id': m, 'label': LAB.get(m, m), 'fmt': _fmt_of(m)} for m in _evo_keys],
+                    'points': [{'name': d['label'], 'vals': {m: d.get(m) for m in _evo_keys}}
+                               for d in _dias],
+                    'current': 'ctr' if 'ctr' in _evo_keys else _evo_keys[0],
+                    'current2': 'custo_ing_pago' if 'custo_ing_pago' in _evo_keys else _evo_keys[-1]})
+        eg.add('evo-cmp', 'evolution-picker', 12, 5)
+        _sub = ('Caixa (receita, investimento, exposição), ingressos e eficiência '
+                '(CAC e retorno), e um comparador livre de duas métricas.')
     else:
         chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6, trendkey='leads')
         chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6, trendkey='investimento')
@@ -599,7 +632,38 @@ def assemble(rows, config, content, opts=None):
         ro = sum(c['leads'] for c in co[5:])
         orig_rows.append({'label': 'Outros', 'value': intf(ro), 'pct': calc.pct(ro, sp['leads_org']) or 0,
                           'bar': ro, 'indent': True, 'color': '#C3A4F7'})
-    can.append({'id': 'can-orig', 'type': 'bar-list', 'title': 'Origem do Tráfego', 'rows': orig_rows})
+    # META POR CANAL (só com launch_goals): o traço na barra marca onde o canal
+    # deveria estar. O total batendo a meta esconde canal parado sendo compensado por
+    # outro — é exatamente isso que a marca por linha expõe.
+    _mc = dict(B.get('meta_canal') or {})
+    if _mc:
+        _cap = 'meta to date por canal marcada na barra'
+        # "Pago" e "Orgânico" são AGREGADOS — a tabela de metas é por utm_source e não
+        # tem essas linhas. Sem somar, justamente as duas linhas de topo ficariam sem
+        # marca. Quem é pago sai do dump (fontes com investimento), não da tabela.
+        _fp = set(B.get('fontes_pago') or [])
+        if _fp:
+            _mp = sum(v for k, v in _mc.items() if k in _fp)
+            _mo = sum(v for k, v in _mc.items() if k not in _fp)
+            if _mp:
+                _mc.setdefault('Pago', _mp)
+            if _mo:
+                _mc.setdefault('Orgânico', _mo)
+        for row in orig_rows:
+            alvo = _mc.get(row['label'])
+            if not alvo:
+                continue
+            real = row['bar']
+            dev = round((real - alvo) / alvo * 100) if alvo else 0
+            row['goal'] = {'value': alvo, 'label': f"Meta to date {intf(alvo)}",
+                           'delta': f'{dev:+d}%',
+                           'status': 'ok' if dev >= -5 else ('warn' if dev >= -15 else 'bad')}
+    else:
+        _cap = None
+    _og = {'id': 'can-orig', 'type': 'bar-list', 'title': 'Origem do Tráfego', 'rows': orig_rows}
+    if _cap:
+        _og['caption'] = _cap
+    can.append(_og)
     cg.add('can-orig', 'bar-list', 6, 4)
     # temperatura — bar-list (Quente/Morno) + cards de stat com CPL médio em destaque
     if B['temp']:
@@ -607,14 +671,29 @@ def assemble(rows, config, content, opts=None):
         TI = {'Quente': 'flame', 'Morno': 'sun', 'Frio': 'snowflake'}
         TT = {'Quente': 'red', 'Morno': 'orange', 'Frio': 'blue', 'Indefinido': 'purple'}
         temp_items = [(t, v) for t, v in B['temp'].items() if v.get('leads')]
-        temp_tot = sum(v['leads'] for _, v in temp_items) or 1
-        temp_rows = [{'label': t, 'value': intf(v['leads']), 'pct': calc.pct(v['leads'], temp_tot) or 0,
-                      'bar': v['leads'], 'icon': TI.get(t), 'color': TC.get(t, '#7C3AED')} for t, v in temp_items]
-        temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
-                       'stats': [{'label': 'Leads', 'value': intf(v['leads'])},
-                                 {'label': 'Invest', 'value': money(v['invest'])},
-                                 {'label': 'CPL', 'value': vfmt('cpl', v['cpl'])}],
-                       'headline': {'label': 'CPMQL médio', 'value': vfmt('cpmql', v['cpmql'])}} for t, v in temp_items]
+        _tk0 = 'ingressos' if PAGO else 'leads'
+        temp_tot = sum(v[_tk0] for _, v in temp_items) or 1
+        _tk = _tk0
+        temp_rows = [{'label': t, 'value': intf(v[_tk]), 'pct': calc.pct(v[_tk], temp_tot) or 0,
+                      'bar': v[_tk], 'icon': TI.get(t), 'color': TC.get(t, '#7C3AED')} for t, v in temp_items]
+        # No PAGO a leitura por temperatura muda de "quanto custou o lead" para "quanto
+        # sobrou". CAC no lugar do CPL, exposição de caixa no lugar do CPMQL — e a
+        # qualidade entra junto do CAC porque é ela que diz se o ingresso barato é
+        # ingresso bom: MQL sobre RESPOSTA, não sobre a base inteira.
+        if PAGO:
+            temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
+                           'stats': [{'label': 'Ingressos', 'value': intf(v['ingressos'])},
+                                     {'label': 'Invest', 'value': vfmt('investimento', v['invest'])},
+                                     {'label': 'CAC', 'value': vfmt('custo_ing_pago', v['cac'])},
+                                     {'label': 'Qualidade', 'value': vfmt('taxa_qual', v['qualidade'])}],
+                           'headline': {'label': 'Exposição de caixa',
+                                        'value': vfmt('exposicao', v['exposicao'])}} for t, v in temp_items]
+        else:
+            temp_cards = [{'label': t, 'tone': TT.get(t, 'purple'), 'icon': TI.get(t),
+                           'stats': [{'label': 'Leads', 'value': intf(v['leads'])},
+                                     {'label': 'Invest', 'value': money(v['invest'])},
+                                     {'label': 'CPL', 'value': vfmt('cpl', v['cpl'])}],
+                           'headline': {'label': 'CPMQL médio', 'value': vfmt('cpmql', v['cpmql'])}} for t, v in temp_items]
         can.append({'id': 'can-temp', 'type': 'bar-list', 'title': 'Temperatura · tráfego pago', 'rows': temp_rows, 'cards': temp_cards})
         cg.add('can-temp', 'bar-list', 6, 4)
     # tipo de lead (6 células como kpi-cards)

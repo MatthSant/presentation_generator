@@ -487,6 +487,16 @@ def load_goals(path, field_conversion, corte):
     def col_latest(c):
         vals = [fnum(r.get(c)) for r in latest if str(r.get(c, '')).strip() != '']
         return vals[-1] if vals else None
+    # META POR CANAL (to-date): a tabela tem uma linha por utm_source por dia, então a
+    # meta de cada canal até o corte é a soma das linhas dele. É o que permite marcar,
+    # no bloco de origem, quanto cada canal deveria ter entregue — a meta agregada não
+    # diz nada sobre um canal específico estar puxando ou segurando o total.
+    por_canal = {}
+    for r in td:
+        s = norm_source(r.get('utm_source'))
+        v = fnum(r.get('meta_leads'))
+        if v:
+            por_canal[s] = por_canal.get(s, 0.0) + v
     return {
         'leads_total': sum(fnum(r.get('meta_leads')) for r in rows) or None,
         'leads_td': sum(fnum(r.get('meta_leads')) for r in td) or None,
@@ -496,6 +506,7 @@ def load_goals(path, field_conversion, corte):
         'taxa_resp': (col_latest('meta_taxa_resp') or 0) * 100 or None,
         'taxa_qual': (col_latest('meta_taxa_qual') or 0) * 100 or None,
         'conv_pag': (col_latest('meta_conversao') or 0) * 100 or None,
+        'por_canal': {k: round(v) for k, v in por_canal.items()} or None,
     }
 
 
@@ -589,7 +600,12 @@ def build(rows, config=None):
         series.update({'cum': serie('cum_ing'), 'ingressos': serie('ingressos'),
                        'expo': serie('exposicao'), 'expo_cum': serie('expo_cum'),
                        'custo_ing_pago': serie('custo_ing_pago'), 'roas_geral': serie('roas_geral'),
-                       'taxa_bump': serie('taxa_bump')})
+                       'roas_pago': serie('roas_pago'), 'receita': serie('receita'),
+                       'custo_ing_geral': serie('custo_ing_geral'),
+                       'ingressos_pago': serie('ingressos_pago'),
+                       'ingressos_org': serie('ingressos_org'),
+                       'taxa_bump': serie('taxa_bump'), 'ctr': serie('ctr'),
+                       'ticket_medio': serie('ticket_medio')})
     _tset = set((KPI_MACRO_PAGO + KPI_INTER_PAGO) if pago else KPI_MACRO) | set(KPI_TRAF)
     trends = {m: trend(serie(m), m in COST) for m in _tset if m != 'investimento'}
     trends['investimento'] = trend([round(d['sums']['invest'], 2) for d in days])
@@ -597,6 +613,7 @@ def build(rows, config=None):
 
     # metas (launch_goals tem prioridade; senão manual via config['metas'])
     metas = dict(config.get('metas') or {})
+    meta_canal = None
     if config.get('goals_csv'):
         g = load_goals(config['goals_csv'], fc, corte)
         for k in ('cpl', 'cpmql', 'taxa_resp', 'taxa_qual', 'conv_pag'):
@@ -605,6 +622,16 @@ def build(rows, config=None):
         metas.setdefault('_leads_total', g.get('leads_total'))
         metas.setdefault('_leads_td', g.get('leads_td'))
         metas.setdefault('_invest_total', g.get('invest_total'))
+        meta_canal = g.get('por_canal')
+        if pago:
+            # A tabela de launch_goals é a MESMA do clássico — o que muda é o que cada
+            # campo significa quando o lead compra: `meta_leads` é meta de INGRESSO e
+            # `meta_cpl` é o custo por ingresso adquirido, ou seja, o CAC. Não há
+            # coluna nova a criar; há vocabulário a traduzir.
+            metas.setdefault('_ingressos_total', g.get('leads_total'))
+            metas.setdefault('_ingressos_td', g.get('leads_td'))
+            if g.get('cpl') is not None:
+                metas.setdefault('custo_ing_pago', g['cpl'])
     # benchmarks de tráfego (hook/hold/ctr/connect/conv. página) também viram a
     # meta-padrão dos KPIs correspondentes — o semáforo usa o mesmo referencial do funil.
     # config['funnel_bench'] sobrescreve; senão cai no FUNNEL_BENCH (fallback).
@@ -679,7 +706,14 @@ def build(rows, config=None):
         tq = pct(ss['mqls'], ss['respostas'])
         cpmql = round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None
         temp[t] = {'leads': round(ss['leads']), 'invest': round(ss['invest'], 2),
-                   'cpl': cpl, 'cpmql': cpmql}
+                   'cpl': cpl, 'cpmql': cpmql,
+                   # PAGO: a leitura por temperatura muda de "quanto custou o lead"
+                   # para "quanto sobrou". CAC usa os ingressos de tráfego (não os
+                   # leads), e a qualidade é MQL sobre RESPOSTA — quem não respondeu a
+                   # pesquisa não entra no denominador, senão a taxa mede alcance da
+                   # pesquisa e não qualidade da base.
+                   'ingressos': round(ss['ing']), 'cac': div(ss['invest'], ss['leads_traf']),
+                   'qualidade': tq, 'exposicao': exposicao_caixa(ss)}
 
     # tipo de lead
     def ssum(sub, k):
@@ -754,7 +788,11 @@ def build(rows, config=None):
         'days': days, 'series': series, 'tot': tot, 'd3': d3, 'tot_sums': tot_sums,
         'traf_metrics': traf_metrics, 'has_pageviews': has_pageviews, 'has_views': has_views,
         'rows_corte': rows_corte, 'trules': trules,   # modo-fundo: agrega por dimensão/filtro sob demanda
-        'trend': trends, 'meta': metas, 'meta_status': mstatus,
+        'trend': trends, 'meta': metas, 'meta_status': mstatus, 'meta_canal': meta_canal,
+        # Quais utm_source aparecem com investimento — a tabela de metas não sabe
+        # distinguir pago de orgânico, mas o dump sabe. É o que permite somar a meta
+        # dos canais pagos na linha "Pago" do bloco de origem.
+        'fontes_pago': sorted({norm_source(r.get('utm_source')) for r in rows_corte if is_paid(r)}),
         'split': split, 'temp': temp, 'tipo_lead': tipo_lead, 'canais_org': canais_org,
         'criativos': creatives, 'cr_dia': crdia, 'cr_dia_label': _day_label(crdia),
         'funnel_total': funnel_total, 'funnel_3d': funnel_3d,

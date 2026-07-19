@@ -534,6 +534,9 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     }));
     const ann = (isObj(opts.annotations) ? opts.annotations : (opts.annotations = {})) as Record<string, unknown>;
     ann.yaxis = [...((ann.yaxis as unknown[]) || []), ...ya];
+    // O renderer desenha a legenda inferior (séries + metas) para este caso. Manter a
+    // do ApexCharts junto listaria as mesmas séries duas vezes, uma acima da outra.
+    opts.legend = { ...(isObj(opts.legend) ? opts.legend : {}), show: false };
   }
   if (def.options) mergeDeep(opts, def.options);
 

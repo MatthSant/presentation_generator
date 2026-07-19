@@ -539,8 +539,16 @@ html, body {
 .bl-ic svg { width: 17px; height: 17px; }
 .bl-dot { width: 9px; height: 9px; border-radius: 3px; background: var(--purple); flex-shrink: 0; }
 .bl-name { font-size: 13px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bl-track { height: 16px; background: var(--surface); border-radius: var(--r-pill); overflow: hidden; }
+/* position:relative p/ ancorar a marca de meta; overflow visible para o traço não ser
+   cortado quando a meta cai na ponta da trilha. */
+.bl-track { height: 16px; background: var(--surface); border-radius: var(--r-pill); overflow: hidden; position: relative; }
 .bl-fill { height: 100%; border-radius: var(--r-pill); background: var(--purple); min-width: 4px; }
+/* MARCA DE META — traço vertical na posição do alvo, na mesma escala da barra. */
+.bl-goal { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--fg, #1a1a2e); opacity: .55; border-radius: 1px; }
+.bl-goal-d { min-width: 52px; }
+.bl-goal-d--ok { color: var(--green, #22c55e); }
+.bl-goal-d--warn { color: var(--amber, #f59e0b); }
+.bl-goal-d--bad { color: var(--red, #ef4444); }
 .bl-track--seg { height: 24px; display: flex; border-radius: 6px; }
 .bl-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; }
 .bl-total { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }

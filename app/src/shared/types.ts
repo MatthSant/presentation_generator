@@ -666,7 +666,12 @@ export interface BarListWidget extends WidgetBase {
   rows: { label: string; value: string; pct?: number; bar?: number; indent?: boolean; icon?: string; color?: string;
           /** Barra dividida (100% empilhada) em vez de barra única — ex.: split Pago/Orgânico
            *  por categoria. Cada segmento: largura % + cor + rótulo interno. */
-          seg?: { pct: number; color: string; label?: string }[] }[];
+          seg?: { pct: number; color: string; label?: string }[];
+          /** MARCA DE META na barra: traço vertical na posição do alvo (mesma escala de
+           *  `bar`) + desvio ao lado do valor. Cada linha tem a SUA meta — uma meta
+           *  agregada não diz se um canal específico está puxando ou segurando o total. */
+          goal?: { value: number; label?: string; delta?: string;
+                   status?: 'ok' | 'warn' | 'bad' } }[];
   /** escala máxima das barras (default = maior `bar`). */
   max?: number;
   /** Legenda das séries no topo (ex.: Pago / Orgânico) — usada com linhas `seg`. */
