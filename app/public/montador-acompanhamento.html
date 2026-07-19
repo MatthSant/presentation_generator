@@ -15,11 +15,19 @@
   <div class="mq-page">
     <span class="eyebrow">Acompanhamento de Campanha</span>
     <h1>Extrair as métricas do lançamento</h1>
-    <p class="desc">O acompanhamento lê a view <code>VW_V2_inscricoes_res_METRICAS</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.</p>
+    <p class="desc" id="desc">O acompanhamento lê a view <code>VW_V2_inscricoes_res_METRICAS</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.</p>
 
     <div class="card">
       <p class="card-eyebrow">Lançamento</p>
       <div class="grid3">
+        <!-- A MECÂNICA muda a view e o filtro: no pago o dump vem de outra view e o
+             lançamento pode estar na coluna da venda OU na da integração de mídia. -->
+        <div class="field"><span class="label">Tipo de funil</span>
+          <select class="ctrl" id="t-tipo">
+            <option value="classico">Captação (lead se inscreve)</option>
+            <option value="pago">Lançamento pago (lead compra ingresso)</option>
+          </select>
+          <span class="help">define a view e o filtro da query</span></div>
         <div class="field"><span class="label">field_conversion</span><input class="ctrl" id="t-fc" value="lcto-enxoval-maio-26" /><span class="help">identificador do lançamento (filtro do funil)</span></div>
         <div class="field"><span class="label">Tabela de criativos (permalinks)</span><input class="ctrl" id="t-crt" value="MAT_meta_ad_creatives" /><span class="help">p/ o dicionário de links</span></div>
         <div class="field"><span class="label">Tabela de metas (launch goals)</span><input class="ctrl" id="t-goals" value="wtl_launch_goals" /><span class="help">metas por utm_source × dia</span></div>
@@ -81,8 +89,24 @@
       'leads_novo', 'leads_antigos', 'cliente_inscrito', 'vendas', 'faturamento', 'invest_total',
       'impressoes', 'link_clicks', 'pageviews', 'leads_trafego', 'leads_mqls_trafego',
       'views_totais', 'views_50pc', 'one_day_click_attribution', 'link_criativo'];
+    const isPago = () => $('t-tipo').value === 'pago';
     function buildSql() {
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
+      if (isPago()) {
+        // SELECT * de propósito: a view do pago traz ~85 colunas, e várias (pageviews,
+        // views_*, hook_rate) vêm vazias numa base e preenchidas em outra — o motor já
+        // liga cada bloco conforme o que existir. Listar colunas aqui quebraria a
+        // análise na primeira base que trouxesse uma a mais.
+        // O filtro usa COALESCE porque o lançamento pode estar na coluna da VENDA ou na
+        // da integração de mídia: linha vinda só do tráfego tem field_conversion vazio
+        // e conversion_traf preenchido. Filtrar só por uma delas descarta metade do dump.
+        return `-- Lançamento PAGO — o lead compra o ingresso (há caixa já na captação)
+-- Origem: VW_V2_inscricoes_pago_res · uma linha por utm × anúncio × dia
+SELECT *
+FROM "VW_V2_inscricoes_pago_res" v
+WHERE COALESCE(v.conversion_traf, v.field_conversion) = '${fc}'
+ORDER BY COALESCE(v.data, v.data_traf), COALESCE(v.utm_source, v.utm_source_traf), v.field_ad_name;`;
+      }
       return `-- Métricas diárias do lançamento (acompanhamento tático)\n-- Origem: VW_V2_inscricoes_res_METRICAS\nSELECT\n  ${COLS.join(',\n  ')}\nFROM "VW_V2_inscricoes_res_METRICAS"\nWHERE field_conversion = '${fc}'\nORDER BY data, utm_source, field_campaign_name, field_ad_name;`;
     }
     function buildDictSql() {
@@ -127,6 +151,12 @@ ORDER BY data, utm_source;`;
       window.renderSql($('sql3'), buildGoalsSql());
     };
     $('gen').addEventListener('click', render);
+    $('t-tipo').addEventListener('change', () => {
+      $('desc').innerHTML = isPago()
+        ? 'O lançamento pago lê a view <code>VW_V2_inscricoes_pago_res</code> — uma linha por <code>utm × anúncio × dia</code>, com receita de ingresso e order bump. O filtro usa <code>COALESCE(conversion_traf, field_conversion)</code> porque a linha vinda da integração de mídia não traz a coluna da venda.'
+        : 'O acompanhamento lê a view <code>VW_V2_inscricoes_res_METRICAS</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.';
+      render();
+    });
     window.wireCopy($('copy'), () => $('sql').dataset.raw);
     window.wireCopy($('copy2'), () => $('sql2').dataset.raw);
     window.wireCopy($('copy3'), () => $('sql3').dataset.raw);

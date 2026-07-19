@@ -948,6 +948,34 @@ def assemble(rows, config, content, opts=None):
               'sections': [{'id': 's01', 'label': 'Acompanhamento'}]}]
 
     created = config.get('created_at') or datetime.date.today().isoformat()
+    # FILTRO DO FAB — dimensões pelas quais o consultor recorta o relatório inteiro.
+    # `dia` sai ordenado (é série temporal, não categoria); as demais por volume, que é
+    # a ordem em que se procura. Dimensão com um valor só não vira filtro: não recorta
+    # nada e ocupa espaço. As utms usam a coluna CANÔNICA, já reconciliada com a
+    # família `_traf` — sem isso a linha de mídia ficaria fora de qualquer seleção.
+    def _dim_values(fn, ordenar=False):
+        vals = {}
+        for r in B['rows_corte']:
+            k = fn(r)
+            if k:
+                vals[k] = vals.get(k, 0) + 1
+        keys = sorted(vals) if ordenar else sorted(vals, key=lambda k: -vals[k])
+        return [{'id': k, 'label': k} for k in keys]
+    _flt = [
+        {'key': 'dia', 'label': 'Data',
+         'values': [{'id': d['date'], 'label': d['label']} for d in B['days']]},
+        {'key': 'origem', 'label': 'Tipo de canal',
+         'values': _dim_values(lambda r: 'Pago' if calc.is_paid(r) else 'Orgânico')},
+        {'key': 'utm_source', 'label': 'utm_source',
+         'values': _dim_values(lambda r: calc.norm_source(r.get('utm_source')))},
+        {'key': 'utm_medium', 'label': 'utm_medium',
+         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_medium')))},
+        {'key': 'utm_campaign', 'label': 'utm_campaign',
+         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_campaign')))},
+        {'key': 'utm_content', 'label': 'utm_content',
+         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_content')))},
+    ]
+    _flt = [f for f in _flt if len(f['values']) > 1]
     data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
                           'campaign_label': config.get('campaign_label') or '',
                           'data_ate': B['corte_label'],   # chip "Dados até DD/MM" na navbar
@@ -955,7 +983,8 @@ def assemble(rows, config, content, opts=None):
                           'theme': 'light', 'created_at': created, 'filters': [],
                           'cover': {'eyebrow': f"{config.get('client_name') or config['client']} · Relatório", 'title': config['title'],
                                     'meta': [f"Dia {B['dia_campanha']} de campanha", f"{intf(B['tot_sums']['leads'])} leads captados"]},
-                          # sem meta.controls: o tipo não tem render_view.py nem controls no client
+                          'controls': {'kind': 'acompanhamento-lancamento',
+                                       'pages': [p['id'] for p in pages], 'filters': _flt},
                           'nav': 'sidebar'},
                  'pages': pages}
     return {'dataset': dataset, 'data': data_json,

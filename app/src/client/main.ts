@@ -76,6 +76,18 @@ class App {
       },
       body: () => ({ mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }),
     },
+    // Acompanhamento: mesmo filtro nível-relatório do debriefing — a classe já é
+    // genérica (lê as dimensões declaradas em meta.controls.filters e devolve o mapa
+    // de seleção). Duplicá-la só para trocar o nome seria manter dois de um.
+    'acompanhamento-lancamento': {
+      mount: (controls) => {
+        if (!(controls as { filters?: unknown[] }).filters?.length) return null;
+        return new DebriefingControls(controls, {
+          apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
+        });
+      },
+      body: () => ({ filters: this.debFilters || {} }),
+    },
     // Debriefing: filtro nível-relatório (multi-seleção por dimensão) → recompute.
     'debriefing-lancamento': {
       mount: (controls) => {

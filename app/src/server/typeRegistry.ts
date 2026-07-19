@@ -207,9 +207,10 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     goalsUi: 'metas-toggle',              // metas manuais × launch goals (CSV)
     supportsInsights: false,
     queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/tendência por dia
+    renderScript: 'render_view.py',       // FAB: filtro nível-relatório por data/origem/utms
     gerarPage: 'gerar-acompanhamento.html',
     montadorPage: 'montador-acompanhamento.html',
-    // sem controlsKind: não há render_view.py nem classe de controls no client
+    controlsKind: 'acompanhamento-lancamento',
     validateConfig() { return []; },
     /** O lançamento PAGO inverte a lógica do acompanhamento: há caixa DURANTE a
      *  captação. Sem este contexto o modelo lê o relatório com a régua do clássico —
