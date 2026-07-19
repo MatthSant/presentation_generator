@@ -635,6 +635,17 @@ def build(rows, config=None):
 
     # metas (launch_goals tem prioridade; senão manual via config['metas'])
     metas = dict(config.get('metas') or {})
+    if pago:
+        # As metas podem chegar no vocabulário CLÁSSICO — o form de atualização é
+        # compartilhado e nem todo caminho sabe da mecânica. No pago o "lead" É o
+        # ingresso e o "CPL" É o CAC (mesma coluna, mesma conta), então traduzir é
+        # exato, não aproximação. Sem isto a meta existe no config e o relatório age
+        # como se não houvesse — some a rampa do gráfico e o farol do CAC.
+        for classico, pago_k in (('_leads_total', '_ingressos_total'),
+                                 ('_leads_td', '_ingressos_td'),
+                                 ('cpl', 'custo_ing_pago')):
+            if metas.get(pago_k) is None and metas.get(classico) is not None:
+                metas[pago_k] = metas[classico]
     meta_canal = None
     if config.get('goals_csv'):
         g = load_goals(config['goals_csv'], fc, corte)
