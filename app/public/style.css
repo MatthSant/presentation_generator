@@ -1779,6 +1779,17 @@ body.edit-mode .tile-filter-badge { display:none; }
 .flt-dd-panel { border-top:1px solid var(--border); padding:8px; }
 .flt-dd-search { width:100%; box-sizing:border-box; margin-bottom:6px; padding:7px 9px; font-family:inherit; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--fg); }
 .flt-dd-search:focus { outline:none; border-color:var(--purple); }
+/* INTERVALO (dimensão kind='range') — atalhos em cima, de/até embaixo. */
+.flt-range-quick { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px; }
+.flt-range-btn { font-family:inherit; font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:999px;
+  border:1px solid var(--border); background:var(--surface); color:var(--gray); cursor:pointer; }
+.flt-range-btn:hover { border-color:var(--purple); color:var(--purple); }
+.flt-range-row { display:flex; gap:8px; }
+.flt-range-f { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.flt-range-lbl { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gray2); }
+.flt-range-sel { width:100%; box-sizing:border-box; padding:7px 9px; font-family:inherit; font-size:12.5px;
+  border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--fg); }
+.flt-range-sel:focus { outline:none; border-color:var(--purple); }
 .flt-dd-act { display:flex; justify-content:flex-end; margin-bottom:4px; }
 .flt-dd-clr { background:none; border:none; font-family:inherit; font-size:11px; font-weight:600; color:var(--purple); cursor:pointer; padding:2px 4px; }
 .flt-dd-items { max-height:184px; overflow-y:auto; display:flex; flex-direction:column; gap:1px; }

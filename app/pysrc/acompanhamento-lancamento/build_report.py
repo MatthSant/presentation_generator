@@ -974,7 +974,7 @@ def assemble(rows, config, content, opts=None):
         return [{'id': k, 'label': (max(nomes[k], key=nomes[k].get) if nomes.get(k) else k)}
                 for k in keys]
     _flt = [
-        {'key': 'dia', 'label': 'Data',
+        {'key': 'dia', 'label': 'Data', 'kind': 'range',
          'values': [{'id': d['date'], 'label': d['label']} for d in B['days']]},
         {'key': 'origem', 'label': 'Tipo de canal',
          'values': _dim_values(lambda r: 'Pago' if calc.is_paid(r) else 'Orgânico')},
