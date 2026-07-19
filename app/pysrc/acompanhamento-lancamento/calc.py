@@ -239,12 +239,33 @@ _SRC = {'leads': 'leads', 'invest': 'invest_total', 'imp': 'impressoes', 'clicks
         'broker_bump': 'broker_fee_bump', 'ptax': 'paidmedia_tax'}
 
 
+# IMPOSTO SOBRE A MÍDIA. A fatura do Meta vem com ~12% de tributo que NÃO está no
+# `invest_total` — ignorá-lo superestima a exposição de caixa em 12% do investimento,
+# que num lançamento é a diferença entre "estou no verde" e não estar. A coluna
+# `paidmedia_tax` manda quando vem preenchida; vazia, a alíquota é aplicada às fontes
+# do Meta, as únicas em que a regra é conhecida.
+PAIDMEDIA_TAX_RATE = 0.12
+PAIDMEDIA_TAXED = ('meta-ads', 'meta_ads', 'metaads', 'meta',
+                   'facebook-ads', 'facebook_ads', 'facebookads', 'facebook', 'fb', 'fb-ads')
+
+
+def _ptax(r):
+    v = fnum(r.get('paidmedia_tax'))
+    if v:
+        return v
+    src = norm_source(r.get('utm_source')).strip().lower()
+    return fnum(r.get('invest_total')) * PAIDMEDIA_TAX_RATE if src in PAIDMEDIA_TAXED else 0.0
+
+
 def _sum(rows):
     s = {k: 0.0 for k in _RAW}
     for r in rows:
         paid = is_paid(r)
         for k, col in _SRC.items():
+            if k == 'ptax':
+                continue                       # derivado por linha (alíquota do Meta)
             s[k] += fnum(r.get(col))
+        s['ptax'] += _ptax(r)
         if paid:
             s['leads_pago'] += fnum(r.get('leads'))
             # recortes PAGOS do lançamento pago: o ROAS/retorno "do tráfego pago" só
@@ -262,6 +283,7 @@ def exposicao_caixa(s):
         − sales_tax_gen/_bump                     imposto sobre a venda
         − broker_fee_gen/_bump                    taxa do broker de pagamento
         − invest_total − paidmedia_tax            mídia + imposto sobre a mídia
+                                                  (a coluna manda; vazia, 12% no Meta)
 
     Positivo = o ingresso já pagou o tráfego antes de abrir o carrinho (escalar).
     Negativo = caixa exposto — julgar contra a meta combinada com o cliente.
@@ -639,18 +661,21 @@ def build(rows, config=None):
     if pago:
         fb.update(FUNNEL_BENCH_PAGO)     # fixos da mecânica, antes do config do cliente
     fb.update(config.get('funnel_bench') or {})
-    # sem pageviews, conv. de página = leads/clicks ≡ connect × conv_página → o
-    # benchmark é o produto dos dois (ex.: 80% × 40% = 32%). NO PAGO o bench de 5% vale
-    # para a etapa que termina em ingresso, com ou sem pageviews no meio (é assim que a
-    # campanha é operada) — o que muda é o RÓTULO, que passa a dizer Cliques→Ingressos
-    # em vez de "Conv. de Página", para não prometer uma etapa que a base não tem.
-    if not has_pageviews and not pago:
+    # Sem pageviews a etapa medida é CLIQUE → CONVERSÃO, que atravessa duas transições:
+    # o clique chegar na página (connect) e a página converter (conv_pag). O benchmark
+    # dela é o PRODUTO dos dois — 80% × 5% = 4% —, não o de página sozinho. Vale igual
+    # no clássico e no pago: é composição de taxa, não regra de mecânica. O que muda no
+    # pago é só o RÓTULO (Cliques → Ingressos), para não prometer uma etapa que a base
+    # não tem. Consequência importante: como o produto é o mesmo com ou sem a etapa
+    # intermediária no meio, o bench de CPM derivado daqui NÃO se move quando a base
+    # passa a ter pageviews — a expectativa de conversão por clique é a mesma.
+    if not has_pageviews:
         fb['conv_pag'] = round(fb['connect'] * fb['conv_pag'] / 100, 1)
     for k in ('hook', 'hold', 'ctr', 'connect', 'conv_pag', 'taxa_bump'):
         if fb.get(k) is not None:
             metas.setdefault(k, fb[k])
-    if not has_pageviews and not pago:
-        metas['conv_pag'] = fb['conv_pag']   # leads/clicks usa o bench combinado, não a meta de página
+    if not has_pageviews:
+        metas['conv_pag'] = fb['conv_pag']   # clique→conversão usa o bench combinado
     # CPM-bench derivado percorrendo o funil AO CONTRÁRIO: se a campanha bater as taxas
     # de benchmark, cada mil impressões produz (ctr × conv) conversões, e o custo por
     # conversão que se pretende pagar fixa quanto vale esse milheiro.
@@ -746,9 +771,9 @@ def build(rows, config=None):
     # a etapa Pageviews sai do funil e Cliques→Leads usa o bench combinado (fb['conv_pag']).
     fork = fork_bench = None
     if pago:
-        # PAGO: termina em Ingressos e bifurca (MQLs · Order Bumps). O bench de 5% é da
-        # etapa que FECHA em ingresso — sem pageviews ela vira Cliques→Ingressos e o
-        # bench continua valendo (é a régua com que a campanha é operada).
+        # PAGO: termina em Ingressos e bifurca (MQLs · Order Bumps). Sem pageviews a
+        # última transição vira Cliques→Ingressos e usa o bench COMPOSTO (connect ×
+        # conv_pag), já resolvido em fb['conv_pag'] acima.
         fstages = FUNNEL_STAGES_PAGO if has_pageviews else [st for st in FUNNEL_STAGES_PAGO if st[0] != 'pageviews']
         # bench[0] = transição Investimento→Impressões, que é CPM (nota) e não taxa:
         # entra por cpm_bench, não por esta lista.
