@@ -351,9 +351,21 @@ def derive(s, pago=False):
 # métricas expostas no modo-fundo (mesmo conjunto do derive)
 FRAME_METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
                  'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect']
+# PAGO: o recorte que a IA cruza tem de conter as métricas que DECIDEM nessa mecânica.
+# Sem isto o deepen só enxergava CPL/CPMQL — métricas que o relatório do pago nem
+# mostra — e não conseguia responder nada sobre caixa, CAC, ROAS ou order bump por
+# criativo, público ou temperatura.
+FRAME_METRICS_PAGO = ['ingressos', 'ingressos_pago', 'investimento', 'receita',
+                      'exposicao', 'custo_ing_pago', 'custo_ing_geral',
+                      'roas_pago', 'roas_geral', 'ticket_medio', 'bumps', 'taxa_bump',
+                      'taxa_resp', 'taxa_qual', 'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect']
 
 
-def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
+def frame_metrics(pago=False):
+    return FRAME_METRICS_PAGO if pago else FRAME_METRICS
+
+
+def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False, pago=False):
     """Agrega as linhas do corte por dimensão p/ o modo-fundo da IA, devolvendo
     [{key, m:{métrica:valor}}] com os KPIs derivados por grupo.
 
@@ -416,18 +428,19 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False):
     else:                                                # temperatura/canal: mais leads primeiro
         keys = sorted(groups, key=lambda k: -_sum(groups[k])['leads'])
 
+    fm = frame_metrics(pago)
     out = []
     for k in keys:
-        d = derive(_sum(groups[k]))
+        d = derive(_sum(groups[k]), pago)
         label = _day_label(k) if dim == 'dia' else str(k)
-        out.append({'key': label, 'm': {m: d.get(m) for m in FRAME_METRICS}})
+        out.append({'key': label, 'm': {m: d.get(m) for m in fm}})
     if incluir_geral and dim != 'dia' and sub:
-        g = derive(_sum(sub))
-        out.append({'key': 'Geral', 'm': {m: g.get(m) for m in FRAME_METRICS}})
+        g = derive(_sum(sub), pago)
+        out.append({'key': 'Geral', 'm': {m: g.get(m) for m in fm}})
     return out
 
 
-def cross_dia(rows, dim, trules=None):
+def cross_dia(rows, dim, trules=None, pago=False):
     """Crosstab DIA × dimensão (temperatura|canal|origem): KPIs derivados por célula
     (dia, grupo). Habilita UM gráfico multi-linha 'métrica por dia, uma linha por
     grupo' (ex.: CPL por dia Quente × Morno) — em vez de um gráfico por grupo."""
@@ -452,10 +465,11 @@ def cross_dia(rows, dim, trules=None):
         if g is None:
             continue
         cells.setdefault((_date(r), g), []).append(r)
+    fm = frame_metrics(pago)
     out = []
     for key in sorted(cells, key=lambda k: (k[0], k[1])):
-        d = derive(_sum(cells[key]))
-        out.append({'dia': _day_label(key[0]), 'serie': key[1], 'm': {m: d.get(m) for m in FRAME_METRICS}})
+        d = derive(_sum(cells[key]), pago)
+        out.append({'dia': _day_label(key[0]), 'serie': key[1], 'm': {m: d.get(m) for m in fm}})
     return out
 
 

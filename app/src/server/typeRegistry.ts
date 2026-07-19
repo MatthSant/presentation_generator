@@ -211,15 +211,73 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     montadorPage: 'montador-acompanhamento.html',
     // sem controlsKind: não há render_view.py nem classe de controls no client
     validateConfig() { return []; },
-    buildDeepenMeta() {
-      const M = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
-                 'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect'];
+    /** O lançamento PAGO inverte a lógica do acompanhamento: há caixa DURANTE a
+     *  captação. Sem este contexto o modelo lê o relatório com a régua do clássico —
+     *  trata ingresso como lead, ROAS como ROI e não sabe que exposição sem
+     *  investimento é receita pura. */
+    deepenContext(config) {
+      const pago = String((config as { tipo_funil?: string } | null)?.tipo_funil || '')
+        .toLowerCase() === 'lancamento-pago';
+      if (!pago) return null;
+      return [
+        'MECÂNICA — LANÇAMENTO PAGO: o lead COMPRA um ingresso para entrar. A campanha tem',
+        'receita e caixa já na captação, então a decisão do dia não é "quanto custa o lead"',
+        'e sim "estou no verde, e o que muda isso hoje". Não existem CPL nem CPMQL aqui.',
+        '',
+        'EXPOSIÇÃO DE CAIXA = receita (ingresso + order bump) − reembolso − imposto sobre a',
+        'venda − taxa do broker − investimento − imposto sobre a mídia (12% no Meta quando a',
+        'coluna não vem preenchida). Positiva = o ingresso já pagou o tráfego antes de abrir',
+        'o carrinho. É a métrica que comanda.',
+        '',
+        'DOIS PARES QUE NÃO SE MISTURAM, e trocá-los é o erro caro:',
+        '· ROAS = receita SÓ das linhas com investimento ÷ investimento (eficiência isolada da mídia).',
+        '· ROI  = receita TOTAL (pago + orgânico) ÷ investimento. Fica acima do ROAS porque o',
+        '  orgânico entra sem custar mídia. ROI ≥ 1 com ROAS < 1 significa que o ORGÂNICO está',
+        '  bancando o tráfego pago — escalar verba nesse estado piora o caixa.',
+        '· CAC = investimento ÷ ingressos vindos de anúncio; é ele que vai contra a meta.',
+        '· CUSTO POR INGRESSO = investimento ÷ TODOS os ingressos (diluído no orgânico), sempre menor.',
+        '',
+        'TICKET MÉDIO = receita total ÷ ingressos (com o order bump dentro). É o teto do que se',
+        'pode pagar de CAC. O bench do ticket é o mesmo cálculo com o bump no benchmark — a',
+        'distância entre os dois é, em R$ por ingresso, o que o order bump deixa na mesa.',
+        '',
+        'FUNIL: abre em INVESTIMENTO → Impressões (a "taxa" dessa transição é o CPM, comparado',
+        'a um bench derivado do CAC-alvo), segue por CTR e clique→ingresso, e BIFURCA no fim:',
+        'do ingresso saem MQLs (qualidade da base, via pesquisa) e ORDER BUMPS (receita',
+        'incremental). Os dois ramos dividem o MESMO denominador e não somam 100%.',
+        '',
+        'CUIDADOS AO CRUZAR:',
+        '· Exposição por CRIATIVO/PÚBLICO só é comparável entre itens com investimento > 0.',
+        '  Linha orgânica não tem custo, então a exposição dela é receita pura e lidera qualquer',
+        '  ranking sem significar eficiência. Sempre olhe a coluna Investimento junto.',
+        '· Taxa de qualidade = MQLs ÷ RESPOSTAS da pesquisa (quem não respondeu não entra no',
+        '  denominador); taxa de resposta tem o INGRESSO como base, não o lead.',
+        '· "ingressos" é a contagem total; "ingressos_pago" é só a parte vinda de anúncio.',
+      ].join('\n');
+    },
+    buildDeepenMeta(config) {
+      // MECÂNICA: no lançamento pago o lead compra o ingresso. As métricas que a IA
+      // pode pedir são OUTRAS — CPL e CPMQL nem existem lá, e caixa/ROAS/CAC/order
+      // bump só existem lá. Anunciar a lista errada faz o modelo pedir função com
+      // métrica que o motor rejeita (ou, pior, raciocinar sobre uma que não é a do
+      // relatório). Espelha calc.FRAME_METRICS / FRAME_METRICS_PAGO.
+      const pago = String((config as { tipo_funil?: string } | null)?.tipo_funil || '')
+        .toLowerCase() === 'lancamento-pago';
+      const M = pago
+        ? ['ingressos', 'ingressos_pago', 'investimento', 'receita', 'exposicao',
+           'custo_ing_pago', 'custo_ing_geral', 'roas_pago', 'roas_geral', 'ticket_medio',
+           'bumps', 'taxa_bump', 'taxa_resp', 'taxa_qual', 'conv_pag', 'cpm', 'ctr',
+           'hook', 'hold', 'connect']
+        : ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
+           'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect'];
       const G = genericFuncoes('recorte');
       return {
         consultar: {
           funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking,
             { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' },
-            { id: 'decomposicao', desc: 'decompõe a VARIAÇÃO de cpl ou cpmql (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade). Use p/ "o custo subiu por mídia ou por qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' },
+            { id: 'decomposicao', desc: pago
+              ? 'decompõe a VARIAÇÃO do CAC (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CAC ← CPM/CTR/Connect/Conv.Página — mesma identidade do CPL, porque o ingresso é a conversão do funil de mídia). Use p/ "o custo de aquisição subiu por leilão ou por criativo?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=custo_ing_pago).'
+              : 'decompõe a VARIAÇÃO de cpl ou cpmql (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade). Use p/ "o custo subiu por mídia ou por qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' },
             { id: 'onde_concentra', desc: 'DRILL-DOWN de atribuição p/ uma métrica que piorou (param metrica): varre criativo → publico → campanha → canal → temperatura e diz ONDE a piora se concentra (item que domina) ou se é AMPLA/uniforme → causa GLOBAL. Use p/ "qual criativo/público/campanha/canal/temperatura está puxando X p/ baixo, ou é geral?" — o motor decide o nível; a IA reporta e argumenta.' }],
           params: {
             ...genericParams(M),

@@ -19,16 +19,19 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc  # noqa: E402
 import common.query_core as qc  # noqa: E402
 
-# Métricas diárias disponíveis para cruzamento (eixo = dia).
-METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
-           'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect']
-COST = {'cpl', 'cpmql', 'cpm'}
+# Métricas diárias disponíveis para cruzamento (eixo = dia). Dependem da MECÂNICA:
+# no pago o que se cruza é caixa, CAC, ROAS e order bump — CPL/CPMQL nem existem.
+METRICS = calc.FRAME_METRICS
+METRICS_PAGO = calc.FRAME_METRICS_PAGO
+COST = {'cpl', 'cpmql', 'cpm', 'custo_ing_pago', 'custo_ing_geral'}
 
 
 def build_frame(ctx, a):
     """Eixo parametrizável: dia (default) | temperatura | canal | origem. `recorte_*`
     (origem/temperatura/canal) filtra as linhas antes — ex.: CPL por dia só do Quente."""
     dim = a.get('dimensao', 'dia')
+    pago = bool(ctx.get('pago'))
+    mets = METRICS_PAGO if pago else METRICS
     filtro = {k: a[k2] for k, k2 in (('origem', 'recorte_origem'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
                                      ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
@@ -41,19 +44,19 @@ def build_frame(ctx, a):
         days = [d for d in days if d['date'] in keep]
         src = [r for r in src if calc._date(r) in keep]
     if dim == 'dia' and not filtro:
-        rows = [{'key': d['label'], 'm': {m: d.get(m) for m in METRICS}} for d in days]
+        rows = [{'key': d['label'], 'm': {m: d.get(m) for m in mets}} for d in days]
     else:
-        rows = calc.frame_rows(src, dim, filtro, ctx.get('trules'), incluir_geral=geral)
+        rows = calc.frame_rows(src, dim, filtro, ctx.get('trules'), incluir_geral=geral, pago=pago)
     if not rows:
         return {'status': 'nao_disponivel', 'motivo': f'sem dados para dimensão={dim} com esse recorte'}
     return {
         'axis': dim,
         'rows': rows,
-        'labels': {m: calc.LABELS.get(m, m) for m in METRICS},
-        'cost': {m: (m in COST) for m in METRICS},
+        'labels': {m: calc.LABELS.get(m, m) for m in mets},
+        'cost': {m: (m in COST) for m in mets},
         # ranking sempre mostra o VOLUME ao lado → a IA não cita taxa de criativo/grupo
         # com amostra mínima (ex.: 100% de qualidade com 1 lead) como se fosse relevante.
-        'rank_extra': ['leads', 'investimento'],
+        'rank_extra': (['ingressos', 'investimento'] if pago else ['leads', 'investimento']),
     }
 
 
@@ -62,9 +65,11 @@ def cruzar_dia(B, a):
     (colunas dia/serie/valor) → habilita UM gráfico multi-linha (bind x="dia",
     series="serie", y="valor"), uma linha por grupo. Use NO LUGAR de vários gráficos
     separados quando comparar o MESMO indicador entre grupos ao longo do tempo."""
-    metric = a.get('metrica', 'cpl')
+    pago = bool(B.get('pago'))
+    mets = METRICS_PAGO if pago else METRICS
+    metric = a.get('metrica', 'custo_ing_pago' if pago else 'cpl')
     dim = a.get('dimensao', 'temperatura')
-    if metric not in METRICS:
+    if metric not in mets:
         return qc.nao_disp(f"métrica '{metric}' inválida")
     if dim not in ('temperatura', 'canal', 'origem', 'criativo', 'publico', 'campanha'):
         return qc.nao_disp("dimensao deve ser temperatura, canal, origem, criativo, publico ou campanha")
@@ -73,7 +78,7 @@ def cruzar_dia(B, a):
         keep = {d['date'] for d in days if (d.get('investimento') or 0) > 0}
         src = [r for r in src if calc._date(r) in keep]
         days = [d for d in days if d['date'] in keep]
-    cells = calc.cross_dia(src, dim, B.get('trules'))
+    cells = calc.cross_dia(src, dim, B.get('trules'), pago=pago)
     rows = [{'dia': c['dia'], 'serie': c['serie'], 'valor': qc.rnd(c['m'].get(metric))}
             for c in cells if c['m'].get(metric) is not None]
     # série "Geral" opcional = valor GLOBAL por dia (do B['days'], mesmo do relatório) →
@@ -104,19 +109,23 @@ def decomposicao(B, a):
       CPL  ∝ CPM ÷ (CTR × Connect × Conv.Página)   → ΔlnCPL = ΔlnCPM −ΔlnCTR −ΔlnConnect −ΔlnConv
       CPMQL = CPL ÷ Taxa de Qualidade               → ΔlnCPMQL = ΔlnCPL −ΔlnTaxaQual
     Compara a janela inicial (3 primeiros dias com mídia) com a final (3 últimos)."""
-    metric = a.get('metrica', 'cpl')
-    if metric not in ('cpl', 'cpmql'):
-        return qc.nao_disp("decomposicao só para 'cpl' ou 'cpmql'")
-    days = [d for d in B['days'] if d.get('cpl') is not None]   # dias com mídia paga
+    pago = bool(B.get('pago'))
+    metric = a.get('metrica', 'custo_ing_pago' if pago else 'cpl')
+    validas = ('custo_ing_pago',) if pago else ('cpl', 'cpmql')
+    if metric not in validas:
+        return qc.nao_disp(f"decomposicao só para {' ou '.join(repr(v) for v in validas)}")
+    _mk = 'custo_ing_pago' if pago else 'cpl'
+    days = [d for d in B['days'] if d.get(_mk) is not None]   # dias com mídia paga
     if len(days) < 4:
         return qc.nao_disp('série de mídia curta demais p/ decompor (mín. ~4 dias)')
     n = min(3, len(days) // 2)
-    ini = calc.derive(_merge_sums(days[:n]))
-    rec = calc.derive(_merge_sums(days[-n:]))
+    ini = calc.derive(_merge_sums(days[:n]), pago)
+    rec = calc.derive(_merge_sums(days[-n:]), pago)
 
     LAB = {'cpm': 'CPM', 'ctr': 'CTR', 'connect': 'Connect Rate', 'conv_pag': 'Conv. de Página',
-           'cpl': 'CPL', 'cpmql': 'CPMQL', 'taxa_qual': 'Taxa de Qualidade'}
-    if metric == 'cpl':
+           'cpl': 'CPL', 'cpmql': 'CPMQL', 'taxa_qual': 'Taxa de Qualidade',
+           'custo_ing_pago': 'CAC'}
+    if metric in ('cpl', 'custo_ing_pago'):
         has_pv = bool(B.get('has_pageviews'))
         factors = [('cpm', +1), ('ctr', -1)] + ([('connect', -1)] if has_pv else []) + [('conv_pag', -1)]
     else:
