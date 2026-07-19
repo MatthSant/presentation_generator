@@ -300,20 +300,42 @@ def assemble(rows, config, content, opts=None):
     mt = B['meta'].get('_ingressos_total' if PAGO else '_leads_total')
     mtd = B['meta'].get('_ingressos_td' if PAGO else '_leads_td')
     leads_tot = B['tot']['ingressos'] if PAGO else B['tot_sums']['leads']
-    cum_chart = {'id': 'pan-cum', 'type': 'chart', 'chartType': 'bar',
+    _labels = B['series']['labels']
+    _cum = B['series']['cum']
+    # META ACUMULADA DIA A DIA. A meta to-date diz onde a campanha deveria estar NO
+    # CORTE; distribuída pelos dias decorridos ela vira o RITMO esperado, e a leitura
+    # passa a ser "estou atrás desde quando?" em vez de uma reta que só significa
+    # alguma coisa no último ponto. Só quando não há launch_goals (que traz a curva
+    # real dia a dia) — aqui a única informação disponível é o total to-date.
+    _meta_acum = None
+    if mtd and _labels:
+        _passo = mtd / len(_labels)
+        _meta_acum = [round(_passo * (i + 1), 1) for i in range(len(_labels))]
+    cum_chart = {'id': 'pan-cum', 'type': 'chart',
                  'title': 'Ingressos Vendidos · acumulado' if PAGO else 'Total de Leads Captados',
                  'headline': {'value': intf(leads_tot), 'caption': f"acumulado até {B['corte_label']}"},
-                 'height': 230, 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
-                 'categories': B['series']['labels'], 'series': [{'name': 'Acumulado', 'data': B['series']['cum']}]}
-    goals = []
-    if mt:
-        goals.append({'value': round(mt), 'label': f'Meta total ({intf(mt)})', 'color': '#EF9F27'})
-    if mtd:
-        goals.append({'value': round(mtd), 'label': f'Meta to date ({intf(mtd)})', 'color': '#3B6D11'})
-    if goals:
-        cum_chart['goalLines'] = goals
-        cum_max = max([v for v in B['series']['cum'] if isinstance(v, (int, float))] + [g['value'] for g in goals])
-        cum_chart['axisMax'] = round(cum_max * 1.06)
+                 'height': 230, 'categories': _labels}
+    if _meta_acum:
+        cum_chart.update({
+            'chartType': 'mixed', 'colors': ['#534AB7', '#3B6D11'], 'dashLast': True,
+            'series': [{'name': 'Acumulado', 'data': _cum, 'type': 'bar'},
+                       {'name': f'Meta acumulada ({intf(mtd)} até {B["corte_label"]})',
+                        'data': _meta_acum, 'type': 'line'}]})
+    else:
+        cum_chart.update({
+            'chartType': 'bar', 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
+            'series': [{'name': 'Acumulado', 'data': _cum, 'type': 'bar'}]})
+    _plot = [v for v in _cum if isinstance(v, (int, float))] + (_meta_acum or [])
+    _pmax = max(_plot) if _plot else 0
+    # A meta TOTAL só entra no gráfico quando cabe na mesma escala. No meio da campanha
+    # ela costuma ser uma ordem de grandeza acima do realizado — a linha sobe ao topo e
+    # esmaga barras e ritmo contra o eixo, custando a leitura que o gráfico existe para
+    # dar. O card "148 / 1.500" ao lado já carrega o total sem distorcer nada.
+    if mt and _pmax and mt <= _pmax * 2:
+        cum_chart['goalLines'] = [{'value': round(mt), 'label': f'Meta total ({intf(mt)})', 'color': '#EF9F27'}]
+        _pmax = max(_pmax, mt)
+    if _pmax:
+        cum_chart['axisMax'] = round(_pmax * 1.06)
     pan.append(cum_chart)
 
     # Hero de uma tela: à direita, bandas de atingimento (% grande, 1 linha cada) +

@@ -274,7 +274,13 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   if (def.type === 'mixed') {
     // line series get a visible stroke; bar series get none (width 0).
     const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
-    opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)) };
+    const w = arr.map(s => (s.type === 'line' ? 3 : 0));
+    // dashLast num mixed: a última série é REFERÊNCIA (meta, bench), não observação.
+    // Sólida ela se lê como mais um dado medido; tracejada segue a mesma convenção
+    // das goalLines.
+    opts.stroke = def.dashLast
+      ? { width: w, dashArray: arr.map((s, i) => (i === arr.length - 1 && s.type === 'line' ? 5 : 0)) }
+      : { width: w };
     if (def.secondaryAxis != null) {
       const secs = Array.isArray(def.secondaryAxis) ? def.secondaryAxis : [def.secondaryAxis];
       const suffix = def.secondaryAxisSuffix || '';
