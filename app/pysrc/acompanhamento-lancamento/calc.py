@@ -592,6 +592,15 @@ def build(rows, config=None):
         # paga o tráfego. Não é uma meta arbitrária, é a definição de "no vermelho".
         metas.setdefault('roas_geral', 1.0)
         metas.setdefault('ingressos', metas.get('_ingressos_td'))
+        # TICKET-BENCH: o ticket é preço do ingresso + (taxa de bump × preço do bump).
+        # Os dois preços saem da própria base; trocando a taxa REAL pela de benchmark,
+        # sai o ticket que a campanha teria com o bump convertendo como deveria. Assim
+        # o gap do ticket é lido em reais, e não como número solto: a distância entre
+        # os dois É a receita que o bump está deixando na mesa, por ingresso.
+        _p_ing = div(tot_sums['fat_gen'], tot_sums['ing'])
+        _p_bump = div(tot_sums['fat_bump'], tot_sums['bumps'])
+        if _p_ing is not None and _p_bump is not None and fb.get('taxa_bump'):
+            metas.setdefault('ticket_medio', round(_p_ing + fb['taxa_bump'] / 100.0 * _p_bump, 2))
     # investimento não tem meta direta — projeta o esperado pela meta de CPL × leads pagos
     mc = metas.get('cpl')
     if mc is not None and tot_sums['leads_pago']:

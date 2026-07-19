@@ -29,7 +29,8 @@ INT = {'leads', 'ingressos', 'ingressos_pago', 'ingressos_org', 'bumps'}  # cont
 MULT = {'roas_pago', 'roas_geral'}   # ROAS é MÚLTIPLO (1,49×), não dinheiro nem %
 # Métricas de funil/mídia cujo alvo é um BENCHMARK (não uma meta da campanha).
 # taxa_bump e conv_pag no pago são benchmarks FIXOS da mecânica (20% e 5%).
-BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag', 'cpm', 'taxa_bump'}
+BENCH_METRICS = {'hook', 'hold', 'ctr', 'connect', 'conv_pag', 'cpm', 'taxa_bump',
+                 'ticket_medio'}   # ticket-bench é derivado do bench de order bump
 # Nome da taxa de cada transição do funil (alinhado às 5 transições de FUNNEL_STAGES).
 FUNNEL_RATE = ['CTR', 'Connect Rate', 'Conv. de Página', 'Taxa de Resposta', 'Qualidade']
 # Ícones limitados ao set do renderer (renderer.ts → ICONS).
@@ -79,7 +80,11 @@ INFO_PAGO = {
     'ticket_medio': ('Receita total (ingressos + order bumps) ÷ ingressos vendidos. É o teto do '
                      'que se pode pagar para adquirir um ingresso: enquanto o CAC estiver abaixo '
                      'dele, cada venda a mais melhora a exposição de caixa. O bump entra na conta '
-                     'porque também paga o tráfego.'),
+                     'porque também paga o tráfego.\n\n'
+                     'O bench é o mesmo ticket com o order bump convertendo no benchmark: '
+                     'preço do ingresso + (taxa de bump esperada × preço do bump), com os dois '
+                     'preços tirados da própria base. A distância até ele é, em reais por '
+                     'ingresso, o que o bump está deixando na mesa.'),
     'bumps': 'Quantidade de order bumps vendidos no período.',
     'investimento': 'Total gasto em mídia paga no período. É o denominador de ROAS, ROI e CAC.',
     'receita': ('Receita bruta total: ingressos + order bumps, antes de impostos, reembolso '
@@ -450,8 +455,8 @@ def assemble(rows, config, content, opts=None):
     evo, eg = [], Grid()
 
     def chart_def(title, y, ctype, pct, vf, color='#534AB7', goals=None,
-                  names=None, sec=None, secSuffix=None, colors=None, types=None):
-        c = {'chartType': ctype, 'title': title, 'height': 280,
+                  names=None, sec=None, secSuffix=None, colors=None, types=None, height=280):
+        c = {'chartType': ctype, 'title': title, 'height': height,
              'pct': pct, 'valueFormat': vf, 'bind': {'dataset': 'acom_daily', 'x': 'dia', 'y': y}}
         if colors:
             c['colors'] = colors
@@ -492,8 +497,10 @@ def assemble(rows, config, content, opts=None):
         # cru da coluna ("ctr", "custo_ing_pago").
         evo.append({'id': wid, 'type': 'chart-toggle', 'title': title,
                     'tabs': [{'label': lbl,
+                              # a barra de abas come altura que o gráfico interno não
+                              # desconta sozinho — sem isso o card vaza alguns px
                               'chart': chart_def(None, y, ct, pct, vf, col or '#534AB7', gl,
-                                                 names=[lbl])}
+                                                 names=[lbl], height=248)}
                              for lbl, y, ct, pct, vf, col, gl in specs]})
         eg.add(wid, 'chart-toggle', w, 4)
     if PAGO:

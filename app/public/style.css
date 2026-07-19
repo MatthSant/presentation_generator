@@ -1999,7 +1999,10 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc-vol-delta { align-self: flex-start; margin-top: 6px; font-size: 9.5px; padding: 1px 6px; border-radius: 5px; }
 .kc-btm { display: flex; justify-content: flex-end; margin-top: 12px; }
 .kc-btm .kpi-spark { width: 130px; height: 30px; margin: 0; opacity: .8; }
-.kc-valrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+/* wrap: o valor e o chip de tendência são ambos nowrap e não encolhem — num card
+   estreito (1/6 da grade) um valor por extenso como "R$ 6.956,00" empurrava o chip
+   para fora da borda. Quebrando a linha, o chip desce em vez de vazar. */
+.kc-valrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .kc-valrow .kpi-spark { width: 116px; height: 34px; margin: 0 0 2px; opacity: .8; flex-shrink: 0; }
 .kc-bar { display: flex; height: 4px; width: 100%; margin-top: 11px; border-radius: 3px; overflow: hidden; }
 .kc-seg { height: 100%; }
