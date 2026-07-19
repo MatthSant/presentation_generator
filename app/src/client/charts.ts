@@ -217,11 +217,15 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       legend.horizontalAlign = 'center';
       legend.fontSize = '12px';
       legend.itemMargin = { horizontal: 10, vertical: 3 };
+      // honra o valueFormat da fatia: num donut de RECEITA, "11.373" sem o R$ se lê
+      // como contagem — ainda mais ao lado de um relatório cheio de contagens. O
+      // centro já formatava; a legenda não, e as duas discordavam no mesmo gráfico.
+      const lFmt = def.valueFormat ? valueFmt(def.valueFormat) : (v: number) => Number(v).toLocaleString('pt-BR');
       legend.formatter = (name: string, o: { seriesIndex: number; w: { globals: { series: number[] } } }) => {
         const arr = o.w.globals.series || [];
         const v = arr[o.seriesIndex] ?? 0;
         const tot = arr.reduce((a, b) => a + b, 0) || 1;
-        return `${name} — ${Number(v).toLocaleString('pt-BR')} · ${(v / tot * 100).toFixed(1).replace('.', ',')}%`;
+        return `${name} — ${lFmt(Number(v))} · ${(v / tot * 100).toFixed(1).replace('.', ',')}%`;
       };
     }
     opts.legend = legend;

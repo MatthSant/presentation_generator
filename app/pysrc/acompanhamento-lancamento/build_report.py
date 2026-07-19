@@ -181,10 +181,18 @@ def assemble(rows, config, content, opts=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': LAB[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
-        if sub:
-            card['sub'] = sub
         if PAGO and INFO_PAGO.get(metric):
             card['info'] = INFO_PAGO[metric]
+        # (i) e legenda embaixo são o MESMO papel — explicar a métrica — em dois lugares.
+        # Com os dois, o card fica com duas linhas de texto competindo com o número, que
+        # é o que ele existe para mostrar. O (i) ganha: cabe o texto inteiro e só aparece
+        # quando pedido. Sub que carrega NÚMERO (não explicação) é dobrado para dentro
+        # do (i), para não perder o dado.
+        if sub:
+            if card.get('info'):
+                card['info'] = f"{sub[0].upper()}{sub[1:]}\n\n{card['info']}"
+            else:
+                card['sub'] = sub
         if metric == 'cpmql':   # métrica-chave (maior correlação c/ vendas) em destaque roxo
             card['emph'] = True
         # tendência 3d (vs início) — inline ao lado do valor, presente em todas as métricas
@@ -427,8 +435,8 @@ def assemble(rows, config, content, opts=None):
         # A linha de cima é a conta da exposição na ordem em que ela se forma: o que
         # entrou (receita), o que saiu (investimento) e o que sobrou (exposição, à
         # esquerda e em destaque, porque é a leitura que decide o dia).
-        kcard(pan, pg, 'receita', w=3, sub='ingressos + order bumps')
-        kcard(pan, pg, 'investimento', w=3, sub='mídia paga no período')
+        kcard(pan, pg, 'receita', w=3)
+        kcard(pan, pg, 'investimento', w=3)
         # Estes quatro não são quatro irmãos: são DOIS pares (retorno × custo) em DOIS
         # recortes (só anúncio × tudo). Lado a lado como iguais, o leitor tem de
         # reconstruir esse pareamento a cada vez — e ler ROAS como se fosse ROI é
@@ -460,12 +468,20 @@ def assemble(rows, config, content, opts=None):
             wid = f'k-{m}'
             kcard(pan, None, m, w=2)                     # card sem layout automático…
             pg.at(wid, 'kpi-card', (i % 3) * 2, inter_y + (i // 3) * 2, 2, 2)   # …posicionado à mão
-        pan.append({'id': 'pan-donut-orig', 'type': 'chart', 'chartType': 'donut',
-                    'title': 'Origem do ingresso', 'height': 240,
-                    'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'ingressos',
-                    'legendValues': True,
-                    'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-        pg.at('pan-donut-orig', 'chart', 6, inter_y, 6, 4)
+        # COMPOSIÇÃO DA RECEITA — de onde veio o caixa. Fecha o raciocínio dos dois
+        # cards de receita ao lado e mede a alavanca que a campanha controla sem gastar
+        # mídia: a fatia do order bump. O split pago × orgânico já está na Captação;
+        # repeti-lo aqui gastaria meia largura do bloco com um número que o leitor
+        # acabou de ver.
+        add_table('acom_receita_mix', ['origem'],
+                  [{'origem': 'Ingressos', 'valor': B['tot']['receita_ing']},
+                   {'origem': 'Order bumps', 'valor': B['tot']['receita_bump']}])
+        pan.append({'id': 'pan-donut-rec', 'type': 'chart', 'chartType': 'donut',
+                    'title': 'Composição da receita', 'height': 240,
+                    'colors': ['#534AB7', '#854F0B'], 'donutTotal': True,
+                    'totalLabel': 'receita', 'valueFormat': 'money', 'legendValues': True,
+                    'bind': {'dataset': 'acom_receita_mix', 'x': 'origem', 'y': 'valor'}})
+        pg.at('pan-donut-rec', 'chart', 6, inter_y, 6, 4)
         pg.cursor_to(inter_y + 4)
     else:
         eb(pan, pg, 'pan-eb-kpi', 'KPIS MACRO', '6 indicadores · valor geral · 3 dias · tendência · meta')
