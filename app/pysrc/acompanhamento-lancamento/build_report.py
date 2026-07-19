@@ -287,16 +287,30 @@ def assemble(rows, config, content, opts=None):
     # deep mode poder cruzar CPL/CPMQL/leads por temperatura (Quente/Morno/Frio)
     if B['temp']:
         add_table('acom_temp', ['temperatura'],
-                  [{'temperatura': t, 'leads': v['leads'], 'invest': round(v['invest'], 2),
-                    'cpl': v['cpl'], 'cpmql': v['cpmql']}
+                  [dict({'temperatura': t, 'leads': v['leads'], 'invest': round(v['invest'], 2),
+                         'cpl': v['cpl'], 'cpmql': v['cpmql']},
+                        # no pago o que decide por temperatura é caixa e CAC, não CPL
+                        **({'ingressos': v['ingressos'], 'cac': v['cac'],
+                            'qualidade': v['qualidade'], 'exposicao': v['exposicao']} if PAGO else {}))
                    for t, v in B['temp'].items() if v.get('leads')])
     # agregados (não têm widget próprio; alimentam perguntas norteadoras + deep mode)
+    # Esta tabela é a base das PERGUNTAS NORTEADORAS e do deep mode — precisa carregar
+    # os KPIs da MECÂNICA, não os do clássico. No pago ela trazia cpl/cpmql/leads, que
+    # ali não decidem nada: a pergunta "qual KPI está pior" respondia sobre métricas
+    # que o relatório nem mostra, e as do caixa ficavam invisíveis para o motor.
+    # investimento e taxa_resp não são CARD no pago (o primeiro subiu para o bloco de
+    # resultado, o segundo virou etapa do funil), mas o motor precisa dos dois: sem
+    # investimento não há denominador para "quanto do investido está em risco", e sem
+    # taxa de resposta a pergunta sobre a amostra da pesquisa fica sem número.
+    _kmacro = ((calc.KPI_MACRO_PAGO + calc.KPI_INTER_PAGO
+                + ['investimento', 'taxa_resp', 'roas_pago', 'custo_ing_geral', 'receita'])
+               if PAGO else calc.KPI_MACRO)
     add_table('acom_kpis', ['metric'], [
-        {'metric': m, 'label': LAB[m], 'grupo': 'macro' if m in calc.KPI_MACRO else 'trafego',
+        {'metric': m, 'label': LAB[m], 'grupo': 'macro' if m in _kmacro else 'trafego',
          'value': B['tot'].get(m), 'd3': B['d3'].get(m), 'meta': B['meta'].get(m),
          'dev': (B['meta_status'].get(m) or {}).get('dev'), 'cls': (B['meta_status'].get(m) or {}).get('cls'),
          'trend_dir': B['trend'].get(m, {}).get('dir'), 'trend_pct': B['trend'].get(m, {}).get('pct')}
-        for m in dict.fromkeys(calc.KPI_MACRO + B['traf_metrics'])])
+        for m in dict.fromkeys(_kmacro + B['traf_metrics'])])
     add_table('acom_funnel', ['etapa'], [
         {'etapa': s['label'], 'value': s['value'],
          'migracao': (s.get('trans') or {}).get('migracao'), 'bench': (s.get('trans') or {}).get('bench'),
