@@ -39,6 +39,7 @@ LABELS = {
     'taxa_bump': 'Taxa de Order Bump', 'bumps': 'Order Bumps',
     'ticket_medio': 'Ticket Médio', 'receita': 'Receita Total',
     'impressoes': 'Impressões', 'cliques': 'Cliques no Link',
+    'cum_ing': 'Ingressos acumulados',
 }
 # KPIs por mecânica. O pago decide por EXPOSIÇÃO DE CAIXA (verde/vermelho), não por
 # volume+CPL — por isso os cards de Resultado e os Intermediários são outros.
@@ -361,7 +362,7 @@ FRAME_METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qua
 # Sem isto o deepen só enxergava CPL/CPMQL — métricas que o relatório do pago nem
 # mostra — e não conseguia responder nada sobre caixa, CAC, ROAS ou order bump por
 # criativo, público ou temperatura.
-FRAME_METRICS_PAGO = ['ingressos', 'ingressos_pago', 'investimento', 'receita',
+FRAME_METRICS_PAGO = ['ingressos', 'cum_ing', 'ingressos_pago', 'investimento', 'receita',
                       'impressoes', 'cliques',
                       'exposicao', 'custo_ing_pago', 'custo_ing_geral',
                       'roas_pago', 'roas_geral', 'ticket_medio', 'bumps', 'taxa_bump',

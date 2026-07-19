@@ -217,10 +217,48 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
      *  trata ingresso como lead, ROAS como ROI e não sabe que exposição sem
      *  investimento é receita pura. */
     deepenContext(config) {
-      const pago = String((config as { tipo_funil?: string } | null)?.tipo_funil || '')
-        .toLowerCase() === 'lancamento-pago';
-      if (!pago) return null;
-      return [
+      const c = (config || {}) as { tipo_funil?: string; metas?: Record<string, unknown>; funnel_bench?: Record<string, unknown>; goals_csv?: string };
+      const pago = String(c.tipo_funil || '').toLowerCase() === 'lancamento-pago';
+      // METAS EM VIGOR, listadas explicitamente. Sem isto o modelo não sabe onde elas
+      // estão: num teste real ele disse "meta to-date não está definida" (estava, 200)
+      // e, noutro, inventou "meta de 68%" para uma taxa cuja meta é 50 — invertendo a
+      // conclusão, já que o realizado de 56,5% está ACIMA dela. Os dois passaram pelo
+      // gate, que confere número contra tabela e não contra a meta configurada.
+      const ROTULO: Record<string, string> = {
+        _leads_total: 'meta de leads (total da campanha)', _leads_td: 'meta de leads até o corte',
+        _ingressos_total: 'meta de ingressos (total)', _ingressos_td: 'meta de ingressos até o corte',
+        cpl: 'meta de CPL (R$)', cpmql: 'meta de CPMQL (R$)', custo_ing_pago: 'meta de CAC (R$)',
+        exposicao: 'meta de exposição de caixa (R$)', taxa_resp: 'meta de taxa de resposta (%)',
+        taxa_qual: 'meta de taxa de qualidade (%)', roas_geral: 'ponto de equilíbrio do ROI (×)',
+        hook: 'bench de hook (%)', hold: 'bench de hold (%)', ctr: 'bench de CTR (%)',
+        connect: 'bench de connect (%)', conv_pag: 'bench de conversão de página (%)',
+        taxa_bump: 'bench de taxa de order bump (%)',
+      };
+      // O config pode trazer as chaves CLÁSSICAS numa análise paga (form compartilhado);
+      // o motor traduz internamente, e aqui tem de traduzir também — senão o contexto
+      // anuncia "meta de CPL" enquanto o relatório mostra "Meta CAC". CPMQL não tem
+      // equivalente no pago: sai da lista em vez de virar um alvo sem sentido.
+      const TRAD: Record<string, string> = {
+        _leads_total: '_ingressos_total', _leads_td: '_ingressos_td', cpl: 'custo_ing_pago',
+      };
+      const bruto = { ...(c.metas || {}), ...(c.funnel_bench || {}) } as Record<string, unknown>;
+      const alvos: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(bruto)) {
+        if (v == null || v === '') continue;
+        if (pago && k === 'cpmql') continue;
+        const chave = pago ? (TRAD[k] || k) : k;
+        if (alvos[chave] === undefined) alvos[chave] = v;   // a chave da mecânica vence
+      }
+      const linhas = Object.entries(alvos).map(([k, v]) => `· ${ROTULO[k] || k} = ${v}`);
+      const metasTxt = [
+        'METAS E BENCHMARKS EM VIGOR — são ESTES os alvos; não invente outros e não',
+        'diga que não há meta sem checar aqui. Métrica que não aparece na lista não tem',
+        'alvo definido: relate o valor sem farol, em vez de comparar com um número inventado.',
+        ...(c.goals_csv ? ['(há launch goals por canal × dia; os valores abaixo são o agregado em vigor)'] : []),
+        ...(linhas.length ? linhas : ['· nenhuma meta configurada nesta análise']),
+      ].join('\n');
+      if (!pago) return metasTxt;
+      return [metasTxt, ''].concat([
         'MECÂNICA — LANÇAMENTO PAGO: o lead COMPRA um ingresso para entrar. A campanha tem',
         'receita e caixa já na captação, então a decisão do dia não é "quanto custa o lead"',
         'e sim "estou no verde, e o que muda isso hoje". Não existem CPL nem CPMQL aqui.',
@@ -248,6 +286,13 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
         'incremental). Os dois ramos dividem o MESMO denominador e não somam 100%.',
         '',
         'CUIDADOS AO CRUZAR:',
+        '· TAXA DO PERÍODO ≠ média das taxas diárias. Toda taxa aqui (resposta, qualidade,',
+        '  order bump, CTR, conversão) é razão de somas — somar os numeradores e os',
+        '  denominadores do período, não tirar média dos dias. Para o valor do período use o',
+        '  que já está no relatório (catálogo) ou incluir_geral=sim, que recalcula ponderado.',
+        '  Média de taxas diárias dá um número que não existe em lugar nenhum.',
+        '· "cum_ing" é o acumulado de ingressos ao longo dos dias — use-o para ritmo vs meta,',
+        '  em vez de somar a série diária na resposta.',
         '· ROI e CUSTO POR INGRESSO só diferem de ROAS e CAC quando o recorte MISTURA linha',
         '  paga e orgânica — por dia, por canal, ou no total. Num recorte que SEPARA o pago',
         '  (dimensao=origem, criativo, publico, temperatura) a linha paga não tem receita',
@@ -263,7 +308,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
         '· Taxa de qualidade = MQLs ÷ RESPOSTAS da pesquisa (quem não respondeu não entra no',
         '  denominador); taxa de resposta tem o INGRESSO como base, não o lead.',
         '· "ingressos" é a contagem total; "ingressos_pago" é só a parte vinda de anúncio.',
-      ].join('\n');
+      ]).join('\n');
     },
     buildDeepenMeta(config) {
       // MECÂNICA: no lançamento pago o lead compra o ingresso. As métricas que a IA
@@ -274,7 +319,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const pago = String((config as { tipo_funil?: string } | null)?.tipo_funil || '')
         .toLowerCase() === 'lancamento-pago';
       const M = pago
-        ? ['ingressos', 'ingressos_pago', 'investimento', 'receita', 'impressoes', 'cliques', 'exposicao',
+        ? ['ingressos', 'cum_ing', 'ingressos_pago', 'investimento', 'receita', 'impressoes', 'cliques', 'exposicao',
            'custo_ing_pago', 'custo_ing_geral', 'roas_pago', 'roas_geral', 'ticket_medio',
            'bumps', 'taxa_bump', 'taxa_resp', 'taxa_qual', 'conv_pag', 'cpm', 'ctr',
            'hook', 'hold', 'connect']
