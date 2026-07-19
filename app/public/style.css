@@ -1655,7 +1655,11 @@ body.edit-mode .tile-filter-badge { display:none; }
    página: card branco do sistema, rótulo "Resposta" e tipografia maior. A cor que o
    modelo escolher (g/a/r) entra no rótulo e nos negritos, não lavando o fundo — o
    callout tintado inteiro lia como faixa de alerta, não como resposta. */
-.dash-grid .dash-tile:first-child > .hl {
+/* O mesmo tratamento vale no DRAWER de detalhamento: lá o widget é filho direto do
+   .ic-body (não há .dash-tile), e sem isto a resposta voltava ao callout laranja
+   antigo — o mesmo conteúdo com duas caras conforme onde é aberto. */
+.dash-grid .dash-tile:first-child > .hl,
+.ic-body > .hl:first-child {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -1666,16 +1670,21 @@ body.edit-mode .tile-filter-badge { display:none; }
 /* rótulo automático quando o modelo não mandou label (o caso comum). A cor do
    rótulo/negrito vem de --hl-accent (custom property vence a especificidade da
    cadeia :not(:has()) sem repeti-la nas variantes). */
-.dash-grid .dash-tile:first-child > .hl:not(:has(.label-sec))::before {
+.dash-grid .dash-tile:first-child > .hl:not(:has(.label-sec))::before,
+.ic-body > .hl:first-child:not(:has(.label-sec))::before {
   content: 'Resposta';
   display: block;
   font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   color: var(--hl-accent, var(--purple)); margin-bottom: 6px;
 }
-.dash-grid .dash-tile:first-child > .hl strong { color: var(--hl-accent, var(--purple)); }
-.dash-grid .dash-tile:first-child > .hl-a { --hl-accent: var(--amber-text); }
-.dash-grid .dash-tile:first-child > .hl-g { --hl-accent: var(--green-text); }
-.dash-grid .dash-tile:first-child > .hl-r { --hl-accent: var(--red-text); }
+.dash-grid .dash-tile:first-child > .hl strong,
+.ic-body > .hl:first-child strong { color: var(--hl-accent, var(--purple)); }
+.dash-grid .dash-tile:first-child > .hl-a,
+.ic-body > .hl-a:first-child { --hl-accent: var(--amber-text); }
+.dash-grid .dash-tile:first-child > .hl-g,
+.ic-body > .hl-g:first-child { --hl-accent: var(--green-text); }
+.dash-grid .dash-tile:first-child > .hl-r,
+.ic-body > .hl-r:first-child { --hl-accent: var(--red-text); }
 
 /* highlight INTERNO (alegação no meio do fluxo) = callout tintado proeminente
    (não texto chapado) — a conclusão tem que ter destaque. */
