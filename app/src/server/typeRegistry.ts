@@ -253,6 +253,10 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
         '  (dimensao=origem, criativo, publico, temperatura) a linha paga não tem receita',
         '  orgânica dentro, então os dois pares colapsam no MESMO número. Ali cite só ROAS e',
         '  CAC; usar ROI numa linha dessas contradiz o ROI do relatório sem ninguém errar conta.',
+        '· TEMPERATURA cobre só o tráfego PAGO (o orgânico não tem campanha classificada).',
+        '  A soma das temperaturas NÃO fecha com o total do relatório e não deve fechar —',
+        '  a diferença é o orgânico. Nunca apresente a soma delas como "o total"; para o',
+        '  agregado use incluir_geral=sim, que recalcula em vez de somar os grupos.',
         '· Exposição por CRIATIVO/PÚBLICO só é comparável entre itens com investimento > 0.',
         '  Linha orgânica não tem custo, então a exposição dela é receita pura e lidera qualquer',
         '  ranking sem significar eficiência. Sempre olhe a coluna Investimento junto.',
@@ -270,7 +274,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       const pago = String((config as { tipo_funil?: string } | null)?.tipo_funil || '')
         .toLowerCase() === 'lancamento-pago';
       const M = pago
-        ? ['ingressos', 'ingressos_pago', 'investimento', 'receita', 'exposicao',
+        ? ['ingressos', 'ingressos_pago', 'investimento', 'receita', 'impressoes', 'cliques', 'exposicao',
            'custo_ing_pago', 'custo_ing_geral', 'roas_pago', 'roas_geral', 'ticket_medio',
            'bumps', 'taxa_bump', 'taxa_resp', 'taxa_qual', 'conv_pag', 'cpm', 'ctr',
            'hook', 'hold', 'connect']

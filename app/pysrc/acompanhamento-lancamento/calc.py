@@ -38,6 +38,7 @@ LABELS = {
     'receita_ing': 'Receita com Ingressos', 'receita_bump': 'Receita com Order Bumps',
     'taxa_bump': 'Taxa de Order Bump', 'bumps': 'Order Bumps',
     'ticket_medio': 'Ticket Médio', 'receita': 'Receita Total',
+    'impressoes': 'Impressões', 'cliques': 'Cliques no Link',
 }
 # KPIs por mecânica. O pago decide por EXPOSIÇÃO DE CAIXA (verde/vermelho), não por
 # volume+CPL — por isso os cards de Resultado e os Intermediários são outros.
@@ -327,6 +328,11 @@ def derive(s, pago=False):
         # que se pode pagar por ingresso, e o bump entra porque também paga o tráfego —
         # medir só o ingresso subestimaria o CAC suportável.
         'ticket_medio': div(receita, s['ing']),
+        # Cru do funil de mídia. O deepen precisa CONSULTAR impressões e cliques: sem
+        # eles no frame, o modelo que quer citar "quantos cliques" não tem de onde
+        # tirar — e inventa. Aconteceu num teste real (citou 58.180 num total de 4.614).
+        'impressoes': round(s['imp']),
+        'cliques': round(s['clicks']),
     } if pago else {}
     return dict({
         'leads': round(s['leads']),
@@ -356,6 +362,7 @@ FRAME_METRICS = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qua
 # mostra — e não conseguia responder nada sobre caixa, CAC, ROAS ou order bump por
 # criativo, público ou temperatura.
 FRAME_METRICS_PAGO = ['ingressos', 'ingressos_pago', 'investimento', 'receita',
+                      'impressoes', 'cliques',
                       'exposicao', 'custo_ing_pago', 'custo_ing_geral',
                       'roas_pago', 'roas_geral', 'ticket_medio', 'bumps', 'taxa_bump',
                       'taxa_resp', 'taxa_qual', 'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect']

@@ -953,14 +953,26 @@ def assemble(rows, config, content, opts=None):
     # a ordem em que se procura. Dimensão com um valor só não vira filtro: não recorta
     # nada e ocupa espaço. As utms usam a coluna CANÔNICA, já reconciliada com a
     # família `_traf` — sem isso a linha de mídia ficaria fora de qualquer seleção.
-    def _dim_values(fn, ordenar=False):
-        vals = {}
+    def _dim_values(fn, nome=None):
+        """`nome` mapeia o valor da utm para o rótulo legível da plataforma. As utms de
+        mídia carregam o ID do anúncio/conjunto/campanha; um filtro listando
+        "120249661244950515" é ilegível — o nome está em field_ad_name & cia. O ID
+        continua sendo o valor filtrado (é ele que está na linha); muda só o rótulo.
+        Quando o mesmo ID aparece com nomes diferentes, vence o mais frequente."""
+        vals, nomes = {}, {}
         for r in B['rows_corte']:
             k = fn(r)
-            if k:
-                vals[k] = vals.get(k, 0) + 1
-        keys = sorted(vals) if ordenar else sorted(vals, key=lambda k: -vals[k])
-        return [{'id': k, 'label': k} for k in keys]
+            if not k:
+                continue
+            vals[k] = vals.get(k, 0) + 1
+            if nome:
+                n = (nome(r) or '').strip()
+                if n and n != 'Não trackeado':
+                    d = nomes.setdefault(k, {})
+                    d[n] = d.get(n, 0) + 1
+        keys = sorted(vals, key=lambda k: -vals[k])
+        return [{'id': k, 'label': (max(nomes[k], key=nomes[k].get) if nomes.get(k) else k)}
+                for k in keys]
     _flt = [
         {'key': 'dia', 'label': 'Data',
          'values': [{'id': d['date'], 'label': d['label']} for d in B['days']]},
@@ -968,12 +980,12 @@ def assemble(rows, config, content, opts=None):
          'values': _dim_values(lambda r: 'Pago' if calc.is_paid(r) else 'Orgânico')},
         {'key': 'utm_source', 'label': 'utm_source',
          'values': _dim_values(lambda r: calc.norm_source(r.get('utm_source')))},
-        {'key': 'utm_medium', 'label': 'utm_medium',
-         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_medium')))},
-        {'key': 'utm_campaign', 'label': 'utm_campaign',
-         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_campaign')))},
-        {'key': 'utm_content', 'label': 'utm_content',
-         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_content')))},
+        {'key': 'utm_medium', 'label': 'utm_medium · público',
+         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_medium')), calc.adset_name)},
+        {'key': 'utm_campaign', 'label': 'utm_campaign · campanha',
+         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_campaign')), calc.campaign_name)},
+        {'key': 'utm_content', 'label': 'utm_content · anúncio',
+         'values': _dim_values(lambda r: calc._coalesce(r.get('utm_content')), calc.ad_name)},
     ]
     _flt = [f for f in _flt if len(f['values']) > 1]
     data_json = {'meta': {'client': config['client'], 'client_name': config.get('client_name') or config['client'],
