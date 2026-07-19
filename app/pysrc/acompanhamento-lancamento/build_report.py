@@ -378,7 +378,7 @@ def assemble(rows, config, content, opts=None):
                     'delta': f'{atd:.1f}%', 'deltaTone': 'pos' if atd >= 95 else ('neg' if atd < 80 else 'neutral')})
         hero_lay.append({'id': 'pan-meta-td', 'type': 'kpi-card', 'x': 5, 'y': ry, 'w': 7, 'h': 1}); ry += 1
     pan.append({'id': 'pan-donut', 'type': 'chart', 'chartType': 'donut', 'title': 'Pago × Orgânico',
-                'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': 'leads',
+                'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': NOUN,
                 'legendValues': True,
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
     hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
@@ -478,7 +478,7 @@ def assemble(rows, config, content, opts=None):
                    {'origem': 'Order bumps', 'valor': B['tot']['receita_bump']}])
         pan.append({'id': 'pan-donut-rec', 'type': 'chart', 'chartType': 'donut',
                     'title': 'Composição da receita', 'height': 240,
-                    'colors': ['#534AB7', '#854F0B'], 'donutTotal': True,
+                    'colors': ['#534AB7', '#AFA9EC'], 'donutTotal': True,
                     'totalLabel': 'receita', 'valueFormat': 'money', 'legendValues': True,
                     'bind': {'dataset': 'acom_receita_mix', 'x': 'origem', 'y': 'valor'}})
         pg.at('pan-donut-rec', 'chart', 6, inter_y, 6, 4)
@@ -562,14 +562,14 @@ def assemble(rows, config, content, opts=None):
         # LINHA 1 — CAIXA: o que entrou, o que saiu, o que sobrou. Nesta ordem, porque
         # é a ordem em que a conta se forma.
         chart('evo-receita', 'Receita por dia', 'receita', 'bar', False, 'money',
-              w=4, trendkey='receita')
+              w=4)
         chart('evo-invest', 'Investimento por dia', 'invest', 'bar', False, 'money',
-              w=4, trendkey='investimento', colors=['#EF9F27'])
+              w=4, colors=['#EF9F27'])
         # a barra do dia mostra o fôlego diário e a linha acumulada mostra a posição —
         # um dia fraco depois de semanas boas não é a mesma coisa que um dia fraco no
         # vermelho, e isso só aparece com as duas juntas.
         chart('evo-expo', 'Exposição de caixa', ['expo', 'expo_cum'],
-              'mixed', False, 'money', w=4, trendkey='exposicao',
+              'mixed', False, 'money', w=4,
               names=['Do dia', 'Acumulada'], types=['bar', 'line'],
               colors=['#97C459', '#3B6D11'],
               goals=[{'value': _mexpo, 'label': 'Equilíbrio', 'color': '#B3261E'}]
@@ -579,13 +579,13 @@ def assemble(rows, config, content, opts=None):
         # distância entre as duas linhas que mostra o quanto o orgânico está segurando.
         chart('evo-ing', 'Ingressos por dia · pago e orgânico',
               ['ingressos_pago', 'ingressos_org'], 'stacked', False, 'int', w=4,
-              trendkey='ingressos', names=['Pago', 'Orgânico'], colors=['#534AB7', '#97C459'])
+              names=['Pago', 'Orgânico'], colors=['#534AB7', '#97C459'])
         chart('evo-custo', 'Custo por ingresso', ['custo_ing_pago', 'custo_ing_geral'],
-              'line', False, 'money', w=4, trendkey='custo_ing_pago',
+              'line', False, 'money', w=4,
               names=['CAC (pago)', 'Geral'], colors=['#185FA5', '#9AB6D6'],
               goals=[{'value': _mcac, 'label': 'Meta CAC', 'color': '#B3261E'}] if _mcac else None)
         chart('evo-retorno', 'Retorno por dia', ['roas_pago', 'roas_geral'],
-              'line', False, 'x', w=4, trendkey='roas_geral',
+              'line', False, 'x', w=4,
               names=['ROAS (pago)', 'ROI (geral)'], colors=['#3B6D11', '#97C459'],
               goals=[{'value': 1.0, 'label': 'Equilíbrio 1,00×', 'color': '#B3261E'}])
         # LINHA 3 — COMPARADOR LIVRE. As duas linhas acima fixam os pares que sempre
