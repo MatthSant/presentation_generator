@@ -172,6 +172,13 @@ export function registerDeepen(app: Express, ctx: Ctx): void {
         return;
       }
 
+      // TÍTULO do drawer = a PERGUNTA feita, deterministicamente. O modelo às vezes
+      // cria um título bom, às vezes só ecoa o título do card — e a página já mostra
+      // o card; repetir o nome dele não diz o que foi perguntado. Numa ITERAÇÃO o
+      // prompt é instrução de ajuste ("aumente o gráfico"), não pergunta: mantém o
+      // título original. O `objetivo` do gate segue sendo o assunto do bloco — papel
+      // de guardrail, não de exibição; são coisas distintas de propósito.
+      modal.title = prev ? ((prev as Modal).title || modal.title) : prompt;
       const historyId = record(true, [], modal, usage, mocked, { attempts: gate.attempts, issues: gate.issuesLog, residual: gate.residualBlocking });
       modal.historyId = historyId;   // âncora do rating no client
       // Iteração = revisão da versão anterior: marca-a como revisada com o

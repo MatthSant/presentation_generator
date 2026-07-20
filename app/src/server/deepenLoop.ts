@@ -14,7 +14,7 @@
 import type { Bind, DataMap, Modal, Widget } from '../shared/types.js';
 import { resolveBind } from '../shared/bind.js';
 import { critiqueModal, sumUsage, type ModalUsage } from './claude.js';
-import { qualityIssues, qualitySuggestions, missingAnswerWidget } from './deepenQuality.js';
+import { qualityIssues, qualitySuggestions, missingAnswerWidget, unverifiedKpiValues } from './deepenQuality.js';
 import { methodologySmell } from './deepenHistory.js';
 
 /** Forma frouxa do dataset (dims/filters opcionais) aceita pelos dois sítios de
@@ -199,7 +199,10 @@ export async function gateAndRepair(inp: GateInput): Promise<GateResult> {
     let suggestions: string[] = qualitySuggestions(widgets);
     if (blocking.length === 0 && runCritic && !mocked) {
       inp.onProgress?.('Verificando a qualidade…');
-      const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet);
+      // kpi sem bind que o matching não casou com os dados → AVISO NEUTRO ao critic
+      // (quem decide é ele; a detecção só garante que o valor não passe despercebido).
+      const conferir = unverifiedKpiValues(widgets, inp.dataset as unknown as DataMap);
+      const crit = await critiqueModal(cand, inp.objetivo, inp.instrucao, factsheet, conferir);
       if (crit.usage) usage = sumUsage(usage, crit.usage);
       if (!crit.ok) blocking = crit.blocking.length ? crit.blocking : ['o revisor concluiu que a saída não responde à pergunta original'];
       suggestions = [...suggestions, ...crit.suggestions];

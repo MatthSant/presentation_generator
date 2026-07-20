@@ -304,6 +304,16 @@ html, body {
 .funnel-bar-l { font-size: 12.5px; } .funnel-bar-v { font-size: 13px; font-weight: 750; }
 .funnel-conn { width: 2px; height: 9px; background: var(--border); align-self: center; }
 .funnel-pills { display: flex; gap: 7px; justify-content: center; align-items: center; padding: 4px 0; flex-wrap: wrap; }
+/* BIFURCAÇÃO — os ramos saem da última etapa em paralelo, então recebem largura IGUAL
+   (flex:1) e não entram no afunilamento: a barra estreitando sugeriria uma sequência
+   que não existe. O separador rotulado avisa que a leitura muda de "e depois" p/ "ou". */
+.funnel-fork-sep { font-size: 9px; font-weight: 800; color: var(--gray2, #6b6b8a); text-transform: uppercase; letter-spacing: .06em; padding: 7px 0 5px; position: relative; width: 100%; text-align: center; }
+.funnel-fork-sep::before, .funnel-fork-sep::after { content: ''; position: absolute; left: 50%; width: 2px; height: 7px; background: var(--border); }
+.funnel-fork-sep::before { top: 0; } .funnel-fork-sep::after { bottom: 0; }
+.funnel-fork { display: flex; gap: 10px; width: 100%; }
+.funnel-fork-col { flex: 1; min-width: 0; }
+.funnel-fork-col .funnel-bar { width: 100%; min-width: 0; }
+.funnel-bar--branch { background: var(--purple, #534AB7); }
 /* COMPACTO — a taxa ao LADO da barra, sem conector: metade da altura, p/ o funil caber
    na dobra ao lado de outro bloco. A largura do afunilamento vem do style inline da
    barra, então a linha alinha à esquerda e a pill ocupa o resto. */
@@ -529,8 +539,16 @@ html, body {
 .bl-ic svg { width: 17px; height: 17px; }
 .bl-dot { width: 9px; height: 9px; border-radius: 3px; background: var(--purple); flex-shrink: 0; }
 .bl-name { font-size: 13px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bl-track { height: 16px; background: var(--surface); border-radius: var(--r-pill); overflow: hidden; }
+/* position:relative p/ ancorar a marca de meta; overflow visible para o traço não ser
+   cortado quando a meta cai na ponta da trilha. */
+.bl-track { height: 16px; background: var(--surface); border-radius: var(--r-pill); overflow: hidden; position: relative; }
 .bl-fill { height: 100%; border-radius: var(--r-pill); background: var(--purple); min-width: 4px; }
+/* MARCA DE META — traço vertical na posição do alvo, na mesma escala da barra. */
+.bl-goal { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--fg, #1a1a2e); opacity: .55; border-radius: 1px; }
+.bl-goal-d { min-width: 52px; }
+.bl-goal-d--ok { color: var(--green, #22c55e); }
+.bl-goal-d--warn { color: var(--amber, #f59e0b); }
+.bl-goal-d--bad { color: var(--red, #ef4444); }
 .bl-track--seg { height: 24px; display: flex; border-radius: 6px; }
 .bl-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; }
 .bl-total { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
@@ -1637,7 +1655,11 @@ body.edit-mode .tile-filter-badge { display:none; }
    página: card branco do sistema, rótulo "Resposta" e tipografia maior. A cor que o
    modelo escolher (g/a/r) entra no rótulo e nos negritos, não lavando o fundo — o
    callout tintado inteiro lia como faixa de alerta, não como resposta. */
-.dash-grid .dash-tile:first-child > .hl {
+/* O mesmo tratamento vale no DRAWER de detalhamento: lá o widget é filho direto do
+   .ic-body (não há .dash-tile), e sem isto a resposta voltava ao callout laranja
+   antigo — o mesmo conteúdo com duas caras conforme onde é aberto. */
+.dash-grid .dash-tile:first-child > .hl,
+.ic-body > .hl:first-child {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -1648,16 +1670,21 @@ body.edit-mode .tile-filter-badge { display:none; }
 /* rótulo automático quando o modelo não mandou label (o caso comum). A cor do
    rótulo/negrito vem de --hl-accent (custom property vence a especificidade da
    cadeia :not(:has()) sem repeti-la nas variantes). */
-.dash-grid .dash-tile:first-child > .hl:not(:has(.label-sec))::before {
+.dash-grid .dash-tile:first-child > .hl:not(:has(.label-sec))::before,
+.ic-body > .hl:first-child:not(:has(.label-sec))::before {
   content: 'Resposta';
   display: block;
   font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   color: var(--hl-accent, var(--purple)); margin-bottom: 6px;
 }
-.dash-grid .dash-tile:first-child > .hl strong { color: var(--hl-accent, var(--purple)); }
-.dash-grid .dash-tile:first-child > .hl-a { --hl-accent: var(--amber-text); }
-.dash-grid .dash-tile:first-child > .hl-g { --hl-accent: var(--green-text); }
-.dash-grid .dash-tile:first-child > .hl-r { --hl-accent: var(--red-text); }
+.dash-grid .dash-tile:first-child > .hl strong,
+.ic-body > .hl:first-child strong { color: var(--hl-accent, var(--purple)); }
+.dash-grid .dash-tile:first-child > .hl-a,
+.ic-body > .hl-a:first-child { --hl-accent: var(--amber-text); }
+.dash-grid .dash-tile:first-child > .hl-g,
+.ic-body > .hl-g:first-child { --hl-accent: var(--green-text); }
+.dash-grid .dash-tile:first-child > .hl-r,
+.ic-body > .hl-r:first-child { --hl-accent: var(--red-text); }
 
 /* highlight INTERNO (alegação no meio do fluxo) = callout tintado proeminente
    (não texto chapado) — a conclusão tem que ter destaque. */
@@ -1761,6 +1788,17 @@ body.edit-mode .tile-filter-badge { display:none; }
 .flt-dd-panel { border-top:1px solid var(--border); padding:8px; }
 .flt-dd-search { width:100%; box-sizing:border-box; margin-bottom:6px; padding:7px 9px; font-family:inherit; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--fg); }
 .flt-dd-search:focus { outline:none; border-color:var(--purple); }
+/* INTERVALO (dimensão kind='range') — atalhos em cima, de/até embaixo. */
+.flt-range-quick { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px; }
+.flt-range-btn { font-family:inherit; font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:999px;
+  border:1px solid var(--border); background:var(--surface); color:var(--gray); cursor:pointer; }
+.flt-range-btn:hover { border-color:var(--purple); color:var(--purple); }
+.flt-range-row { display:flex; gap:8px; }
+.flt-range-f { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.flt-range-lbl { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gray2); }
+.flt-range-sel { width:100%; box-sizing:border-box; padding:7px 9px; font-family:inherit; font-size:12.5px;
+  border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--fg); }
+.flt-range-sel:focus { outline:none; border-color:var(--purple); }
 .flt-dd-act { display:flex; justify-content:flex-end; margin-bottom:4px; }
 .flt-dd-clr { background:none; border:none; font-family:inherit; font-size:11px; font-weight:600; color:var(--purple); cursor:pointer; padding:2px 4px; }
 .flt-dd-items { max-height:184px; overflow-y:auto; display:flex; flex-direction:column; gap:1px; }
@@ -1963,6 +2001,15 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc--compact .kc-valrow { margin-bottom: 0; }
 .kc--compact .th-i { width: 13px; height: 13px; line-height: 13px; font-size: 9px; flex: 0 0 auto; align-self: center; }
 .kc--feature .kc-head { align-items: center; margin-bottom: 6px; }
+/* ALINHAMENTO ENTRE CARDS VIZINHOS — o rótulo ocupa 1 ou 2 linhas conforme o nome
+   ("CAC" × "RECEITA COM ORDER BUMPS"), e sem reserva o valor de cada card começa numa
+   altura diferente: a linha inteira sai serrilhada. Reservando duas linhas, os valores
+   nascem na mesma base. O rodapé de meta já se prende embaixo (margin-top:auto).
+   Fora do compacto, onde a head é apertada de propósito para caber na dobra. */
+.kc--feature:not(.kc--compact) .kc-head { align-items: flex-start; min-height: 29px; }
+.kc--feature:not(.kc--compact) .kc-lbl { line-height: 1.3; }
+/* o (i) e a pill voltam ao centro da PRIMEIRA linha do rótulo, não do bloco reservado */
+.kc--feature:not(.kc--compact) .kc-head > .pill { margin-top: 1px; }
 .kc--volume .kc-head { margin-bottom: 5px; }
 .kc-ico { width: 31px; height: 31px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ic, var(--purple)); background: color-mix(in srgb, var(--ic, var(--purple)) 13%, var(--bg)); }
 .kc--volume .kc-ico { width: 27px; height: 27px; border-radius: 8px; }
@@ -1980,7 +2027,10 @@ body.edit-mode .tile-filter-badge { display:none; }
 .kc-vol-delta { align-self: flex-start; margin-top: 6px; font-size: 9.5px; padding: 1px 6px; border-radius: 5px; }
 .kc-btm { display: flex; justify-content: flex-end; margin-top: 12px; }
 .kc-btm .kpi-spark { width: 130px; height: 30px; margin: 0; opacity: .8; }
-.kc-valrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+/* wrap: o valor e o chip de tendência são ambos nowrap e não encolhem — num card
+   estreito (1/6 da grade) um valor por extenso como "R$ 6.956,00" empurrava o chip
+   para fora da borda. Quebrando a linha, o chip desce em vez de vazar. */
+.kc-valrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .kc-valrow .kpi-spark { width: 116px; height: 34px; margin: 0 0 2px; opacity: .8; flex-shrink: 0; }
 .kc-bar { display: flex; height: 4px; width: 100%; margin-top: 11px; border-radius: 3px; overflow: hidden; }
 .kc-seg { height: 100%; }

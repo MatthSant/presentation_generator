@@ -478,13 +478,21 @@ e totais de cada widget). Avalie com rigor e responda chamando emit_critique.
   recalcule a PONDERADA (use os totais de invest/leads dos dados) — se o valor citado bate com ela, está
   CERTO, ainda que difira da média simples dos dias. Só marque FALSE se não bater NEM com a ponderada NEM
   com a média simples (aí é número inventado). A média SIMPLES de uma taxa é que é incorreta.
-  ROAS É LÍQUIDO (= Faturamento/Investimento − 1), NUNCA bruto (Fat/Inv): um ROAS de 0,78 com Faturamento
-  123.026 e Investimento 69.253 está CORRETO (123.026÷69.253 = 1,78; menos 1 = 0,78) — NÃO exija 1,78 nem
-  recalcule como Fat/Inv. Breakeven em 0 (não em 1): ROAS < 0 = prejuízo, ROAS > 0 = lucro (ROAS 1,05 =
-  dobrou o dinheiro). Só marque FALSE se o valor citado NÃO bater com Fat/Inv − 1. TAMBÉM é blocking o
-  ENQUADRAMENTO trocado: descrever um ROAS > 0 como "prejuízo"/"perda", ou dizer "prejuízo de R$X por real"
-  quando o ROAS é positivo (ROAS 0,78 é LUCRO de R$0,78 por real, NÃO perda de R$0,22) — reprove e mande
-  corrigir o enquadramento p/ lucro.
+  ROAS TEM DUAS CONVENÇÕES — descubra pela CONTA antes de julgar, não imponha uma:
+  · LÍQUIDO (Fat/Inv − 1, breakeven 0): se o valor citado ≈ Fat÷Inv − 1, é esta. ROAS 0,78 com Fat 123.026 e
+    Inv 69.253 está CERTO (1,78 − 1) e é LUCRO — descrevê-lo como "perda" é blocking.
+  · BRUTO (Fat/Inv, equilíbrio 1,00×, comum quando os dados mostram "×"): se o valor ≈ Fat÷Inv, é esta.
+    ROAS 0,69× com equilíbrio em 1,00 SIGNIFICA R$0,69 por real e perda de R$0,31 por real — esse
+    enquadramento está CORRETO nesta convenção; NÃO reprove nem o "converta" para a outra.
+  Só marque FALSE se o valor não bater com NENHUMA das duas contas, ou se o enquadramento contradisser a
+  convenção que a própria conta revela.
+- conferir_especialmente (quando presente): valores de kpi SEM vínculo direto com os dados, que a checagem
+  automática não conseguiu casar. NÃO é acusação de erro — derivação legítima (%, razão, diferença, média
+  ponderada) não é detectável por matching automático. Confira cada um com a MESMA régua acima: correto ou
+  derivável → siga normalmente; sem sustentação nenhuma nos dados → aí sim é blocking (com o valor certo).
+- ARREDONDAMENTO NUNCA REPROVA: um número citado com MENOS casas que o dado (57,1% vs 57,14%; R$ 6.405 vs
+  6.405,04; 39% vs 39,3%) está CERTO. Divergência que é só precisão/arredondamento vai NO MÁXIMO em
+  suggestions — jamais em blocking, jamais derruba numbersGrounded.
 - Classifique cada problema em DOIS baldes. Cada item: 1 linha ACIONÁVEL com a CORREÇÃO (o que fazer
   EM VEZ DISSO — qual tabela/coluna/dimensão usar, qual consulta refazer, qual número certo), não só o defeito.
 - "blocking" (GRAVE — reprova até ser corrigido): a saída fica ERRADA ou ENGANOSA. Use SÓ para:
@@ -513,7 +521,7 @@ O mesmo vale p/ answersQuestion=false: aponte em blocking o que a saída deixou 
  *  pergunta? os números da prosa batem com os "dados" reais (factsheet resolvido dos
  *  binds)? o recorte faz sentido? Devolve {ok, issues} para o gate de reparo.
  *  No-op (ok) em modo mock/sem API key, para o fluxo offline seguir testável. */
-export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown): Promise<{ ok: boolean; issues: string[]; blocking: string[]; suggestions: string[]; usage?: ModalUsage }> {
+export async function critiqueModal(modal: unknown, objetivo?: string, instrucao?: string, factsheet?: unknown, conferir?: string[]): Promise<{ ok: boolean; issues: string[]; blocking: string[]; suggestions: string[]; usage?: ModalUsage }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || process.env.CLAUDE_MOCK === '1') return { ok: true, issues: [], blocking: [], suggestions: [] };
   const ws = ((modal as { widgets?: Array<Record<string, unknown>> })?.widgets) || [];
@@ -524,7 +532,8 @@ export async function critiqueModal(modal: unknown, objetivo?: string, instrucao
     system: [{ type: 'text', text: CRITIC_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [{ name: 'emit_critique', description: 'Emite o veredito de qualidade.', input_schema: CRITIQUE_SCHEMA as unknown as Anthropic.Tool.InputSchema }],
     tool_choice: { type: 'tool', name: 'emit_critique' },
-    messages: [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao, widgets: slim, dados: factsheet }) }],
+    messages: [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao, widgets: slim, dados: factsheet,
+      ...(conferir?.length ? { conferir_especialmente: conferir } : {}) }) }],
   }, 'critic');
   const tu = msg.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
   const out = (tu?.input || {}) as { answersQuestion?: boolean; numbersGrounded?: boolean; blocking?: string[]; suggestions?: string[] };

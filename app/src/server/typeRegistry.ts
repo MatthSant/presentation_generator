@@ -207,19 +207,132 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     goalsUi: 'metas-toggle',              // metas manuais × launch goals (CSV)
     supportsInsights: false,
     queryScript: 'query_api.py',          // modo FUNDO: séries/correlação/tendência por dia
+    renderScript: 'render_view.py',       // FAB: filtro nível-relatório por data/origem/utms
     gerarPage: 'gerar-acompanhamento.html',
     montadorPage: 'montador-acompanhamento.html',
-    // sem controlsKind: não há render_view.py nem classe de controls no client
+    controlsKind: 'acompanhamento-lancamento',
     validateConfig() { return []; },
-    buildDeepenMeta() {
-      const M = ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
-                 'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect'];
+    /** O lançamento PAGO inverte a lógica do acompanhamento: há caixa DURANTE a
+     *  captação. Sem este contexto o modelo lê o relatório com a régua do clássico —
+     *  trata ingresso como lead, ROAS como ROI e não sabe que exposição sem
+     *  investimento é receita pura. */
+    deepenContext(config) {
+      const c = (config || {}) as { tipo_funil?: string; metas?: Record<string, unknown>; funnel_bench?: Record<string, unknown>; goals_csv?: string };
+      const pago = String(c.tipo_funil || '').toLowerCase() === 'lancamento-pago';
+      // METAS EM VIGOR, listadas explicitamente. Sem isto o modelo não sabe onde elas
+      // estão: num teste real ele disse "meta to-date não está definida" (estava, 200)
+      // e, noutro, inventou "meta de 68%" para uma taxa cuja meta é 50 — invertendo a
+      // conclusão, já que o realizado de 56,5% está ACIMA dela. Os dois passaram pelo
+      // gate, que confere número contra tabela e não contra a meta configurada.
+      const ROTULO: Record<string, string> = {
+        _leads_total: 'meta de leads (total da campanha)', _leads_td: 'meta de leads até o corte',
+        _ingressos_total: 'meta de ingressos (total)', _ingressos_td: 'meta de ingressos até o corte',
+        cpl: 'meta de CPL (R$)', cpmql: 'meta de CPMQL (R$)', custo_ing_pago: 'meta de CAC (R$)',
+        exposicao: 'meta de exposição de caixa (R$)', taxa_resp: 'meta de taxa de resposta (%)',
+        taxa_qual: 'meta de taxa de qualidade (%)', roas_geral: 'ponto de equilíbrio do ROI (×)',
+        hook: 'bench de hook (%)', hold: 'bench de hold (%)', ctr: 'bench de CTR (%)',
+        connect: 'bench de connect (%)', conv_pag: 'bench de conversão de página (%)',
+        taxa_bump: 'bench de taxa de order bump (%)',
+      };
+      // O config pode trazer as chaves CLÁSSICAS numa análise paga (form compartilhado);
+      // o motor traduz internamente, e aqui tem de traduzir também — senão o contexto
+      // anuncia "meta de CPL" enquanto o relatório mostra "Meta CAC". CPMQL não tem
+      // equivalente no pago: sai da lista em vez de virar um alvo sem sentido.
+      const TRAD: Record<string, string> = {
+        _leads_total: '_ingressos_total', _leads_td: '_ingressos_td', cpl: 'custo_ing_pago',
+      };
+      const bruto = { ...(c.metas || {}), ...(c.funnel_bench || {}) } as Record<string, unknown>;
+      const alvos: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(bruto)) {
+        if (v == null || v === '') continue;
+        if (pago && k === 'cpmql') continue;
+        const chave = pago ? (TRAD[k] || k) : k;
+        if (alvos[chave] === undefined) alvos[chave] = v;   // a chave da mecânica vence
+      }
+      const linhas = Object.entries(alvos).map(([k, v]) => `· ${ROTULO[k] || k} = ${v}`);
+      const metasTxt = [
+        'METAS E BENCHMARKS EM VIGOR — são ESTES os alvos; não invente outros e não',
+        'diga que não há meta sem checar aqui. Métrica que não aparece na lista não tem',
+        'alvo definido: relate o valor sem farol, em vez de comparar com um número inventado.',
+        ...(c.goals_csv ? ['(há launch goals por canal × dia; os valores abaixo são o agregado em vigor)'] : []),
+        ...(linhas.length ? linhas : ['· nenhuma meta configurada nesta análise']),
+      ].join('\n');
+      if (!pago) return metasTxt;
+      return [metasTxt, ''].concat([
+        'MECÂNICA — LANÇAMENTO PAGO: o lead COMPRA um ingresso para entrar. A campanha tem',
+        'receita e caixa já na captação, então a decisão do dia não é "quanto custa o lead"',
+        'e sim "estou no verde, e o que muda isso hoje". Não existem CPL nem CPMQL aqui.',
+        '',
+        'EXPOSIÇÃO DE CAIXA = receita (ingresso + order bump) − reembolso − imposto sobre a',
+        'venda − taxa do broker − investimento − imposto sobre a mídia (12% no Meta quando a',
+        'coluna não vem preenchida). Positiva = o ingresso já pagou o tráfego antes de abrir',
+        'o carrinho. É a métrica que comanda.',
+        '',
+        'DOIS PARES QUE NÃO SE MISTURAM, e trocá-los é o erro caro:',
+        '· ROAS = receita SÓ das linhas com investimento ÷ investimento (eficiência isolada da mídia).',
+        '· ROI  = receita TOTAL (pago + orgânico) ÷ investimento. Fica acima do ROAS porque o',
+        '  orgânico entra sem custar mídia. ROI ≥ 1 com ROAS < 1 significa que o ORGÂNICO está',
+        '  bancando o tráfego pago — escalar verba nesse estado piora o caixa.',
+        '· CAC = investimento ÷ ingressos vindos de anúncio; é ele que vai contra a meta.',
+        '· CUSTO POR INGRESSO = investimento ÷ TODOS os ingressos (diluído no orgânico), sempre menor.',
+        '',
+        'TICKET MÉDIO = receita total ÷ ingressos (com o order bump dentro). É o teto do que se',
+        'pode pagar de CAC. O bench do ticket é o mesmo cálculo com o bump no benchmark — a',
+        'distância entre os dois é, em R$ por ingresso, o que o order bump deixa na mesa.',
+        '',
+        'FUNIL: abre em INVESTIMENTO → Impressões (a "taxa" dessa transição é o CPM, comparado',
+        'a um bench derivado do CAC-alvo), segue por CTR e clique→ingresso, e BIFURCA no fim:',
+        'do ingresso saem MQLs (qualidade da base, via pesquisa) e ORDER BUMPS (receita',
+        'incremental). Os dois ramos dividem o MESMO denominador e não somam 100%.',
+        '',
+        'CUIDADOS AO CRUZAR:',
+        '· TAXA DO PERÍODO ≠ média das taxas diárias. Toda taxa aqui (resposta, qualidade,',
+        '  order bump, CTR, conversão) é razão de somas — somar os numeradores e os',
+        '  denominadores do período, não tirar média dos dias. Para o valor do período use o',
+        '  que já está no relatório (catálogo) ou incluir_geral=sim, que recalcula ponderado.',
+        '  Média de taxas diárias dá um número que não existe em lugar nenhum.',
+        '· "cum_ing" é o acumulado de ingressos ao longo dos dias — use-o para ritmo vs meta,',
+        '  em vez de somar a série diária na resposta.',
+        '· ROI e CUSTO POR INGRESSO só diferem de ROAS e CAC quando o recorte MISTURA linha',
+        '  paga e orgânica — por dia, por canal, ou no total. Num recorte que SEPARA o pago',
+        '  (dimensao=origem, criativo, publico, temperatura) a linha paga não tem receita',
+        '  orgânica dentro, então os dois pares colapsam no MESMO número. Ali cite só ROAS e',
+        '  CAC; usar ROI numa linha dessas contradiz o ROI do relatório sem ninguém errar conta.',
+        '· TEMPERATURA cobre só o tráfego PAGO (o orgânico não tem campanha classificada).',
+        '  A soma das temperaturas NÃO fecha com o total do relatório e não deve fechar —',
+        '  a diferença é o orgânico. Nunca apresente a soma delas como "o total"; para o',
+        '  agregado use incluir_geral=sim, que recalcula em vez de somar os grupos.',
+        '· Exposição por CRIATIVO/PÚBLICO só é comparável entre itens com investimento > 0.',
+        '  Linha orgânica não tem custo, então a exposição dela é receita pura e lidera qualquer',
+        '  ranking sem significar eficiência. Sempre olhe a coluna Investimento junto.',
+        '· Taxa de qualidade = MQLs ÷ RESPOSTAS da pesquisa (quem não respondeu não entra no',
+        '  denominador); taxa de resposta tem o INGRESSO como base, não o lead.',
+        '· "ingressos" é a contagem total; "ingressos_pago" é só a parte vinda de anúncio.',
+      ]).join('\n');
+    },
+    buildDeepenMeta(config) {
+      // MECÂNICA: no lançamento pago o lead compra o ingresso. As métricas que a IA
+      // pode pedir são OUTRAS — CPL e CPMQL nem existem lá, e caixa/ROAS/CAC/order
+      // bump só existem lá. Anunciar a lista errada faz o modelo pedir função com
+      // métrica que o motor rejeita (ou, pior, raciocinar sobre uma que não é a do
+      // relatório). Espelha calc.FRAME_METRICS / FRAME_METRICS_PAGO.
+      const pago = String((config as { tipo_funil?: string } | null)?.tipo_funil || '')
+        .toLowerCase() === 'lancamento-pago';
+      const M = pago
+        ? ['ingressos', 'cum_ing', 'ingressos_pago', 'investimento', 'receita', 'impressoes', 'cliques', 'exposicao',
+           'custo_ing_pago', 'custo_ing_geral', 'roas_pago', 'roas_geral', 'ticket_medio',
+           'bumps', 'taxa_bump', 'taxa_resp', 'taxa_qual', 'conv_pag', 'cpm', 'ctr',
+           'hook', 'hold', 'connect']
+        : ['leads', 'investimento', 'cpl', 'cpmql', 'taxa_resp', 'taxa_qual',
+           'conv_pag', 'cpm', 'ctr', 'hook', 'hold', 'connect'];
       const G = genericFuncoes('recorte');
       return {
         consultar: {
           funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking,
             { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' },
-            { id: 'decomposicao', desc: 'decompõe a VARIAÇÃO de cpl ou cpmql (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade). Use p/ "o custo subiu por mídia ou por qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' },
+            { id: 'decomposicao', desc: pago
+              ? 'decompõe a VARIAÇÃO do CAC (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CAC ← CPM/CTR/Connect/Conv.Página — mesma identidade do CPL, porque o ingresso é a conversão do funil de mídia). Use p/ "o custo de aquisição subiu por leilão ou por criativo?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=custo_ing_pago).'
+              : 'decompõe a VARIAÇÃO de cpl ou cpmql (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade). Use p/ "o custo subiu por mídia ou por qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' },
             { id: 'onde_concentra', desc: 'DRILL-DOWN de atribuição p/ uma métrica que piorou (param metrica): varre criativo → publico → campanha → canal → temperatura e diz ONDE a piora se concentra (item que domina) ou se é AMPLA/uniforme → causa GLOBAL. Use p/ "qual criativo/público/campanha/canal/temperatura está puxando X p/ baixo, ou é geral?" — o motor decide o nível; a IA reporta e argumenta.' }],
           params: {
             ...genericParams(M),

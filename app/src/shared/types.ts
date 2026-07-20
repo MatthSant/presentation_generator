@@ -172,6 +172,14 @@ export interface ChartWidget extends WidgetBase {
   highlightLast?: number;
   /** Linhas de meta tracejadas (referência horizontal): meta total / to-date. */
   goalLines?: { value: number; label?: string; color?: string }[];
+  /** Rótulo de cada série, por posição — necessário com `bind.y` em array, onde a
+   *  série herda o nome CRU da coluna ("invest", "expo_cum") e a legenda vira jargão
+   *  de dataset. Com uma série só, `bind.name` já resolve. */
+  seriesNames?: string[];
+  /** `mixed` + bind: tipo de cada série por posição ('bar' | 'line' | 'area'). Sem
+   *  isto o mixed vindo de bind cai tudo em barra — a mistura só existia com `series`
+   *  inline. Barra × linha é o que sinaliza que as séries não dividem escala. */
+  seriesTypes?: ('bar' | 'line' | 'area')[];
 }
 
 export type TableCell = string | number | {
@@ -631,6 +639,14 @@ export interface FunnelWidget extends WidgetBase {
                   /** casas decimais da taxa nesta transição (default 1; ex.: 2 p/ CTR). */
                   decimals?: number;
                   benchHist?: number; gapHist?: number; worst?: boolean; invalid?: boolean }[];
+  /** BIFURCAÇÃO: caminhos que saem da ÚLTIMA etapa em PARALELO, não em sequência.
+   *  Todos dividem o mesmo denominador (o valor da última etapa), então as taxas NÃO
+   *  somam 100% — um ingresso pode virar MQL e comprar order bump ao mesmo tempo.
+   *  Renderiza lado a lado, abaixo de um separador "bifurcação". */
+  branches?: { label: string; value: number; vlabel?: string; migrate?: number;
+               bench?: number; baseLabel?: string;
+               /** cor da barra do ramo (default: roxo do tronco). */
+               color?: string }[];
 }
 
 /** strat-grid — perguntas estratégicas: N colunas (cards), cada uma com título e
@@ -650,7 +666,12 @@ export interface BarListWidget extends WidgetBase {
   rows: { label: string; value: string; pct?: number; bar?: number; indent?: boolean; icon?: string; color?: string;
           /** Barra dividida (100% empilhada) em vez de barra única — ex.: split Pago/Orgânico
            *  por categoria. Cada segmento: largura % + cor + rótulo interno. */
-          seg?: { pct: number; color: string; label?: string }[] }[];
+          seg?: { pct: number; color: string; label?: string }[];
+          /** MARCA DE META na barra: traço vertical na posição do alvo (mesma escala de
+           *  `bar`) + desvio ao lado do valor. Cada linha tem a SUA meta — uma meta
+           *  agregada não diz se um canal específico está puxando ou segurando o total. */
+          goal?: { value: number; label?: string; delta?: string;
+                   status?: 'ok' | 'warn' | 'bad' } }[];
   /** escala máxima das barras (default = maior `bar`). */
   max?: number;
   /** Legenda das séries no topo (ex.: Pago / Orgânico) — usada com linhas `seg`. */

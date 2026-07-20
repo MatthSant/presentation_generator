@@ -143,7 +143,7 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
   });
 
   /** Ensure the Detalhamentos page exists in data.json and holds this section. */
-  function attachToDetalhamentos(dir: string, ref: { id: string; label: string }): void {
+  function attachToDetalhamentos(dir: string, ref: { id: string; label: string; title?: string }): void {
     const dataFile = path.join(dir, 'data.json');
     const data = readJson<ReportData>(dataFile) || { meta: {}, pages: [] };
     const pages = (data.pages ||= []);
@@ -226,7 +226,10 @@ export function registerPerguntas(app: Express, ctx: Ctx): void {
       ctx.skipNextSSE.add('layout.json');
       writeJson(layoutFile, layout);
     }
-    attachToDetalhamentos(dir, { id: sectionId, label });
+    // `label` é a abreviação do NAV; `title` é a pergunta inteira. O client só
+    // mantém o masthead da seção (sec-header--keep) quando os dois existem — sem
+    // o title, a pergunta some da página e sobra só o item truncado na lateral.
+    attachToDetalhamentos(dir, { id: sectionId, label, title: p.pergunta });
     record(client, slug, p, 'detalhamento', sectionId);
     return { sectionId, mocked: r.mocked, historyId };
   }

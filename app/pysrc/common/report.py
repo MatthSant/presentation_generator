@@ -84,7 +84,10 @@ def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=N
     arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
 
-def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None):
+def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None, w=12, compact=False):
+    """`w`/`compact` servem ao rótulo de SUBGRUPO: um eyebrow estreito sobre um par de
+    cards diz a que recorte eles pertencem sem aninhar card dentro de card. Defaults
+    preservam o eyebrow de seção (largura cheia, margem normal)."""
     b = {'id': wid, 'type': 'eyebrow', 'title': title, 'caption': caption}
     if n:
         b['n'] = n
@@ -92,7 +95,9 @@ def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None):
         b['color'] = color
     if info:
         b['info'] = info
-    arr.append(b); pg.add(wid, 'eyebrow', 12, 1)
+    if compact:
+        b['compact'] = True
+    arr.append(b); pg.add(wid, 'eyebrow', w, 1)
 
 
 def fb(arr, pg, wid, tag, tagColor, title, detail, w=4, h=3, stat=None, x=None, y=None):

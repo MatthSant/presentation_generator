@@ -217,11 +217,15 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       legend.horizontalAlign = 'center';
       legend.fontSize = '12px';
       legend.itemMargin = { horizontal: 10, vertical: 3 };
+      // honra o valueFormat da fatia: num donut de RECEITA, "11.373" sem o R$ se lê
+      // como contagem — ainda mais ao lado de um relatório cheio de contagens. O
+      // centro já formatava; a legenda não, e as duas discordavam no mesmo gráfico.
+      const lFmt = def.valueFormat ? valueFmt(def.valueFormat) : (v: number) => Number(v).toLocaleString('pt-BR');
       legend.formatter = (name: string, o: { seriesIndex: number; w: { globals: { series: number[] } } }) => {
         const arr = o.w.globals.series || [];
         const v = arr[o.seriesIndex] ?? 0;
         const tot = arr.reduce((a, b) => a + b, 0) || 1;
-        return `${name} — ${Number(v).toLocaleString('pt-BR')} · ${(v / tot * 100).toFixed(1).replace('.', ',')}%`;
+        return `${name} — ${lFmt(Number(v))} · ${(v / tot * 100).toFixed(1).replace('.', ',')}%`;
       };
     }
     opts.legend = legend;
@@ -274,7 +278,13 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   if (def.type === 'mixed') {
     // line series get a visible stroke; bar series get none (width 0).
     const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
-    opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)) };
+    const w = arr.map(s => (s.type === 'line' ? 3 : 0));
+    // dashLast num mixed: a última série é REFERÊNCIA (meta, bench), não observação.
+    // Sólida ela se lê como mais um dado medido; tracejada segue a mesma convenção
+    // das goalLines.
+    opts.stroke = def.dashLast
+      ? { width: w, dashArray: arr.map((s, i) => (i === arr.length - 1 && s.type === 'line' ? 5 : 0)) }
+      : { width: w };
     if (def.secondaryAxis != null) {
       const secs = Array.isArray(def.secondaryAxis) ? def.secondaryAxis : [def.secondaryAxis];
       const suffix = def.secondaryAxisSuffix || '';
@@ -282,9 +292,18 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       const firstPrim = arr.findIndex((_, i) => !secs.includes(i));
       const lbl = { style: { colors: labelColor, fontSize: '11px' } };
       // Series sharing an axis (e.g. complementary %s) must share a scale to overlay.
-      // Show labels on the first axis of each side; force 0..100 for % secondaries.
+      // Show labels on the first axis of each side.
+      // O 0..100 fixo só vale para percentual que USA a escala (share, participação).
+      // Numa métrica de poucos pontos — CTR de 1,2%, conversão de 3% — ele achata a
+      // linha contra o eixo e o gráfico deixa de mostrar a variação, que é justamente
+      // o que se foi ver. Acima de 25 no pico, mantém a régua cheia; abaixo, autoescala.
+      const picoSec = Math.max(0, ...arr
+        .filter((_, i) => secs.includes(i))
+        .flatMap((s) => ((s as { data?: unknown[] }).data || [])
+          .map((v) => (typeof v === 'number' ? v : 0))));
+      const fixa100 = suffix === '%' && picoSec > 25;
       opts.yaxis = arr.map((_, i) => secs.includes(i)
-        ? { opposite: true, show: i === firstSec, min: 0, ...(suffix === '%' ? { max: 100 } : {}),
+        ? { opposite: true, show: i === firstSec, min: 0, ...(fixa100 ? { max: 100 } : {}),
             labels: { ...lbl, ...(suffix ? { formatter: (v: number) => `${v}${suffix}` } : {}) } }
         : { show: i === firstPrim, min: axisMin, labels: lbl });
     }
@@ -528,6 +547,9 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
     }));
     const ann = (isObj(opts.annotations) ? opts.annotations : (opts.annotations = {})) as Record<string, unknown>;
     ann.yaxis = [...((ann.yaxis as unknown[]) || []), ...ya];
+    // O renderer desenha a legenda inferior (séries + metas) para este caso. Manter a
+    // do ApexCharts junto listaria as mesmas séries duas vezes, uma acima da outra.
+    opts.legend = { ...(isObj(opts.legend) ? opts.legend : {}), show: false };
   }
   if (def.options) mergeDeep(opts, def.options);
 

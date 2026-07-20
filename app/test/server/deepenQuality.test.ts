@@ -89,3 +89,45 @@ test('tabela de schema irregular: coluna presente só em ALGUMAS linhas é váli
   const w = { id: 't', type: 'table', title: 'Por temperatura', cols: ['temperatura', 'ROAS'], bind: { dataset: 'temp' } } as unknown as Widget;
   assert.deepEqual(qualityIssues([w], ds), []);
 });
+
+// ── unverifiedKpiValues: aviso NEUTRO ao critic, nunca reprovação direta ─────
+import { unverifiedKpiValues } from '../../src/server/deepenQuality.js';
+
+const DSK = {
+  fatos: { dims: ['origem'], filters: [], rows: [
+    { origem: 'Pago', cliques: 4614, invest: 14271.53, receita: 9902.03 },
+    { origem: 'Geral', cliques: 4614, invest: 14271.53, receita: 16307.07 },
+  ] },
+} as unknown as DataMap;
+const kpi = (label: string, value: string): Widget =>
+  ({ id: `k-${label}`, type: 'kpi', label, value }) as unknown as Widget;
+const boundTable = (): Widget =>
+  ({ id: 't', type: 'table', title: 'T', bind: { dataset: 'fatos' } }) as unknown as Widget;
+
+test('kpi sem bind com número inventado (58.180 vs 4.614 real) entra no aviso', () => {
+  const avisos = unverifiedKpiValues([boundTable(), kpi('Cliques', '58.180')], DSK);
+  assert.equal(avisos.length, 1);
+  assert.match(avisos[0], /Cliques/);
+});
+
+test('kpi cujo número ESTÁ nos dados (com formatação pt-BR) não gera aviso', () => {
+  assert.deepEqual(unverifiedKpiValues([boundTable(), kpi('Investimento', 'R$ 14.271,53')], DSK), []);
+});
+
+test('derivação por diferença (receita orgânica = total − pago) não gera aviso', () => {
+  // 16307.07 − 9902.03 = 6405.04 → "R$ 6.405,04" é derivável, não suspeito
+  assert.deepEqual(unverifiedKpiValues([boundTable(), kpi('Receita orgânica', 'R$ 6.405,04')], DSK), []);
+});
+
+test('arredondamento do dado real não gera aviso (tolerância)', () => {
+  assert.deepEqual(unverifiedKpiValues([boundTable(), kpi('Investimento', 'R$ 14.272')], DSK), []);
+});
+
+test('sem NENHUM widget de dado resolvível, não há base de comparação — sem aviso', () => {
+  assert.deepEqual(unverifiedKpiValues([kpi('Cliques', '58.180')], DSK), []);
+});
+
+test('kpi COM bind não entra no aviso (o bind já é a verificação)', () => {
+  const k = { id: 'k', type: 'kpi', label: 'Cliques', value: '99.999', bind: { dataset: 'fatos', metrics: ['cliques'] } } as unknown as Widget;
+  assert.deepEqual(unverifiedKpiValues([boundTable(), k], DSK), []);
+});

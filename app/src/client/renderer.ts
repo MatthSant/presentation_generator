@@ -118,8 +118,11 @@ function humanizeKey(k: string): string {
 }
 function labelSeriesNames(series: ResolvedSeries[], w: ChartWidget): ResolvedSeries[] {
   const yRaw = typeof w.bind?.y === 'string' ? w.bind.y : undefined;
-  return series.map(s => {
+  return series.map((s, i) => {
     const name = String(s.name ?? '');
+    // rótulo explícito por posição vence tudo (bind.y em array)
+    const given = w.seriesNames?.[i];
+    if (given) return { ...s, name: given };
     let label = name;
     if (series.length === 1 && w.bind && !w.bind.name && yRaw && name === yRaw && w.title) {
       label = stripUnit(w.title);
@@ -160,7 +163,10 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
       return wrap;
     }
     const cleaned = (w as { outliers?: boolean }).outliers ? dropOutliers(resolved.series) : resolved.series;
-    const series = labelSeriesNames(cleaned, w);
+    const named = labelSeriesNames(cleaned, w);
+    const series = w.seriesTypes?.length
+      ? named.map((s, i) => (w.seriesTypes![i] ? { ...s, type: w.seriesTypes![i] } : s))
+      : named;
     def = defFromResolved(w.chartType, { categories: resolved.categories, series }, {
       height, colors: w.colors, distributed: w.distributed, diverging: w.diverging, pct: w.pct,
       axisMin: w.axisMin, axisMax: w.axisMax, meanLine: w.meanLine,
@@ -192,14 +198,20 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
 function goalLegend(w: ChartWidget, def: ChartDef | null): HTMLElement {
   const lg = el('div', 'chart-goal-legend');
   const srcSeries = Array.isArray(w.series) ? w.series : (Array.isArray(def?.series) ? def!.series : []);
-  const primColor = (w.colors && w.colors[w.colors.length - 1]) || '#7C3AED';
-  for (const s of srcSeries as { name?: string }[]) {
-    if (!s?.name) continue;
+  const arr = srcSeries as { name?: string }[];
+  // cor POR SÉRIE — com duas séries, repetir a mesma cor em ambos os swatches faz a
+  // legenda dizer o oposto do gráfico. Uma série só mantém o comportamento antigo
+  // (última cor da paleta, que é a de destaque das barras).
+  const cor = (i: number) => (arr.length > 1
+    ? (w.colors?.[i] || '#7C3AED')
+    : (w.colors?.[w.colors.length - 1] || '#7C3AED'));
+  arr.forEach((s, i) => {
+    if (!s?.name) return;
     const item = el('span', 'cgl-item');
-    const sw = el('span', 'cgl-sw'); sw.style.background = primColor;
+    const sw = el('span', 'cgl-sw'); sw.style.background = cor(i);
     item.append(sw, el('span', 'cgl-lbl', s.name));
     lg.appendChild(item);
-  }
+  });
   for (const g of w.goalLines || []) {
     const item = el('span', 'cgl-item');
     const sw = el('span', 'cgl-sw cgl-sw--dash'); sw.style.color = g.color || '#EF9F27';
@@ -1091,6 +1103,33 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
         if (row) row.appendChild(pills); else body!.appendChild(pills);
       }
     });
+    // Bifurcação: ramos que saem da ÚLTIMA etapa em paralelo. Lado a lado e de largura
+    // igual, porque não há ordem entre eles — quem desenhasse em sequência sugeriria um
+    // afunilamento que não existe (as taxas não somam 100%, dividem o mesmo denominador).
+    const branches = w.branches || [];
+    if (branches.length) {
+      body.appendChild(el('div', 'funnel-fork-sep', 'bifurcação'));
+      const forkRow = el('div', 'funnel-fork');
+      for (const b of branches) {
+        const col = el('div', 'funnel-fork-col');
+        const bar = el('div', 'funnel-bar funnel-bar--branch');
+        if (b.color) bar.style.background = b.color;
+        bar.appendChild(el('span', 'funnel-bar-l', b.label));
+        bar.appendChild(el('span', 'funnel-bar-v', b.vlabel ?? (b.value ?? 0).toLocaleString('pt-BR')));
+        col.appendChild(bar);
+        if (b.migrate != null) {
+          const below = b.bench != null && b.migrate < b.bench;
+          const baseTxt = b.bench != null
+            ? ` · ${b.baseLabel || w.baseLabel || 'meta'} ${b.bench.toFixed(b.bench % 1 ? 1 : 0)}%` : '';
+          const pills = el('div', 'funnel-pills');
+          pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
+            `${below ? '⚠ ' : '✓ '}${b.migrate.toFixed(1)}%${baseTxt}`));
+          col.appendChild(pills);
+        }
+        forkRow.appendChild(col);
+      }
+      body.appendChild(forkRow);
+    }
     wrap.appendChild(body);
   }
 
@@ -1151,9 +1190,24 @@ function renderBarList(w: BarListWidget): HTMLElement {
       const fill = el('div', 'bl-fill');
       fill.style.width = `${Math.max(2, ((r.bar || 0) / max) * 100)}%`;
       if (r.color) fill.style.background = r.color;
-      track.appendChild(fill); row.appendChild(track);
+      track.appendChild(fill);
+      // marca de meta: traço na MESMA escala da barra, então "passei" ou "não passei"
+      // se lê pela posição, sem precisar comparar dois números. Depois do fill para
+      // ficar por cima dele.
+      if (r.goal && r.goal.value > 0) {
+        const gm = el('div', 'bl-goal');
+        gm.style.left = `${Math.min(100, (r.goal.value / max) * 100)}%`;
+        gm.title = r.goal.label || `Meta ${r.goal.value}`;
+        track.appendChild(gm);
+      }
+      row.appendChild(track);
       row.appendChild(el('span', 'bl-val', r.value));
-      row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+      if (r.goal?.delta) {
+        const st = r.goal.status || 'neutral';
+        row.appendChild(el('span', `bl-pct bl-goal-d bl-goal-d--${st}`, r.goal.delta));
+      } else {
+        row.appendChild(el('span', 'bl-pct', r.pct != null ? `${r.pct.toFixed(1)}%` : ''));
+      }
     }
     rowsEl.appendChild(row);
   }

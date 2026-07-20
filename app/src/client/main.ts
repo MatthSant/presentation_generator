@@ -76,6 +76,18 @@ class App {
       },
       body: () => ({ mode: this.histMode, min_invest: this.histMinInvest, temp: this.histTemp || undefined }),
     },
+    // Acompanhamento: mesmo filtro nível-relatório do debriefing — a classe já é
+    // genérica (lê as dimensões declaradas em meta.controls.filters e devolve o mapa
+    // de seleção). Duplicá-la só para trocar o nome seria manter dois de um.
+    'acompanhamento-lancamento': {
+      mount: (controls) => {
+        if (!(controls as { filters?: unknown[] }).filters?.length) return null;
+        return new DebriefingControls(controls, {
+          apply: (f) => { this.debFilters = Object.keys(f).length ? f : null; void this.recompute(); },
+        });
+      },
+      body: () => ({ filters: this.debFilters || {} }),
+    },
     // Debriefing: filtro nível-relatório (multi-seleção por dimensão) → recompute.
     'debriefing-lancamento': {
       mount: (controls) => {
@@ -176,7 +188,7 @@ class App {
     this.watch();
 
     const first = this.store.allSections()[0];
-    if (first) { await this.go(first.pageId, first.id); this.maybeShowFirstRunHint(); }
+    if (first) { await this.go(first.pageId, first.id); }
     else ROOT.innerHTML = '<div style="padding:60px 56px"><p class="sm">Relatório sem seções.</p></div>';
 
     void this.ensurePerguntasTab();
@@ -196,28 +208,6 @@ class App {
       this.nav.build();
       this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
     } catch { /* sem perguntas para este tipo — ok */ }
-  }
-
-  /** Surface the features a first-time consultant won't otherwise discover:
-   *  "detalhar" a block (AI deepening) and the layout editor. A flat note on the
-   *  paper, dismissed once and remembered — never a modal. */
-  private maybeShowFirstRunHint(): void {
-    let dismissed = false;
-    try { dismissed = localStorage.getItem('rpt-hint-v1') === '1'; } catch { /* storage unavailable */ }
-    if (dismissed) return;
-    const main = document.getElementById('main');
-    if (!main) return;
-    const hint = document.createElement('div');
-    hint.className = 'rpt-hint';
-    hint.innerHTML =
-      '<svg class="rpt-hint-ic svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v4.5"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg>'
-      + '<div class="rpt-hint-body">Passe o mouse sobre um bloco e clique em <strong>detalhar</strong> para gerar um aprofundamento com IA (vira um link "↗ ver detalhamento" no bloco). Use o botão <strong>Layout</strong> na barra superior para reorganizar os blocos.</div>'
-      + '<button class="rpt-hint-x" type="button" aria-label="Dispensar dica">&#215;</button>';
-    hint.querySelector('.rpt-hint-x')?.addEventListener('click', () => {
-      hint.remove();
-      try { localStorage.setItem('rpt-hint-v1', '1'); } catch { /* ignore */ }
-    });
-    main.insertBefore(hint, ROOT);
   }
 
   /** Capa do relatório (eyebrow + título + meta). NÃO aparece no app — o título já

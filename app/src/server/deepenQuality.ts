@@ -91,6 +91,72 @@ export function missingAnswerWidget(widgets: Widget[]): string | null {
   return null;
 }
 
+/** Valores de kpi SEM bind cujos números não casam com nada dos dados resolvidos.
+ *
+ *  NÃO reprova — vira um AVISO NEUTRO para o critic conferir com atenção. A decisão é
+ *  dele: uma checagem dura aqui reprovaria demais pelo motivo errado, porque derivação
+ *  legítima (%, razão, diferença, média ponderada) não é detectável por matching. O que
+ *  esta função garante é que o valor solto não passe DESPERCEBIDO — foi assim que um
+ *  kpi "Cliques = 58.180" (real: 4.614) atravessou o gate: sem bind, não entrava no
+ *  factsheet, e o critic não tinha razão para olhá-lo em particular. */
+export function unverifiedKpiValues(widgets: Widget[], dataset: DataMap): string[] {
+  // verdade-base: todo número que os binds desta saída resolvem (linhas, séries, totais)
+  const ground: number[] = [];
+  for (const raw of widgets) {
+    const w = raw as { type?: string; bind?: Bind };
+    if (!w.bind || (w.type !== 'chart' && w.type !== 'table' && w.type !== 'kpi')) continue;
+    try {
+      const r = resolveBind(w.bind, dataset);
+      for (const row of r.rows) for (const v of Object.values(row as Record<string, unknown>)) {
+        if (typeof v === 'number' && Number.isFinite(v)) ground.push(v);
+      }
+      for (const s of r.series) for (const v of s.data) if (typeof v === 'number') ground.push(v);
+      if (r.totals) for (const v of Object.values(r.totals)) if (typeof v === 'number') ground.push(v);
+    } catch { /* bind inválido é assunto do schema */ }
+    if (ground.length > 400) return [];   // base grande demais p/ um matching honesto — critic decide sozinho
+  }
+  if (!ground.length) return [];          // sem dado resolvido não há com o que comparar
+
+  // direto: 2% de folga (arredondamento humano). Derivação por PAR: 0,5% — soma e
+  // diferença são calculadas, não arredondadas à solta, e a folga larga colidia
+  // (58.180 "casava" com 2× um total por acaso). Pares só entre posições DISTINTAS:
+  // dobrar um número não é derivação com significado.
+  const near = (a: number, b: number): boolean => Math.abs(a - b) <= Math.max(0.05, Math.abs(a) * 0.02);
+  const nearDeriv = (a: number, b: number): boolean => Math.abs(a - b) <= Math.max(0.05, Math.abs(a) * 0.005);
+  const matched = (v: number): boolean => {
+    if (ground.some((g) => near(v, g))) return true;
+    for (let i = 0; i < ground.length; i++) for (let j = i + 1; j < ground.length; j++) {
+      if (nearDeriv(v, ground[i] + ground[j]) || nearDeriv(v, Math.abs(ground[i] - ground[j]))) return true;
+    }
+    return false;
+  };
+  // números pt-BR do value ("R$ 14.271,53", "58.180", "39,3%", "1,14×", "−R$ 75,76")
+  const parse = (s: string): number[] => {
+    const out: number[] = [];
+    for (const m of s.replace(/[−–]/g, '-').matchAll(/-?\d[\d.]*(?:,\d+)?/g)) {
+      const t = m[0];
+      const n = t.includes(',')
+        ? Number(t.replace(/\./g, '').replace(',', '.'))
+        : /^-?\d{1,3}(\.\d{3})+$/.test(t) ? Number(t.replace(/\./g, '')) : Number(t);
+      if (Number.isFinite(n)) out.push(Math.abs(n));
+    }
+    return out;
+  };
+
+  const avisos: string[] = [];
+  for (const raw of widgets) {
+    const w = raw as { type?: string; label?: string; title?: string; value?: unknown; bind?: Bind };
+    if (w.type !== 'kpi' || w.bind) continue;
+    const nums = parse(String(w.value ?? ''));
+    if (nums.length && nums.some((v) => !matched(v))) {
+      avisos.push(`kpi "${w.label || w.title || '?'}" = "${w.value}"`);
+    }
+    if (avisos.length >= 6) break;
+  }
+  return avisos;
+}
+
+
 /** Sugestões de FORMA (não bloqueiam a entrega — o reparo tenta acatar, mas passar
  *  destas NUNCA reprova; só erro reprova). Ex.: excesso de gráficos. */
 export function qualitySuggestions(widgets: Widget[]): string[] {
