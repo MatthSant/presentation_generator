@@ -41,4 +41,27 @@
     pre.dataset.raw = sql;
     pre.innerHTML = window.sqlHighlight(sql);
   };
+
+  // Colapso das saídas: a query nasce FECHADA — o uso normal é copiar, não ler, e
+  // fechadas as saídas cabem todas na mesma tela. Enhancement automático sobre a
+  // estrutura comum (.out > .out-hd + .code), então vale p/ TODOS os montadores sem
+  // tocar em cada página. O Copiar segue no cabeçalho: copiar não exige expandir.
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.mq .out').forEach(function (out) {
+      const hd = out.querySelector('.out-hd');
+      const code = out.querySelector('.code');
+      if (!hd || !code) return;
+      out.classList.add('collapsible');
+      const tg = document.createElement('button');
+      tg.type = 'button';
+      tg.className = 'out-toggle';
+      tg.innerHTML = '<span class="lbl">Ver SQL</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+      hd.insertBefore(tg, hd.querySelector('.copy-btn'));
+      tg.addEventListener('click', function () {
+        const open = !out.classList.contains('is-open');
+        out.classList.toggle('is-open', open);
+        tg.querySelector('.lbl').textContent = open ? 'Ocultar' : 'Ver SQL';
+      });
+    });
+  });
 })();

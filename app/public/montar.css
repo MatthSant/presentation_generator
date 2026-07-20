@@ -49,6 +49,17 @@ body.mq { background: var(--canvas, var(--bg-page)); }
 .mq .copy-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
 .mq .copy-btn.done { background: var(--green); border-color: var(--green); color: #fff; }
 
+/* Saída FECHADA por padrão: o consultor quer COPIAR a query, não lê-la — assim as
+   três saídas cabem juntas na mesma tela; quem quiser ver o SQL expande. */
+.mq .out.collapsible > .code { display: none; }
+.mq .out.collapsible.is-open > .code { display: block; }
+.mq .out.collapsible > .out-hd { margin-bottom: 0; }
+.mq .out.collapsible.is-open > .out-hd { margin-bottom: 12px; }
+.mq .out-toggle { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--gray2); background: transparent; border: 0; padding: 7px 8px; cursor: pointer; flex-shrink: 0; }
+.mq .out-toggle:hover { color: var(--purple); }
+.mq .out-toggle svg { width: 14px; height: 14px; transition: transform .15s; }
+.mq .out.is-open .out-toggle svg { transform: rotate(180deg); }
+.mq .out-toggle ~ .copy-btn { margin-left: 0; }
 .mq .code { background: #14121c; border-radius: var(--r-md); box-shadow: var(--shadow-card); overflow: hidden; }
 .mq .code-bar { display: flex; align-items: center; gap: 8px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
 .mq .code-bar .dot { width: 10px; height: 10px; border-radius: 50%; }
