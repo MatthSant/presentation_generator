@@ -632,11 +632,13 @@ def assemble(rows, config, content, opts=None):
         _sub = ('Caixa (receita, investimento, exposição), ingressos e eficiência '
                 '(CAC e retorno), e um comparador livre de duas métricas.')
     else:
-        chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6, trendkey='leads')
-        chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6, trendkey='investimento')
-        chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4, trendkey='cpl')
-        chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4, trendkey='taxa_qual')
-        chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4, trendkey='cpmql')
+        # sem badge de tendência: o gráfico já desenha a inclinação dos últimos dias —
+        # a pill repetia em texto o que a linha mostra (mesma decisão do modo pago)
+        chart('evo-leads', 'Leads por dia', 'leads', 'bar', False, 'int', w=6)
+        chart('evo-invest', 'Investimento por dia (R$)', 'invest', 'bar', False, 'money', w=6)
+        chart('evo-cpl', 'CPL por dia (R$)', 'cpl', 'area', False, 'money', '#EF4444', w=4)
+        chart('evo-qual', 'Taxa de Qualidade (%)', 'taxa_qual', 'area', True, 'pct', '#EF9F27', w=4)
+        chart('evo-cpmql', 'CPMQL por dia (R$)', 'cpmql', 'area', False, 'money', '#EF4444', w=4)
         _sub = 'Leads, investimento, CPL, qualidade e CPMQL ao longo dos dias.'
     sections['s02'] = {'id': 's02', 'header': {'badge': 'Evolução', 'title': 'Evolução Diária',
                        'sub': _sub}, 'widgets': evo}
