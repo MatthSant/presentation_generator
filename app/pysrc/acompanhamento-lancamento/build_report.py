@@ -1034,15 +1034,19 @@ RISK_IMPACT = {
 
 
 def _load_dict_links(path):
-    """CSV auxiliar (field_ad_name,link) → dict de links dos criativos."""
+    """CSV auxiliar de links: 1ª coluna = field_ad_name, 2ª = URL (QUALQUER nome).
+
+    Posicional de propósito, como o load_dict do criativos: a query do dicionário
+    mudou de fonte e o alias da coluna de URL mudou junto (link → post_url) — ler
+    pelo nome quebraria em silêncio a cada renomeação, com todo link virando None."""
     import csv as _csv
     links = {}
     try:
         with open(path, encoding='utf-8-sig', errors='replace') as f:
-            for r in _csv.DictReader(f):
-                ad = (r.get('field_ad_name') or '').strip()
-                if ad:
-                    links[ad] = (r.get('link') or '').strip() or None
+            rows = list(_csv.reader(f))
+        for row in rows[1:]:
+            if len(row) >= 2 and row[0].strip():
+                links[row[0].strip()] = (row[1] or '').strip() or None
     except Exception:
         pass
     return links

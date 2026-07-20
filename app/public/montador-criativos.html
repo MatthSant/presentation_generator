@@ -22,7 +22,6 @@
       <div class="grid3">
         <div class="field"><span class="label">Tabela de insights de mídia</span><input class="ctrl" id="t-ads" value="MAT_meta_ads_insights" /><span class="help">nível anúncio/dia</span></div>
         <div class="field"><span class="label">Tabela de conversões</span><input class="ctrl" id="t-conv" value="MAT_V2_inscricoes_geral_consolidado" /><span class="help">leads + vendas atribuídos</span></div>
-        <div class="field"><span class="label">Tabela de criativos (permalinks)</span><input class="ctrl" id="t-crt" value="MAT_meta_ad_creatives" /><span class="help">p/ o dicionário de links</span></div>
       </div>
       <div class="builder-foot">
         <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar as duas queries</button>
@@ -127,21 +126,30 @@ ORDER BY m.field_ad_name, m.data;`;
     }
 
     function buildDictSql() {
-      const crt = esc($('t-crt').value.trim()) || 'MAT_meta_ad_creatives';
       return `-- Dicionário de links: field_ad_name -> URL do post (permalink)
--- Fonte: ${crt} (criativos/ad creatives)  ·  habilita o preview na ficha
+-- Fonte: wtl_paidmedia → facebook_ads.ad_history (ad→creative)
+--        → facebook_ads.creative_history (creativo/permalink)
+-- Motivo do ajuste: creativepunch NÃO tem MAT_meta_ad_creatives; o Fivetran
+-- guarda o link do post separado do ad (ad_history.creative_id → creative_history.id),
+-- e um field_ad_name pode repetir em vários ad_id (recriações) — por isso o
+-- DISTINCT ON pega o mais recente por _fivetran_synced.
+-- Sem filtro de lançamento: a análise de criativos cobre o período todo.
 -- 1ª coluna = field_ad_name (chave); 2ª coluna = a URL. Exporte como CSV separado.
-SELECT DISTINCT
-  field_ad_name,
+SELECT DISTINCT ON (pm.field_ad_name)
+  pm.field_ad_name,
   COALESCE(
-    instagram_permalink_url,
-    effective_object_story_url,
-    creative_url
+    ch.instagram_permalink_url,
+    ch.object_story_link_data_link,
+    ch.link_url,
+    ah.preview_shareable_link
   )                                        AS post_url
-FROM "${crt}"
-WHERE field_ad_name IS NOT NULL
-  AND COALESCE(instagram_permalink_url, effective_object_story_url, creative_url) IS NOT NULL
-ORDER BY field_ad_name;`;
+FROM wtl_paidmedia pm
+LEFT JOIN facebook_ads.ad_history ah
+  ON ah.id::varchar = pm.field_ad_id
+LEFT JOIN facebook_ads.creative_history ch
+  ON ch.id::varchar = ah.creative_id::varchar
+WHERE pm.field_ad_name IS NOT NULL
+ORDER BY pm.field_ad_name, ah._fivetran_synced DESC NULLS LAST;`;
     }
 
     const render = () => { window.renderSql($('sql1'), buildSql()); window.renderSql($('sql2'), buildDictSql()); };

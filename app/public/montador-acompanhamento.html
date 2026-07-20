@@ -29,7 +29,6 @@
           </select>
           <span class="help">define a view e o filtro da query</span></div>
         <div class="field"><span class="label">field_conversion</span><input class="ctrl" id="t-fc" value="lcto-enxoval-maio-26" /><span class="help">identificador do lançamento (filtro do funil)</span></div>
-        <div class="field"><span class="label">Tabela de criativos (permalinks)</span><input class="ctrl" id="t-crt" value="MAT_meta_ad_creatives" /><span class="help">p/ o dicionário de links</span></div>
         <div class="field"><span class="label">Tabela de metas (launch goals)</span><input class="ctrl" id="t-goals" value="wtl_launch_goals" /><span class="help">metas por utm_source × dia</span></div>
       </div>
       <div class="builder-foot">
@@ -110,25 +109,30 @@ where coalesce (conversion_traf, vrtccp.field_conversion) = '${fc}';`;
     }
     function buildDictSql() {
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
-      const crt = esc($('t-crt').value.trim()) || 'MAT_meta_ad_creatives';
       return `-- Dicionário de links: field_ad_name -> URL do post (permalink)
--- Só os criativos do lançamento '${fc}' (mesmo filtro de funil da query 1) · habilita o preview na ficha
--- Colunas: field_ad_name (chave) + link (a URL — o acompanhamento lê pela coluna "link").
-SELECT DISTINCT
-  c.field_ad_name,
+-- Fonte: wtl_paidmedia (conversion) → facebook_ads.ad_history (ad→creative)
+--        → facebook_ads.creative_history (creativo/permalink)
+-- Motivo do ajuste: creativepunch NÃO tem MAT_meta_ad_creatives; o Fivetran
+-- guarda o link do post separado do ad (ad_history.creative_id → creative_history.id),
+-- e um field_ad_name pode repetir em vários ad_id (recriações) — por isso o
+-- DISTINCT ON pega o mais recente por _fivetran_synced.
+-- 1ª coluna = field_ad_name (chave); 2ª coluna = a URL. Exporte como CSV separado.
+SELECT DISTINCT ON (pm.field_ad_name)
+  pm.field_ad_name,
   COALESCE(
-    c.instagram_permalink_url,
-    c.effective_object_story_url,
-    c.creative_url
-  )                                        AS link
-FROM "${crt}" c
-WHERE c.field_ad_name IN (
-    SELECT DISTINCT field_ad_name
-    FROM "VW_V2_inscricoes_res_METRICAS"
-    WHERE field_conversion = '${fc}' AND field_ad_name IS NOT NULL
-  )
-  AND COALESCE(c.instagram_permalink_url, c.effective_object_story_url, c.creative_url) IS NOT NULL
-ORDER BY c.field_ad_name;`;
+    ch.instagram_permalink_url,
+    ch.object_story_link_data_link,
+    ch.link_url,
+    ah.preview_shareable_link
+  )                                        AS post_url
+FROM wtl_paidmedia pm
+LEFT JOIN facebook_ads.ad_history ah
+  ON ah.id::varchar = pm.field_ad_id
+LEFT JOIN facebook_ads.creative_history ch
+  ON ch.id::varchar = ah.creative_id::varchar
+WHERE pm.conversion = '${fc}'
+  AND pm.field_ad_name IS NOT NULL
+ORDER BY pm.field_ad_name, ah._fivetran_synced DESC NULLS LAST;`;
     }
     function buildGoalsSql() {
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
