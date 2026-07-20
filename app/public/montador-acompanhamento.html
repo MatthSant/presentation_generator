@@ -29,7 +29,6 @@
           </select>
           <span class="help">define a view e o filtro da query</span></div>
         <div class="field"><span class="label">field_conversion</span><input class="ctrl" id="t-fc" value="lcto-enxoval-maio-26" /><span class="help">identificador do lançamento (filtro do funil)</span></div>
-        <div class="field"><span class="label">Tabela de metas (launch goals)</span><input class="ctrl" id="t-goals" value="wtl_launch_goals" /><span class="help">metas por utm_source × dia</span></div>
       </div>
       <div class="builder-foot">
         <button class="btn primary" id="gen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Gerar as duas queries</button>
@@ -136,7 +135,7 @@ ORDER BY pm.field_ad_name, ah._fivetran_synced DESC NULLS LAST;`;
     }
     function buildGoalsSql() {
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
-      const tg = esc($('t-goals').value.trim()) || 'wtl_launch_goals';
+      const tg = 'wtl_launch_goals';
       return `-- Metas do lançamento (launch goals) — 1 linha por utm_source × dia
 -- Origem: ${tg}  ·  usado como metas no acompanhamento (em vez das metas manuais)
 SELECT
