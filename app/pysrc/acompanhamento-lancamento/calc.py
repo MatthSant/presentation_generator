@@ -1,6 +1,6 @@
 """calc — motor do "acompanhamento de lançamento" (tático diário, stdlib pura).
 
-Uma linha do CSV (view VW_V2_inscricoes_res_METRICAS) = utm_source × campanha ×
+Uma linha do CSV (view VW_V2_inscricoes_res; pago: VW_V2_inscricoes_pago_res) = utm_source × campanha ×
 conteúdo × anúncio × dia, de UM lançamento (`field_conversion`). Pago = invest_total>0.
 
 Eixo = dia da campanha (1 = primeiro dia com leads). Calcula séries diárias, KPIs
