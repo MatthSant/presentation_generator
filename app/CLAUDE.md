@@ -183,6 +183,37 @@ Regra dura: **toda feature nova entra como recurso reutilizável**, nunca `if ti
 
 ---
 
+## Deploy (VM Google Cloud)
+
+Produção roda numa VM Compute Engine via Docker Compose — **sempre a partir do
+master** (o fluxo é: commit/push na feature → merge de PR no GitHub → deploy).
+
+- **Alvo:** VM `witly` · zona `us-central1-a` · projeto `electric-charge-498918-e4`
+  · app em `http://34.44.8.245:3131`.
+- **Na VM:** o repo vive em `/home/projetos/app` (dono: usuário `projetos` — por
+  isso o `sudo -u projetos` no git); o compose roda como root e rebuilda a imagem
+  `witly`. Estado (SQLite, análises, `.base`) persiste no volume `witly_data`
+  montado em `/data` — sobrevive a rebuilds; dado de cliente vive SÓ ali (LGPD).
+
+**Deploy em um comando** (após o merge em master):
+
+```bash
+gcloud compute ssh witly --zone us-central1-a --quiet --command \
+  "cd /home/projetos/app; sudo -u projetos git pull --ff-only origin master 2>&1 | tail -1; \
+   sudo docker compose up -d --build 2>&1 | tail -2; sleep 6; \
+   curl -s -o /dev/null -w '%{http_code}' http://localhost:3131/"
+```
+
+O `curl` final é o smoke test — esperar `200`. Depois conferir no browser
+(`34.44.8.245:3131`) que a mudança chegou.
+
+- **Pré-requisito:** sessão gcloud válida. Se der `Reauthentication failed` /
+  `cannot prompt during non-interactive execution`, o dono da máquina precisa
+  rodar `gcloud auth login` (interativo, abre o browser) — agente não faz login.
+- **SSH quebrado?** `gcloud compute ssh witly --project=electric-charge-498918-e4
+  --zone=us-central1-a --troubleshoot` diagnostica (há chave
+  `~/.ssh/google_compute_engine`).
+
 ## Estrutura de pastas
 
 ```
