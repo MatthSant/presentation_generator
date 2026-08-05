@@ -19,20 +19,64 @@
     return out + escHtml(sql.slice(last));
   };
 
+  // Fallback de cópia p/ contexto INSEGURO (http, ex.: o VM em http://IP:3131), onde
+  // navigator.clipboard é undefined. Usa uma textarea temporária + execCommand('copy'),
+  // que não exige https — só o gesto do clique (que temos aqui).
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  async function copyText(text) {
+    text = String(text || '');
+    if (navigator.clipboard && window.isSecureContext) {
+      try { await navigator.clipboard.writeText(text); return true; }
+      catch (e) { /* cai no fallback */ }
+    }
+    return fallbackCopy(text);
+  }
+
+  // Toast flutuante de feedback (o usuário não vê o clipboard; precisa de confirmação).
+  let toastTimer = null;
+  window.showToast = function (msg, bad) {
+    let t = document.getElementById('copy-toast');
+    if (!t) { t = document.createElement('div'); t.id = 'copy-toast'; t.className = 'copy-toast'; document.body.appendChild(t); }
+    t.textContent = msg;
+    t.classList.toggle('bad', !!bad);
+    t.classList.remove('show');
+    void t.offsetWidth;   // reflow → garante a transição mesmo em aba throttled
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1700);
+  };
+
   // Liga um botão de copiar ao texto cru de uma função/elemento. getText pode ser
   // string, função ou elemento (usa .dataset.raw ou .textContent).
   window.wireCopy = function (btn, getText) {
     btn.addEventListener('click', async () => {
       let txt = typeof getText === 'function' ? getText() : getText;
       if (txt && txt.nodeType) txt = txt.dataset.raw || txt.textContent;
-      try {
-        await navigator.clipboard.writeText(String(txt || ''));
+      const ok = await copyText(txt);
+      if (ok) {
         btn.classList.add('done');
         const label = btn.querySelector('.copy-label');
         const prev = label ? label.textContent : null;
         if (label) label.textContent = 'Copiado';
         setTimeout(() => { btn.classList.remove('done'); if (label) label.textContent = prev; }, 1600);
-      } catch (e) { /* clipboard indisponível */ }
+        window.showToast('Query copiada ✓');
+      } else {
+        window.showToast('Não foi possível copiar', true);
+      }
     });
   };
 

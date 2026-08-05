@@ -582,7 +582,7 @@ def build(csv_path, config, content, out_dir):
     dic = calc.load_dict(dict_csv) if dict_csv and os.path.exists(dict_csv) else {}
     r = assemble(rows, config, content, {'dict': dic})
     try:
-        from common.preserve import preserve, preserve_dataset, preserve_layout, prune_sections
+        from common.preserve import preserve, preserve_dataset, preserve_layout, prune_sections, write_json
         # Antes de gravar: some com os sXX.json que esta geração não produz mais (a
         # análise encolhe quando o recorte de tipo entra ou o CSV traz menos criativos).
         # Sem isto sobram fichas órfãs apontando p/ datasets mortos.
@@ -593,7 +593,7 @@ def build(csv_path, config, content, out_dir):
     except Exception:
         pass
     def dump(name, obj):
-        json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+        write_json(os.path.join(out_dir, name), obj)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])
     for sid, sec in r['sections'].items():
         dump(f'{sid}.json', sec)

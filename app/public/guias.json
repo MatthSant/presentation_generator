@@ -418,7 +418,7 @@
    "slug": "acompanhamento-lancamento",
    "title": "Acompanhamento de Campanha",
    "tag": "Análise",
-   "summary": "Report tático diário de um lançamento em curso — metas vs realizado, tendência dos últimos 3 dias, riscos automáticos e funil de tráfego pago por taxa vs benchmark. Pronto para enviar ao cliente.",
+   "summary": "Report tático diário de um lançamento em curso — metas vs realizado, tendência dos últimos 3 dias, riscos automáticos e funil de tráfego por taxa vs benchmark. Serve os dois tipos de mecânica: lançamento de captação (mede custo do lead) e lançamento pago (o lead compra o ingresso — decide por caixa e ROAS). Pronto para enviar ao cliente.",
    "report": {
     "client": "enxoval",
     "slug": "acompanhamento"
@@ -436,6 +436,10 @@
       {
        "type": "p",
        "text": "Diferente da Histórica (entre lançamentos) e do Debriefing (pós-campanha), aqui o eixo é o <strong>dia da campanha</strong> de um único lançamento, sempre comparado contra metas e benchmarks."
+      },
+      {
+       "type": "p",
+       "text": "Cobre <strong>duas mecânicas</strong>, escolhidas na criação (Tipo de funil): <strong>captação</strong> (padrão) — você só capta leads e a decisão é o <strong>custo do lead</strong> (CPL, CPMQL, qualidade); e <strong>pago</strong> — o lead <strong>compra o ingresso</strong> na captação, então já há receita, ROAS e retorno, e a decisão passa a ser a <strong>exposição de caixa</strong>. O relatório troca KPIs, funil e vocabulário conforme o tipo."
       }
      ]
     },
@@ -444,25 +448,26 @@
      "blocks": [
       {
        "type": "p",
-       "text": "Um CSV da view <code>VW_V2_inscricoes_res_METRICAS</code>: <strong>uma linha por utm_source × campanha × conteúdo × anúncio × dia</strong>, de um lançamento (<code>field_conversion</code>)."
+       "text": "Um CSV de métricas do lançamento: <strong>uma linha por utm_source × campanha × conteúdo × anúncio × dia</strong>, de um lançamento (<code>field_conversion</code>). A view muda com a mecânica: <code>VW_V2_inscricoes_res</code> na captação e <code>VW_V2_inscricoes_pago_res</code> no pago (o montador já entrega a certa por tipo)."
       },
       {
        "type": "ul",
        "items": [
         "Identificação: <code>field_conversion</code>, <code>data</code>, <code>field_campaign_name</code> (temperatura inferida), <code>field_ad_name</code> (criativos).",
         "Volume e funil: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>leads_novo</code>, <code>leads_antigos</code>, <code>cliente_inscrito</code>, <code>leads_trafego</code>.",
-        "Mídia: <code>invest_total</code> (pago = &gt; 0), <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_totais</code>, <code>views_50pc</code>."
+        "Mídia: <code>invest_total</code> (pago = &gt; 0), <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>, <code>views_totais</code>, <code>views_50pc</code>.",
+        "<strong>Só no pago</strong>: <code>vendas_gen</code> (ingressos vendidos), <code>faturamento_gen</code> e <code>faturamento_bump</code> (receita do ingresso e do order bump) — dão receita, ROAS, ticket médio e taxa de order bump."
        ]
       },
       {
        "type": "callout",
-       "label": "Filtro de captação",
-       "text": "Os indicadores de mídia (CPL, CPM, CPMQL) e o funil de tráfego consideram <strong>só as campanhas de captação</strong> — exclua campanhas de vendas e remarketing do investimento, como no debriefing."
+       "label": "Filtro de investimento",
+       "text": "Na <strong>captação</strong>, os indicadores de mídia (CPL, CPM, CPMQL) e o funil consideram só as campanhas de captação — exclua vendas e remarketing do investimento. No <strong>pago</strong>, o investimento de captação é o que gerou os ingressos (a exposição de caixa mede se o ingresso já pagou esse tráfego)."
       },
       {
        "type": "callout",
        "label": "Metas e dicionário (opcionais)",
-       "text": "Metas (CPL, CPMQL, taxa de resposta/qualidade, leads) habilitam o <strong>semáforo de desvio</strong> e os riscos. Um 2º CSV <code>field_ad_name,link</code> liga cada criativo ao seu post."
+       "text": "As metas habilitam o <strong>semáforo de desvio</strong> e os riscos, e mudam com a mecânica: na captação são CPL, CPMQL, taxa de resposta/qualidade e leads; no pago são exposição de caixa, custo por ingresso, ingressos e ROAS. Um 2º CSV <code>field_ad_name,link</code> liga cada criativo ao seu post."
       }
      ]
     },
@@ -472,8 +477,9 @@
       {
        "type": "ul",
        "items": [
-        "Extraia o CSV de métricas do lançamento (use o <strong>montador</strong> com o <code>field_conversion</code>).",
-        "Clique em <strong>Criar esta análise</strong>: informe cliente, campanha, <strong>data de corte</strong> (último dia de dados) e as metas conhecidas.",
+        "Escolha o <strong>Tipo de funil</strong> — captação (padrão) ou <strong>lançamento pago</strong> — logo no início: é ele que define a mecânica, os KPIs, os benchmarks e o vocabulário (leads → ingressos).",
+        "Extraia o CSV de métricas do lançamento (use o <strong>montador</strong> com o <code>field_conversion</code>; a view sai conforme o tipo).",
+        "Clique em <strong>Criar esta análise</strong>: informe cliente, campanha, <strong>data de corte</strong> (último dia de dados) e as metas conhecidas. No pago, informe também exposição de caixa, custo por ingresso e (se houver) order bump.",
         "Envie o CSV e (opcional) o dicionário de criativos.",
         "O relatório abre em <code>/report/[cliente]/[slug]</code>; rode todo dia trocando a data de corte."
        ]
@@ -489,7 +495,7 @@
       },
       {
        "type": "p",
-       "text": "Leads acumulados vs linhas de meta (total e to-date), split Pago × Orgânico, atingimento, e 6 KPIs macro — cada um com valor geral, dos <strong>últimos 3 dias</strong>, tendência (vs início) e desvio vs meta com semáforo. Mais os 2 maiores riscos com texto de impacto."
+       "text": "Captados (ou <strong>ingressos vendidos</strong>, no pago) acumulados vs linhas de meta (total e to-date), split Pago × Orgânico, atingimento, e os KPIs macro — cada um com valor geral, dos <strong>últimos 3 dias</strong>, tendência (vs início) e desvio vs meta com semáforo. Na captação: investimento, leads, CPL, taxa de resposta/qualidade, CPMQL. No pago: exposição de caixa, custo por ingresso, ROAS geral, taxa de order bump, ticket médio, receita. Mais os 2 maiores riscos com texto de impacto."
       },
       {
        "type": "sub",
@@ -497,7 +503,7 @@
       },
       {
        "type": "p",
-       "text": "Séries diárias (leads, investimento, CPL, qualidade, CPMQL); origem, temperatura, tipo de lead e criativos do último dia; e os indicadores de mídia (CPM, Hook, Hold, CTR, Connect, Conv. Página) com o <strong>funil de tráfego por taxa vs benchmark</strong>."
+       "text": "Séries diárias (na captação: leads, investimento, CPL, qualidade, CPMQL; no pago: caixa, receita, ingressos, ROAS); origem, temperatura, tipo de lead e criativos do último dia; e os indicadores de mídia (CPM, Hook, Hold, CTR, Connect, Conv. Página) com o <strong>funil de tráfego por taxa vs benchmark</strong> — no pago o funil vai até o <strong>order bump</strong>."
       },
       {
        "type": "sub",
@@ -515,11 +521,12 @@
       {
        "type": "ul",
        "items": [
-        "CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade · CPM = investimento×1000 / impressões.",
+        "<strong>Captação</strong> — CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade · CPM = investimento×1000 / impressões.",
+        "<strong>Pago</strong> — Custo por ingresso = investimento / ingressos · ROAS geral = receita total / investimento · Exposição de caixa = receita − investimento (positivo = o ingresso já pagou o tráfego, sinal de escalar) · Ticket médio = receita / ingressos · Taxa de order bump = bumps / ingressos (benchmark 20%).",
         "Taxa de Resposta = respostas / leads · Taxa de Qualidade = MQLs / <strong>respostas</strong> (não / leads) · Conv. de Página = leads de tráfego / pageviews.",
-        "Hook = views totais / impressões · Hold = views 50% / views totais · CTR = clicks / impressões · Connect = pageviews / clicks.",
+        "Hook = views iniciais / impressões · Hold = views 100% / views iniciais (\"iniciais\" = views 2s ≈3s quando a base traz; senão o play total) · CTR = clicks / impressões · Connect = pageviews / clicks.",
         "Tendência = média dos últimos 3 dias vs o início (±3% = neutro; em custos, subir é pior).",
-        "<strong>Maior furo do funil</strong> = maior queda <strong>relativa ao benchmark</strong> (CTR 1%, Connect 80%, Conv. Página 40%, Resposta/Qualidade = meta), não a maior perda absoluta."
+        "<strong>Maior furo do funil</strong> = maior queda <strong>relativa ao benchmark</strong> (CTR 1%, Connect 80%, Conv. Página 40% — no pago também order bump 20%), não a maior perda absoluta."
        ]
       }
      ]
@@ -530,8 +537,10 @@
       {
        "type": "ul",
        "items": [
+        "Escolher o <strong>Tipo de funil</strong> certo (captação × pago) antes de tudo — ele muda a view de origem, os KPIs e os benchmarks; trocar depois exige regerar.",
         "Informar sempre a <strong>data de corte</strong> — criativos e funil 3 dias respeitam o corte, não o último dia absoluto dos dados.",
-        "Sem metas, o semáforo de desvio e os riscos não aparecem; os benchmarks de tráfego (CTR/Connect/Conv. Página) já entram como meta-padrão.",
+        "Sem metas, o semáforo de desvio e os riscos não aparecem; os benchmarks de tráfego (CTR/Connect/Conv. Página, e order bump no pago) já entram como meta-padrão.",
+        "No pago, <code>vendas_gen</code>/<code>faturamento_gen</code>/<code>faturamento_bump</code> precisam vir preenchidos — sem eles não há receita, ROAS nem exposição de caixa.",
         "Em dias de baixo volume (início/fim da campanha) as taxas diárias ficam ruidosas — leia a tendência, não o dia isolado.",
         "Hook/Hold/Connect/Conv. Página dependem de <code>views</code>/<code>pageviews</code> preenchidos; sem eles, o funil sinaliza dado inválido."
        ]

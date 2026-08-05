@@ -13,7 +13,7 @@ import type {
   EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
-import { defFromResolved, buildOptions, valueFmt, captureChart, chartExportMode, type ChartDef } from './charts.js';
+import { defFromResolved, buildOptions, valueFmt, captureChart, capturePicker, chartExportMode, type ChartDef } from './charts.js';
 import { trendR2, bestFit, type TrendType } from './trend.js';
 
 const FIT_LBL: Record<string, string> = { linear: 'Linear', log: 'Log', exp: 'Exp', pow: 'Potência' };
@@ -2192,7 +2192,15 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
   };
   sel.addEventListener('change', () => { uiSet(w.id, 'm1', sel.value); build(); });
   sel2?.addEventListener('change', () => { uiSet(w.id, 'm2', sel2.value); build(); });
-  if (chartExportMode()) build(); else requestAnimationFrame(build);
+  if (chartExportMode()) {
+    build();
+    // Embute os dados crus p/ o runtime do export reconstruir a série ao trocar de
+    // métrica (o seletor continua vivo no HTML estático). Casa pelo id do chart host.
+    capturePicker(host.id, {
+      metrics: w.metrics.map(m => ({ id: m.id, label: m.label, fmt: m.fmt })),
+      points: w.points, dual, combo: !!w.combo, height: w.height ?? 320,
+    });
+  } else requestAnimationFrame(build);
   return wrap;
 }
 

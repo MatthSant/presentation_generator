@@ -1,6 +1,6 @@
 """calc — motor do "acompanhamento de lançamento" (tático diário, stdlib pura).
 
-Uma linha do CSV (view VW_V2_inscricoes_res_METRICAS) = utm_source × campanha ×
+Uma linha do CSV (view VW_V2_inscricoes_res; pago: VW_V2_inscricoes_pago_res) = utm_source × campanha ×
 conteúdo × anúncio × dia, de UM lançamento (`field_conversion`). Pago = invest_total>0.
 
 Eixo = dia da campanha (1 = primeiro dia com leads). Calcula séries diárias, KPIs
@@ -51,7 +51,7 @@ KPI_MACRO_PAGO = ['exposicao', 'custo_ing_pago', 'roas_geral', 'taxa_bump', 'tax
 KPI_INTER_PAGO = ['receita_ing', 'receita_bump', 'ticket_medio',
                   'bumps', 'taxa_bump', 'taxa_qual']
 FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pageviews', 'Pageviews'),
-                 ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls', 'MQLs')]
+                 ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls_pond_cl', 'MQLs')]
 # PAGO: a etapa de leads vira INGRESSOS e o funil BIFURCA no fim — saiu a pesquisa,
 # entrou o order bump. As duas pontas medem coisas distintas do mesmo ingresso:
 # MQLs = qualidade da base · Order Bumps = receita incremental já no caixa.
@@ -223,7 +223,8 @@ def campaign_name(r):
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
 _RAW = ['leads', 'leads_pago', 'invest', 'imp', 'clicks', 'pageviews', 'leads_traf',
-        'mqls', 'respostas', 'novos', 'antigos', 'cli', 'vendas', 'fat', 'views_tot', 'views_50',
+        'mqls', 'respostas', 'novos', 'antigos', 'cli', 'vendas', 'fat',
+        'views_2s', 'views_50', 'views_100', 'views_tot',
         # ── lançamento PAGO: ingresso (_gen) + order bump (_bump) ──────────────
         # Só `_gen` e `_bump` são captação. `_sale`/`_presale`/`_upsell` são da etapa
         # de VENDAS e ficam fora deste relatório de propósito.
@@ -233,7 +234,8 @@ _SRC = {'leads': 'leads', 'invest': 'invest_total', 'imp': 'impressoes', 'clicks
         'pageviews': 'pageviews', 'leads_traf': 'leads_trafego', 'mqls': 'leads_mqls',
         'respostas': 'respostas', 'novos': 'leads_novo', 'antigos': 'leads_antigos',
         'cli': 'cliente_inscrito', 'vendas': 'vendas', 'fat': 'faturamento',
-        'views_tot': 'views_totais', 'views_50': 'views_50pc',
+        'views_2s': 'views_2s', 'views_50': 'views_50pc', 'views_100': 'views_100pc',
+        'views_tot': 'views_totais',
         'ing': 'vendas_gen', 'fat_gen': 'faturamento_gen', 'bumps': 'vendas_bump',
         'fat_bump': 'faturamento_bump', 'refund_gen': 'refunded_value_gen',
         'refund_bump': 'refunded_value_bump', 'stax_gen': 'sales_tax_gen',
@@ -345,9 +347,11 @@ def derive(s, pago=False):
         'taxa_qual': tq,
         'cpm': div(s['invest'] * 1000, s['imp']),
         'ctr': pct(s['clicks'], s['imp']),
-        # sem dados de vídeo (views) → hook/hold ficam None (blocos omitidos no build)
-        'hook': pct(s['views_tot'], s['imp']) if s['views_tot'] else None,
-        'hold': pct(s['views_50'], s['views_tot']),
+        # HOOK = views iniciais / impressões (prende no início) · HOLD = views 100% / iniciais
+        # (retenção do início ao fim). "Iniciais" = views 2s (≈3s) quando a base preenche;
+        # senão o play total (views_totais) como fallback. Sem nenhum → None (blocos omitidos).
+        'hook': pct(s['views_2s'] or s['views_tot'], s['imp']) if (s['views_2s'] or s['views_tot']) else None,
+        'hold': pct(s['views_100'], s['views_2s'] or s['views_tot']),
         # sem pageviews → connect fica None e a conv. de página vira leads/clicks
         # (≡ connect × conv_página); com pageviews, conv_página = leads/pageviews
         'connect': pct(s['pageviews'], s['clicks']) if s['pageviews'] else None,
@@ -502,7 +506,10 @@ def trend(series, cost=False):
 def meta_status(val, meta, cost=False):
     if meta is None or val is None or meta == 0:
         return None
-    dev = (val - meta) / meta * 100
+    # Denominador é |meta|: quando a meta é NEGATIVA (ex.: exposição de caixa com meta
+    # -60k = tolera-se ficar até 60k no vermelho), dividir pela meta com sinal invertia o
+    # desvio — um caixa POSITIVO (ótimo, acima do piso) virava "furo" e caía nos riscos.
+    dev = (val - meta) / abs(meta) * 100
     # "gap" = quanto está pior que a meta (abaixo p/ KPI normal, acima p/ custo).
     # gap <= 0: bateu/superou → ok (verde). 0–5%: tolerado, mas não bateu → neutral
     # (cinza). 5–15%: warn. >15%: bad. Alerta só a partir de 5%.
@@ -621,7 +628,7 @@ def build(rows, config=None):
     tot = derive(tot_sums, pago)
     # disponibilidade de dados de mídia/página na base. Sem vídeo (views) → omite
     # hook/hold; sem pageviews → omite connect e a conv. de página vira leads/clicks.
-    has_views = tot_sums['views_tot'] > 0
+    has_views = (tot_sums['views_2s'] or tot_sums['views_tot']) > 0
     has_pageviews = tot_sums['pageviews'] > 0
     traf_metrics = [m for m in KPI_TRAF
                     if not (m in ('hook', 'hold') and not has_views)
@@ -946,12 +953,17 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench
     bench = bench or [None] * (len(stage_defs) - 1)
     s = _sum(rows)
     leads_total = s['leads'] or 0
-    resp_pond = s['respostas'] * (s['leads_pago'] / leads_total) if leads_total else 0
-    # MQLs rateados pelo mix de tráfego: a pesquisa não distingue se o ingresso veio
-    # de anúncio ou de orgânico, então o funil PAGO leva só a fatia proporcional.
+    # No funil de tráfego PAGO, TODA etapa após Leads segue só a fatia de tráfego pago:
+    # respostas E MQLs são rateadas pela mesma proporção (leads_pago/leads_total). Sem
+    # ratear os MQLs, a transição Respostas→MQLs (a "qualidade" do funil) não batia com o
+    # KPI Taxa de Qualidade (MQLs/respostas) — e o CPMQL derivado dela também divergia.
+    resp_frac = (s['leads_pago'] / leads_total) if leads_total else 0
+    resp_pond = s['respostas'] * resp_frac
+    # No funil PAGO (fork) o rateio dos MQLs usa o mix de INGRESSOS: a pesquisa não
+    # distingue se o ingresso veio de anúncio ou de orgânico, então leva só a fatia paga.
     mix_pago = (s['ing_pago'] / s['ing']) if s['ing'] else 0
     vals = {'invest': s['invest'], 'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
-            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls'],
+            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls_pond_cl': s['mqls'] * resp_frac,
             'ing_pago': s['ing_pago'], 'mqls_pond': s['mqls'] * mix_pago,
             'bumps_pago': s['bumps'] * mix_pago}
     # Etapa zerada é PULADA (dado ausente), nunca desenhada como zero — ver spec.

@@ -11,7 +11,7 @@ import { Navigation } from './navigation.js';
 import { Filters } from './filters.js';
 import { Dashboard } from './dashboard.js';
 import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
-import { ChartManager, setChartExportMode, chartCaptureStart, chartCaptureEnd, type ChartDef } from './charts.js';
+import { ChartManager, setChartExportMode, chartCaptureStart, chartCaptureEnd, takePickers, type ChartDef } from './charts.js';
 import { PerguntasView } from './perguntas.js';
 import { DeepenQueue } from './deepen-queue.js';
 import { HistoricoFilters } from './historico-controls.js';
@@ -208,23 +208,6 @@ class App {
       this.nav.build();
       this.nav.setActive(this.store.currentPageId, this.store.currentSectionId);
     } catch { /* sem perguntas para este tipo — ok */ }
-  }
-
-  /** Capa do relatório (eyebrow + título + meta). NÃO aparece no app — o título já
-   *  vive no topnav/header da seção; só entra na EXPORTAÇÃO HTML standalone, como
-   *  masthead do documento. Retorna '' quando não há meta.cover. */
-  private coverHtml(): string {
-    const meta = this.store.data?.meta;
-    const cover = meta?.cover;
-    if (!cover) return '';
-    const parts: string[] = [];
-    if (cover.eyebrow) parts.push(`<div class="badge badge-p">${esc(cover.eyebrow)}</div>`);
-    parts.push(`<h1 class="sec-title">${esc(meta?.title || '')}</h1>`);
-    if (cover.meta?.length) {
-      parts.push(`<div class="cover-meta">${cover.meta.map(esc).join('<span class="cm-dot">◆</span>')}</div>`);
-    }
-    parts.push('<div class="cover-rule"></div>');
-    return `<header id="report-header">${parts.join('')}</header>`;
   }
 
   private async go(pageId: string, sectionId: string, keepScroll = false): Promise<void> {
@@ -1204,12 +1187,15 @@ class App {
       // do dual-evolution) — o resto do def é JSON puro; buildOptions reconstrói os
       // formatters a partir de valueFormat/pct no runtime.
       const chartDefs: Record<string, unknown> = {};
+      const pickerDefs: Record<string, unknown> = {};
       let chartSeq = 0;
       const serializeDef = (def: unknown): unknown =>
         JSON.parse(JSON.stringify(def, (_k, v) => (typeof v === 'function' ? undefined : v)));
       // Marca cada elemento-host de chart no DOM VIVO (antes de clonar) com data-xc=N
       // + a altura medida, e guarda o def em chartDefs[N]. O clone herda os atributos.
-      const stampCharts = (scope: HTMLElement, caps: Array<{ id: string; def: ChartDef }>): void => {
+      // pcaps casa os pickers pelo MESMO id do chart → pickerDefs[N] = dados crus.
+      const stampCharts = (scope: HTMLElement, caps: Array<{ id: string; def: ChartDef }>, pcaps: Array<{ id: string; data: unknown }> = []): void => {
+        const pById = new Map(pcaps.map(p => [p.id, p.data]));
         for (const { id, def } of caps) {
           const live = scope.querySelector<HTMLElement>(`[id="${id}"]`);
           if (!live) continue;
@@ -1218,6 +1204,7 @@ class App {
           const hh = Math.round(live.getBoundingClientRect().height);
           if (hh > 4) live.setAttribute('data-xh', String(hh));
           chartDefs[n] = serializeDef(def);
+          if (pById.has(id)) pickerDefs[n] = serializeDef(pById.get(id));
         }
       };
       // No clone: esvazia o SVG desenhado (o runtime remonta um ApexCharts real) e
@@ -1243,7 +1230,13 @@ class App {
       // de chart/heatmap (a pane ativa fica) e os seletores dos pickers. A varinha que
       // ABRE o modal (.tile-detail-link) é preservada — ela funciona via runtime.
       const stripControls = (root: HTMLElement): void => {
-        root.querySelectorAll('.tile-outlier, .tile-deepen, .tile-revisar, .ic-deepen, .rate, .seg--soft, .sp-ctrls, .sp-sel, .sp-dimtog').forEach(n => n.remove());
+        root.querySelectorAll('.tile-outlier, .tile-deepen, .tile-revisar, .ic-deepen, .rate, .seg--soft, .sp-dimtog, .sp-outlier').forEach(n => n.remove());
+        // Seletor de métrica: fica VIVO no export quando o picker tem dados embutidos
+        // (evolution-picker → pickerDefs[N]); nos demais (scatter) é congelado e removido.
+        root.querySelectorAll('.sp-ctrls').forEach(c => {
+          const n = c.closest('.sp-wrap')?.querySelector('[data-xc]')?.getAttribute('data-xc');
+          if (!(n != null && pickerDefs[n])) c.remove();
+        });
         root.querySelectorAll('.seg:not(.seg--soft)').forEach(n => (n.closest('.dash-tile') || n).remove());   // metric-toggle
       };
 
@@ -1311,9 +1304,10 @@ class App {
             await this.go(page.id, sref.id);
             await chartsReady();
             const caps = chartCaptureEnd();
+            const pcaps = takePickers();
             const host = ROOT.firstElementChild as HTMLElement | null;
             if (host) {
-              stampCharts(host, caps);
+              stampCharts(host, caps, pcaps);
               const clone = host.cloneNode(true) as HTMLElement;
               clone.classList.add('export-section');
               pinHeights(host, clone);
@@ -1329,7 +1323,7 @@ class App {
                 this.openModal(ov.id);
                 await chartsReady(ov);
                 const mcaps = chartCaptureEnd();
-                stampCharts(ov, mcaps);
+                stampCharts(ov, mcaps, takePickers());
                 const mc = ov.cloneNode(true) as HTMLElement;
                 mc.classList.remove('open');
                 pinHeights(ov, mc);
@@ -1398,7 +1392,7 @@ class App {
         fetch('/vendor/apexcharts.min.js').then(r => r.text()).catch(() => ''),
       ]);
       const noClose = (s: string): string => s.replace(/<\/script>/gi, '<\\/script>');
-      const chartBundle = `(function(){\n${strip(trendJs)}\n${strip(chartsJs)}\nwindow.__buildOptions=buildOptions;\n})();`;
+      const chartBundle = `(function(){\n${strip(trendJs)}\n${strip(chartsJs)}\nwindow.__buildOptions=buildOptions;\nwindow.__valueFmt=valueFmt;\n})();`;
 
       const theme = document.documentElement.dataset.theme || 'light';
       const meta = this.store.data?.meta as { client?: string; client_name?: string; title?: string } || {};
@@ -1407,8 +1401,10 @@ class App {
       const initials = clientName.split(/[-\s_]+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase() || 'W';
       // Sem filtro, variants = [null] → o canal padrão é "null" (casa com data-canal).
       const defCanal = String(fdef ? (fdef.default ?? fdef.options[0] ?? '') : variants[0]);
-      const coverHtml = this.coverHtml();
-      const defSec = coverHtml ? '__cover__' : (navList[0]?.secId || '');
+      // Sem capa: o documento abre direto na análise (1ª seção). Com uma única seção
+      // navegável, a sidebar é dispensada e o conteúdo ocupa a largura toda.
+      const defSec = navList[0]?.secId || '';
+      const singlePage = navList.length <= 1;
 
       // ── Árvore lateral (reusa as classes vivas .sn-* → o style.css inlinado estiliza) ──
       const detPage = pages.find(p => p.id === 'detalhamentos');
@@ -1417,10 +1413,7 @@ class App {
         `<button class="sn-sec" data-nav-page="${esc(pageId)}" data-nav-sec="${esc(s.id)}"><span class="sn-sec-lbl">${esc(s.label)}</span></button>`;
       const pageGroup = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }, n: number): string =>
         `<div class="sn-group" data-group="${esc(page.id)}"><button class="sn-page" data-nav-page="${esc(page.id)}" data-nav-sec="${esc(page.sections[0]?.id || '')}"><span class="sn-num">${n}</span><span class="sn-page-lbl">${esc(page.label)}</span></button>${page.sections.length > 1 ? page.sections.map(s => secBtn(page.id, s)).join('') : ''}</div>`;
-      const coverItem = coverHtml
-        ? `<div class="sn-group"><button class="sn-page" data-nav-page="__cover__" data-nav-sec="__cover__"><span class="sn-num">◆</span><span class="sn-page-lbl">Capa</span></button></div>`
-        : '';
-      const sideTree = `${coverItem}<div class="sn-label">Relatório</div>${reportPages.map((p, i) => pageGroup(p, i + 1)).join('')}${detPage && detPage.sections.length ? `<div class="sn-label">Aprofundamentos</div><div class="sn-group" data-group="${esc(detPage.id)}">${detPage.sections.map(s => secBtn(detPage.id, s)).join('')}</div>` : ''}`;
+      const sideTree = `<div class="sn-label">Relatório</div>${reportPages.map((p, i) => pageGroup(p, i + 1)).join('')}${detPage && detPage.sections.length ? `<div class="sn-label">Aprofundamentos</div><div class="sn-group" data-group="${esc(detPage.id)}">${detPage.sections.map(s => secBtn(detPage.id, s)).join('')}</div>` : ''}`;
 
       const sidenav = `<aside id="sidenav">
   <div class="sn-head"><a class="sn-brand" href="#">${logo ? `<span class="sn-logo-box"><img class="sn-logo" src="${logo}" alt="Witly"></span>` : ''}<span class="sn-brand-name">Witly Grimório</span></a><button class="sn-collapse" data-collapse aria-label="Minimizar menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>
@@ -1433,28 +1426,41 @@ class App {
         ? `<div class="exp-canal">${variants.map(v => `<button class="exp-cbtn" data-canal-btn="${esc(String(v))}">${esc(String(v))}</button>`).join('')}</div>`
         : '';
 
-      // Conteúdo: a capa (sem canal) + cada seção × canal, escondidas; o runtime mostra uma.
-      const coverDiv = coverHtml ? `<div class="exp-sec exp-sec-cover" data-section="__cover__" hidden>${coverHtml}</div>` : '';
+      // Conteúdo: cada seção × canal, escondidas; o runtime mostra uma.
       const contentDivs = variants.map(val => {
         const key = String(val);
         return navList.map(s => `<div class="exp-sec export-section" data-section="${esc(s.secId)}" data-page="${esc(s.pageId)}" data-canal="${esc(key)}" hidden>${secHtml[key][s.secId] || ''}</div>`).join('\n');
       }).join('\n');
 
-      const runtime = noClose(`(function(){var DEFS=window.__EXP_CHARTS||{};
-function mountIn(scope){if(!scope)return;scope.querySelectorAll('[data-xc]').forEach(function(el){if(el.__m||el.offsetParent===null)return;var d=DEFS[el.getAttribute('data-xc')];if(!d||typeof window.__buildOptions!=='function'||typeof ApexCharts==='undefined')return;el.__m=1;try{new ApexCharts(el,window.__buildOptions(d)).render();}catch(e){}}); }
+      const runtime = noClose(`(function(){var DEFS=window.__EXP_CHARTS||{},PICK=window.__EXP_PICKERS||{};
+function mountIn(scope){if(!scope)return;scope.querySelectorAll('[data-xc]').forEach(function(el){if(el.__m||el.offsetParent===null)return;var xc=el.getAttribute('data-xc');if(PICK[xc])return;var d=DEFS[xc];if(!d||typeof window.__buildOptions!=='function'||typeof ApexCharts==='undefined')return;el.__m=1;try{new ApexCharts(el,window.__buildOptions(d)).render();}catch(e){}}); }
+function metricOf(pd,id){for(var i=0;i<pd.metrics.length;i++){if(pd.metrics[i].id===id)return pd.metrics[i];}return null;}
+function initPickers(scope){if(!scope||typeof window.__buildOptions!=='function'||typeof ApexCharts==='undefined')return;
+scope.querySelectorAll('.sp-chart[data-xc]').forEach(function(host){var n=host.getAttribute('data-xc');var pd=PICK[n];if(!pd||host.__pk||host.offsetParent===null)return;host.__pk=1;
+var wrap=host.closest('.sp-wrap');if(!wrap)return;var sels=wrap.querySelectorAll('.sp-sel');var s1=sels[0],s2=pd.dual?sels[1]:null;var chart=null;
+function build(){var m1=s1?s1.value:(pd.metrics[0]||{}).id;var cats=pd.points.map(function(p){return p.name;});
+var d1=pd.points.map(function(p){var v=p.vals[m1];return v==null?null:v;});var mm1=metricOf(pd,m1);var def;
+if(pd.dual&&s2){var m2=s2.value;var mm2=metricOf(pd,m2);var d2=pd.points.map(function(p){var v=p.vals[m2];return v==null?null:v;});
+var f1=window.__valueFmt(mm1&&mm1.fmt),f2=window.__valueFmt(mm2&&mm2.fmt);
+def={type:pd.combo?'mixed':'line',categories:cats,height:pd.height,colors:['#7C3AED','#059669'],secondaryAxis:[1],
+series:pd.combo?[{name:(mm1&&mm1.label)||m1,type:'column',data:d1},{name:(mm2&&mm2.label)||m2,type:'line',data:d2}]:[{name:(mm1&&mm1.label)||m1,data:d1},{name:(mm2&&mm2.label)||m2,data:d2}],
+options:{yaxis:[{labels:{formatter:f1}},{opposite:true,labels:{formatter:f2}}],tooltip:{y:[{formatter:f1},{formatter:f2}]}}};}
+else{def={type:'line',series:[{name:(mm1&&mm1.label)||m1,data:d1}],categories:cats,height:pd.height,colors:['#7C3AED'],valueFormat:mm1&&mm1.fmt};}
+var opts=window.__buildOptions(def);if(chart){try{chart.updateOptions(opts);}catch(e){}return;}try{chart=new ApexCharts(host,opts);chart.render();}catch(e){}}
+if(s1)s1.addEventListener('change',build);if(s2)s2.addEventListener('change',build);build();});}
 var sec=${JSON.stringify(defSec)},canal=${JSON.stringify(defCanal)};
-function apply(){document.querySelectorAll('.exp-sec').forEach(function(s){var cover=s.getAttribute('data-section')==='__cover__';s.hidden=!(s.getAttribute('data-section')===sec&&(cover||s.getAttribute('data-canal')===canal));});
+function apply(){document.querySelectorAll('.exp-sec').forEach(function(s){s.hidden=!(s.getAttribute('data-section')===sec&&s.getAttribute('data-canal')===canal);});
 document.querySelectorAll('.sn-page,.sn-sec').forEach(function(b){var on=b.getAttribute('data-nav-sec')===sec;b.classList.toggle(b.classList.contains('sn-page')?'sn-page-active':'sn-sec-active',on);});
 document.querySelectorAll('.sn-group').forEach(function(g){var on=[].some.call(g.querySelectorAll('[data-nav-sec]'),function(b){return b.getAttribute('data-nav-sec')===sec;});g.classList.toggle('sn-group-active',on);});
 document.querySelectorAll('.exp-cbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-canal-btn')===canal);});
-mountIn(document.querySelector('.exp-sec:not([hidden])'));var m=document.getElementById('main');if(m)m.scrollTop=0;}
+var vis=document.querySelector('.exp-sec:not([hidden])');mountIn(vis);initPickers(vis);var m=document.getElementById('main');if(m)m.scrollTop=0;}
 function closeM(ov){if(ov){ov.classList.remove('open');document.body.style.overflow='';}}
 document.addEventListener('click',function(e){var t=e.target;
 var nv=t.closest&&t.closest('[data-nav-sec]');if(nv){sec=nv.getAttribute('data-nav-sec');apply();return;}
 var c=t.closest&&t.closest('.exp-cbtn');if(c){canal=c.getAttribute('data-canal-btn');apply();return;}
 if(t.closest&&t.closest('[data-collapse]')){document.body.setAttribute('data-nav-collapsed','1');return;}
 if(t.closest&&t.closest('[data-expand]')){document.body.setAttribute('data-nav-collapsed','');return;}
-var op=t.closest&&t.closest('[data-modal]');if(op){var mo=document.getElementById(op.getAttribute('data-modal'));if(mo){mo.classList.add('open');document.body.style.overflow='hidden';mountIn(mo);}return;}
+var op=t.closest&&t.closest('[data-modal]');if(op){var mo=document.getElementById(op.getAttribute('data-modal'));if(mo){mo.classList.add('open');document.body.style.overflow='hidden';mountIn(mo);initPickers(mo);}return;}
 var cl=t.closest&&t.closest('[data-ic-close]');if(cl){closeM(cl.closest('.ic-overlay'));return;}
 if(t.classList&&t.classList.contains('ic-overlay')){closeM(t);}});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){var o=document.querySelector('.ic-overlay.open');if(o)closeM(o);}});
@@ -1471,6 +1477,10 @@ ${css}
 ${apexCss}
 body{margin:0}
 body[data-nav="sidebar"] #topnav{position:fixed;top:0;height:60px;display:flex;align-items:center;border-bottom:1px solid var(--border);z-index:30}
+body[data-nav="single"] #main{margin-top:0;height:100vh;overflow:auto}
+body[data-nav="single"] #export-root{max-width:1400px;margin:0 auto;padding:32px 48px 80px;box-sizing:border-box}
+body[data-nav="single"] .sec-header{display:flex}
+.exp-canal-float{position:fixed;top:16px;right:20px;z-index:40}
 #topnav .tn-brand{display:flex;align-items:center;height:100%}
 #topnav .tn-client{font-size:13px;font-weight:700;color:var(--fg)}
 .exp-canal{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:2px}
@@ -1481,24 +1491,25 @@ body[data-nav="sidebar"] #topnav{position:fixed;top:0;height:60px;display:flex;a
 .export-section .dash-tile{overflow:hidden}
 .export-section .apexcharts-canvas,.export-section .apexcharts-canvas svg{max-width:100%}
 body[data-nav="sidebar"] .exp-sec .sec-header{display:block}
-.exp-sec-cover #report-header{padding:8px 0 18px}
 </style>
 </head>
-<body data-nav="sidebar">
-${sidenav}
-<nav id="topnav">
+<body data-nav="${singlePage ? 'single' : 'sidebar'}">
+${singlePage ? '' : sidenav}
+${singlePage
+  ? (navCanal ? `<div class="exp-canal-float">${navCanal}</div>` : '')
+  : `<nav id="topnav">
   <div class="tn-brand"><span class="tn-client">${esc(clientName || 'Relatório')}</span></div>
   <div class="tn-pages"></div>
   <div class="tn-right">${navCanal}</div>
-</nav>
+</nav>`}
 <main id="main"><div id="export-root">
-${coverDiv}
 ${contentDivs}
 </div></main>
 ${modalHtml.join('\n')}
 <script>${noClose(apexJs)}</script>
 <script>${noClose(chartBundle)}</script>
 <script>window.__EXP_CHARTS=${noClose(JSON.stringify(chartDefs))};
+window.__EXP_PICKERS=${noClose(JSON.stringify(pickerDefs))};
 ${runtime}</script>
 </body>
 </html>`;
