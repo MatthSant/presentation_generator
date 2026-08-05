@@ -453,12 +453,14 @@ def assemble(rows, config, content, opts=None):
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
     if pace_w:
         pan.append(pace_w)
-        # PAR full-width abaixo das bandas: pizza (esq) + pace (dir). O gráfico de leads
-        # acompanha só a altura das bandas, deixando o par respirar embaixo.
-        hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 0, 'y': ry, 'w': 6, 'h': DONUT_H})
-        hero_lay.append({'id': 'pan-pace', 'type': 'pace', 'x': 6, 'y': ry, 'w': 6, 'h': DONUT_H})
-        bottom = ry + DONUT_H
-        cum_h = max(1, ry - 1)
+        # PAR abaixo das bandas, dentro da coluna direita (largura dos KPIs): pizza (esq) +
+        # pace (dir), preenchendo a altura restante até a base do gráfico de leads — que
+        # segue ALTO à esquerda, sem encolher.
+        DP_H = 4
+        hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 4, 'h': DP_H})
+        hero_lay.append({'id': 'pan-pace', 'type': 'pace', 'x': 9, 'y': ry, 'w': 3, 'h': DP_H})
+        bottom = ry + DP_H
+        cum_h = bottom - 1                          # gráfico de leads acompanha a base do par
     else:
         hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
         bottom = ry + DONUT_H                       # base comum da coluna direita
