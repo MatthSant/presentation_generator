@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, intf
-from common.preserve import preserve, preserve_dataset, preserve_layout
+from common.preserve import preserve, preserve_dataset, preserve_layout, write_json
 # Builders de seção compartilhados. O kpi-card fica no `kcard()` local: o semáforo
 # tático (meta_status 5/15% + flag 3d) tem semântica própria — não é o goalCmp
 # avaliativo (±10%) do km() de common.
@@ -1064,7 +1064,7 @@ def build(csv_path, config, content, out_dir):
     preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     preserve_layout(out_dir, r['layout'])     # disposição dos det-* sobrevive
     def dump(name, obj):
-        json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+        write_json(os.path.join(out_dir, name), obj)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])
     for sid, sec in r['sections'].items():
         dump(f'{sid}.json', sec)
