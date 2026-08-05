@@ -379,11 +379,15 @@ html, body {
   .meta-bars .mb-meta, .meta-bars .mb-hist { display: none; }
 }
 
-/* ── pace ── pace de vendas: ritmo atual × necessário + multiplicador + projeção. */
-.pace { display: flex; flex-direction: column; gap: 13px; padding: 16px 18px; }
-.pace .pace-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.pace .pace-title { font-size: 13px; font-weight: 800; letter-spacing: -.01em; color: var(--fg); }
-.pace .pace-horizon { font-size: 11.5px; font-weight: 700; color: var(--gray2); font-variant-numeric: tabular-nums; }
+/* ── pace ── pace de vendas: ritmo atual × necessário + multiplicador + projeção.
+ *  Card no mesmo padrão da rosca (widget-chart): borda, raio e cabeçalho com dot + caps. */
+.pace {
+  display: flex; flex-direction: column; gap: 13px;
+  height: 100%; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 16px; box-shadow: var(--shadow-card);
+  padding: 18px 18px 14px;
+}
 .pace .pace-bars { display: flex; flex-direction: column; gap: 11px; }
 .pace .pace-row { display: flex; flex-direction: column; gap: 5px; }
 .pace .pace-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
