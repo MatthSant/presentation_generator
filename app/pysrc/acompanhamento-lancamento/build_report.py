@@ -963,8 +963,12 @@ def assemble(rows, config, content, opts=None):
     # Acompanhamento é leitura rápida: os 4 grupos (Visão Geral, Evolução, Canais,
     # Tráfego) empilham numa só seção rolável, cada um aberto por um eyebrow-divisor.
     # Só Detalhamentos e Perguntas ficam em páginas à parte (criadas pela rota/preserve).
-    groups = [('s01', None, None), ('s02', 'EVOLUÇÃO DIÁRIA', 'séries por dia da campanha'),
-              ('s03', 'CANAIS E AUDIÊNCIA', None), ('s04', 'TRÁFEGO PAGO', None)]
+    # Com 1 dia só de dado, a Evolução Diária é um ponto só — a seção é OCULTADA (não faz
+    # leitura de série com um ponto). Vale para pago e clássico.
+    groups = [('s01', None, None)]
+    if B['n_dias'] > 1:
+        groups.append(('s02', 'EVOLUÇÃO DIÁRIA', 'séries por dia da campanha'))
+    groups += [('s03', 'CANAIS E AUDIÊNCIA', None), ('s04', 'TRÁFEGO PAGO', None)]
     merged_w, merged_items, y_off = [], [], 0
     for sid, divider, dcap in groups:
         if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
