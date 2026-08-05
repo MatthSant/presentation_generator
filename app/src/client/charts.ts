@@ -70,9 +70,15 @@ export function chartExportMode(): boolean { return EXPORT_MODE; }
  * ApexCharts REAIS (com hover/tooltip) no HTML estático. Capturamos por (id do
  * elemento, def); o exportador casa o id com o elemento clonado e re-monta. */
 let CHART_CAP: Array<{ id: string; def: ChartDef }> | null = null;
-export function chartCaptureStart(): void { CHART_CAP = []; }
+// Pickers (evolution-picker) precisam ficar INTERATIVOS no export: capturamos, além do
+// def do gráfico, os DADOS crus (métricas + série por ponto) para o runtime reconstruir a
+// série ao trocar de métrica — mesmo id do chart, casado pelo exportador.
+let PICKER_CAP: Array<{ id: string; data: unknown }> | null = null;
+export function chartCaptureStart(): void { CHART_CAP = []; PICKER_CAP = []; }
 export function chartCaptureEnd(): Array<{ id: string; def: ChartDef }> { const c = CHART_CAP ?? []; CHART_CAP = null; return c; }
 export function captureChart(id: string, def: ChartDef): void { if (CHART_CAP && id) CHART_CAP.push({ id, def }); }
+export function capturePicker(id: string, data: unknown): void { if (PICKER_CAP && id) PICKER_CAP.push({ id, data }); }
+export function takePickers(): Array<{ id: string; data: unknown }> { const p = PICKER_CAP ?? []; PICKER_CAP = null; return p; }
 
 interface Base {
   dark: boolean;
