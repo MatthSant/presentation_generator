@@ -428,6 +428,10 @@ export interface EyebrowWidget extends WidgetBase {
   compact?: boolean;
   /** Tooltip (i) ao lado do título — ex.: critérios de cor/marcação de um widget. */
   info?: string;
+  /** Controle segmentado à DIREITA do título (alinhado à régua). Dispara um evento
+   *  `funnel-temp:<id>` que widgets abaixo (ex.: funis por temperatura, via `tempChannel`)
+   *  escutam para trocar a variante exibida. */
+  toggle?: { id: string; options: { id: string; label: string }[]; default?: string };
 }
 export interface KpiStripItem {
   value: string; label: string; sub?: string; small?: boolean;
@@ -647,6 +651,12 @@ export interface FunnelWidget extends WidgetBase {
                bench?: number; baseLabel?: string;
                /** cor da barra do ramo (default: roxo do tronco). */
                color?: string }[];
+  /** Variantes do funil por TEMPERATURA (toggle da seção): chave = temperatura, valor = o
+   *  funil daquela temperatura. O widget base (steps/transitions/branches) é a 'Geral'.
+   *  `tempChannel` = id do toggle (no eyebrow da seção) cujo evento troca a variante
+   *  exibida — os dois funis compartilham o canal, então trocam juntos. */
+  temps?: Record<string, Pick<FunnelWidget, 'steps' | 'transitions' | 'branches'>>;
+  tempChannel?: string;
 }
 
 /** strat-grid — perguntas estratégicas: N colunas (cards), cada uma com título e

@@ -833,8 +833,23 @@ def build(rows, config=None):
         fstages = [st for st in FUNNEL_STAGES if st[0] != 'pageviews']
         bench = [fb['ctr'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
     _cpmb = metas.get('cpm')
+    _rows3d = [r for d in last3 for r in by_date[d['date']]]
     funnel_total = _funnel(rows_corte, bench, fstages, fork, fork_bench, _cpmb)
-    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages, fork, fork_bench, _cpmb)
+    funnel_3d = _funnel(_rows3d, bench, fstages, fork, fork_bench, _cpmb)
+    # Variantes do funil por TEMPERATURA (toggle na seção, vale p/ pago E clássico): Geral
+    # + cada temperatura presente no tráfego pago. O toggle troca os DOIS funis juntos.
+    _tr = temp_rules(config)
+    def _temp_of(r): return infer_temp(r.get('field_campaign_name'), _tr)
+    _temps_present = [lab for lab, _ in _tr if any(is_paid(r) and _temp_of(r) == lab for r in rows_corte)]
+
+    def _funnel_by_temp(src, geral):
+        out = {'Geral': geral}
+        for t in _temps_present:
+            out[t] = _funnel([r for r in src if _temp_of(r) == t], bench, fstages, fork, fork_bench, _cpmb)
+        return out
+    funnel_total_temps = _funnel_by_temp(rows_corte, funnel_total)
+    funnel_3d_temps = _funnel_by_temp(_rows3d, funnel_3d)
+    funnel_temps_opts = ['Geral'] + _temps_present
 
     # Rótulos resolvidos por análise: o nome da métrica depende do que a BASE tem.
     # Sem pageviews o funil pago fecha em Cliques→Ingressos, e chamar isso de
@@ -867,6 +882,8 @@ def build(rows, config=None):
         'split': split, 'temp': temp, 'tipo_lead': tipo_lead, 'canais_org': canais_org,
         'criativos': creatives, 'cr_dia': crdia, 'cr_dia_label': _day_label(crdia),
         'funnel_total': funnel_total, 'funnel_3d': funnel_3d,
+        'funnel_total_temps': funnel_total_temps, 'funnel_3d_temps': funnel_3d_temps,
+        'funnel_temps_opts': funnel_temps_opts,
         'risks_macro': risks_macro, 'risks_traf': risks_traf,
     }
 

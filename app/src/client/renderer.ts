@@ -229,6 +229,23 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
   if (w.info) wrap.appendChild(infoBadge(w.info));
   if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
   wrap.appendChild(el('span', 'ge-rule'));
+  // Toggle segmentado à direita da régua (ex.: Geral/Quente/Frio do funil). Dispara um
+  // evento `funnel-temp:<id>` que os widgets abaixo (com tempChannel) escutam.
+  if (w.toggle?.options?.length) {
+    const seg = el('div', 'ge-toggle');
+    const def = w.toggle.default ?? w.toggle.options[0]?.id ?? '';
+    for (const o of w.toggle.options) {
+      const b = el('button', 'ge-tg-opt' + (o.id === def ? ' on' : '')) as HTMLButtonElement;
+      b.type = 'button'; b.textContent = o.label;
+      b.addEventListener('click', () => {
+        seg.querySelectorAll('.ge-tg-opt').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        document.dispatchEvent(new CustomEvent(`funnel-temp:${w.toggle!.id}`, { detail: o.id }));
+      });
+      seg.appendChild(b);
+    }
+    wrap.appendChild(seg);
+  }
   return wrap;
 }
 
@@ -1048,13 +1065,21 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
   if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
   const hasHist = (w.transitions || []).some(t => t && t.benchHist != null);
   let body: HTMLElement | null = null;
+  // Toggle de temperatura (evento do eyebrow): a variante ativa troca steps/transitions/
+  // branches. 'Geral' = o próprio widget; as demais vêm de w.temps.
+  let activeTemp = 'Geral';
+  let curMode: 'meta' | 'hist' = getCmpMode();
+  const srcOf = (): Pick<FunnelWidget, 'steps' | 'transitions' | 'branches'> =>
+    (activeTemp !== 'Geral' && w.temps?.[activeTemp]) ? w.temps[activeTemp] : w;
 
   function paint(mode: 'meta' | 'hist'): void {
+    curMode = mode;
+    const src = srcOf();
     const useHist = mode === 'hist' && hasHist;
     if (body) body.remove();
     body = el('div', 'funnel-body');
-    const n = w.steps.length;
-    w.steps.forEach((s, i) => {
+    const n = src.steps.length;
+    src.steps.forEach((s, i) => {
       const bar = el('div', 'funnel-bar');
       bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
       // Afunilamento: largura decresce por etapa, dando a forma de funil. No COMPACTO a
@@ -1068,7 +1093,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       // empilhar conector+pill+conector entre as barras. Corta ~metade da altura.
       const row = w.compact ? el('div', 'funnel-row') : null;
       if (row) { row.appendChild(bar); body!.appendChild(row); } else { body!.appendChild(bar); }
-      const t = w.transitions?.[i];
+      const t = src.transitions?.[i];
       if (t && i < n - 1) {
         if (!w.compact) body!.appendChild(el('div', 'funnel-conn'));
         const pills = el('div', 'funnel-pills');
@@ -1093,7 +1118,9 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
           if (t.migrate != null) {
             const word = useHistT ? 'hist' : (t.baseLabel || w.baseLabel || 'meta');   // per-transição
             const dec = t.decimals ?? 1;
-            const baseTxt = below && bench != null ? ` · ${word} ${bench.toFixed(t.decimals ?? (bench % 1 ? 1 : 0))}%` : '';
+            // Bench SEMPRE visível (mesmo dentro do esperado) — a referência de mercado
+            // é informação, não só alerta. Antes só aparecia quando furava (below).
+            const baseTxt = bench != null ? ` · ${word} ${bench.toFixed(t.decimals ?? (bench % 1 ? 1 : 0))}%` : '';
             // com hideLoss o MAIOR FURO migra p/ a tag de passagem (a de perda some).
             const furoTxt = (w.hideLoss && t.worst) ? ' · MAIOR FURO' : '';
             pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
@@ -1106,7 +1133,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
     // Bifurcação: ramos que saem da ÚLTIMA etapa em paralelo. Lado a lado e de largura
     // igual, porque não há ordem entre eles — quem desenhasse em sequência sugeriria um
     // afunilamento que não existe (as taxas não somam 100%, dividem o mesmo denominador).
-    const branches = w.branches || [];
+    const branches = src.branches || [];
     if (branches.length) {
       body.appendChild(el('div', 'funnel-fork-sep', 'bifurcação'));
       const forkRow = el('div', 'funnel-fork');
@@ -1133,8 +1160,14 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
     wrap.appendChild(body);
   }
 
-  paint(getCmpMode());
+  paint(curMode);
   if (hasHist) onCmpChange(wrap, paint);
+  // Escuta o toggle de temperatura do eyebrow (canal compartilhado) → repinta a variante.
+  if (w.temps && w.tempChannel) {
+    document.addEventListener(`funnel-temp:${w.tempChannel}`, (e) => {
+      activeTemp = String((e as CustomEvent).detail); paint(curMode);
+    });
+  }
   return wrap;
 }
 
