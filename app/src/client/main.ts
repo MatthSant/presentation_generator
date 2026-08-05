@@ -210,23 +210,6 @@ class App {
     } catch { /* sem perguntas para este tipo — ok */ }
   }
 
-  /** Capa do relatório (eyebrow + título + meta). NÃO aparece no app — o título já
-   *  vive no topnav/header da seção; só entra na EXPORTAÇÃO HTML standalone, como
-   *  masthead do documento. Retorna '' quando não há meta.cover. */
-  private coverHtml(): string {
-    const meta = this.store.data?.meta;
-    const cover = meta?.cover;
-    if (!cover) return '';
-    const parts: string[] = [];
-    if (cover.eyebrow) parts.push(`<div class="badge badge-p">${esc(cover.eyebrow)}</div>`);
-    parts.push(`<h1 class="sec-title">${esc(meta?.title || '')}</h1>`);
-    if (cover.meta?.length) {
-      parts.push(`<div class="cover-meta">${cover.meta.map(esc).join('<span class="cm-dot">◆</span>')}</div>`);
-    }
-    parts.push('<div class="cover-rule"></div>');
-    return `<header id="report-header">${parts.join('')}</header>`;
-  }
-
   private async go(pageId: string, sectionId: string, keepScroll = false): Promise<void> {
     if (this.editing) this.abortEdit(); // tab switch during edit → drop edits, then navigate
     this.store.currentPageId = pageId;
@@ -1407,8 +1390,10 @@ class App {
       const initials = clientName.split(/[-\s_]+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase() || 'W';
       // Sem filtro, variants = [null] → o canal padrão é "null" (casa com data-canal).
       const defCanal = String(fdef ? (fdef.default ?? fdef.options[0] ?? '') : variants[0]);
-      const coverHtml = this.coverHtml();
-      const defSec = coverHtml ? '__cover__' : (navList[0]?.secId || '');
+      // Sem capa: o documento abre direto na análise (1ª seção). Com uma única seção
+      // navegável, a sidebar é dispensada e o conteúdo ocupa a largura toda.
+      const defSec = navList[0]?.secId || '';
+      const singlePage = navList.length <= 1;
 
       // ── Árvore lateral (reusa as classes vivas .sn-* → o style.css inlinado estiliza) ──
       const detPage = pages.find(p => p.id === 'detalhamentos');
@@ -1417,10 +1402,7 @@ class App {
         `<button class="sn-sec" data-nav-page="${esc(pageId)}" data-nav-sec="${esc(s.id)}"><span class="sn-sec-lbl">${esc(s.label)}</span></button>`;
       const pageGroup = (page: { id: string; label: string; sections: Array<{ id: string; label: string }> }, n: number): string =>
         `<div class="sn-group" data-group="${esc(page.id)}"><button class="sn-page" data-nav-page="${esc(page.id)}" data-nav-sec="${esc(page.sections[0]?.id || '')}"><span class="sn-num">${n}</span><span class="sn-page-lbl">${esc(page.label)}</span></button>${page.sections.length > 1 ? page.sections.map(s => secBtn(page.id, s)).join('') : ''}</div>`;
-      const coverItem = coverHtml
-        ? `<div class="sn-group"><button class="sn-page" data-nav-page="__cover__" data-nav-sec="__cover__"><span class="sn-num">◆</span><span class="sn-page-lbl">Capa</span></button></div>`
-        : '';
-      const sideTree = `${coverItem}<div class="sn-label">Relatório</div>${reportPages.map((p, i) => pageGroup(p, i + 1)).join('')}${detPage && detPage.sections.length ? `<div class="sn-label">Aprofundamentos</div><div class="sn-group" data-group="${esc(detPage.id)}">${detPage.sections.map(s => secBtn(detPage.id, s)).join('')}</div>` : ''}`;
+      const sideTree = `<div class="sn-label">Relatório</div>${reportPages.map((p, i) => pageGroup(p, i + 1)).join('')}${detPage && detPage.sections.length ? `<div class="sn-label">Aprofundamentos</div><div class="sn-group" data-group="${esc(detPage.id)}">${detPage.sections.map(s => secBtn(detPage.id, s)).join('')}</div>` : ''}`;
 
       const sidenav = `<aside id="sidenav">
   <div class="sn-head"><a class="sn-brand" href="#">${logo ? `<span class="sn-logo-box"><img class="sn-logo" src="${logo}" alt="Witly"></span>` : ''}<span class="sn-brand-name">Witly Grimório</span></a><button class="sn-collapse" data-collapse aria-label="Minimizar menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>
@@ -1433,8 +1415,7 @@ class App {
         ? `<div class="exp-canal">${variants.map(v => `<button class="exp-cbtn" data-canal-btn="${esc(String(v))}">${esc(String(v))}</button>`).join('')}</div>`
         : '';
 
-      // Conteúdo: a capa (sem canal) + cada seção × canal, escondidas; o runtime mostra uma.
-      const coverDiv = coverHtml ? `<div class="exp-sec exp-sec-cover" data-section="__cover__" hidden>${coverHtml}</div>` : '';
+      // Conteúdo: cada seção × canal, escondidas; o runtime mostra uma.
       const contentDivs = variants.map(val => {
         const key = String(val);
         return navList.map(s => `<div class="exp-sec export-section" data-section="${esc(s.secId)}" data-page="${esc(s.pageId)}" data-canal="${esc(key)}" hidden>${secHtml[key][s.secId] || ''}</div>`).join('\n');
@@ -1443,7 +1424,7 @@ class App {
       const runtime = noClose(`(function(){var DEFS=window.__EXP_CHARTS||{};
 function mountIn(scope){if(!scope)return;scope.querySelectorAll('[data-xc]').forEach(function(el){if(el.__m||el.offsetParent===null)return;var d=DEFS[el.getAttribute('data-xc')];if(!d||typeof window.__buildOptions!=='function'||typeof ApexCharts==='undefined')return;el.__m=1;try{new ApexCharts(el,window.__buildOptions(d)).render();}catch(e){}}); }
 var sec=${JSON.stringify(defSec)},canal=${JSON.stringify(defCanal)};
-function apply(){document.querySelectorAll('.exp-sec').forEach(function(s){var cover=s.getAttribute('data-section')==='__cover__';s.hidden=!(s.getAttribute('data-section')===sec&&(cover||s.getAttribute('data-canal')===canal));});
+function apply(){document.querySelectorAll('.exp-sec').forEach(function(s){s.hidden=!(s.getAttribute('data-section')===sec&&s.getAttribute('data-canal')===canal);});
 document.querySelectorAll('.sn-page,.sn-sec').forEach(function(b){var on=b.getAttribute('data-nav-sec')===sec;b.classList.toggle(b.classList.contains('sn-page')?'sn-page-active':'sn-sec-active',on);});
 document.querySelectorAll('.sn-group').forEach(function(g){var on=[].some.call(g.querySelectorAll('[data-nav-sec]'),function(b){return b.getAttribute('data-nav-sec')===sec;});g.classList.toggle('sn-group-active',on);});
 document.querySelectorAll('.exp-cbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-canal-btn')===canal);});
@@ -1471,6 +1452,10 @@ ${css}
 ${apexCss}
 body{margin:0}
 body[data-nav="sidebar"] #topnav{position:fixed;top:0;height:60px;display:flex;align-items:center;border-bottom:1px solid var(--border);z-index:30}
+body[data-nav="single"] #main{margin-top:0;height:100vh;overflow:auto}
+body[data-nav="single"] #export-root{max-width:1400px;margin:0 auto;padding:32px 48px 80px;box-sizing:border-box}
+body[data-nav="single"] .sec-header{display:flex}
+.exp-canal-float{position:fixed;top:16px;right:20px;z-index:40}
 #topnav .tn-brand{display:flex;align-items:center;height:100%}
 #topnav .tn-client{font-size:13px;font-weight:700;color:var(--fg)}
 .exp-canal{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:2px}
@@ -1481,18 +1466,18 @@ body[data-nav="sidebar"] #topnav{position:fixed;top:0;height:60px;display:flex;a
 .export-section .dash-tile{overflow:hidden}
 .export-section .apexcharts-canvas,.export-section .apexcharts-canvas svg{max-width:100%}
 body[data-nav="sidebar"] .exp-sec .sec-header{display:block}
-.exp-sec-cover #report-header{padding:8px 0 18px}
 </style>
 </head>
-<body data-nav="sidebar">
-${sidenav}
-<nav id="topnav">
+<body data-nav="${singlePage ? 'single' : 'sidebar'}">
+${singlePage ? '' : sidenav}
+${singlePage
+  ? (navCanal ? `<div class="exp-canal-float">${navCanal}</div>` : '')
+  : `<nav id="topnav">
   <div class="tn-brand"><span class="tn-client">${esc(clientName || 'Relatório')}</span></div>
   <div class="tn-pages"></div>
   <div class="tn-right">${navCanal}</div>
-</nav>
+</nav>`}
 <main id="main"><div id="export-root">
-${coverDiv}
 ${contentDivs}
 </div></main>
 ${modalHtml.join('\n')}
