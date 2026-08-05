@@ -110,3 +110,10 @@ body.cr { background: var(--canvas, var(--bg-page)); }
 .cr .startpick .sp-go:hover { background: var(--purple-600); }
 .cr .startpick .sp-go svg { width: 15px; height: 15px; }
 @media (max-width: 560px) { .cr .startpick { flex-wrap: wrap; } .cr .startpick .sp-go { width: 100%; justify-content: center; } }
+
+/* ── Campo de destaque (ex.: Tipo de funil — define a mecânica e o relatório inteiro) ── */
+.cr .field--hero { grid-column: 1 / -1; background: var(--purple-bg); border: 1.5px solid color-mix(in srgb, var(--purple) 38%, var(--border)); border-radius: var(--r-md); padding: 14px 16px 15px; margin: 4px 0; gap: 8px; }
+.cr .field--hero > .label { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--purple-600, var(--purple)); font-weight: 800; }
+.cr .field--hero .ctrl { background: var(--card, #fff); font-weight: 700; font-size: 14.5px; border-color: color-mix(in srgb, var(--purple) 32%, var(--border)); }
+.cr .field--hero .ctrl:focus { border-color: var(--purple); box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple) 18%, transparent); }
+.cr .field--hero .help { color: var(--gray2); }
