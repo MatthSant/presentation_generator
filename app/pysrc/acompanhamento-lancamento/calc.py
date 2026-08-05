@@ -567,6 +567,20 @@ def load_goals(path, field_conversion, corte):
     }
 
 
+def goals_start(path, field_conversion):
+    """1ª data da curva de meta = início OFICIAL da campanha. O dump costuma trazer
+    leads pré-lançamento (captação antecipada); sem esta âncora o relatório começaria
+    no 1º lead, não no 1º dia de campanha, e a linha de meta apareceria dias antes."""
+    try:
+        rows = load_rows(path)
+    except Exception:
+        return ''
+    ds = [str(r.get('data', '')).strip()[:10] for r in rows
+          if (not field_conversion or r.get('field_conversion') == field_conversion)
+          and fnum(r.get('meta_leads')) > 0]
+    return min(ds) if ds else ''
+
+
 # ── build principal ──────────────────────────────────────────────────────────
 
 def build(rows, config=None):
@@ -598,10 +612,14 @@ def build(rows, config=None):
 
     all_dates = sorted({_date(r) for r in rows if _date(r)})
     corte = config.get('data_corte') or (all_dates[-1] if all_dates else '')
+    # INÍCIO da campanha: `data_inicio` explícito, senão a 1ª data da curva de meta (a meta
+    # define a janela). Datas do dump ANTES disso são pré-lançamento (captação antecipada)
+    # e ficam fora do relatório — senão o eixo/linha de meta começaria dias antes.
+    camp_start = config.get('data_inicio') or (goals_start(config['goals_csv'], fc) if config.get('goals_csv') else '')
     by_date = {}
     for r in rows:
         d = _date(r)
-        if d and d <= corte:
+        if d and d <= corte and (not camp_start or d >= camp_start):
             by_date.setdefault(d, []).append(r)
     dates = sorted(by_date)
     # dia 1 = primeiro dia com leads
