@@ -989,13 +989,15 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench
             'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls_pond_cl': s['mqls'] * resp_frac,
             'ing_pago': s['ing_pago'], 'mqls_pond': s['mqls'] * mix_pago,
             'bumps_pago': s['bumps'] * mix_pago}
-    # Etapa zerada é PULADA (dado ausente), nunca desenhada como zero — ver spec.
-    # Etapa em REAIS mantém os centavos (o build formata o rótulo); as de contagem
-    # arredondam, porque meia impressão não existe.
+    # Etapa INTERMEDIÁRIA zerada é pulada (dado ausente, ex.: sem coluna de pageviews).
+    # Mas a PRIMEIRA e a ÚLTIMA sempre ficam: a última é o desfecho do funil (MQLs no
+    # clássico, Ingressos no pago) — 0 ali é valor real ("nenhum ainda"), não dado ausente,
+    # e sumir com ela quebra a leitura do funil. Etapa em REAIS mantém os centavos.
+    _last = len(stage_defs) - 1
     stages = [{'key': k, 'label': lbl,
                'value': round(vals[k], 2) if k == 'invest' else round(vals[k]),
                **({'money': True} if k == 'invest' else {})}
-              for k, lbl in stage_defs if vals.get(k) or k == stage_defs[0][0]]
+              for i, (k, lbl) in enumerate(stage_defs) if vals.get(k) or i == 0 or i == _last]
     gaps = []
     for i in range(len(stages) - 1):
         cur, nxt = stages[i]['value'], stages[i + 1]['value']
