@@ -396,7 +396,12 @@ def assemble(rows, config, content, opts=None):
     if mt and _dr > 0 and B['dia_campanha'] > 0:
         _vend = leads_tot
         _falta = max(0, mt - _vend)
-        _rit_atual = _vend / B['dia_campanha']
+        # Ritmo atual = MÉDIA DOS ÚLTIMOS 3 DIAS (não o acumulado ÷ dias) — capta o momento
+        # da campanha, não o histórico inteiro. Com < 3 dias, usa os dias disponíveis.
+        _perkey = 'ing' if PAGO else 'leads'
+        _win = B['days'][-3:]
+        _n3 = len(_win) or 1
+        _rit_atual = sum(d['sums'].get(_perkey, 0) for d in _win) / _n3
         _rit_nec = _falta / _dr if _falta > 0 else 0.0
         _proj = _vend + _rit_atual * _dr
         _proj_pct = calc.pct(_proj, mt) or 0
