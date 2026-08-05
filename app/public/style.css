@@ -2428,3 +2428,16 @@ td.td-metric { vertical-align: top; line-height: 1.25; white-space: nowrap; }
 .tr-add:hover { background: color-mix(in srgb, var(--purple) 14%, var(--card, #fff)); }
 .tr-over { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-size: 13px; color: var(--gray); font-weight: 600; cursor: pointer; }
 .tr-over input { width: 16px; height: 16px; accent-color: var(--purple); }
+
+/* ── Toast de "copiado" (montadores de query) ── */
+.copy-toast {
+  position: fixed; bottom: 26px; left: 50%; z-index: 9999;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--fg, #18181B); color: var(--bg, #fff);
+  font-size: 13px; font-weight: 600; letter-spacing: -.01em;
+  padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow-md);
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.copy-toast.bad { background: var(--err-fg, #B91C1C); color: #fff; }
