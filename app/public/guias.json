@@ -524,7 +524,7 @@
         "<strong>Captação</strong> — CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade · CPM = investimento×1000 / impressões.",
         "<strong>Pago</strong> — Custo por ingresso = investimento / ingressos · ROAS geral = receita total / investimento · Exposição de caixa = receita − investimento (positivo = o ingresso já pagou o tráfego, sinal de escalar) · Ticket médio = receita / ingressos · Taxa de order bump = bumps / ingressos (benchmark 20%).",
         "Taxa de Resposta = respostas / leads · Taxa de Qualidade = MQLs / <strong>respostas</strong> (não / leads) · Conv. de Página = leads de tráfego / pageviews.",
-        "Hook = views totais / impressões · Hold = views 50% / views totais · CTR = clicks / impressões · Connect = pageviews / clicks.",
+        "Hook = views iniciais / impressões · Hold = views 100% / views iniciais (\"iniciais\" = views 2s ≈3s quando a base traz; senão o play total) · CTR = clicks / impressões · Connect = pageviews / clicks.",
         "Tendência = média dos últimos 3 dias vs o início (±3% = neutro; em custos, subir é pior).",
         "<strong>Maior furo do funil</strong> = maior queda <strong>relativa ao benchmark</strong> (CTR 1%, Connect 80%, Conv. Página 40% — no pago também order bump 20%), não a maior perda absoluta."
        ]
