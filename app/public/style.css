@@ -379,6 +379,27 @@ html, body {
   .meta-bars .mb-meta, .meta-bars .mb-hist { display: none; }
 }
 
+/* ── pace ── pace de vendas: ritmo atual × necessário + multiplicador + projeção. */
+.pace { display: flex; flex-direction: column; gap: 13px; padding: 16px 18px; }
+.pace .pace-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pace .pace-title { font-size: 13px; font-weight: 800; letter-spacing: -.01em; color: var(--fg); }
+.pace .pace-horizon { font-size: 11.5px; font-weight: 700; color: var(--gray2); font-variant-numeric: tabular-nums; }
+.pace .pace-bars { display: flex; flex-direction: column; gap: 11px; }
+.pace .pace-row { display: flex; flex-direction: column; gap: 5px; }
+.pace .pace-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pace .pace-lab { font-size: 12px; font-weight: 700; color: var(--gray); }
+.pace .pace-val { font-variant-numeric: tabular-nums; }
+.pace .pace-val-n { font-size: 14px; font-weight: 800; color: var(--fg); }
+.pace .pace-val-s { font-size: 11px; font-weight: 600; color: var(--gray2); }
+.pace .pace-track { height: 12px; border-radius: 999px; background: var(--divider, rgba(0,0,0,.07)); overflow: hidden; }
+.pace .pace-fill { height: 100%; border-radius: 999px; transition: width .4s var(--ease); }
+.pace .pace-fill--neutral { background: var(--purple, #7C3AED); }
+.pace .pace-fill--pos { background: var(--ok-fg, #16a34a); }
+.pace .pace-fill--neg { background: var(--err-fg, #dc2626); }
+.pace .pace-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 2px; border-top: 1px solid var(--divider, rgba(0,0,0,.06)); margin-top: 1px; }
+.pace .pace-badge { align-self: center; }
+.pace .pace-note { font-size: 11.5px; font-weight: 600; color: var(--gray2); font-variant-numeric: tabular-nums; }
+
 /* bullet-groups — 3 colunas (acima/próximo/abaixo) de bullet-bars (realizado +
  *  marca de meta) com toggle local de métrica (vendas ↔ conversão). */
 .card.bullet-groups { display: flex; flex-direction: column; gap: 18px; padding: 22px 26px 24px; }

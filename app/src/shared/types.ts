@@ -88,7 +88,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'pace', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -717,6 +717,23 @@ export interface MetaBarsWidget extends WidgetBase {
   }[];
 }
 
+/** pace — pace de vendas: compara o RITMO atual (realizado ÷ dias decorridos) com o
+ *  RITMO necessário (falta ÷ dias restantes) para bater a meta no prazo. Duas barras
+ *  (atual × necessário) + multiplicador ("N× o ritmo atual") + projeção no ritmo atual.
+ *  Reutilizável por qualquer análise com meta total e horizonte. */
+export interface PaceWidget extends WidgetBase {
+  type: 'pace';
+  title?: string;
+  /** horizonte: ex. "20 dias restantes · encerra 25/08". */
+  horizon?: string;
+  /** as duas barras (atual e necessário); pct = largura relativa ao maior ritmo. */
+  bars: { label: string; value: string; sub?: string; pct: number; tone?: 'pos' | 'neg' | 'neutral' }[];
+  /** multiplicador em pill (ex.: "2,1× o ritmo atual"). */
+  badge?: { text: string; tone?: 'pos' | 'neg' | 'neutral' };
+  /** projeção no ritmo atual (ex.: "No ritmo atual: ~148 de 300 · 49% da meta"). */
+  note?: string;
+}
+
 /** escopo-cards — resumo executivo por escopo: cards (ex.: Geral · Pago · Orgânico)
  *  com rótulo + número grande (leads) + sub (vendas · conv.) e mini-cards coloridos
  *  do breakdown (ex.: Novos/Antigos/Clientes) com contagem + %. */
@@ -843,7 +860,7 @@ export type Widget =
   | DefStepWidget | MdefBlockWidget | GrpListWidget
   | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
-  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | EscopoCardsWidget | ChannelTableWidget | BulletGroupsWidget | QuadrantScatterWidget;
+  | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | PaceWidget | EscopoCardsWidget | ChannelTableWidget | BulletGroupsWidget | QuadrantScatterWidget;
 
 /** Widgets that carry a data binding. */
 export const BINDABLE_TYPES = ['kpi', 'chart', 'table', 'heatmap', 'rank-card'] as const;

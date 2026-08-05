@@ -12,6 +12,7 @@ import csv
 import re
 import os
 import sys
+import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
 from common import temp as temp_util
 
@@ -150,6 +151,26 @@ def _date(r):
 def _day_label(iso):
     m = re.match(r'(\d{4})-(\d{2})-(\d{2})', iso or '')
     return f'{m.group(3)}/{m.group(2)}' if m else (iso or '')
+
+
+def _iso(s):
+    """Aceita só data ISO (YYYY-MM-DD). Qualquer outro formato (ex.: BR 04/08/2026)
+    vira '' — não corrompe comparação de data nem quebra a curva de meta."""
+    s = (s or '').strip()
+    return s[:10] if re.match(r'\d{4}-\d{2}-\d{2}', s) else ''
+
+
+def _days_between(a, b):
+    """Dias de a até b (ISO); 0 se inválido ou b <= a."""
+    a, b = _iso(a), _iso(b)
+    if not (a and b):
+        return 0
+    try:
+        ya, ma, da = map(int, a.split('-'))
+        yb, mb, db = map(int, b.split('-'))
+        return max(0, (datetime.date(yb, mb, db) - datetime.date(ya, ma, da)).days)
+    except Exception:
+        return 0
 
 
 def is_paid(r):
@@ -623,7 +644,7 @@ def build(rows, config=None):
     # INÍCIO da campanha: `data_inicio` explícito, senão a 1ª data da curva de meta (a meta
     # define a janela). Datas do dump ANTES disso são pré-lançamento (captação antecipada)
     # e ficam fora do relatório — senão o eixo/linha de meta começaria dias antes.
-    camp_start = config.get('data_inicio') or (goals_start(config['goals_csv'], fc) if config.get('goals_csv') else '')
+    camp_start = _iso(config.get('data_inicio')) or (goals_start(config['goals_csv'], fc) if config.get('goals_csv') else '')
     by_date = {}
     for r in rows:
         d = _date(r)
@@ -654,6 +675,10 @@ def build(rows, config=None):
     days = [d for d in days if d['date'] >= first_leads]
     n_dias = len(days)
     dia_campanha = n_dias
+    # Horizonte da campanha: dias entre o corte e a data de fim (config). Alimenta o
+    # pace de vendas (ritmo necessário = falta ÷ dias restantes). 0 se não informada.
+    camp_end = _iso(config.get('data_fim'))
+    dias_restantes = _days_between(corte, camp_end)
 
     rows_corte = [r for d in dates for r in by_date[d]]
     tot_sums = _sum(rows_corte)
@@ -905,6 +930,7 @@ def build(rows, config=None):
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
         'corte': corte, 'corte_label': _day_label(corte),
         'report_date': config.get('data_report') or '', 'dia_campanha': dia_campanha, 'n_dias': n_dias,
+        'camp_end': camp_end, 'camp_end_label': _day_label(camp_end), 'dias_restantes': dias_restantes,
         'days': days, 'series': series, 'tot': tot, 'd3': d3, 'tot_sums': tot_sums,
         'traf_metrics': traf_metrics, 'has_pageviews': has_pageviews, 'has_views': has_views,
         'rows_corte': rows_corte, 'trules': trules,   # modo-fundo: agrega por dimensão/filtro sob demanda

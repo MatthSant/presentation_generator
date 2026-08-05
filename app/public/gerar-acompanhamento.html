@@ -55,6 +55,7 @@
           <div class="field"><label class="label" for="f-nome">Nome da campanha</label><input id="f-nome" class="ctrl" placeholder="ex.: Enxoval Inteligente" /></div>
           <div class="field"><label class="label" for="f-fc">field_conversion <span class="hint">auto se único</span></label><input id="f-fc" class="ctrl" placeholder="auto se único" /></div>
           <div class="field"><label class="label" for="f-inicio">Data de início da campanha <span class="hint">opcional — corta o pré-lançamento</span></label><input id="f-inicio" class="ctrl" type="date" /></div>
+          <div class="field"><label class="label" for="f-fim">Data de fim da campanha <span class="hint">opcional — habilita o pace de vendas</span></label><input id="f-fim" class="ctrl" type="date" /></div>
           <div class="field"><label class="label" for="f-corte">Data de corte</label><input id="f-corte" class="ctrl" type="date" /></div>
           <div class="field"><label class="label" for="f-report">Data do report</label><input id="f-report" class="ctrl" type="date" /></div>
         </div>
@@ -267,6 +268,7 @@
         nome_campanha: $('f-nome').value.trim() || undefined,
         field_conversion: $('f-fc').value.trim() || undefined,
         data_inicio: $('f-inicio').value || undefined,
+        data_fim: $('f-fim').value || undefined,
         data_corte: $('f-corte').value || undefined,
         data_report: ddmm($('f-report').value) || undefined,
         tipo_funil: $('b-tipo').value || undefined,
