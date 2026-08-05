@@ -223,7 +223,7 @@ def campaign_name(r):
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
 _RAW = ['leads', 'leads_pago', 'invest', 'imp', 'clicks', 'pageviews', 'leads_traf',
-        'mqls', 'respostas', 'novos', 'antigos', 'cli', 'vendas', 'fat',
+        'mqls', 'respostas', 'mqls_pago', 'respostas_pago', 'novos', 'antigos', 'cli', 'vendas', 'fat',
         'views_2s', 'views_50', 'views_100', 'views_tot',
         # ── lançamento PAGO: ingresso (_gen) + order bump (_bump) ──────────────
         # Só `_gen` e `_bump` são captação. `_sale`/`_presale`/`_upsell` são da etapa
@@ -272,6 +272,12 @@ def _sum(rows):
         s['ptax'] += _ptax(r)
         if paid:
             s['leads_pago'] += fnum(r.get('leads'))
+            # Qualidade DO TRÁFEGO PAGO (respostas/MQLs só das linhas com investimento):
+            # o CPMQL projeta o custo por MQL a partir do CPL, que é do lead PAGO — então
+            # a taxa de qualificação tem que ser a do pago, não a da base (que mistura o
+            # orgânico, tipicamente mais qualificado, e subestima o custo).
+            s['respostas_pago'] += fnum(r.get('respostas'))
+            s['mqls_pago'] += fnum(r.get('leads_mqls'))
             # recortes PAGOS do lançamento pago: o ROAS/retorno "do tráfego pago" só
             # conta a receita de linhas com investimento (ver spec).
             s['ing_pago'] += fnum(r.get('vendas_gen'))
@@ -306,7 +312,8 @@ def derive(s, pago=False):
     `pago=True` (lançamento pago) acrescenta a camada de caixa e troca a base da taxa
     de resposta: no pago o denominador é o INGRESSO vendido (vendas_gen), não `leads`."""
     cpl = div(s['invest'], s['leads_pago'])
-    tq = pct(s['mqls'], s['respostas'])
+    tq = pct(s['mqls'], s['respostas'])                 # qualidade da base (KPI Taxa de Qualidade)
+    tq_pago = pct(s['mqls_pago'], s['respostas_pago'])  # qualidade do tráfego pago (base do CPMQL)
     receita = s['fat_gen'] + s['fat_bump']
     extra_pago = {
         'ingressos': round(s['ing']),
@@ -341,7 +348,7 @@ def derive(s, pago=False):
         'leads': round(s['leads']),
         'investimento': round(s['invest'], 2),
         'cpl': cpl,
-        'cpmql': (round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None),
+        'cpmql': (round(cpl * 100 / tq_pago, 4) if (cpl is not None and tq_pago) else None),
         # No PAGO a base da taxa de resposta é o INGRESSO vendido; no clássico, o lead.
         'taxa_resp': pct(s['respostas'], s['ing'] if pago else s['leads']),
         'taxa_qual': tq,
