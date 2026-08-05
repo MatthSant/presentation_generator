@@ -1019,9 +1019,9 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench
         base = stages[-1]['value'] if stages else 0
         ramos = []
         for k, lbl in fork:
+            # A bifurcação do PAGO (MQLs · Order Bumps) SEMPRE aparece: 0 é valor real
+            # (nenhum no recorte), não dado ausente. Todo lançamento pago tem order bump.
             v = round(vals.get(k) or 0)
-            if not v:
-                continue
             r = {'key': k, 'label': lbl, 'value': v,
                  'migracao': (round(v / base * 100, 1) if base else None)}
             if k == 'bumps_pago' and fork_bench:
