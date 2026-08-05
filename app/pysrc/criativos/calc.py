@@ -10,7 +10,7 @@ Dois MODOS analíticos (toggle), que mudam quais indicadores aparecem:
 
 Regras (skill): produto principal = vendas_sale se Σ>0 senão vendas; qualidade =
 MQLs/Respostas (não /Leads); CPMQL = CPL/qualRaw (qualRaw = MQLs/Respostas puro);
-Hook/Hold só com views_totais>0; criativos sem tráfego = no_data (cinza, fora dos KPIs).
+Hook/Hold = views_totais/50pc ÷ video_play_actions; criativos sem tráfego = no_data (fora dos KPIs).
 Percentuais em % real; taxa nunca é média — soma brutos e calcula sobre o total.
 """
 import csv
@@ -157,6 +157,7 @@ def metrics(rows, produto):
     v50 = soma(rows, 'views_50pc')
     v100 = soma(rows, 'views_100pc')
     vtot = soma(rows, 'views_totais')
+    vplays = soma(rows, 'video_play_actions')
     qual_raw = (mqls / resp) if resp > 0 else None
     cpl = div(invest, leads)
     return {
@@ -176,15 +177,12 @@ def metrics(rows, produto):
         'cpm': div(invest * 1000, imp),
         'ctr': pct(clk, imp),
         'tx_resposta': pct(resp, leads),
-        # vídeo / página (só com base de vídeo). A cadeia: o NUMERADOR do Hook é o
-        # DENOMINADOR do Hold — quem começou a assistir.
-        #   Hook = quem começou ÷ quem viu o anúncio
-        #   Hold = quem foi até o fim ÷ quem começou
-        # "quem começou" deveria ser views_2s, mas o export traz o campo ZERADO (usá-lo
-        # apagaria Hook e Hold de todos os criativos), então a base é views_totais.
-        # Idem "views95": não há coluna de 95% no export → views_100pc (assistiu até o fim).
-        'hook_rate': (pct(vtot, imp) if vtot > 0 else None),
-        'hold_rate': (pct(v100, vtot) if vtot > 0 else None),
+        # vídeo (fórmula canônica do banco — base = video_play_actions, os plays do vídeo):
+        #   Hook = views_totais ÷ video_play_actions
+        #   Hold = views_50pc  ÷ video_play_actions
+        # Sem video_play_actions (bases antigas) → None (bloco omitido).
+        'hook_rate': (pct(vtot, vplays) if vplays > 0 else None),
+        'hold_rate': (pct(v50, vplays) if vplays > 0 else None),
         'connect_rate': pct(pv, clk),
         'conv_pagina': pct(leads, pv),
         'videoviews': (round(vtot) if vtot > 0 else None),

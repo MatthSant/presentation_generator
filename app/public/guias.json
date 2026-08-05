@@ -324,7 +324,7 @@
        "items": [
         "Identificação: <code>field_ad_name</code> (criativo), <code>field_campaign_name</code>, <code>field_adset_name</code> (público), <code>temperatura_lead</code>, <code>data</code>.",
         "Mídia: <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>.",
-        "Vídeo (só criativos em vídeo): <code>views_2s</code>, <code>views_50pc</code>, <code>views_totais</code> — viram Hook/Hold Rate.",
+        "Vídeo (só criativos em vídeo): <code>video_play_actions</code>, <code>views_totais</code>, <code>views_50pc</code> — viram Hook/Hold Rate.",
         "Funil e vendas: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>."
        ]
       },
@@ -392,7 +392,7 @@
         "Produto principal = <code>vendas_sale</code> se houver; senão <code>vendas</code>.",
         "ROAS líquido = faturamento / investimento − 1 · Retorno = faturamento − investimento · CAC = investimento / vendas.",
         "Qualidade = MQLs / respostas (não / leads) · CPMQL = CPL / qualidade · CPL = investimento / leads · CPM = investimento×1000 / impressões.",
-        "Hook Rate = views 2s / impressões · Hold Rate = views 50% / views 2s (só com vídeo) · Connect Rate = pageviews / clicks.",
+        "Hook Rate = views_totais / video_play_actions · Hold Rate = views_50pc / video_play_actions (só com vídeo) · Connect Rate = pageviews / clicks.",
         "Taxas somam brutos e calculam sobre o total — nunca média de médias."
        ]
       }
@@ -524,7 +524,7 @@
         "<strong>Captação</strong> — CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade <strong>do tráfego pago</strong> (respostas/MQLs só das linhas com investimento — o CPL é do lead pago, então a qualificação também tem que ser a do pago; a Taxa de Qualidade do KPI é a da base inteira) · CPM = investimento×1000 / impressões.",
         "<strong>Pago</strong> — Custo por ingresso = investimento ÷ ingressos de tráfego pago (é o KPI; há também o geral, ÷ todos os ingressos) · ROAS geral = receita total ÷ investimento · Exposição de caixa = receita líquida (menos reembolso, imposto e taxa de pagamento) − investimento − imposto de mídia (positivo = o ingresso já pagou o tráfego, sinal de escalar) · Ticket médio = receita ÷ ingressos · Taxa de order bump = bumps ÷ ingressos (benchmark 20%).",
         "Taxa de Resposta = respostas / leads (no <strong>pago</strong>, ÷ ingressos vendidos) · Taxa de Qualidade = MQLs / <strong>respostas</strong> (não / leads) · Conv. de Página = leads de tráfego / pageviews.",
-        "Hook = views iniciais / impressões · Hold = views 100% / views iniciais (\"iniciais\" = views 2s ≈3s quando a base traz; senão o play total) · CTR = clicks / impressões · Connect = pageviews / clicks.",
+        "Hook = views_totais / video_play_actions · Hold = views_50pc / video_play_actions · CTR = clicks / impressões · Connect = pageviews / clicks.",
         "Tendência = média dos últimos 3 dias vs o início (±3% = neutro; em custos, subir é pior).",
         "<strong>Maior furo do funil</strong> = maior queda <strong>relativa ao benchmark</strong> (CTR 1%, Connect 80%, Conv. Página 40% — no pago também order bump 20%), não a maior perda absoluta."
        ]
