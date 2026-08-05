@@ -92,7 +92,7 @@
     // Rótulos amigáveis + ordem preferida dos grupos conhecidos.
     const LABELS = {
       nome_campanha: 'Nome da campanha', field_conversion: 'Conversão (field_conversion)',
-      data_corte: 'Data de corte', data_report: 'Data do report',
+      data_inicio: 'Data de início da campanha', data_corte: 'Data de corte', data_report: 'Data do report',
       title: 'Título do relatório', client_name: 'Cliente (exibição)',
       window: 'Janela de conversão', long_window: 'Janela longa',
       metas: 'Metas da campanha', funnel_bench: 'Benchmarks de tráfego',
@@ -137,6 +137,9 @@
         if (!d.hasBase) { $('nobase').hidden = false; return; }
         RETAINED = d.config;
         CAPS = d.caps || {};   // registry: { temperature, goals, dict, goalsUi } — fonte única (sem Sets locais)
+        // Acompanhamento: garante o campo "Data de início" no form mesmo em análises
+        // criadas antes dele (config não tem a chave) — senão não daria pra preencher.
+        if (d.config.type === 'acompanhamento-lancamento' && d.config.data_inicio === undefined) d.config.data_inicio = '';
         $('form').hidden = false;
         buildForm(d.config);
         setupCriteriosEditor(d.config);
