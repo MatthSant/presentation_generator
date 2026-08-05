@@ -324,7 +324,7 @@
        "items": [
         "Identificação: <code>field_ad_name</code> (criativo), <code>field_campaign_name</code>, <code>field_adset_name</code> (público), <code>temperatura_lead</code>, <code>data</code>.",
         "Mídia: <code>invest_total</code>, <code>impressoes</code>, <code>link_clicks</code>, <code>pageviews</code>.",
-        "Vídeo (só criativos em vídeo): <code>video_play_actions</code>, <code>views_totais</code>, <code>views_50pc</code> — viram Hook/Hold Rate.",
+        "Vídeo (só criativos em vídeo): <code>views_totais</code> (= 3-second video plays), <code>views_75pc</code>, <code>impressoes</code> — viram Taxa de gancho e Retenção.",
         "Funil e vendas: <code>leads</code>, <code>leads_mqls</code>, <code>respostas</code>, <code>vendas</code>/<code>vendas_sale</code>, <code>faturamento</code>/<code>faturamento_sale</code>."
        ]
       },
@@ -363,7 +363,7 @@
       },
       {
        "type": "p",
-       "text": "KPIs macro do modo ativo + bloco de qualidade de captação (Hook/Hold/CTR/Connect/Conv. Página comparados ao benchmark), gráfico de evolução diária e dispersão (métricas por eixo selecionáveis), e a grade de criativos por desempenho — cada card abre a ficha."
+       "text": "KPIs macro do modo ativo + bloco de qualidade de captação (Taxa de gancho/Retenção/CTR/Connect/Conv. Página comparados ao benchmark), gráfico de evolução diária e dispersão (métricas por eixo selecionáveis), e a grade de criativos por desempenho — cada card abre a ficha."
       },
       {
        "type": "sub",
@@ -392,7 +392,7 @@
         "Produto principal = <code>vendas_sale</code> se houver; senão <code>vendas</code>.",
         "ROAS líquido = faturamento / investimento − 1 · Retorno = faturamento − investimento · CAC = investimento / vendas.",
         "Qualidade = MQLs / respostas (não / leads) · CPMQL = CPL / qualidade · CPL = investimento / leads · CPM = investimento×1000 / impressões.",
-        "Hook Rate = views_totais / video_play_actions · Hold Rate = views_50pc / video_play_actions (só com vídeo) · Connect Rate = pageviews / clicks.",
+        "Taxa de gancho = views_totais (3s plays) / impressões · Retenção = views_75pc / views_totais (só com vídeo) · Connect Rate = pageviews / clicks. Nomes em português porque a conta difere do Hook/Hold Rate da Meta Ads.",
         "Taxas somam brutos e calculam sobre o total — nunca média de médias."
        ]
       }
@@ -407,7 +407,7 @@
         "Confirmar nomes de tabela/coluna da conta — o montador é uma base, não a query final.",
         "Garantir que <code>field_ad_name</code> bate nas duas fontes (mídia e conversões), senão a atribuição falha.",
         "Criativos sem tráfego ficam fora dos KPIs (cinza); use o filtro de investimento mínimo para limpar ruído.",
-        "Métricas de vídeo só existem para criativos em vídeo — não compare Hook/Hold entre vídeo e estático."
+        "Métricas de vídeo só existem para criativos em vídeo — não compare Taxa de gancho/Retenção entre vídeo e estático."
        ]
       }
      ]
@@ -503,7 +503,7 @@
       },
       {
        "type": "p",
-       "text": "Séries diárias (na captação: leads, investimento, CPL, qualidade, CPMQL; no pago: caixa, receita, ingressos, ROAS); origem, temperatura, tipo de lead e criativos do último dia; e os indicadores de mídia (CPM, Hook, Hold, CTR, Connect, Conv. Página) com o <strong>funil de tráfego por taxa vs benchmark</strong> — no pago o funil vai até o <strong>order bump</strong>."
+       "text": "Séries diárias (na captação: leads, investimento, CPL, qualidade, CPMQL; no pago: caixa, receita, ingressos, ROAS); origem, temperatura, tipo de lead e criativos do último dia; e os indicadores de mídia (CPM, Taxa de gancho, Retenção, CTR, Connect, Conv. Página) com o <strong>funil de tráfego por taxa vs benchmark</strong> — no pago o funil vai até o <strong>order bump</strong>."
       },
       {
        "type": "sub",
@@ -524,7 +524,7 @@
         "<strong>Captação</strong> — CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade <strong>do tráfego pago</strong> (respostas/MQLs só das linhas com investimento — o CPL é do lead pago, então a qualificação também tem que ser a do pago; a Taxa de Qualidade do KPI é a da base inteira) · CPM = investimento×1000 / impressões.",
         "<strong>Pago</strong> — Custo por ingresso = investimento ÷ ingressos de tráfego pago (é o KPI; há também o geral, ÷ todos os ingressos) · ROAS geral = receita total ÷ investimento · Exposição de caixa = receita líquida (menos reembolso, imposto e taxa de pagamento) − investimento − imposto de mídia (positivo = o ingresso já pagou o tráfego, sinal de escalar) · Ticket médio = receita ÷ ingressos · Taxa de order bump = bumps ÷ ingressos (benchmark 20%).",
         "Taxa de Resposta = respostas / leads (no <strong>pago</strong>, ÷ ingressos vendidos) · Taxa de Qualidade = MQLs / <strong>respostas</strong> (não / leads) · Conv. de Página = leads de tráfego / pageviews.",
-        "Hook = views_totais / video_play_actions · Hold = views_50pc / video_play_actions · CTR = clicks / impressões · Connect = pageviews / clicks.",
+        "Taxa de gancho = views_totais (3s plays) / impressões · Retenção = views_75pc / views_totais · CTR = clicks / impressões · Connect = pageviews / clicks. (Português porque a conta difere do Hook/Hold Rate da Meta Ads.)",
         "Tendência = média dos últimos 3 dias vs o início (±3% = neutro; em custos, subir é pior).",
         "<strong>Maior furo do funil</strong> = maior queda <strong>relativa ao benchmark</strong> (CTR 1%, Connect 80%, Conv. Página 40% — no pago também order bump 20%), não a maior perda absoluta."
        ]
@@ -542,7 +542,7 @@
         "Sem metas, o semáforo de desvio e os riscos não aparecem; os benchmarks de tráfego (CTR/Connect/Conv. Página, e order bump no pago) já entram como meta-padrão.",
         "No pago, <code>vendas_gen</code>/<code>faturamento_gen</code>/<code>faturamento_bump</code> precisam vir preenchidos — sem eles não há receita, ROAS nem exposição de caixa.",
         "Em dias de baixo volume (início/fim da campanha) as taxas diárias ficam ruidosas — leia a tendência, não o dia isolado.",
-        "Hook/Hold/Connect/Conv. Página dependem de <code>views</code>/<code>pageviews</code> preenchidos; sem eles, o funil sinaliza dado inválido."
+        "Taxa de gancho/Retenção/Connect/Conv. Página dependem de <code>views</code>/<code>pageviews</code> preenchidos; sem eles, o funil sinaliza dado inválido."
        ]
       }
      ]

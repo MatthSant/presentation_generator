@@ -31,8 +31,8 @@ MODE_KPIS = {'resultado': KPIS_RESULTADO, 'captacao': KPIS_CAPTACAO}
 MODE_LABEL = {'resultado': 'Resultado Final', 'captacao': 'Captação em Andamento'}
 MODE_SUB = {'resultado': 'performance de venda — ROAS, conversão, retorno (★ ROAS líquido)',
             'captacao': 'eficiência de captação — custo, qualidade, projeção (★ CPMQL projetado)'}
-MODE_RANK = {'resultado': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'Vendas', 'ROAS', 'CPL', 'Hook', 'Hold'],
-             'captacao': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'CPL', 'CPMQL', 'CPM', 'CTR', 'Hook', 'Hold']}
+MODE_RANK = {'resultado': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'Vendas', 'ROAS', 'CPL', 'Gancho', 'Retenção'],
+             'captacao': ['Criativo', 'Plataforma', 'Investimento', 'Leads', 'CPL', 'CPMQL', 'CPM', 'CTR', 'Gancho', 'Retenção']}
 # Colunas das tabelas por dimensão da ficha (temperatura/campanha/público) na ORDEM DO
 # FUNIL: dinheiro → impressão → vídeo → clique → página → lead → qualificação → venda →
 # retorno. Cada tabela = os KPIs do modo MAIS as métricas de qualidade do criativo (que
@@ -49,7 +49,7 @@ MODE_BR = {m: [k for k in BR_ORDER if k in BR_QUAL or k in ks] for m, ks in MODE
 # heatmap — onde `calc.METRICS[k]['label']` ("Conversão de Página") não cabe na coluna.
 SHORT = {'invest': 'Invest.', 'leads': 'Leads', 'vendas': 'Vendas', 'conv': 'Tx.Conv',
          'cac': 'CAC', 'roas': 'ROAS', 'qualidade': 'Qualid.', 'cpl': 'CPL', 'cpm': 'CPM',
-         'ctr': 'CTR', 'hook_rate': 'Hook', 'hold_rate': 'Hold', 'conv_pagina': 'Conv.Pág',
+         'ctr': 'CTR', 'hook_rate': 'Gancho', 'hold_rate': 'Retenção', 'conv_pagina': 'Conv.Pág',
          'connect_rate': 'ConnRate', 'tx_resposta': 'Tx.Resp', 'cpmql': 'CPMQL',
          'retorno': 'Retorno', 'videoviews': 'Videoviews'}
 MODES_OPT = [{'id': 'resultado', 'label': 'Resultado Final'}, {'id': 'captacao', 'label': 'Captação'}]
@@ -80,8 +80,12 @@ INFO = {
     'cpm': 'Quanto custou para o anúncio aparecer mil vezes. É o preço do leilão de mídia.',
     'ctr': 'De cada 100 pessoas que viram o anúncio, quantas clicaram.',
     'tx_resposta': 'Dos que deixaram o contato, quantos responderam a pesquisa.',
-    'hook_rate': 'De quem viu o anúncio, quantos pararam e começaram a assistir. Mede se a abertura prende.',
-    'hold_rate': 'De quem começou a assistir, quantos ficaram até o fim. Mede se o vídeo segura.',
+    'hook_rate': ('Taxa de gancho = views de 3 segundos (video plays) ÷ impressões. De quem viu o '
+                  'anúncio, quantos pararam para assistir os primeiros 3s — mede se a abertura prende. '
+                  'Calculada diferente do "Hook Rate" da Meta Ads; por isso o nome em português.'),
+    'hold_rate': ('Retenção = views a 75% ÷ views de 3 segundos (video plays). Dos que começaram a '
+                  'assistir (3s), quantos seguraram até 75% do vídeo — mede se o conteúdo segura. '
+                  'Diferente do "Hold Rate" da Meta Ads.'),
     'connect_rate': 'De quem clicou, quantos realmente chegaram a abrir a página. Perda aqui costuma ser '
                     'página lenta ou clique sem intenção.',
     'conv_pagina': 'De quem abriu a página, quantos deixaram o contato. Mede a página, não o anúncio.',

@@ -94,6 +94,19 @@ INFO_PAGO = {
     'receita_bump': 'Receita bruta dos order bumps (faturamento_bump), antes de impostos e taxas.',
 }
 
+# (i) SEMPRE presente (pago ou clássico) das métricas de vídeo. A Meta Ads tem "Hook/Hold
+# Rate" com o MESMO propósito mas conta DIFERENTE — por isso nomeamos em português e o (i)
+# deixa a fórmula explícita, para ninguém comparar 1:1 com o gerenciador.
+INFO = {
+    'hook': ('Taxa de gancho = views de 3 segundos (video plays) ÷ impressões. Mede quantos, '
+             'ao ver o anúncio, pararam para assistir os primeiros 3 segundos do vídeo — o '
+             'poder de fisgada da abertura. É calculada diferente do "Hook Rate" da Meta Ads; '
+             'por isso o nome em português.'),
+    'hold': ('Retenção = views a 75% ÷ views de 3 segundos (video plays). Dos que começaram a '
+             'assistir (passaram dos 3s), quantos seguraram até 75% do vídeo — o quanto o '
+             'conteúdo sustenta a atenção. Diferente do "Hold Rate" da Meta Ads.'),
+}
+
 
 def money_exact(v):
     if v is None:
@@ -181,8 +194,9 @@ def assemble(rows, config, content, opts=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': LAB[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
-        if PAGO and INFO_PAGO.get(metric):
-            card['info'] = INFO_PAGO[metric]
+        info = INFO.get(metric) or (INFO_PAGO.get(metric) if PAGO else None)
+        if info:
+            card['info'] = info
         # (i) e legenda embaixo são o MESMO papel — explicar a métrica — em dois lugares.
         # Com os dois, o card fica com duas linhas de texto competindo com o número, que
         # é o que ele existe para mostrar. O (i) ganha: cabe o texto inteiro e só aparece
