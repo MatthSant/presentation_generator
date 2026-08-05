@@ -521,7 +521,7 @@
       {
        "type": "ul",
        "items": [
-        "<strong>Captação</strong> — CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade · CPM = investimento×1000 / impressões.",
+        "<strong>Captação</strong> — CPL = investimento / leads pagos · CPMQL = CPL / taxa de qualidade <strong>do tráfego pago</strong> (respostas/MQLs só das linhas com investimento — o CPL é do lead pago, então a qualificação também tem que ser a do pago; a Taxa de Qualidade do KPI é a da base inteira) · CPM = investimento×1000 / impressões.",
         "<strong>Pago</strong> — Custo por ingresso = investimento ÷ ingressos de tráfego pago (é o KPI; há também o geral, ÷ todos os ingressos) · ROAS geral = receita total ÷ investimento · Exposição de caixa = receita líquida (menos reembolso, imposto e taxa de pagamento) − investimento − imposto de mídia (positivo = o ingresso já pagou o tráfego, sinal de escalar) · Ticket médio = receita ÷ ingressos · Taxa de order bump = bumps ÷ ingressos (benchmark 20%).",
         "Taxa de Resposta = respostas / leads (no <strong>pago</strong>, ÷ ingressos vendidos) · Taxa de Qualidade = MQLs / <strong>respostas</strong> (não / leads) · Conv. de Página = leads de tráfego / pageviews.",
         "Hook = views iniciais / impressões · Hold = views 100% / views iniciais (\"iniciais\" = views 2s ≈3s quando a base traz; senão o play total) · CTR = clicks / impressões · Connect = pageviews / clicks.",
