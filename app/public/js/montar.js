@@ -108,4 +108,27 @@
       });
     });
   });
+
+  // Atalho do montador → tela de criação da análise ("já extraí os dados, quero montar").
+  // Deriva o tipo do data-back (/guia/<tipo>) e injeta o botão logo após a descrição,
+  // então vale p/ TODOS os montadores sem tocar em cada página.
+  const GERAR = {
+    'conversao-perfil': '/gerar.html', 'historico-lancamentos': '/gerar-historico.html',
+    'criativos': '/gerar-criativos.html', 'acompanhamento-lancamento': '/gerar-acompanhamento.html',
+    'debriefing-lancamento': '/gerar-debriefing.html',
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    const back = document.querySelector('.home-bar[data-back]');
+    const m = back && (back.getAttribute('data-back') || '').match(/\/guia\/([a-z0-9-]+)/);
+    const href = m && GERAR[m[1]];
+    const page = document.querySelector('.mq-page');
+    if (!href || !page) return;
+    const el = document.createElement('div');
+    el.className = 'mq-tolink';
+    el.innerHTML = '<span class="tl-txt"><b>Já extraiu os dados?</b> Vá para a montagem da análise e envie o CSV.</span>' +
+      '<a class="tl-go" href="' + href + '">Montar a análise <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>';
+    const desc = page.querySelector('.desc');
+    if (desc) desc.insertAdjacentElement('afterend', el);
+    else page.insertBefore(el, page.firstChild);
+  });
 })();

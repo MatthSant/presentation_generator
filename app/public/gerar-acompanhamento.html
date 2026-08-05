@@ -25,7 +25,13 @@
     <main class="cr-main">
       <span class="eyebrow">Acompanhamento de Campanha</span>
       <h1>Novo acompanhamento tático</h1>
-      <p class="desc">Envie o CSV de métricas do lançamento em curso (view <code>VW_V2_inscricoes_res_METRICAS</code>) e gere o relatório diário: Visão Geral, Evolução, Canais e Tráfego, com metas, tendência dos últimos 3 dias e funil.</p>
+      <p class="desc">Envie o CSV de métricas do lançamento em curso e gere o relatório diário: Visão Geral, Evolução, Canais e Tráfego, com metas, tendência dos últimos 3 dias e funil. A view muda com o tipo de funil — <code>VW_V2_inscricoes_res</code> (captação) ou <code>VW_V2_inscricoes_pago_res</code> (pago).</p>
+
+      <div class="startpick">
+        <span class="sp-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg></span>
+        <span class="sp-txt"><b>Já tem os dados?</b> Preencha abaixo e gere a análise. Ainda precisa extrair? Monte a query pronta para o banco.</span>
+        <a class="sp-go" href="/montador/acompanhamento-lancamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/></svg>Montar a query</a>
+      </div>
 
       <section class="card" id="sec-cliente">
         <div class="card-hd">
@@ -41,7 +47,7 @@
           <!-- Tipo de funil vem CEDO: é ele que define a mecânica do lançamento
                (pago = o lead compra o ingresso) e, por tabela, os benchmarks lá
                embaixo, as metas e o relatório inteiro. -->
-          <div class="field col2">
+          <div class="field col2 field--hero">
             <label class="label" for="b-tipo">Tipo de funil <span class="req">*</span></label>
             <select id="b-tipo" class="ctrl"></select>
             <small class="help" id="b-tipo-help">Define a mecânica e já preenche os benchmarks — que seguem editáveis.</small>
