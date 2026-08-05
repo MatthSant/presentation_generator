@@ -554,7 +554,15 @@ def load_goals(path, field_conversion, corte):
         v = fnum(r.get('meta_leads'))
         if v:
             por_canal[s] = por_canal.get(s, 0.0) + v
+    # Curva REAL de meta por dia (soma dos utm por data). É ela que desenha a linha de
+    # meta acumulada quando há launch_goals — o crescimento NÃO é necessariamente constante.
+    curve = {}
+    for r in rows:
+        v = fnum(r.get('meta_leads'))
+        if v:
+            curve[dk(r)] = curve.get(dk(r), 0.0) + v
     return {
+        'curve': curve or None,
         'leads_total': sum(fnum(r.get('meta_leads')) for r in rows) or None,
         'leads_td': sum(fnum(r.get('meta_leads')) for r in td) or None,
         'invest_total': sum(fnum(r.get('meta_valor_invest')) for r in rows) or None,
@@ -709,6 +717,14 @@ def build(rows, config=None):
         metas.setdefault('_leads_td', g.get('leads_td'))
         metas.setdefault('_invest_total', g.get('invest_total'))
         meta_canal = g.get('por_canal')
+        # Linha de META ACUMULADA a partir da curva REAL da launch_goals (não linear): para
+        # cada dia do relatório, soma o meta_leads das datas da curva até aquele dia. A curva
+        # segue começando na 1ª data das goals; dias do relatório antes dela ficam sem meta.
+        gcurve = g.get('curve') or {}
+        if gcurve:
+            gdates = sorted(gcurve)
+            series['meta_cum'] = [round(sum(gcurve[gd] for gd in gdates if gd <= d['date']), 1) or None
+                                  for d in days]
         if pago:
             # A tabela de launch_goals é a MESMA do clássico — o que muda é o que cada
             # campo significa quando o lead compra: `meta_leads` é meta de INGRESSO e

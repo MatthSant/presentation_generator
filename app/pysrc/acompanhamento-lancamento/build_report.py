@@ -349,8 +349,10 @@ def assemble(rows, config, content, opts=None):
     # passa a ser "estou atrás desde quando?" em vez de uma reta que só significa
     # alguma coisa no último ponto. Só quando não há launch_goals (que traz a curva
     # real dia a dia) — aqui a única informação disponível é o total to-date.
-    _meta_acum = None
-    if mtd and _labels:
+    # Com launch_goals, a linha usa a CURVA REAL por dia (crescimento pode não ser
+    # constante). Sem goals, distribui a meta to-date linearmente pelos dias decorridos.
+    _meta_acum = B['series'].get('meta_cum')
+    if not _meta_acum and mtd and _labels:
         _passo = mtd / len(_labels)
         _meta_acum = [round(_passo * (i + 1), 1) for i in range(len(_labels))]
     cum_chart = {'id': 'pan-cum', 'type': 'chart',
