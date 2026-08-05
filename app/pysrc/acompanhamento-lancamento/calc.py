@@ -51,7 +51,7 @@ KPI_MACRO_PAGO = ['exposicao', 'custo_ing_pago', 'roas_geral', 'taxa_bump', 'tax
 KPI_INTER_PAGO = ['receita_ing', 'receita_bump', 'ticket_medio',
                   'bumps', 'taxa_bump', 'taxa_qual']
 FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pageviews', 'Pageviews'),
-                 ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls', 'MQLs')]
+                 ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls_pond_cl', 'MQLs')]
 # PAGO: a etapa de leads vira INGRESSOS e o funil BIFURCA no fim — saiu a pesquisa,
 # entrou o order bump. As duas pontas medem coisas distintas do mesmo ingresso:
 # MQLs = qualidade da base · Order Bumps = receita incremental já no caixa.
@@ -946,12 +946,17 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench
     bench = bench or [None] * (len(stage_defs) - 1)
     s = _sum(rows)
     leads_total = s['leads'] or 0
-    resp_pond = s['respostas'] * (s['leads_pago'] / leads_total) if leads_total else 0
-    # MQLs rateados pelo mix de tráfego: a pesquisa não distingue se o ingresso veio
-    # de anúncio ou de orgânico, então o funil PAGO leva só a fatia proporcional.
+    # No funil de tráfego PAGO, TODA etapa após Leads segue só a fatia de tráfego pago:
+    # respostas E MQLs são rateadas pela mesma proporção (leads_pago/leads_total). Sem
+    # ratear os MQLs, a transição Respostas→MQLs (a "qualidade" do funil) não batia com o
+    # KPI Taxa de Qualidade (MQLs/respostas) — e o CPMQL derivado dela também divergia.
+    resp_frac = (s['leads_pago'] / leads_total) if leads_total else 0
+    resp_pond = s['respostas'] * resp_frac
+    # No funil PAGO (fork) o rateio dos MQLs usa o mix de INGRESSOS: a pesquisa não
+    # distingue se o ingresso veio de anúncio ou de orgânico, então leva só a fatia paga.
     mix_pago = (s['ing_pago'] / s['ing']) if s['ing'] else 0
     vals = {'invest': s['invest'], 'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
-            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls'],
+            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls_pond_cl': s['mqls'] * resp_frac,
             'ing_pago': s['ing_pago'], 'mqls_pond': s['mqls'] * mix_pago,
             'bumps_pago': s['bumps'] * mix_pago}
     # Etapa zerada é PULADA (dado ausente), nunca desenhada como zero — ver spec.
