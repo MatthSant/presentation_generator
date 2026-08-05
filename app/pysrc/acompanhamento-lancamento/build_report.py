@@ -369,7 +369,7 @@ def assemble(rows, config, content, opts=None):
         cum_chart.update({
             'chartType': 'bar', 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
             'series': [{'name': 'Acumulado', 'data': _cum, 'type': 'bar'}]})
-    _plot = [v for v in _cum if isinstance(v, (int, float))] + (_meta_acum or [])
+    _plot = [v for v in _cum if isinstance(v, (int, float))] + [v for v in (_meta_acum or []) if isinstance(v, (int, float))]
     _pmax = max(_plot) if _plot else 0
     # A meta TOTAL só entra no gráfico quando cabe na mesma escala. No meio da campanha
     # ela costuma ser uma ordem de grandeza acima do realizado — a linha sobe ao topo e
@@ -386,6 +386,46 @@ def assemble(rows, config, content, opts=None):
     # donut compacto (3 linhas); à esquerda, o gráfico de leads estica para fechar na
     # mesma base. A altura de gráfico no read-path = cells×80 − chrome, então o span
     # do grid é o que dimensiona — mantê-lo enxuto é o que faz a seção caber na dobra.
+    # ── PACE DE VENDAS ── só quando há meta TOTAL e horizonte (data de fim informada).
+    # Compara o ritmo ATUAL (realizado ÷ dias decorridos) com o NECESSÁRIO (falta ÷ dias
+    # restantes) e projeta o fechamento no ritmo atual: "no ritmo de hoje eu chego onde, e
+    # quanto preciso acelerar". Forma um PAR com o donut Pago × Orgânico (pizza à esquerda,
+    # ritmo à direita) — daí ser calculado antes do layout do hero.
+    pace_w = None
+    _dr = B.get('dias_restantes') or 0
+    if mt and _dr > 0 and B['dia_campanha'] > 0:
+        _vend = leads_tot
+        _falta = max(0, mt - _vend)
+        _rit_atual = _vend / B['dia_campanha']
+        _rit_nec = _falta / _dr if _falta > 0 else 0.0
+        _proj = _vend + _rit_atual * _dr
+        _proj_pct = calc.pct(_proj, mt) or 0
+        _mult = (_rit_nec / _rit_atual) if _rit_atual > 0 else 0
+        def _rate(x):
+            return f"{x:.1f}".replace('.', ',') if x < 10 else intf(round(x))
+        _no_rumo = _falta == 0 or (_mult and _mult <= 1.05)
+        _bars = [{'label': 'Ritmo atual', 'value': f"{_rate(_rit_atual)}/dia", 'pct': _rit_atual, 'tone': 'neutral'}]
+        if _falta > 0:
+            _bars.append({'label': 'Ritmo necessário', 'value': f"{_rate(_rit_nec)}/dia",
+                          'sub': f"· faltam {intf(_falta)}", 'pct': _rit_nec,
+                          'tone': 'pos' if _no_rumo else 'neg'})
+        if _falta == 0:
+            _badge = {'text': 'meta já batida', 'tone': 'pos'}
+        elif _mult:
+            _badge = {'text': f"{_mult:.1f}".replace('.', ',') + '× o ritmo atual',
+                      'tone': 'pos' if _no_rumo else 'neg'}
+        else:
+            _badge = None
+        pace_w = {'id': 'pan-pace', 'type': 'pace', 'title': 'Ritmo para bater a meta',
+                  'horizon': f"{_dr} dias restantes" + (f" · encerra {B['camp_end_label']}" if B.get('camp_end_label') else ''),
+                  'bars': _bars,
+                  'note': f"No ritmo atual: ~{intf(round(_proj))} de {intf(mt)} · {_proj_pct:.0f}% da meta"}
+        if _badge:
+            pace_w['badge'] = _badge
+
+    # Hero de uma tela: à direita, bandas de atingimento (% grande, 1 linha cada); à esquerda,
+    # o gráfico de leads. O donut Pago × Orgânico fecha a seção — sozinho na coluna direita,
+    # ou, quando há PACE, descendo para um PAR full-width abaixo das bandas (pizza esq + pace dir).
     DONUT_H = 3
     hero_lay = [{'id': 'pan-eb-vg', 'type': 'eyebrow', 'x': 0, 'y': 0, 'w': 12, 'h': 1}]
     ry = 1
@@ -411,9 +451,18 @@ def assemble(rows, config, content, opts=None):
                 'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': NOUN,
                 'legendValues': True,
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
-    bottom = ry + DONUT_H                          # base comum da coluna direita
-    cum_h = bottom - 1                             # gráfico de leads vai do topo até a base
+    if pace_w:
+        pan.append(pace_w)
+        # PAR full-width abaixo das bandas: pizza (esq) + pace (dir). O gráfico de leads
+        # acompanha só a altura das bandas, deixando o par respirar embaixo.
+        hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 0, 'y': ry, 'w': 6, 'h': DONUT_H})
+        hero_lay.append({'id': 'pan-pace', 'type': 'pace', 'x': 6, 'y': ry, 'w': 6, 'h': DONUT_H})
+        bottom = ry + DONUT_H
+        cum_h = max(1, ry - 1)
+    else:
+        hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
+        bottom = ry + DONUT_H                       # base comum da coluna direita
+        cum_h = bottom - 1                          # gráfico de leads vai do topo até a base
     hero_lay.insert(1, {'id': 'pan-cum', 'type': 'chart', 'x': 0, 'y': 1, 'w': 5, 'h': cum_h})
     # prima o grid com o layout manual do hero; os KPIs fluem a partir do fim do hero.
     pg.items = hero_lay

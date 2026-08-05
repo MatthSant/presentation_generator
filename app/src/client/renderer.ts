@@ -10,7 +10,7 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, HeatmapTab, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, PaceWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, captureChart, capturePicker, chartExportMode, type ChartDef } from './charts.js';
@@ -1313,6 +1313,44 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
   return wrap;
 }
 
+/* ── pace ── pace de vendas: duas barras (ritmo atual × necessário, largura relativa ao
+ *  maior ritmo) + multiplicador em pill + projeção no ritmo atual. */
+function renderPace(w: PaceWidget): HTMLElement {
+  const wrap = el('div', 'card pace');
+  if (w.title || w.horizon) {
+    const head = el('div', 'pace-head');
+    if (w.title) head.appendChild(el('div', 'pace-title', w.title));
+    if (w.horizon) head.appendChild(el('div', 'pace-horizon', w.horizon));
+    wrap.appendChild(head);
+  }
+  const max = Math.max(...w.bars.map((b) => b.pct || 0), 1);
+  const bars = el('div', 'pace-bars');
+  for (const b of w.bars) {
+    const row = el('div', 'pace-row');
+    const top = el('div', 'pace-row-top');
+    top.appendChild(el('span', 'pace-lab', b.label));
+    const v = el('span', 'pace-val');
+    v.appendChild(el('span', 'pace-val-n', b.value));
+    if (b.sub) v.appendChild(el('span', 'pace-val-s', ` ${b.sub}`));
+    top.appendChild(v);
+    row.appendChild(top);
+    const track = el('div', 'pace-track');
+    const fill = el('div', `pace-fill pace-fill--${b.tone || 'neutral'}`);
+    fill.style.width = `${Math.max(3, Math.min(100, ((b.pct || 0) / max) * 100))}%`;
+    track.appendChild(fill);
+    row.appendChild(track);
+    bars.appendChild(row);
+  }
+  wrap.appendChild(bars);
+  if (w.badge || w.note) {
+    const foot = el('div', 'pace-foot');
+    if (w.badge) foot.appendChild(el('span', `pill ${PILL_TONE[w.badge.tone || 'neutral']} pace-badge`, w.badge.text));
+    if (w.note) foot.appendChild(el('span', 'pace-note', w.note));
+    wrap.appendChild(foot);
+  }
+  return wrap;
+}
+
 /* ── bullet-groups ── 3 colunas (acima/próximo/abaixo) de bullet-bars: barra =
  *  realizado, marca = meta. Toggle local troca a métrica e re-agrupa no client
  *  (>5% acima · ±5% próximo · <−5% abaixo). */
@@ -2258,6 +2296,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'funnel':      return renderFunnel(widget);
       case 'bar-list':    return renderBarList(widget);
       case 'meta-bars':   return renderMetaBars(widget);
+      case 'pace':        return renderPace(widget);
       case 'bullet-groups': return renderBulletGroups(widget);
       case 'quadrant-scatter': return renderQuadrantScatter(widget);
       case 'escopo-cards': return renderEscopoCards(widget);
