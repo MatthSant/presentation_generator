@@ -596,12 +596,16 @@ def assemble(rows, config, content, opts=None):
         # a barra do dia mostra o fôlego diário e a linha acumulada mostra a posição —
         # um dia fraco depois de semanas boas não é a mesma coisa que um dia fraco no
         # vermelho, e isso só aparece com as duas juntas.
+        # Equilíbrio de caixa = R$ 0 (break-even: receita paga o tráfego) — referência FIXA,
+        # igual ao 1,00× do ROAS. Antes a linha saía na meta e sumia sem meta; agora o
+        # equilíbrio está sempre desenhado, e a meta (quando há) vira uma 2ª linha com valor.
+        _expo_goals = [{'value': 0, 'label': 'Equilíbrio', 'color': '#B3261E'}]
+        if _mexpo not in (None, 0):
+            _expo_goals.append({'value': _mexpo, 'label': f"Meta {vfmt('exposicao', _mexpo)}", 'color': '#D97706'})
         chart('evo-expo', 'Exposição de caixa', ['expo', 'expo_cum'],
               'mixed', False, 'money', w=4,
               names=['Do dia', 'Acumulada'], types=['bar', 'line'],
-              colors=['#97C459', '#3B6D11'],
-              goals=[{'value': _mexpo, 'label': 'Equilíbrio', 'color': '#B3261E'}]
-              if _mexpo is not None else None)
+              colors=['#97C459', '#3B6D11'], goals=_expo_goals)
         # LINHA 2 — INGRESSOS E EFICIÊNCIA. Os dois pares de custo e de retorno dividem
         # eixo porque são a MESMA unidade em bases diferentes (R$ e múltiplo): é a
         # distância entre as duas linhas que mostra o quanto o orgânico está segurando.
@@ -611,7 +615,7 @@ def assemble(rows, config, content, opts=None):
         chart('evo-custo', 'Custo por ingresso', ['custo_ing_pago', 'custo_ing_geral'],
               'line', False, 'money', w=4,
               names=['CAC (pago)', 'Geral'], colors=['#185FA5', '#9AB6D6'],
-              goals=[{'value': _mcac, 'label': 'Meta CAC', 'color': '#B3261E'}] if _mcac else None)
+              goals=[{'value': _mcac, 'label': f"Meta CAC {vfmt('custo_ing_pago', _mcac)}", 'color': '#B3261E'}] if _mcac else None)
         chart('evo-retorno', 'Retorno por dia', ['roas_pago', 'roas_geral'],
               'line', False, 'x', w=4,
               names=['ROAS (pago)', 'ROI (geral)'], colors=['#3B6D11', '#97C459'],
