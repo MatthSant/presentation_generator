@@ -224,7 +224,7 @@ def campaign_name(r):
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
 _RAW = ['leads', 'leads_pago', 'invest', 'imp', 'clicks', 'pageviews', 'leads_traf',
         'mqls', 'respostas', 'mqls_pago', 'respostas_pago', 'novos', 'antigos', 'cli', 'vendas', 'fat',
-        'views_2s', 'views_50', 'views_100', 'views_tot',
+        'views_2s', 'views_50', 'views_100', 'views_tot', 'vplays',
         # ── lançamento PAGO: ingresso (_gen) + order bump (_bump) ──────────────
         # Só `_gen` e `_bump` são captação. `_sale`/`_presale`/`_upsell` são da etapa
         # de VENDAS e ficam fora deste relatório de propósito.
@@ -235,7 +235,7 @@ _SRC = {'leads': 'leads', 'invest': 'invest_total', 'imp': 'impressoes', 'clicks
         'respostas': 'respostas', 'novos': 'leads_novo', 'antigos': 'leads_antigos',
         'cli': 'cliente_inscrito', 'vendas': 'vendas', 'fat': 'faturamento',
         'views_2s': 'views_2s', 'views_50': 'views_50pc', 'views_100': 'views_100pc',
-        'views_tot': 'views_totais',
+        'views_tot': 'views_totais', 'vplays': 'video_play_actions',
         'ing': 'vendas_gen', 'fat_gen': 'faturamento_gen', 'bumps': 'vendas_bump',
         'fat_bump': 'faturamento_bump', 'refund_gen': 'refunded_value_gen',
         'refund_bump': 'refunded_value_bump', 'stax_gen': 'sales_tax_gen',
@@ -354,11 +354,11 @@ def derive(s, pago=False):
         'taxa_qual': tq,
         'cpm': div(s['invest'] * 1000, s['imp']),
         'ctr': pct(s['clicks'], s['imp']),
-        # HOOK = views iniciais / impressões (prende no início) · HOLD = views 100% / iniciais
-        # (retenção do início ao fim). "Iniciais" = views 2s (≈3s) quando a base preenche;
-        # senão o play total (views_totais) como fallback. Sem nenhum → None (blocos omitidos).
-        'hook': pct(s['views_2s'] or s['views_tot'], s['imp']) if (s['views_2s'] or s['views_tot']) else None,
-        'hold': pct(s['views_100'], s['views_2s'] or s['views_tot']),
+        # HOOK/HOLD — fórmula canônica do banco, base = video_play_actions (os plays):
+        #   Hook = views_totais ÷ video_play_actions · Hold = views_50pc ÷ video_play_actions.
+        # Sem video_play_actions (bases antigas) → None (blocos de vídeo omitidos).
+        'hook': pct(s['views_tot'], s['vplays']) if s['vplays'] else None,
+        'hold': pct(s['views_50'], s['vplays']) if s['vplays'] else None,
         # sem pageviews → connect fica None e a conv. de página vira leads/clicks
         # (≡ connect × conv_página); com pageviews, conv_página = leads/pageviews
         'connect': pct(s['pageviews'], s['clicks']) if s['pageviews'] else None,
@@ -635,7 +635,7 @@ def build(rows, config=None):
     tot = derive(tot_sums, pago)
     # disponibilidade de dados de mídia/página na base. Sem vídeo (views) → omite
     # hook/hold; sem pageviews → omite connect e a conv. de página vira leads/clicks.
-    has_views = (tot_sums['views_2s'] or tot_sums['views_tot']) > 0
+    has_views = tot_sums['vplays'] > 0
     has_pageviews = tot_sums['pageviews'] > 0
     traf_metrics = [m for m in KPI_TRAF
                     if not (m in ('hook', 'hold') and not has_views)
