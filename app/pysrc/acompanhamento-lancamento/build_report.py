@@ -407,8 +407,7 @@ def assemble(rows, config, content, opts=None):
         _bars = [{'label': 'Ritmo atual', 'value': f"{_rate(_rit_atual)}/dia", 'pct': _rit_atual, 'tone': 'neutral'}]
         if _falta > 0:
             _bars.append({'label': 'Ritmo necessário', 'value': f"{_rate(_rit_nec)}/dia",
-                          'sub': f"· faltam {intf(_falta)}", 'pct': _rit_nec,
-                          'tone': 'pos' if _no_rumo else 'neg'})
+                          'pct': _rit_nec, 'tone': 'pos' if _no_rumo else 'neg'})
         if _falta == 0:
             _badge = {'text': 'meta já batida', 'tone': 'pos'}
         elif _mult:
@@ -416,8 +415,7 @@ def assemble(rows, config, content, opts=None):
                       'tone': 'pos' if _no_rumo else 'neg'}
         else:
             _badge = None
-        pace_w = {'id': 'pan-pace', 'type': 'pace', 'title': 'Ritmo para bater a meta',
-                  'horizon': f"{_dr} dias restantes" + (f" · encerra {B['camp_end_label']}" if B.get('camp_end_label') else ''),
+        pace_w = {'id': 'pan-pace', 'type': 'pace', 'title': 'Ritmo para a meta',
                   'bars': _bars,
                   'note': f"No ritmo atual: ~{intf(round(_proj))} de {intf(mt)} · {_proj_pct:.0f}% da meta"}
         if _badge:

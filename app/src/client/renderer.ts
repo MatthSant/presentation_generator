@@ -1316,13 +1316,10 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
 /* ── pace ── pace de vendas: duas barras (ritmo atual × necessário, largura relativa ao
  *  maior ritmo) + multiplicador em pill + projeção no ritmo atual. */
 function renderPace(w: PaceWidget): HTMLElement {
-  const wrap = el('div', 'card pace');
-  if (w.title || w.horizon) {
-    const head = el('div', 'pace-head');
-    if (w.title) head.appendChild(el('div', 'pace-title', w.title));
-    if (w.horizon) head.appendChild(el('div', 'pace-horizon', w.horizon));
-    wrap.appendChild(head);
-  }
+  const wrap = el('div', 'pace');
+  const head = el('div', 'chart-head');            // mesmo cabeçalho da rosca: dot + caps + divisória
+  head.appendChild(el('div', 'chart-title', w.title || 'Ritmo para a meta'));
+  wrap.appendChild(head);
   const max = Math.max(...w.bars.map((b) => b.pct || 0), 1);
   const bars = el('div', 'pace-bars');
   for (const b of w.bars) {
