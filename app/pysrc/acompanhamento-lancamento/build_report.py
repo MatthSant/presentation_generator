@@ -882,11 +882,16 @@ def assemble(rows, config, content, opts=None):
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais
     # (sem Pageviews quando a base não tem o dado)
-    eb(tra, tg, 'tra-eb-fun', 'FUNIL DE TRÁFEGO PAGO', ' → '.join(s['label'] for s in B['funnel_total']))
+    # Toggle de TEMPERATURA na seção (Geral + cada temperatura presente) — troca os DOIS
+    # funis juntos, via evento disparado pelo eyebrow. Só aparece com >1 opção.
+    _topts = B.get('funnel_temps_opts') or ['Geral']
+    _ftoggle = ({'id': 'tra-fun-temp', 'options': [{'id': t, 'label': t} for t in _topts]}
+                if len(_topts) > 1 else None)
+    eb(tra, tg, 'tra-eb-fun', 'FUNIL DE TRÁFEGO PAGO',
+       ' → '.join(s['label'] for s in B['funnel_total']), toggle=_ftoggle)
 
-    def funnel_widget(wid, title, sub, stages, w=6):
-        # Widget de funil visual: barras degradê por etapa + pills perda/migram por
-        # transição + MAIOR FURO (relativo ao benchmark) + dado inválido.
+    def _funnel_payload(stages):
+        # Um funil (steps + transitions + branches) a partir das etapas do calc.
         steps = [dict({'label': s['label'], 'value': s['value']},
                       **({'vlabel': money_exact(s['value'])} if s.get('money') else {}))
                  for s in stages]
@@ -919,20 +924,31 @@ def assemble(rows, config, content, opts=None):
                 trans.append(t)
             else:
                 trans.append({})
-        wg = {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, 'steps': steps, 'transitions': trans}
+        payload = {'steps': steps, 'transitions': trans}
         # Bifurcação: no pago o ingresso segue por DOIS caminhos paralelos a partir da
         # última etapa (vira MQL na pesquisa · compra order bump). Verde no bump porque
         # é receita incremental; roxo no MQL porque é qualificação, não dinheiro.
         fork = (stages[-1].get('fork') if stages else None) or []
         if fork:
-            wg['branches'] = [{'label': f['label'], 'value': f['value'], 'migrate': f['migracao'],
-                               **({'bench': f['bench'], 'baseLabel': 'bench'} if f.get('bench') else {}),
-                               'color': '#0F7A54' if f['key'] == 'bumps_pago' else '#4A3F9E'}
-                              for f in fork]
+            payload['branches'] = [{'label': f['label'], 'value': f['value'], 'migrate': f['migracao'],
+                                    **({'bench': f['bench'], 'baseLabel': 'bench'} if f.get('bench') else {}),
+                                    'color': '#0F7A54' if f['key'] == 'bumps_pago' else '#4A3F9E'}
+                                   for f in fork]
+        return payload
+
+    def funnel_widget(wid, title, sub, variants, w=6):
+        # variants = {temperatura: etapas}. 'Geral' é o default (base do widget); as demais
+        # vão em `temps` e o toggle da seção (tra-fun-temp) troca entre elas nos dois funis.
+        base = _funnel_payload(variants['Geral'])
+        wg = {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, **base}
+        temps = {t: _funnel_payload(sv) for t, sv in variants.items() if t != 'Geral'}
+        if temps:
+            wg['temps'] = temps
+            wg['tempChannel'] = 'tra-fun-temp'
         tra.append(wg)
-        tg.add(wid, 'funnel', w, 9 if fork else 7)
-    funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total'])
-    funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d'])
+        tg.add(wid, 'funnel', w, 9 if base.get('branches') else 7)
+    funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total_temps'])
+    funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d_temps'])
     sections['s04'] = {'id': 's04', 'header': {'badge': 'Tráfego', 'title': 'Indicadores de Tráfego Pago',
                        'sub': f"{', '.join(LAB[m] for m in B['traf_metrics'])} e funil de conversão."}, 'widgets': tra}
     layouts['s04'] = tg.items

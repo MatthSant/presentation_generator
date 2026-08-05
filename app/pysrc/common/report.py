@@ -84,10 +84,12 @@ def ks(arr, pg, wid, label, value, sub, icon, color, w=3, h=2, real=None, meta=N
     arr.append(card); pg.add(wid, 'kpi-card', w, h)
 
 
-def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None, w=12, compact=False):
+def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None, w=12, compact=False, toggle=None):
     """`w`/`compact` servem ao rótulo de SUBGRUPO: um eyebrow estreito sobre um par de
     cards diz a que recorte eles pertencem sem aninhar card dentro de card. Defaults
-    preservam o eyebrow de seção (largura cheia, margem normal)."""
+    preservam o eyebrow de seção (largura cheia, margem normal). `toggle` = controle
+    segmentado à direita do título (ex.: {id, options:[{id,label}]}) que dispara um
+    evento p/ os widgets abaixo (ex.: funil por temperatura)."""
     b = {'id': wid, 'type': 'eyebrow', 'title': title, 'caption': caption}
     if n:
         b['n'] = n
@@ -97,6 +99,8 @@ def eb(arr, pg, wid, title, caption='', n=None, color=None, info=None, w=12, com
         b['info'] = info
     if compact:
         b['compact'] = True
+    if toggle:
+        b['toggle'] = toggle
     arr.append(b); pg.add(wid, 'eyebrow', w, 1)
 
 
