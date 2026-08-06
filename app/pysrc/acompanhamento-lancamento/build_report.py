@@ -947,8 +947,15 @@ def assemble(rows, config, content, opts=None):
     _topts = B.get('funnel_temps_opts') or ['Geral']
     _ftoggle = ({'id': 'tra-fun-temp', 'options': [{'id': t, 'label': t} for t in _topts]}
                 if len(_topts) > 1 else None)
+    _ftoggle_info = ('“Geral” são todas as linhas pagas. Nas etapas de contagem (impressões, '
+                     'cliques, leads/ingressos) ele equivale à soma das temperaturas. Já a etapa '
+                     'de MQLs é ponderada pela fatia de tráfego pago — e essa ponderação é '
+                     'recalculada em cada recorte — então nela, e quando há campanhas sem '
+                     'temperatura definida (que entram só no Geral), o total pode não fechar '
+                     'exatamente com a soma das temperaturas.')
     eb(tra, tg, 'tra-eb-fun', 'FUNIL DE TRÁFEGO PAGO',
-       ' → '.join(s['label'] for s in B['funnel_total']), toggle=_ftoggle)
+       ' → '.join(s['label'] for s in B['funnel_total']),
+       info=(_ftoggle_info if _ftoggle else None), toggle=_ftoggle)
 
     def _funnel_payload(stages):
         # Um funil (steps + transitions + branches) a partir das etapas do calc.

@@ -226,7 +226,9 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
   const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.compact ? ' grp-eyebrow--compact' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
-  if (w.info) wrap.appendChild(infoBadge(w.info));
+  // Sem toggle o (i) fica junto do título; com toggle ele desce para o lado do toggle
+  // (o aviso costuma ser SOBRE o toggle, ex.: Geral vs soma das temperaturas).
+  if (w.info && !w.toggle?.options?.length) wrap.appendChild(infoBadge(w.info));
   if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
   wrap.appendChild(el('span', 'ge-rule'));
   // Toggle segmentado à direita da régua (ex.: Geral/Quente/Frio do funil). Dispara um
@@ -245,6 +247,7 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
       seg.appendChild(b);
     }
     wrap.appendChild(seg);
+    if (w.info) wrap.appendChild(infoBadge(w.info));   // (i) junto do toggle
   }
   return wrap;
 }
