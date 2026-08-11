@@ -56,7 +56,8 @@ def build_frame(ctx, a):
     geral = str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1')
     filtro = {k: a[k2] for k, k2 in (('escopo', 'recorte_escopo'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
-                                     ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
+                                     ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha'),
+                                     ('dia', 'recorte_dia')) if a.get(k2)}
     src = ctx.get('_rows') or []
     # so_midia: nas séries temporais, poda a cauda pós-lançamento (dias sem mídia paga)
     # que distorce a leitura de custo/saturação (ex.: trend de leads caindo p/ "-100%").
