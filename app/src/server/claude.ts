@@ -799,7 +799,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
 
   const client = new Anthropic({ apiKey });
   const registered: string[] = [];
-  const regInfo: Record<string, { num: string[]; dim: string[] }> = {};   // key → colunas (p/ o modelo escolher o dataset certo no reparo)
+  const regInfo: Record<string, { num: string[]; dim: string[]; all: string[] }> = {};   // key → colunas (num p/ chart y, dim p/ x/series, all p/ cols de tabela) — o modelo escolhe o dataset certo no reparo
   const queryCache = new Map<string, string>();   // (funcao+args) → tool_result: dedup de consultas repetidas (modelos fracos repetem a mesma)
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: JSON.stringify({ pergunta_original: objetivo, instrucao: prompt, card, meta: deps.meta, modal_anterior: prev,
     exemplos_aprovados: fewShot?.length ? fewShot : undefined }) }];
@@ -858,7 +858,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
         // o mapa p/ ele escolher o key certo (o que contém TODOS os y + o x).
         results.push({ type: 'tool_result', tool_use_id: t.id, content: JSON.stringify({
           status: 'modal_invalida', erros: errs, datasets: regInfo,
-          instrucao: 'Corrija SEM re-consultar. Para cada gráfico/tabela escolha o dataset_key em "datasets" cujas colunas contêm TUDO que você quer (x + todos os y). chart.y ∈ colunas numéricas do key (nomes EXATOS, nunca *_detail); x/series ∈ dimensões. Textos: highlight precisa de "text"; find-block/find-note precisam de "title"/"text". Depois emit_modal de novo.',
+          instrucao: 'Corrija SEM re-consultar. Para cada gráfico/tabela escolha o dataset_key em "datasets" cujas colunas contêm TUDO que você quer. Cada key traz: "num" (numéricas → chart.y), "dim" (dimensões → x/series) e "all" (TODAS as colunas). chart.y ∈ "num" (nunca *_detail); x/series ∈ "dim". TABELA: cada coluna em table.cols TEM que estar em "all" daquele key, copiada VERBATIM — nunca liste uma coluna que não está em "all" nem a renomeie (ex.: se "all" tem "Taxa de Qualidade", não escreva "Taxa de Qualificação"; se não existe "MQLs"/"Impressões" na "all", não a coloque). Textos: highlight precisa de "text"; find-block/find-note precisam de "title"/"text". Depois emit_modal de novo.',
         }) });
         continue;
       }
@@ -879,7 +879,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
         const dims = (r.table.dims ?? []).filter((d) => cols.includes(d));
         const key = deps.registerTable(r.table, r.summary ?? '');
         registered.push(key);
-        regInfo[key] = { num: numeric, dim: dims };
+        regInfo[key] = { num: numeric, dim: dims, all: cols };
         content = JSON.stringify({
           status: 'ok', dataset_key: key, n_linhas: rows.length,
           colunas_numericas: numeric, colunas_dimensao: dims, colunas: cols,
@@ -887,7 +887,7 @@ export async function generateModalDeep(prompt: string, card: CardCtx, catalog: 
           // grounded na série completa — com 3 linhas o modelo extrapola tendência que
           // não existe ("despencou/saturou"). Tabela grande: amostra de 12.
           amostra: rows.slice(0, 12), summary: r.summary,
-          dica: 'No bind do gráfico use os NOMES EXATOS: y ∈ colunas_numericas, x/series ∈ colunas_dimensao. Um gráfico com 2+ métricas precisa de um dataset_key que tenha TODAS elas. A prosa deve refletir a SÉRIE INTEIRA (amostra) — não afirme tendência que os valores não mostram.',
+          dica: 'Use os NOMES EXATOS, copiados VERBATIM desta resposta. GRÁFICO: y ∈ colunas_numericas, x/series ∈ colunas_dimensao (nunca uma *_detail formatada); um gráfico com 2+ métricas precisa de um dataset_key que tenha TODAS elas. TABELA: cada coluna de table.cols TEM que estar em "colunas" acima — não invente nem renomeie (sinônimo como "Qualificação" no lugar de "Qualidade", ou "MQLs"/"Impressões" que não estão em "colunas", vira célula vazia e reprova). A prosa deve refletir a SÉRIE INTEIRA (amostra) — não afirme tendência que os valores não mostram.',
         });
       } else {
         content = JSON.stringify({ status: r.status, motivo: r.motivo });
