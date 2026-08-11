@@ -708,7 +708,9 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
         a.textContent = formatValue(value); a.appendChild(el('span', 'td-link-ic', ' ↗'));
         td.appendChild(a);
       } else {
-        td.textContent = formatValue(value);
+        // célula sem dado (null OU string vazia do bind) → marcador de ausente "—",
+        // nunca em branco. formatValue já cobre null; aqui pegamos o '' também.
+        td.textContent = value === '' ? '—' : formatValue(value);
       }
       if (obj) {
         if (obj.cls) td.classList.add(obj.cls);

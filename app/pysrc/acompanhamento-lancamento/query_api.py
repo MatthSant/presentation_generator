@@ -34,7 +34,8 @@ def build_frame(ctx, a):
     mets = METRICS_PAGO if pago else METRICS
     filtro = {k: a[k2] for k, k2 in (('origem', 'recorte_origem'), ('temperatura', 'recorte_temperatura'),
                                      ('canal', 'recorte_canal'), ('criativo', 'recorte_criativo'),
-                                     ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha')) if a.get(k2)}
+                                     ('publico', 'recorte_publico'), ('campanha', 'recorte_campanha'),
+                                     ('dia', 'recorte_dia')) if a.get(k2)}
     geral = str(a.get('incluir_geral', '')).lower() in ('sim', 'true', '1')
     days, src = ctx['days'], ctx['rows_corte']
     # so_midia: poda dias sem mídia paga (investimento=0) — ex.: cauda pós-captação onde

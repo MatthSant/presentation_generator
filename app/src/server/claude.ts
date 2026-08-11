@@ -200,6 +200,10 @@ const CHART_GUIDE = `QUANDO usar cada gráfico — e quando NÃO usar (escolha p
   secondaryAxis:1, secondaryAxisSuffix:"%" }. A série do secondaryAxis vai no eixo da DIREITA, então nenhuma
   fica achatada. Se o título promete DUAS métricas, o bind TEM que trazer as duas (y array) — nunca titule
   "CPL e Qualificação" plotando só CPL.
+  EIXO DUPLO é para EXATAMENTE 2 métricas (2 escalas: esquerda + direita). Com 3+ métricas de ordens de
+  grandeza muito diferentes (ex.: CPL ~2 R$ · CTR ~2% · CPM ~12 R$), NÃO empilhe as três em 2 eixos — a de
+  escala intermediária fica sempre esmagada. Nesse caso use MÚLTIPLOS gráficos: um por métrica, ou agrupando
+  no mesmo gráfico só as de escala PARECIDA (ex.: CPL+CPM num, CTR noutro). 2 eixos resolvem 2 métricas, não 3+.
 - LIMITE: NÃO há gráfico de DISPERSÃO (correlação ponto-a-ponto). Para isso, ponha as duas métricas como
   COLUNAS de uma TABLE e registre num find-note que dispersão não está disponível aqui.`;
 
