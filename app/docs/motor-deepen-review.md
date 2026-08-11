@@ -515,3 +515,77 @@ linha** (fallback de 7 cards = 4+3; 10 = 4+3+3) em vez de fluir 5+2 com larguras
 - Rodar os 6 deepens 1 a 1 e revisar a SAÍDA (usa a IA) — única parte bloqueada por crédito.
 - Avaliar função `decomposicao` (CPMQL = CPL ÷ taxa_qual; CPL ← CPM/CTR) p/ atribuição — só
   vale confirmar se a IA tropeça nisso ao rodar; os dados já estão em `acom_daily`.
+
+---
+
+# Revisão de erros REAIS em produção (ago/2026)
+
+Fonte: `deepen_history` da VM (`/data/comments.db`, 42 aprofundamentos). 25 `validated_ok=1`,
+17 `validated_ok=0`; 0 `mocked` (a fallback NVIDIA nunca esteve ligada até agora — ver abaixo).
+**Princípio desta rodada (regra do dono): NÃO afrouxar o gate/revisor — ajustar o MOTOR e a
+GUIA para o CRIADOR errar menos.** O gate está fazendo o trabalho dele (pega os erros); o custo
+é o criador voltar 3–5× e, às vezes, falhar após 5 tentativas.
+
+## A. Falhas duras (`validated_ok=0`)
+- **Crédito da API esgotado** (~7 casos, `model=""`): "Your credit balance is too low". Clientes
+  luz-e-sombra, academia-do-jejum, b55, maz-teste. Falha SECA porque não havia fallback.
+  → **Endereçado hoje:** `NVIDIA_API_KEY` adicionada em prod (a fallback agora entra nesse erro).
+- **Chart `y` ligado a coluna FORMATADA (`*_detail`, string) em vez da numérica** — bloqueador
+  recorrente e duro: luz-e-sombra/acompanhamento (`cpl`,`cpmql` widgets 18/20), academia
+  modal-tra-risk (`Taxa de Página`/`Conv. Página (%)`), envolval det-croportunidade (`Gap`).
+  Falha após 5 tentativas. Ver **P2**.
+- **Recorte de UM dia indisponível → respondeu o período / estimou por proporção**: academia
+  modal-evo-leads (dia 10/08 por origem×canal), maz-teste debriefing modal-org-daily (09/04 ×
+  canal × utm_content). → **Endereçado hoje p/ acompanhamento** (`recorte_dia`); **debriefing
+  ainda aberto** (mesmo `recorte_dia` + dimensão `utm_content`). Ver **P4**.
+- **Bug de código** `(widgets || []).filter is not a function` (envolval criativos-2): o modelo
+  devolveu `widgets` como objeto (não-array) e `pruneEmptyWidgets` estourava. → **Corrigido**
+  (`Array.isArray(widgets) ? widgets : []`).
+- **Falhou após 5 tentativas** por aritmética/eixo (b55 taxa de bump; ser-mais-criativo furo do
+  funil; gringo). São o gate barrando erro do criador — ver **P3**.
+- **Cancelado pelo consultor** (2×) — não é erro.
+
+## B. "Voltou mas passou" — por que o revisor mandou o CRIADOR voltar (padrões)
+Ordenado por frequência. Todos são erro do CRIADOR, não rigor excessivo do gate.
+
+- **P1 — Bind a coluna que NÃO existe na tabela consultada (nome errado/sinônimo/inventado).**
+  O MAIS frequente. Ex.: usou `Taxa de Qualificação` sendo a coluna `Taxa de Qualidade`;
+  `Conv. de Página` num frame que só tem `dia, CPL, CTR (Link), CPM`; `MQLs`, `Impressões`,
+  `Cliques`, `CTR`, `Correlação com CPL` que não vieram naquela consulta. Resultado: células
+  vazias. A guia (claude.ts:297) já manda usar nomes EXATOS — **mas o resultado de cada
+  `consultar` é uma tabela DINÂMICA nova; o criador binda de memória, não das colunas que a
+  consulta REALMENTE devolveu.**
+  → **Lever aberto:** o resultado de `consultar` deve ECOAR, de forma proeminente, as colunas
+  exatas + flag numérica, e a guia dizer "binde SÓ às colunas DESTA consulta, copiando o rótulo
+  verbatim; nunca renomeie nem cite coluna ausente".
+- **P2 — Chart `y` na coluna `*_detail` formatada, não na numérica (`*_rank`/`*_grp`).** Guia
+  existe (claude.ts:298-302) e ainda assim reincide. Mesma raiz de P1 (o criador não lê os
+  `numericCols` do resultado da consulta).
+- **P3 — Número na prosa/KPI sem lastro no dado ligado, ou inventado.** Ex.: KPI "Investimento
+  em 10/08 R$ 9.879" quando só há total do período; "CPMQL R$ 50–60" fora de qualquer tabela;
+  gringo "Investimento por captação R$ 16.080" com `invest=0` no dado; erros de p.p. ("29 p.p."
+  onde é 13,1). O gate (`unverifiedKpiValues`) pega. → Reforçar: **todo número em highlight/kpi
+  TEM que existir numa tabela ligada; nada de aritmética na prosa** — e o motor entregar mais
+  agregados prontos (deltas, Δ%, "Geral" ponderado via `incluir_geral`) p/ o criador BINDAR.
+- **P4 — Recorte de um dia** (ver A). `recorte_dia` resolve p/ acompanhamento.
+- **P5 — Gráfico de 1 categoria / escala díspar / eixo x lotado (20 cats).** → `≥2 categorias`;
+  **eixo duplo p/ 2 métricas, múltiplos gráficos p/ 3+ de escalas diferentes** (guia adicionada
+  hoje em claude.ts).
+- **P6 — Tabela vazia (0 linhas)** (inde det-acpiorkpi). → guia: nunca emitir tabela só com
+  cabeçalho; virar prosa/kpi.
+- **P7 — Célula `null`/vazia na tabela** ("substitua null por '–'"). → **Corrigido hoje** no
+  renderer (`'' | null → '—'`).
+
+## C. Já endereçado nesta sessão
+`recorte_dia` (P4, acompanhamento) · tabela `—` (P7) · eixo duplo >2 métricas (P5) ·
+`pruneEmptyWidgets` robusto (bug de código) · `NVIDIA_API_KEY` em prod (crédito) ·
+`cruzar_dia` na meta agora diz que cobre volume, não só custo.
+
+## D. Levers abertos (criador-side, NÃO afrouxar gate) — prioridade
+1. **P1/P2 (o mais recorrente): binding de coluna.** Fazer o resultado de `consultar` listar as
+   colunas EXATAS + quais são numéricas de forma que o criador copie do resultado (não de
+   memória); reforçar na guia "binde só às colunas desta consulta, verbatim". Maior retorno.
+2. **P4 debriefing:** estender `recorte_dia` (e dimensão `utm_content`) ao debriefing — mesma
+   falha do acompanhamento, ainda aberta.
+3. **P3:** motor entregar mais número pronto (Δ%/deltas/"Geral" ponderado) e guia dura "número
+   só via bind" — reduz a aritmética-na-prosa que o gate mais barra.
