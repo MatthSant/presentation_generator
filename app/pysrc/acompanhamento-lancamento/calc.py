@@ -409,8 +409,10 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False, pago=Fa
     [{key, m:{métrica:valor}}] com os KPIs derivados por grupo.
 
     dim ∈ dia | temperatura | canal | origem. `filtro` (opcional) restringe as linhas
-    ANTES de agrupar — {origem, temperatura, canal} — habilitando cruzamentos como
-    'CPL por dia SÓ do tráfego Quente' (dim='dia', filtro={'temperatura':'Quente'}).
+    ANTES de agrupar — {origem, temperatura, canal, criativo, publico, campanha, dia} —
+    habilitando cruzamentos como 'CPL por dia SÓ do tráfego Quente'
+    (dim='dia', filtro={'temperatura':'Quente'}) ou 'leads por CANAL num dia específico'
+    (dim='canal', filtro={'dia':'10/08'}) — sem estimar por proporção do período.
     `incluir_geral` (só p/ partição: temperatura/canal/origem) acrescenta a linha
     'Geral' com o valor GLOBAL CORRETO — derive(_sum(tudo)): soma p/ contagens,
     RECÁLCULO PONDERADO (num÷den) p/ taxas — em vez de a IA somar os grupos."""
@@ -429,6 +431,8 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False, pago=Fa
         if f.get('publico') and adset_name(r) != f['publico']:
             return False
         if f.get('campanha') and campaign_name(r) != f['campanha']:
+            return False
+        if f.get('dia') and _day_label(_date(r)) != f['dia'] and _date(r) != f['dia']:
             return False
         return True
 

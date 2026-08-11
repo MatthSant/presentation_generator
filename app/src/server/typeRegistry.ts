@@ -329,7 +329,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
       return {
         consultar: {
           funcoes: [G.tabela, G.trend, G.variacao, G.series, G.series_long, G.correlacao, G.ranking,
-            { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor) → UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"). Use NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico).' },
+            { id: 'cruzar_dia', desc: 'UMA métrica por DIA × dimensão (temperatura/canal/origem) em formato LONG (dia/serie/valor). Vale p/ TAXA/CUSTO e p/ VOLUME (leads/ingressos): use como UM gráfico multi-linha comparando grupos no tempo (bind x="dia", series="serie", y="valor"), NO LUGAR de vários gráficos separados (ex.: "CPL por dia: Quente × Morno" = 1 gráfico). Para o split de UM dia específico (ex.: "leads por canal no dia de pico"), NÃO estime por proporção do período — use ranking/tabela com recorte_dia, que devolve o volume REAL daquele dia.' },
             { id: 'decomposicao', desc: pago
               ? 'decompõe a VARIAÇÃO do CAC (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CAC ← CPM/CTR/Connect/Conv.Página — mesma identidade do CPL, porque o ingresso é a conversão do funil de mídia). Use p/ "o custo de aquisição subiu por leilão ou por criativo?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=custo_ing_pago).'
               : 'decompõe a VARIAÇÃO de cpl ou cpmql (início → últimos dias) nos fatores, com a CONTRIBUIÇÃO % de cada (CPL ← CPM/CTR/Connect/Conv.Página; CPMQL ← CPL/Qualidade). Use p/ "o custo subiu por mídia ou por qualificação?" — o motor calcula a atribuição, NÃO faça a álgebra na mão (param: metrica=cpl|cpmql).' },
@@ -343,6 +343,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
             recorte_criativo: { desc: 'filtra a um criativo/anúncio específico (use um valor visto na dimensão criativo)' },
             recorte_publico: { desc: 'filtra a um público/adset específico (use um valor visto na dimensão publico)' },
             recorte_campanha: { desc: 'filtra a uma campanha específica (use um valor visto na dimensão campanha)' },
+            recorte_dia: { desc: 'filtra a UM dia específico — rótulo DD/MM visto na série (ex.: "10/08") ou ISO YYYY-MM-DD. Habilita o breakdown REAL de um único dia: ex.: dimensao=canal + recorte_dia="10/08" = leads por canal NAQUELE dia. USE isto p/ o split de um dia de pico em vez de estimar pela proporção do período.' },
             incluir_geral: { enum: ['sim', 'nao'], desc: 'inclua a linha/série "Geral" com o valor GLOBAL CORRETO (o motor soma contagens e RECALCULA taxas ponderadas — num÷den). USE isto p/ um total/geral; NUNCA some os grupos você mesmo (somar taxa dá 113%).' },
             so_midia: { enum: ['sim', 'nao'], desc: 'poda os dias SEM mídia paga (investimento=0) — ex.: cauda pós-captação onde leads orgânicos residuais distorcem CPL/custo (evita "CPL +1714%" que é ruído de fim de campanha). USE em séries de custo no tempo.' },
           },
