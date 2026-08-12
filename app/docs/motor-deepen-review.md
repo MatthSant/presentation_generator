@@ -589,3 +589,28 @@ Ordenado por frequência. Todos são erro do CRIADOR, não rigor excessivo do ga
    falha do acompanhamento, ainda aberta.
 3. **P3:** motor entregar mais número pronto (Δ%/deltas/"Geral" ponderado) e guia dura "número
    só via bind" — reduz a aritmética-na-prosa que o gate mais barra.
+
+## Re-verificação (2ª passada)
+
+Sem deepen novo desde a 1ª passada (fallback NVIDIA ligado mas ainda não exercido), então
+o histórico é o mesmo. Mapa dos 17 fracassos × fixes já entregues:
+
+| Falha | Ocorr. | Status |
+|---|---|---|
+| Crédito esgotado | 7 | ✅ NVIDIA fallback |
+| Recorte de 1 dia (acomp+debrief) | 3 | ✅ `recorte_dia` |
+| `widgets.filter` crash | 1 | ✅ corrigido |
+| Chart `y` em coluna não-numérica/inexistente | 3 | ✅ `all` + verbatim |
+| Cancelado pelo consultor | 2 | — (não é erro) |
+| Número/taxa CONSOLIDADA calculada na prosa (bump 4,03%, vendas 833×835, furo, CPM 185%) | 5 | ⏳ P3 aberto (guia existe: "taxa de período = incluir_geral, nunca média das taxas diárias"; slip de modelo fraco → o gate barra) |
+
+**Correção NOVA desta passada:** os 3 fracassos mais recentes (11/08, academia) eram
+"Taxa de Página" num relatório SEM pageviews — o modelo insistia em bindar o rótulo cru.
+Adicionado VOCABULÁRIO na guia do funil (claude.ts): "Taxa de Página"/"Tx Pág" = conv_pag;
+existe nos DOIS casos — com pageviews é leads/pageviews, sem pageviews é o CLIQUE → lead/
+ingresso (leads/clicks, calc.py:385) — então consulte conv_pag e USE, não a trate como
+indisponível. Confere com o motor.
+
+**Avaliação:** o grosso dos fracassos já está coberto pelos fixes; o único padrão de MOTOR
+ainda aberto é P3 (número consolidado na prosa), onde ferramenta+guia já existem e o gate
+pega — o maior lever agora é qualidade do MODELO (força do fallback), não lacuna de motor.
