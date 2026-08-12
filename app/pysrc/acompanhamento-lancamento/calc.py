@@ -551,14 +551,21 @@ def meta_status(val, meta, cost=False):
 
 # ── metas (launch_goals opcional ou manual via config) ───────────────────────
 
-def load_goals(path, field_conversion, corte):
+def load_goals(path, field_conversion, corte, canais=None):
     """Lê launch_goals (1 linha por utm_source por dia) → dict de metas agregadas.
-    Total = soma; to-date = soma ≤ corte; KPIs = valor do último dia ≤ corte."""
+    Total = soma; to-date = soma ≤ corte; KPIs = valor do último dia ≤ corte.
+
+    `canais` (opcional): quando o relatório está FILTRADO (render_view), restringe as
+    metas aos utm_source em escopo — assim a meta de captação/ingresso (e a curva do pace)
+    acompanha o filtro em vez de ficar no total da campanha. None = campanha inteira."""
     try:
         rows = load_rows(path)
     except Exception:
         return {}
     rows = [r for r in rows if not field_conversion or r.get('field_conversion') == field_conversion]
+    if canais is not None:
+        _cset = set(canais)
+        rows = [r for r in rows if norm_source(r.get('utm_source')) in _cset]
 
     def dk(r):
         return str(r.get('data', '')).strip()[:10]
@@ -616,7 +623,7 @@ def goals_start(path, field_conversion):
 
 # ── build principal ──────────────────────────────────────────────────────────
 
-def build(rows, config=None):
+def build(rows, config=None, goal_canais=None):
     config = config or {}
     # Antes de qualquer leitura: reconcilia a família `_traf` com a canônica. Feito
     # aqui e não em cada acesso porque calc, render_view e query_api entram todos por
@@ -738,7 +745,7 @@ def build(rows, config=None):
                 metas[pago_k] = metas[classico]
     meta_canal = None
     if config.get('goals_csv'):
-        g = load_goals(config['goals_csv'], fc, corte)
+        g = load_goals(config['goals_csv'], fc, corte, goal_canais)
         for k in ('cpl', 'cpmql', 'taxa_resp', 'taxa_qual', 'conv_pag'):
             if g.get(k) is not None:
                 metas.setdefault(k, g[k])

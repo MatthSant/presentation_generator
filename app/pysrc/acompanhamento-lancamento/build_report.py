@@ -134,7 +134,14 @@ def vfmt(metric, v, pago=False):
 
 def assemble(rows, config, content, opts=None):
     config = config or {}
-    B = calc.build(rows, config)
+    # Com FILTRO ativo (render_view), a meta de captação/ingresso (e a curva do pace) deve
+    # acompanhar o recorte, não ficar no total da campanha. As launch_goals são por
+    # utm_source × dia → escopa pelos canais presentes nas linhas filtradas. Sem filtro
+    # (build base), goal_canais=None → campanha inteira (comportamento inalterado).
+    goal_canais = None
+    if opts and opts.get('filters'):
+        goal_canais = sorted({calc.norm_source(r.get('utm_source')) for r in rows})
+    B = calc.build(rows, config, goal_canais)
     # MECÂNICA: no lançamento PAGO o lead compra o ingresso — há receita e retorno já
     # na captação, e a decisão do dia vira "estou no verde ou no vermelho?". Troca os
     # KPIs, o funil e o vocabulário (lead → ingresso). Ver docs da spec.
