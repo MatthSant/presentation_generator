@@ -1153,7 +1153,10 @@ def _load_dict_links(path):
     links = {}
     try:
         with open(path, encoding='utf-8-sig', errors='replace') as f:
-            rows = list(_csv.reader(f))
+            head = f.read(8192)
+            f.seek(0)
+            sep = max(',;\t', key=lambda c: head.count(c))   # dict pode vir ; (export BR) ou ,
+            rows = list(_csv.reader(f, delimiter=sep))
         for row in rows[1:]:
             if len(row) >= 2 and row[0].strip():
                 links[row[0].strip()] = (row[1] or '').strip() or None

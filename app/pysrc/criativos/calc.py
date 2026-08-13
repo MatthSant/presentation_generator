@@ -81,8 +81,10 @@ def load_dict(path):
     if not path:
         return out
     with open(path, encoding='utf-8-sig', errors='replace') as f:
-        r = csv.reader(f)
-        rows = list(r)
+        head = f.read(8192)
+        f.seek(0)
+        sep = max(',;\t', key=lambda c: head.count(c))   # dict pode vir ; (export BR) ou ,
+        rows = list(csv.reader(f, delimiter=sep))
     if not rows:
         return out
     for row in rows[1:]:
