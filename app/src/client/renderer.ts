@@ -1324,6 +1324,7 @@ function renderPace(w: PaceWidget): HTMLElement {
   const wrap = el('div', 'pace');
   const head = el('div', 'chart-head');            // mesmo cabeçalho da rosca: dot + caps + divisória
   head.appendChild(el('div', 'chart-title', w.title || 'Ritmo para a meta'));
+  if (w.info) head.appendChild(infoBadge(w.info));
   wrap.appendChild(head);
   const max = Math.max(...w.bars.map((b) => b.pct || 0), 1);
   const bars = el('div', 'pace-bars');

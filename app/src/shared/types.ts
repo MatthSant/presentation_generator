@@ -724,6 +724,8 @@ export interface MetaBarsWidget extends WidgetBase {
 export interface PaceWidget extends WidgetBase {
   type: 'pace';
   title?: string;
+  /** (i) tooltip explicando o cálculo (ritmo 3 dias, falta, dias restantes). */
+  info?: string;
   /** horizonte: ex. "20 dias restantes · encerra 25/08". */
   horizon?: string;
   /** as duas barras (atual e necessário); pct = largura relativa ao maior ritmo. */
