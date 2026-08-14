@@ -427,8 +427,14 @@ def assemble(rows, config, content, opts=None):
                       'tone': 'pos' if _no_rumo else 'neg'}
         else:
             _badge = None
+        _dia_lbl = 'dia' if _n3 == 1 else 'dias'
         pace_w = {'id': 'pan-pace', 'type': 'pace', 'title': 'Ritmo para a meta',
                   'bars': _bars,
+                  'info': (f"Ritmo atual = média de {NOUN} dos últimos {_n3} {_dia_lbl}. "
+                           f"Ritmo necessário = o que falta para a meta ({intf(_falta)} {NOUN}) "
+                           f"÷ dias restantes até a data de fim ({_dr}). O multiplicador (N×) é "
+                           f"quantas vezes o ritmo atual precisa acelerar para bater a meta no "
+                           f"prazo; a projeção assume o ritmo atual mantido até o fim."),
                   'note': f"No ritmo atual: ~{intf(round(_proj))} de {intf(mt)} · {_proj_pct:.0f}% da meta"}
         if _badge:
             pace_w['badge'] = _badge
