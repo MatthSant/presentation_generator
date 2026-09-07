@@ -1,7 +1,7 @@
 /* tools — a lógica das tools do MCP, pura (db + env + usuário → texto). O McpAgent só
  * registra e chama. Testável sem transporte MCP. */
 
-import { getPublishedKit, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
+import { canSee, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
 
@@ -32,12 +32,12 @@ function fence(lang: string, body: string): string {
   return `${f}${lang}\n${body.replace(/\s+$/, '')}\n${f}`;
 }
 
-async function kitOrThrow(env: ToolEnv, slug: string): Promise<Kit> {
-  const kit = await getPublishedKit(env.DB, slug);
+async function kitOrThrow(env: ToolEnv, user: ToolUser, slug: string): Promise<Kit> {
+  const t = await getTemplate(env.DB, slug);
+  const kit = t && canSee(t, user.email) ? await getPublishedKit(env.DB, slug) : null;
   if (kit) return kit;
-  const all = await listTemplates(env.DB, env.ORG_ID);
-  const known = all.map((t) => t.slug);
-  if (known.includes(slug)) throw new ToolError(`o template "${slug}" existe mas não tem versão publicada (só rascunho). Peça a um editor para publicar.`);
+  const known = (await listTemplates(env.DB, env.ORG_ID, user.email)).map((x) => x.slug);
+  if (t && canSee(t, user.email)) throw new ToolError(`o template "${slug}" existe mas não tem versão publicada (só rascunho). Peça a um editor para publicar.`);
   throw new ToolError(`template "${slug}" não existe. Disponíveis: ${known.join(', ') || '(nenhum)'}`);
 }
 
@@ -49,7 +49,7 @@ function generalBlock(gc: GeneralContext[]): string {
 // ── listar_templates ─────────────────────────────────────────────────────────
 
 export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<string> {
-  const rows = await listTemplates(env.DB, env.ORG_ID);
+  const rows = await listTemplates(env.DB, env.ORG_ID, user.email);
   await logUsage(env.DB, { email: user.email, tool: 'listar_templates' });
   const pub = rows.filter((r) => r.published_version_id);
   if (!pub.length) return 'Nenhum template publicado ainda.';
@@ -57,7 +57,7 @@ export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<str
   for (const t of pub) {
     const kit = await getPublishedKit(env.DB, t.slug);
     const m = kit ? manifestOf(kit) : {};
-    out.push(`## ${t.name}  \`${t.slug}\`  (v${t.published_number})`);
+    out.push(`## ${t.name}  \`${t.slug}\`  (v${t.published_number})${t.owner_email ? '  — PESSOAL (só você vê)' : ''}`);
     if (t.objective) out.push(`**Objetivo:** ${t.objective}`);
     if (t.when_to_use) out.push(`**Quando usar:** ${t.when_to_use}`);
     if (m.tarefas_contexto?.length) out.push(`**Tarefas de contexto:** ${m.tarefas_contexto.map((x) => `${x.id} (${x.objetivo})`).join(' · ')}`);
@@ -65,13 +65,14 @@ export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<str
     out.push('');
   }
   out.push('Use `obter_template(slug)` para o kit completo e `montar_query(slug, params)` para o SQL pronto.');
+  out.push('Fez uma análise específica que vale guardar? `salvar_template({...})` cria um template pessoal (só seu) no mesmo formato; um editor pode promovê-lo para todos.');
   return out.join('\n');
 }
 
 // ── obter_template ───────────────────────────────────────────────────────────
 
 export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string): Promise<string> {
-  const kit = await kitOrThrow(env, slug);
+  const kit = await kitOrThrow(env, user, slug);
   const m = manifestOf(kit);
   const n = kit.version.number;
   await logUsage(env.DB, { email: user.email, tool: 'obter_template', slug, version_number: n });
@@ -85,7 +86,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   const text = (p: string) => files.get(p) ?? '';
 
   const out: string[] = [];
-  out.push(`# Kit: ${kit.template.name}  \`${slug}\`  v${n}`);
+  out.push(`# Kit: ${kit.template.name}  \`${slug}\`  v${n}${kit.template.owner_email ? '  — PESSOAL' : ''}`);
   out.push('');
   out.push(`**Objetivo:** ${kit.template.objective}`);
   out.push(`**Quando usar:** ${kit.template.when_to_use}`);
@@ -119,14 +120,44 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('## Guia de leitura');
   out.push('');
   out.push(text('guia.md').trim());
+  if (files.has('perguntas.md')) {
+    out.push('');
+    out.push('## Perguntas norteadoras (o que vale aprofundar)');
+    out.push('');
+    out.push('Depois de gerar, leia `saida/perguntas.json` (relevância calculada sobre os números) e o `numeros.json`, e proponha ao consultor NO CHAT as 3–5 perguntas mais relevantes com a justificativa. Elas NÃO entram no HTML. Se ele aceitar uma, construa o aprofundamento no design system (`design-system.md` + `python/aprofundar.py`) e registre com `pergunta_id`.');
+    out.push('');
+    out.push(text('perguntas.md').trim());
+  }
+  if (files.has('design-system.md')) {
+    out.push('');
+    out.push('## Design system dos aprofundamentos');
+    out.push('');
+    out.push('Todo aprofundamento entra no relatório com os widgets do contrato, número só via `bind`. Leia `design-system.md` no kit antes de montar a seção; `python/aprofundar.py` valida e regera o HTML.');
+  }
+  out.push('');
+  out.push('## Ao terminar (obrigatório)');
+  out.push('');
+  out.push('- Gerou o documento: `registrar({evento:"geracao", slug, versao, cliente, contexto:{tarefas resolvidas}, resultado:{titulo, secoes, problemas}})`.');
+  out.push('- Cada aprofundamento: `registrar({evento:"aprofundamento", slug, pergunta, pergunta_id?, resposta, consultas, avaliacao?, descartado?, motivo?})` — resposta = prosa + tabelas agregadas; nunca e-mail, telefone ou CPF.');
+  out.push('- Se o consultor der uma nota ao template: `avaliar(slug, nota, comentario)`.');
   out.push(generalBlock(await listGeneralContexts(env.DB, env.ORG_ID)));
   return out.join('\n');
+}
+
+// ── perguntas ────────────────────────────────────────────────────────────────
+
+export async function perguntas(env: ToolEnv, user: ToolUser, slug: string): Promise<string> {
+  const kit = await kitOrThrow(env, user, slug);
+  await logUsage(env.DB, { email: user.email, tool: 'perguntas', slug, version_number: kit.version.number });
+  const p = kit.files.find((f) => f.path === 'perguntas.md')?.content;
+  if (!p) throw new ToolError(`o template "${slug}" não tem banco de perguntas norteadoras`);
+  return p.trim() + '\n\nA relevância de cada pergunta para UMA campanha sai em `saida/perguntas.json` após o `gerar.py`. Apresente as mais relevantes ao consultor no chat, não no HTML.';
 }
 
 // ── montar_query ─────────────────────────────────────────────────────────────
 
 export async function montarQueries(env: ToolEnv, user: ToolUser, slug: string, params: Record<string, unknown>): Promise<string> {
-  const kit = await kitOrThrow(env, slug);
+  const kit = await kitOrThrow(env, user, slug);
   const m = manifestOf(kit);
   await logUsage(env.DB, { email: user.email, tool: 'montar_query', slug, version_number: kit.version.number });
   const files = new Map(kit.files.map((f) => [f.path, f.content]));
@@ -156,7 +187,7 @@ export async function montarQueries(env: ToolEnv, user: ToolUser, slug: string, 
 // ── guia ─────────────────────────────────────────────────────────────────────
 
 export async function guia(env: ToolEnv, user: ToolUser, slug: string): Promise<string> {
-  const kit = await kitOrThrow(env, slug);
+  const kit = await kitOrThrow(env, user, slug);
   await logUsage(env.DB, { email: user.email, tool: 'guia', slug, version_number: kit.version.number });
   const g = kit.files.find((f) => f.path === 'guia.md')?.content ?? '(sem guia)';
   return g.trim() + generalBlock(await listGeneralContexts(env.DB, env.ORG_ID));
@@ -164,8 +195,19 @@ export async function guia(env: ToolEnv, user: ToolUser, slug: string): Promise<
 
 // ── resources ────────────────────────────────────────────────────────────────
 
-export async function resourceText(env: ToolEnv, uri: string): Promise<string | null> {
+export async function resourceText(env: ToolEnv, uri: string, viewer?: string): Promise<string | null> {
   const u = new URL(uri);
+  if (u.protocol === 'contrato:') {
+    // contrato://widgets — o design system dos aprofundamentos (do 1º template visível que o tenha)
+    if (u.hostname === 'widgets') {
+      for (const t of await listTemplates(env.DB, env.ORG_ID, viewer ?? '*')) {
+        const k = t.published_version_id ? await getPublishedKit(env.DB, t.slug) : null;
+        const f = k?.files.find((x) => x.path === 'design-system.md');
+        if (f) return f.content;
+      }
+    }
+    return null;
+  }
   if (u.protocol === 'contexto:') {
     // contexto://geral/<slug>
     const slug = u.pathname.replace(/^\/+/, '');
@@ -175,6 +217,8 @@ export async function resourceText(env: ToolEnv, uri: string): Promise<string | 
   if (u.protocol !== 'template:') return null;
   const slug = u.hostname || u.pathname.split('/')[1];
   const parts = u.pathname.replace(/^\/+/, '').split('/').filter(Boolean);
+  const t = await getTemplate(env.DB, slug);
+  if (!t || (viewer && !canSee(t, viewer))) return null;
   const kit = await getPublishedKit(env.DB, slug);
   if (!kit) return null;
   const file = (p: string) => kit.files.find((f) => f.path === p)?.content ?? null;
@@ -182,6 +226,7 @@ export async function resourceText(env: ToolEnv, uri: string): Promise<string | 
   if (parts[0] === 'guia') return file('guia.md');
   if (parts[0] === 'documento') return file('documento.md');
   if (parts[0] === 'exemplo') return file('exemplo/numeros.json');
+  if (parts[0] === 'perguntas') return file('perguntas.md');
   if (parts[0] === 'contexto' && parts[1]) {
     const t = kit.tasks.find((x) => x.task_id === parts[1]);
     return t ? `# ${t.title}\n\n${t.body_md}` : null;

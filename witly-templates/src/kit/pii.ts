@@ -29,7 +29,9 @@ const mask = (s: string): string => (s.length <= 4 ? '****' : s.slice(0, 2) + '*
 /** Varre um texto. */
 export function scanPii(text: string): PiiHit[] {
   const hits: PiiHit[] = [];
-  for (const m of text.matchAll(EMAIL)) hits.push({ tipo: 'email', trecho: mask(m[0]) });
+  // Pré-checagens baratas: o regex de e-mail é quadrático em runs longos sem "@".
+  if (text.includes('@')) for (const m of text.matchAll(EMAIL)) hits.push({ tipo: 'email', trecho: mask(m[0]) });
+  if (!/\d{4}/.test(text)) return hits;
   for (const m of text.matchAll(CPF)) if (cpfValido(m[0])) hits.push({ tipo: 'cpf', trecho: mask(m[0]) });
   for (const m of text.matchAll(PHONE)) {
     // descarta o que já casou como CPF (formatos parecidos) e sequências dentro de números longos

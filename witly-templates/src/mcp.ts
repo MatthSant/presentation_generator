@@ -7,7 +7,9 @@ import { z } from 'zod';
 import { isStillActive } from './auth/access.js';
 import type { Props } from './auth/google.js';
 import { listTemplates, listGeneralContexts } from './db/index.js';
-import { guia, listarTemplates, montarQueries, obterTemplate, resourceText, ToolError, type ToolUser } from './kit/tools.js';
+import { guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
+import { avaliar, registrar } from './kit/activity.js';
+import { removerTemplate, salvarTemplate } from './kit/personal.js';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 const text = (t: string): ToolResult => ({ content: [{ type: 'text', text: t }] });
@@ -58,6 +60,52 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
       inputSchema: { slug: z.string() },
     }, async ({ slug }) => this.run((u) => guia(this.env, u, slug)));
 
+    this.server.registerTool('perguntas', {
+      description: 'Banco de perguntas norteadoras de um template: o que vale aprofundar em cada caso e como. A relevância para UMA campanha sai em saida/perguntas.json depois do gerar.py; apresente as mais relevantes ao consultor no chat (não no HTML).',
+      inputSchema: { slug: z.string() },
+    }, async ({ slug }) => this.run((u) => perguntas(this.env, u, slug)));
+
+    this.server.registerTool('registrar', {
+      description: 'Registra o que você fez para o editor do template ver e melhorar o template: geracao (ao terminar o documento), aprofundamento (cada pergunta respondida, com a resposta em prosa + tabelas agregadas e, se houver, a avaliação/descarte do consultor) ou edicao. NUNCA inclua e-mail, telefone, CPF ou nome de lead — o registro é recusado.',
+      inputSchema: {
+        evento: z.enum(['geracao', 'aprofundamento', 'edicao']),
+        slug: z.string(),
+        versao: z.number().int().optional(),
+        cliente: z.string().optional().describe('slug do cliente (não nome de pessoa)'),
+        contexto: z.record(z.string(), z.unknown()).optional().describe('geracao: resultado das tarefas de contexto'),
+        resultado: z.record(z.string(), z.unknown()).optional().describe('geracao: {titulo, secoes, problemas}'),
+        pergunta: z.string().optional(),
+        pergunta_id: z.string().optional().describe('id no banco de perguntas, se veio de lá'),
+        resposta: z.string().optional(),
+        consultas: z.array(z.unknown()).optional().describe('consultas do query_api usadas'),
+        avaliacao: z.number().int().min(1).max(5).optional(),
+        descartado: z.boolean().optional(),
+        motivo: z.string().optional(),
+        mudanca: z.string().optional().describe('edicao: o que mudou e por quê'),
+      },
+    }, async (input) => this.run((u) => registrar(this.env, u, input)));
+
+    this.server.registerTool('avaliar', {
+      description: 'Nota de 1 a 5 do consultor para o template (não para uma resposta): o que faltou, o que sobrou.',
+      inputSchema: { slug: z.string(), nota: z.number().int().min(1).max(5), comentario: z.string().optional() },
+    }, async ({ slug, nota, comentario }) => this.run((u) => avaliar(this.env, u, slug, nota, comentario)));
+
+    this.server.registerTool('salvar_template', {
+      description: 'Salva um template PESSOAL (só você vê e usa) no mesmo formato dos oficiais: manifesto, arquivos (queries/*.sql, python/*.py, guia.md, documento.md…) e tarefas de contexto. Slug seu já existente = versão nova. Um editor pode promover para todos na UI. Sem dado pessoal.',
+      inputSchema: {
+        slug: z.string(), name: z.string(), objective: z.string().optional(), when_to_use: z.string().optional(),
+        manifest: z.record(z.string(), z.unknown()).optional(),
+        arquivos: z.record(z.string(), z.string()).optional().describe('caminho → conteúdo'),
+        contexto: z.record(z.string(), z.object({ title: z.string().optional(), body_md: z.string().optional() })).optional().describe('tarefa → página'),
+        notas: z.string().optional(), changelog: z.string().optional(),
+      },
+    }, async (input) => this.run((u) => salvarTemplate(this.env, u, input)));
+
+    this.server.registerTool('remover_template', {
+      description: 'Remove um template pessoal seu. A atividade dele fica no histórico.',
+      inputSchema: { slug: z.string() },
+    }, async ({ slug }) => this.run((u) => removerTemplate(this.env, u, slug)));
+
     this.server.registerTool('quem_sou', {
       description: 'Identidade do usuário logado neste MCP (diagnóstico).',
       inputSchema: {},
@@ -65,13 +113,14 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
 
     // Resources: o mesmo conteúdo como contexto passivo.
     const read = async (uri: URL) => {
-      await this.requireUser();
-      const t = await resourceText(this.env, uri.href);
+      const u = await this.requireUser();
+      const t = await resourceText(this.env, uri.href, u.email);
       if (t == null) throw new ToolError(`resource não encontrado: ${uri.href}`);
       return { contents: [{ uri: uri.href, mimeType: 'text/markdown', text: t }] };
     };
     const listTpl = async () => {
-      const rows = (await listTemplates(this.env.DB, this.env.ORG_ID)).filter((r) => r.published_version_id);
+      const u = await this.requireUser();
+      const rows = (await listTemplates(this.env.DB, this.env.ORG_ID, u.email)).filter((r) => r.published_version_id);
       return { resources: rows.flatMap((r) => [
         { uri: `template://${r.slug}`, name: `${r.name} — manifesto` },
         { uri: `template://${r.slug}/guia`, name: `${r.name} — guia` },
@@ -79,7 +128,8 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
       ]) };
     };
     this.server.registerResource('template', new ResourceTemplate('template://{slug}', { list: listTpl }), { description: 'Manifesto de um template' }, read);
-    this.server.registerResource('template-parte', new ResourceTemplate('template://{slug}/{parte}', { list: undefined }), { description: 'guia | documento | exemplo de um template' }, read);
+    this.server.registerResource('template-parte', new ResourceTemplate('template://{slug}/{parte}', { list: undefined }), { description: 'guia | documento | perguntas | exemplo de um template' }, read);
+    this.server.registerResource('contrato-widgets', 'contrato://widgets', { description: 'Design system dos aprofundamentos: widgets, binds, layout e regras' }, read);
     this.server.registerResource('template-contexto', new ResourceTemplate('template://{slug}/contexto/{tarefa}', { list: undefined }), { description: 'Página detalhada de uma tarefa de contexto' }, read);
     this.server.registerResource('contexto-geral', new ResourceTemplate('contexto://geral/{slug}', {
       list: async () => ({ resources: (await listGeneralContexts(this.env.DB, this.env.ORG_ID)).map((g) => ({ uri: `contexto://geral/${g.slug}`, name: g.title })) }),
