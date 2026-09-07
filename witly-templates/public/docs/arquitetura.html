@@ -139,7 +139,8 @@
       <tr><td>Dados</td><td>D1 (SQLite)</td><td>templates, versões, arquivos do kit, tarefas de contexto, contextos gerais, usuários, log de uso</td></tr>
       <tr><td>Estado OAuth</td><td>KV <code>OAUTH_KV</code></td><td>códigos, tokens, grants</td></tr>
       <tr><td>Estáticos</td><td>Workers Assets (<code>public/</code>)</td><td>UI e o <b>viewer</b> (client do app empacotado com esbuild)</td></tr>
-      <tr><td>Kit</td><td>zip montado na hora (<code>fflate</code>)</td><td>python/ (cópia literal do <code>app/pysrc</code>), viewer/, exemplo/, textos</td></tr>
+      <tr><td>Documentos da plataforma</td><td>D1 <code>platform_docs</code></td><td>design system dos aprofundamentos: um para todos, editável na UI, em todo zip e como <code>contrato://widgets</code></td></tr>
+      <tr><td>Kit</td><td>zip montado na hora (<code>fflate</code>)</td><td><b>autossuficiente, sem git</b>: python/ (cópia literal do <code>app/pysrc</code> + perguntas/), viewer/, exemplo/, design-system.md, textos</td></tr>
       <tr><td>Máquina da pessoa</td><td>Python 3.8+ (stdlib) · curl</td><td>gerar as camadas e o HTML; consultas com <code>query_api.py</code></td></tr>
       <tr><td>Testes</td><td>Vitest (pool de Workers) · <code>unittest</code> · script de paridade</td><td>31 testes no Worker, 7 no Python, kit == app</td></tr>
     </table>

@@ -400,6 +400,27 @@ export async function topQuestions(db: D1Database, org_id: string, slug?: string
 }
 
 
+// ── documentos da plataforma (design system etc.) ───────────────────────────
+
+export interface PlatformDoc { slug: string; org_id: string; title: string; body_md: string; kit_file: string | null; author_email: string | null; updated_at: string }
+
+export async function listPlatformDocs(db: D1Database, org_id: string): Promise<PlatformDoc[]> {
+  return (await db.prepare('SELECT * FROM platform_docs WHERE org_id = ? ORDER BY title').bind(org_id).all<PlatformDoc>()).results;
+}
+export async function getPlatformDoc(db: D1Database, slug: string): Promise<PlatformDoc | null> {
+  return db.prepare('SELECT * FROM platform_docs WHERE slug = ?').bind(slug).first<PlatformDoc>();
+}
+export async function upsertPlatformDoc(db: D1Database, d: { slug: string; org_id: string; title: string; body_md: string; kit_file?: string | null; author_email?: string | null }): Promise<void> {
+  await db.prepare(
+    `INSERT INTO platform_docs (slug, org_id, title, body_md, kit_file, author_email, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, kit_file = COALESCE(excluded.kit_file, platform_docs.kit_file), author_email = excluded.author_email, updated_at = excluded.updated_at`,
+  ).bind(d.slug, d.org_id, d.title, d.body_md, d.kit_file ?? null, d.author_email ?? null, now()).run();
+}
+/** Arquivos da plataforma que entram em TODO kit (zip): {path, content}. */
+export async function platformKitFiles(db: D1Database, org_id: string): Promise<Array<{ path: string; content: string }>> {
+  return (await listPlatformDocs(db, org_id)).filter((d) => d.kit_file).map((d) => ({ path: d.kit_file!, content: d.body_md }));
+}
+
 // ── contextos gerais ────────────────────────────────────────────────────────
 
 export async function listGeneralContexts(db: D1Database, org_id: string): Promise<GeneralContext[]> {

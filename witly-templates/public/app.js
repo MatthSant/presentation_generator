@@ -48,6 +48,7 @@
     if (seg === 'atividade') { setNav('atividade'); return renderAtividade(); }
     if (seg === 'uso') { setNav('atividade'); return renderUso(); }
     if (seg === 'pessoais') { setNav('pessoais'); return renderPessoais(); }
+    if (seg === 'plataforma') { setNav('plataforma'); return renderPlataforma(); }
     if (seg === 't' && slug) { setNav('templates'); return renderTemplate(slug, tab, rest.length ? decodeURIComponent(rest.join('/')) : null); }
     if (seg === 'gerais') { setNav('gerais'); return renderGerais(); }
     if (seg === 'usuarios') { setNav('usuarios'); return renderUsuarios(); }
@@ -84,7 +85,7 @@
   }
 
   // ── editor de template ─────────────────────────────────────────────────
-  const TABS = [['info', 'Info'], ['manifesto', 'Manifesto'], ['contexto', 'Contexto'], ['queries', 'Queries'], ['python', 'Python'], ['documento', 'Documento'], ['guia', 'Guia'], ['perguntas', 'Perguntas'], ['design', 'Design system'], ['exemplo', 'Exemplo'], ['versoes', 'Versões']];
+  const TABS = [['info', 'Info'], ['manifesto', 'Manifesto'], ['contexto', 'Contexto'], ['queries', 'Queries'], ['python', 'Python'], ['documento', 'Documento'], ['guia', 'Guia'], ['perguntas', 'Perguntas'], ['exemplo', 'Exemplo'], ['versoes', 'Versões']];
 
   async function loadKit(slug) {
     const d = await api(`/api/templates/${encodeURIComponent(slug)}?state=draft`);
@@ -117,7 +118,7 @@
     };
     if (!kit) { $('#pane').innerHTML = '<div class="empty">Este template ainda não tem conteúdo.</div>'; return; }
     const ctx = { slug, kit, canEdit, state, sub };
-    ({ info: paneInfo, manifesto: paneManifest, contexto: paneContexto, queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: paneSingle('perguntas.md'), design: paneSingle('design-system.md'), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
+    ({ info: paneInfo, manifesto: paneManifest, contexto: paneContexto, queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: paneSingle('perguntas.md'), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
   }
 
   function saveFile(slug, path, content) {
@@ -337,6 +338,29 @@
         try { await api(`/api/templates/${encodeURIComponent(slug)}/versoes/${nv}/restaurar`, { method: 'POST' }); toast('Rascunho criado a partir da v' + nv); location.hash = `#/t/${slug}/guia`; } catch (e) { toast(e.message, true); }
       };
     })();
+  }
+
+  // ── documentos da plataforma (design system) ───────────────────────────
+  async function renderPlataforma() {
+    const docs = await api('/api/platform-docs');
+    const canEdit = isEditor();
+    let cur = docs[0] ? docs[0].slug : null;
+    const draw = () => {
+      const d = docs.find((x) => x.slug === cur);
+      app.innerHTML = `<div class="head"><div><h1>Plataforma</h1><p class="muted sm">Documentos que valem para <b>todo</b> template e entram em todo kit (zip): o design system dos aprofundamentos (widgets, binds, layout, regras). Salvar publica na hora.</p></div></div>
+        <div class="split"><div class="card"><div class="list">${docs.map((x) => `<button data-s="${esc(x.slug)}" class="${x.slug === cur ? 'on' : ''}">${esc(x.title)}<br><code>${esc(x.kit_file || x.slug)}</code></button>`).join('') || '<div class="muted sm">Nenhum.</div>'}</div>
+          ${canEdit ? '<div class="actions"><button class="btn" id="newd">+ Documento</button></div>' : ''}</div>
+        <div class="card">${d ? `<label>Título</label><input id="d-title" value="${esc(d.title)}" ${canEdit ? '' : 'readonly'}>
+          <label>Nome do arquivo no kit (vazio = não entra no zip)</label><input id="d-file" value="${esc(d.kit_file || '')}" ${canEdit ? '' : 'readonly'}>
+          <label>Conteúdo (Markdown)</label>${editorBlock('d-body', d.body_md, '', canEdit)}
+          <p class="muted sm">Atualizado ${esc((d.updated_at || '').slice(0, 16).replace('T', ' '))} por ${esc(d.author_email || '—')}</p>
+          ${canEdit ? '<div class="actions"><button class="btn btn-p" id="save">Salvar e publicar</button></div>' : ''}` : '<div class="empty">Selecione um documento.</div>'}</div></div>`;
+      $('#d-body') && ($('#d-body').style.minHeight = '520px');
+      for (const b of app.querySelectorAll('.list button')) b.onclick = () => { cur = b.dataset.s; draw(); };
+      const nd = $('#newd'); if (nd) nd.onclick = () => { const s = prompt('slug (a-z, 0-9, hífen)'); if (!s) return; docs.push({ slug: s, title: s, body_md: '', kit_file: s + '.md' }); cur = s; draw(); };
+      if (d) wireSave(async () => { await api(`/api/platform-docs/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#d-title').value, body_md: $('#d-body').value, kit_file: $('#d-file').value.trim() } }); return false; });
+    };
+    draw();
   }
 
   // ── usuários ───────────────────────────────────────────────────────────

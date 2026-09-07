@@ -50,9 +50,11 @@ export function renderExampleHtml(kit: Kit, viewer: ViewerFile[]): string | null
 }
 
 /** Zip com a pasta `<slug>/` na raiz: manifest.json, contexto/<tarefa>.md, os arquivos da versão, viewer/ e exemplo/relatorio.html. */
-export function buildKitZip(kit: Kit, viewer: ViewerFile[]): Uint8Array {
+export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ path: string; content: string }> = []): Uint8Array {
   const root = kit.template.slug;
   const entries: Record<string, Uint8Array> = {};
+  // Documentos da plataforma (design system…): iguais para todo template; o kit é autossuficiente sem git.
+  for (const f of platform) entries[`${root}/${f.path}`] = strToU8(f.content);
   const manifest = JSON.parse(kit.version.manifest_json) as Record<string, unknown>;
   entries[`${root}/manifest.json`] = strToU8(JSON.stringify({
     ...manifest,

@@ -61,9 +61,10 @@ describe('templates pessoais (spec 002 US6)', () => {
     expect((await db.listActivity(env.DB, ORG, { slug: mine })).length).toBe(1);
   });
 
-  it('contrato://widgets vem do design-system.md de um template visível', async () => {
-    const slug = fresh();
-    await salvarTemplate(env, a, { slug, ...KIT, arquivos: { ...KIT.arquivos, 'design-system.md': '# Widgets\nkpi-card, chart…' } });
+  it('contrato://widgets vem do documento da PLATAFORMA (igual para todos)', async () => {
+    expect(await resourceText(env, 'contrato://widgets', a.email)).toBeNull();
+    await db.upsertPlatformDoc(env.DB, { slug: 'design-system', org_id: ORG, title: 'DS', body_md: '# Widgets\nkpi-card, chart…', kit_file: 'design-system.md' });
     expect(await resourceText(env, 'contrato://widgets', a.email)).toContain('kpi-card');
+    expect(await resourceText(env, 'contrato://widgets', b.email)).toContain('kpi-card');
   });
 });

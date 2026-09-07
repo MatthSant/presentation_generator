@@ -72,8 +72,9 @@ async function buildPerguntasMd(slug, bank) {
   return qs.length;
 }
 
-/** design-system.md: contrato (seed/_shared) + catálogo de widgets do app + regras de design. */
-async function buildDesignSystemMd(slug) {
+/** design-system.md: contrato (seed/_shared) + catálogo de widgets do app + regras de design.
+ *  É documento da PLATAFORMA (platform_docs): um só para todos os templates, entra em todo zip. */
+async function buildDesignSystemMd() {
   const APP = path.resolve(ROOT, '..', 'app');
   const contrato = await readFile(path.join(SEED, '_shared', 'design-system-contrato.md'), 'utf8');
   const widgets = await readFile(path.join(APP, 'docs', 'WIDGETS.md'), 'utf8');
@@ -81,8 +82,13 @@ async function buildDesignSystemMd(slug) {
   const m = claude.match(/## Regras críticas de design[\s\S]*?(?=\n## |$)/);
   const regras = m ? m[0].replace('## Regras críticas de design', '## Regras críticas de design (do app)') : '';
   const cat = widgets.replace(/^# .*\n/, '').replace(/^> .*\n(> .*\n)*/m, '');
-  const file = path.join(SEED, slug, 'design-system.md');
-  await writeFile(file, `${contrato.trimEnd()}\n\n${cat.trim()}\n\n${regras.trim()}\n`, 'utf8');
+  return `${contrato.trimEnd()}\n\n${cat.trim()}\n\n${regras.trim()}\n`;
+}
+
+async function platformSql() {
+  const ds = await buildDesignSystemMd();
+  return [`INSERT INTO platform_docs (slug, org_id, title, body_md, kit_file, author_email) VALUES ('design-system', ${q(ORG)}, 'Design system dos aprofundamentos', ${q(ds)}, 'design-system.md', ${q(AUTHOR)})
+    ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, kit_file = excluded.kit_file, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`];
 }
 
 function splitMd(md) {
@@ -94,10 +100,9 @@ async function kitSql(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
   if (manifest.perguntas_bank) console.log(`  perguntas.md: ${await buildPerguntasMd(slug, manifest.perguntas_bank)} perguntas`);
-  await buildDesignSystemMd(slug);
   const files = [];
   for (const rel of await walk(dir)) {
-    if (rel === 'manifest.json' || rel.startsWith('contexto/') || rel.startsWith('viewer/') || rel === 'exemplo.html') continue;
+    if (rel === 'manifest.json' || rel.startsWith('contexto/') || rel.startsWith('viewer/') || rel === 'exemplo.html' || rel === 'design-system.md') continue;
     if (rel.startsWith('python/tests/out')) continue;
     files.push({ path: rel, content: await readFile(path.join(dir, rel), 'utf8') });
   }
@@ -150,6 +155,8 @@ async function main() {
   const g = await generalSql();
   lines.push(...g);
   console.log(`contextos gerais: ${g.length}`);
+  lines.push(...await platformSql());
+  console.log('documentos da plataforma: design-system');
   const file = sqlOut || path.join(os.tmpdir(), `witly-seed-${Date.now()}.sql`);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, lines.join('\n') + '\n', 'utf8');

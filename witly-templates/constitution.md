@@ -34,7 +34,9 @@ guardado: o que o consultor precisa passar (lançamento, temperatura, metas) vir
 Um template = manifesto + tarefas de contexto + queries + `gerar.py` + documento + guia
 + exemplo. Não depende do app Express nem de nada fora da própria pasta/registro. Tem
 versões (rascunho → publicado); o MCP serve só a publicada, salvo pedido explícito de
-editor.
+editor. **O kit baixado é tudo que a pessoa precisa**: quem usa o Grimório não tem o
+repositório; motor, viewer, design system e perguntas vão no zip. O design system dos
+aprofundamentos é um documento **da plataforma** (um para todos), não de cada template.
 
 ### VI. Uma plataforma, dois lados
 UI (cadastro/edição/uso) e MCP (entrega ao agente) são o mesmo Worker e a mesma base.
@@ -74,4 +76,4 @@ por curl.
 - Toda spec tem seção "Verificação da constituição"; violação precisa de justificativa
   explícita na tabela de complexidade do plano.
 
-**Versão**: 1.0.0 | **Ratificada**: 2026-09-07 | **Última emenda**: 2026-09-07
+**Versão**: 1.1.0 | **Ratificada**: 2026-09-07 | **Última emenda**: 2026-09-07 (V: kit autossuficiente; design system da plataforma)

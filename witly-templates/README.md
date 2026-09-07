@@ -26,7 +26,10 @@ Depois de gerar, o agente propõe no chat as perguntas norteadoras mais relevant
 próprio como template pessoal (`salvar_template`).
 
 UI de edição: `https://witly-templates.projetos-145.workers.dev/` (mesmo login). Páginas:
-Templates (editor por abas + Versões), Pessoais, Atividade (+ Uso), Contextos gerais, Usuários.
+Templates (editor por abas + Versões), Pessoais, Atividade (+ Uso), Contextos gerais,
+Design system (documento da plataforma, entra em todo kit), Usuários.
+
+O kit baixado é autossuficiente: a pessoa não precisa deste repositório.
 
 ## Desenvolver
 

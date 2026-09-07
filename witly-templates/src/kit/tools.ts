@@ -1,7 +1,7 @@
 /* tools — a lógica das tools do MCP, pura (db + env + usuário → texto). O McpAgent só
  * registra e chama. Testável sem transporte MCP. */
 
-import { canSee, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
+import { canSee, getPlatformDoc, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
 
@@ -128,11 +128,11 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
     out.push('');
     out.push(text('perguntas.md').trim());
   }
-  if (files.has('design-system.md')) {
+  if (await getPlatformDoc(env.DB, 'design-system')) {
     out.push('');
-    out.push('## Design system dos aprofundamentos');
+    out.push('## Design system dos aprofundamentos (da plataforma, igual para todo template)');
     out.push('');
-    out.push('Todo aprofundamento entra no relatório com os widgets do contrato, número só via `bind`. Leia `design-system.md` no kit antes de montar a seção; `python/aprofundar.py` valida e regera o HTML.');
+    out.push('Todo aprofundamento entra no relatório com os widgets do contrato, número só via `bind`. O contrato vem no zip como `design-system.md` (e como resource `contrato://widgets`); leia antes de montar a seção. `python/aprofundar.py` valida e regera o HTML.');
   }
   out.push('');
   out.push('## Ao terminar (obrigatório)');
@@ -198,14 +198,8 @@ export async function guia(env: ToolEnv, user: ToolUser, slug: string): Promise<
 export async function resourceText(env: ToolEnv, uri: string, viewer?: string): Promise<string | null> {
   const u = new URL(uri);
   if (u.protocol === 'contrato:') {
-    // contrato://widgets — o design system dos aprofundamentos (do 1º template visível que o tenha)
-    if (u.hostname === 'widgets') {
-      for (const t of await listTemplates(env.DB, env.ORG_ID, viewer ?? '*')) {
-        const k = t.published_version_id ? await getPublishedKit(env.DB, t.slug) : null;
-        const f = k?.files.find((x) => x.path === 'design-system.md');
-        if (f) return f.content;
-      }
-    }
+    // contrato://widgets — o design system dos aprofundamentos (documento da PLATAFORMA, igual para todo template)
+    if (u.hostname === 'widgets') return (await getPlatformDoc(env.DB, 'design-system'))?.body_md ?? null;
     return null;
   }
   if (u.protocol === 'contexto:') {

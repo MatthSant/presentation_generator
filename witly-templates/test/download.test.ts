@@ -3,6 +3,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { signDownload, verifyDownload } from '../src/kit/sign.js';
 import { seedPublished } from './helpers.js';
+import * as db from '../src/db/index.js';
 
 describe('sign — URL assinada (T010)', () => {
   it('válida, expirada e adulterada', async () => {
@@ -19,6 +20,7 @@ describe('sign — URL assinada (T010)', () => {
 describe('/dl/:slug/:n (T010)', () => {
   it('sem assinatura → 403; com assinatura → zip com manifest, contexto, arquivos', async () => {
     const v = await seedPublished('acomp');
+    await db.upsertPlatformDoc(env.DB, { slug: 'design-system', org_id: 'witly', title: 'DS', body_md: '# DS', kit_file: 'design-system.md' });
     expect((await SELF.fetch('http://x/dl/acomp/1')).status).toBe(403);
 
     const t = await signDownload(env.COOKIE_ENCRYPTION_KEY, 'acomp', v.number);
@@ -31,9 +33,10 @@ describe('/dl/:slug/:n (T010)', () => {
     // viewer/ entra quando public/viewer/ foi buildado (npm run build); nunca quebra o zip
     if (viewer.length) expect(viewer).toEqual(['acomp/viewer/shell.html', 'acomp/viewer/viewer.css', 'acomp/viewer/viewer.js']);
     expect(names).toEqual([
-      'acomp/contexto/lancamento.md', 'acomp/documento.md', 'acomp/exemplo.html', 'acomp/guia.md',
+      'acomp/contexto/lancamento.md', 'acomp/design-system.md', 'acomp/documento.md', 'acomp/exemplo.html', 'acomp/guia.md',
       'acomp/manifest.json', 'acomp/python/gerar.py', 'acomp/queries/dump.sql',
     ]);
+    expect(strFromU8(files['acomp/design-system.md'])).toBe('# DS');
     const manifest = JSON.parse(strFromU8(files['acomp/manifest.json']));
     expect(manifest.version).toBe(1);
     expect(manifest.params).toHaveLength(4);

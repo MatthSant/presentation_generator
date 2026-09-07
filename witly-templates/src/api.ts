@@ -258,6 +258,22 @@ api.post('/api/templates/:slug/versoes/:n/restaurar', async (c) => {
   catch (e) { return c.json({ error: (e as Error).message }, 404); }
 });
 
+// ── documentos da plataforma (design system…) ───────────────────────────────
+api.get('/api/platform-docs', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  return c.json(await db.listPlatformDocs(c.env.DB, c.env.ORG_ID));
+});
+api.put('/api/platform-docs/:slug', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const slug = c.req.param('slug');
+  if (!SLUG.test(slug)) return c.json({ error: 'slug inválido' }, 400);
+  const b = await c.req.json<{ title?: string; body_md?: string; kit_file?: string | null }>();
+  if (!b.title?.trim() || typeof b.body_md !== 'string') return c.json({ error: 'title e body_md obrigatórios' }, 400);
+  if (b.kit_file != null && b.kit_file !== '' && !PATH.test(b.kit_file)) return c.json({ error: 'kit_file inválido' }, 400);
+  await db.upsertPlatformDoc(c.env.DB, { slug, org_id: c.env.ORG_ID, title: b.title.trim(), body_md: b.body_md, kit_file: b.kit_file === '' ? null : b.kit_file, author_email: u.email });
+  return c.json({ ok: true });
+});
+
 // ── contextos gerais ────────────────────────────────────────────────────────
 api.get('/api/general-contexts', async (c) => {
   const u = await requireUser(c); if (isResp(u)) return u;

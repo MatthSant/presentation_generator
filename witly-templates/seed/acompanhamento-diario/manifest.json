@@ -188,7 +188,7 @@
     "python/aprofundar.py": "coloca um aprofundamento no relatório (design system) e regera o HTML",
     "python/perguntas/": "banco + cálculo de relevância das perguntas norteadoras (perguntas.json)",
     "perguntas.md": "banco de perguntas norteadoras legível (o que vale aprofundar e como)",
-    "design-system.md": "contrato dos widgets/binds/layout para aprofundamentos"
+    "design-system.md": "contrato dos widgets/binds/layout para aprofundamentos (documento da PLATAFORMA; entra em todo kit)"
   },
   "engine": "acompanhamento-lancamento",
   "perguntas_bank": "acompanhamento_lancamento"

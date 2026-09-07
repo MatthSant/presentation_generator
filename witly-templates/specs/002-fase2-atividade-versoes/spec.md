@@ -341,3 +341,10 @@ vez.
 - **Registro de aprofundamento** guarda a resposta inteira (agregada), limite 200 KB; o gate de PII pré-checa `@` e dígitos para não ser quadrático.
 - **Importador** usa `node:sqlite`; autor fixo `app@import` porque o `deepen_history` não tem e-mail do consultor.
 - **Tools novas** só aparecem no cliente MCP após reconectar (a lista de tools é lida na conexão).
+- **Design system é da plataforma, não do template** (decidido pelo dono): tabela `platform_docs`
+  (migração 0003), um documento `design-system` para toda a organização, editável na UI
+  ("Design system"), servido como `contrato://widgets` e incluído em **todo** zip de kit como
+  `design-system.md`. Removido da aba de template.
+- **Kit autossuficiente sem git** (reforço do dono): quem usa o Grimório não tem o repositório.
+  Tudo que o `gerar.py`/`aprofundar.py` precisam vem no zip: motor Python, `common/`,
+  `perguntas/`, viewer, design system, exemplo, contexto. Teste de download cobre.

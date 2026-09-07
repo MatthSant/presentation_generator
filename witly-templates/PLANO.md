@@ -30,6 +30,15 @@ versionado sem git.
 Cada template tem **versões**: rascunho → publicado; changelog; rollback. O MCP serve a
 publicada; um editor pode pedir a rascunho para testar.
 
+### Documentos da plataforma (o design system)
+
+Além dos templates e dos contextos gerais, a plataforma guarda **documentos que valem para
+todo template e entram em todo kit**: hoje, o **design system dos aprofundamentos** (contrato
+dos widgets, binds, layout e regras de design, gerado do app). É editável na UI ("Design
+system"), servido como `contrato://widgets` e vai no zip como `design-system.md`. O kit é
+**autossuficiente**: quem usa o Grimório não tem o repositório; tudo que o Python precisa
+está no zip.
+
 ### Contexto é o da análise, e o pai o transforma em tarefas do agente
 
 Contexto aqui é **o que o consultor precisa passar para esta análise deste cliente**:

@@ -4,7 +4,7 @@
 import { Hono } from 'hono';
 import { google } from './auth/google.js';
 import { api } from './api.js';
-import { getPublishedKit } from './db/index.js';
+import { getPublishedKit, platformKitFiles } from './db/index.js';
 import { signingKey, verifyDownload } from './kit/sign.js';
 import { buildKitZip, loadViewer } from './kit/zip.js';
 
@@ -26,7 +26,7 @@ app.get('/dl/:slug/:n', async (c) => {
   if (!(await verifyDownload(signingKey(c.env), slug, n, c.req.query('t')))) return c.text('link inválido ou expirado', 403);
   const kit = await getPublishedKit(c.env.DB, slug);
   if (!kit || kit.version.number !== n) return c.text('versão não publicada', 404);
-  const zip = buildKitZip(kit, await loadViewer(c.env.ASSETS));
+  const zip = buildKitZip(kit, await loadViewer(c.env.ASSETS), await platformKitFiles(c.env.DB, c.env.ORG_ID));
   return new Response(zip as unknown as BodyInit, {
     headers: {
       'content-type': 'application/zip',
