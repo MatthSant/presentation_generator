@@ -1,0 +1,84 @@
+{
+  "slug": "debriefing",
+  "name": "Debriefing de lançamento",
+  "objective": "Fechar um lançamento com evidência: atingiu as metas? O que puxou e o que segurou o resultado? O que escalar e o que pausar no próximo ciclo, por canal, temperatura e semana.",
+  "when_to_use": "Uma vez, ao fim do lançamento, com o consolidado da view de inscrições e as metas (obrigatórias). Compara tudo contra meta e, se houver, contra o lançamento anterior. Para acompanhar em curso use o acompanhamento diário; para comparar vários lançamentos use o histórico.",
+  "audience": "Consultor Witly e o time do cliente (gestor de tráfego, marketing). As 6 páginas (a última é o One Pager) vão para o cliente.",
+  "engine": "debriefing-lancamento",
+  "perguntas_bank": "debriefing_lancamento",
+  "required_files": ["goals"],
+
+  "params": [
+    { "id": "field_conversion", "label": "Lançamento", "type": "string", "required": true, "task_id": "lancamento",
+      "desc": "Identificador do lançamento na base (coluna field_conversion)." },
+    { "id": "field_conversion_anterior", "label": "Lançamento anterior (histórico)", "type": "string", "required": false, "task_id": "historico",
+      "desc": "field_conversion do lançamento anterior, para o Δ vs histórico. Opcional." }
+  ],
+
+  "queries": [
+    { "id": "dump", "file": "queries/dump.sql", "title": "Consolidado do lançamento", "saida": "dump.csv",
+      "desc": "Uma linha por utm_source × campanha × anúncio × dia, da view VW_V2_inscricoes_res (funil, vendas, mídia, reembolsos)." },
+    { "id": "goals", "file": "queries/goals.sql", "title": "Metas do lançamento (launch goals) — OBRIGATÓRIO", "saida": "goals.csv",
+      "desc": "1 linha por utm_source × dia em wtl_launch_goals. Sem metas não há atingimento nem Δ vs meta: o gerar.py recusa." },
+    { "id": "hist", "file": "queries/hist.sql", "title": "Lançamento anterior (histórico)", "optional": true, "saida": "hist.csv",
+      "desc": "O mesmo consolidado do lançamento anterior, para o Δ vs histórico. Requer field_conversion_anterior." }
+  ],
+
+  "tarefas_contexto": [
+    { "id": "lancamento", "objetivo": "Identificar o lançamento encerrado (field_conversion) e o cliente", "saida": "config.field_conversion, config.client, config.client_name, config.nome_campanha, config.campaign_label", "confirmar": true },
+    { "id": "classificacao", "objetivo": "Confirmar como distinguir fonte paga, campanha de captação e campanha de vendas (o erro mais comum)", "saida": "config.paid_sources, config.cpt_pattern, config.vnd_pattern", "confirmar": true },
+    { "id": "temperatura", "objetivo": "Classificar as campanhas em quente / frio / remarketing / advantage pelo nome", "saida": "config.temp_rules", "confirmar": true },
+    { "id": "metas", "objetivo": "Obter a tabela de metas (goals.csv) — obrigatória", "saida": "goals.csv (--goals)", "confirmar": false },
+    { "id": "historico", "objetivo": "Decidir se há lançamento anterior para comparar e obter o consolidado dele", "saida": "hist.csv (--hist) ou nada", "confirmar": true },
+    { "id": "recorte", "objetivo": "Perguntar ao consultor se o relatório é do lançamento inteiro ou de um recorte (tipo, canal, temperatura, campanha, público, criativo)", "saida": "--opts {\"filters\": {...}} ou nenhum", "confirmar": true }
+  ],
+
+  "config": {
+    "descricao": "config.json que o gerar.py recebe. Metas e histórico entram por --goals/--hist, não pelo config.",
+    "exemplo": {
+      "type": "debriefing-lancamento",
+      "client": "cliente-slug",
+      "client_name": "Nome do Cliente",
+      "title": "Nome do Cliente · Debriefing de Lançamento",
+      "nome_campanha": "Lançamento X — ago/2026",
+      "campaign_label": "LX ago/26",
+      "field_conversion": "lcto-x-2026",
+      "paid_sources": ["facebook", "meta", "google", "fb"],
+      "cpt_pattern": ["cadastro-", "google-search-", "-cpt]"],
+      "vnd_pattern": ["venda-", "vendas-", "-vnd]"],
+      "temp_rules": [
+        { "contains": ["advantage", "[advantage]", "adv"], "label": "advantage" },
+        { "contains": ["quente", "hot", "warm"], "label": "quente" },
+        { "contains": ["frio", "cold"], "label": "frio" },
+        { "contains": ["rmkt", "remarketing"], "label": "remarketing" }
+      ]
+    }
+  },
+
+  "como_gerar": [
+    "1. Execute as tarefas de contexto (contexto/*.md) com o consultor e monte config.json.",
+    "2. Rode as queries no Delfos (montar_query devolve o SQL preenchido): dump.csv e goals.csv (obrigatório); hist.csv se houver lançamento anterior.",
+    "3. python python/gerar.py --config config.json --csv dump.csv --goals goals.csv [--hist hist.csv] --out saida/ [--opts '{\"filters\":{\"canal\":[\"facebook\"]}}']",
+    "4. Abra saida/relatorio.html (6 páginas, a última é o One Pager). Os números estão em saida/numeros.json.",
+    "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
+    "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (tabela, atingimento, decomposicao, onde_concentra, impacto_receita, variacao_hist, cruzar_dia…).",
+    "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+  ],
+
+  "arquivos": {
+    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + perguntas.json + relatorio.html (--opts = snapshot de um recorte)",
+    "python/calc.py": "os números (classificação pago/orgânico, captação/vendas, temperatura; metas; histórico)",
+    "python/build_report.py": "monta as 6 páginas (Panorama, Canal, Tráfego pago, Orgânico, 360°, One Pager)",
+    "python/query_api.py": "consultas sob demanda (atingimento, decomposição, onde_concentra, impacto_receita, variacao_hist…)",
+    "python/render_view.py": "referência de como o app aplica os filtros (o gerar.py usa --opts)",
+    "python/common/": "layout, formatação, temperatura, builders",
+    "python/perguntas/": "banco + relevância das 18 perguntas norteadoras",
+    "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
+    "python/tests/": "fixture sintética (dump + goals + hist) e testes",
+    "viewer/": "viewer offline",
+    "documento.md": "as 6 páginas: o que cada bloco mostra",
+    "guia.md": "mecânica, definições, regras de classificação, o que não concluir",
+    "perguntas.md": "banco de perguntas norteadoras legível",
+    "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
+  }
+}

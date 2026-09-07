@@ -18,7 +18,8 @@ const SEED = path.join(ROOT, 'seed');
 
 const DEFAULT_ENGINE = { 'acompanhamento-diario': 'acompanhamento-lancamento' };
 const DEFAULT_BANK = { 'acompanhamento-diario': 'acompanhamento_lancamento' };
-const ENGINE_FILES = ['calc.py', 'build_report.py', 'query_api.py', 'render_view.py'];
+const ENGINE_FILES = ['calc.py', 'conv_calc.py', 'build_report.py', 'query_api.py', 'render_view.py'];
+const SHARED = path.join(SEED, '_shared');
 
 export async function assembleKit(slug) {
   const dir = path.join(SEED, slug);
@@ -31,6 +32,10 @@ export async function assembleKit(slug) {
   let n = 0;
   for (const f of ENGINE_FILES) {
     try { await copyFile(path.join(PYSRC, engine, f), path.join(py, f)); n++; } catch { /* opcional */ }
+  }
+  // Scripts compartilhados por todos os kits (gerar.py, aprofundar.py).
+  for (const f of await readdir(SHARED)) {
+    if (f.endsWith('.py')) { await copyFile(path.join(SHARED, f), path.join(py, f)); n++; }
   }
   for (const f of await readdir(path.join(PYSRC, 'common'))) {
     if (f.endsWith('.py')) { await copyFile(path.join(PYSRC, 'common', f), path.join(py, 'common', f)); n++; }

@@ -191,5 +191,6 @@
     "design-system.md": "contrato dos widgets/binds/layout para aprofundamentos (documento da PLATAFORMA; entra em todo kit)"
   },
   "engine": "acompanhamento-lancamento",
-  "perguntas_bank": "acompanhamento_lancamento"
+  "perguntas_bank": "acompanhamento_lancamento",
+  "required_files": []
 }

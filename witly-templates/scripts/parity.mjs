@@ -4,6 +4,7 @@
  * sintética e compara dataset.json, data.json (sem timestamps), layout.json e sXX.json. */
 
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,9 +22,18 @@ const tmp = await mkdtemp(path.join(os.tmpdir(), 'witly-parity-'));
 try {
   execFileSync(PY, [path.join(kitPy, 'tests', 'make_fixture.py')], { stdio: 'ignore' });
   const csv = path.join(kitPy, 'tests', 'fixture.csv');
-  const cfg = path.join(kitPy, 'tests', 'config.json');
+  const cfg0 = path.join(kitPy, 'tests', 'config.json');
   const outKit = path.join(tmp, 'kit'); const outApp = path.join(tmp, 'app');
-  execFileSync(PY, [path.join(kitPy, 'gerar.py'), '--config', cfg, '--csv', csv, '--out', outKit], { stdio: ['ignore', 'ignore', 'inherit'] });
+  // auxiliares (goals/hist/dict) da fixture: o kit recebe por flag, o app pelo config
+  const AUX = { goals: 'goals_csv', hist: 'hist_csv', dict: 'dict_csv' };
+  const auxFlags = []; const cfgObj = JSON.parse(await readFile(cfg0, 'utf8'));
+  for (const [k, key] of Object.entries(AUX)) {
+    const f = path.join(kitPy, 'tests', `${k}.csv`);
+    if (existsSync(f)) { auxFlags.push(`--${k}`, f); cfgObj[key] = f; }
+  }
+  const cfg = path.join(tmp, 'config.json');
+  await writeFile(cfg, JSON.stringify(cfgObj));
+  execFileSync(PY, [path.join(kitPy, 'gerar.py'), '--config', cfg, '--csv', csv, '--out', outKit, ...auxFlags], { stdio: ['ignore', 'ignore', 'inherit'] });
   const content = path.join(tmp, 'content.json');
   await writeFile(content, JSON.stringify({ insights: { header: { badge: 'Insights', title: 'Insights Estratégicos', sub: 'Análise descritiva gerada — insights autorais ainda pendentes.' }, zones: [], method: 'Os insights e detalhamentos autorais ainda não foram gerados para esta análise.' }, detalhamentos: {} }));
   execFileSync(PY, [path.join(APP, 'pysrc', engine, 'build_report.py'), cfg, content, csv, outApp], { stdio: ['ignore', 'ignore', 'inherit'] });
