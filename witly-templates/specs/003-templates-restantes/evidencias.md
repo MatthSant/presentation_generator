@@ -1,6 +1,6 @@
 # Evidências — Fase 3 (os outros quatro templates)
 
-**Data**: 2026-09-07 · **Worker**: `https://witly-templates.projetos-145.workers.dev` · D1 de produção com os 5 templates publicados pelo `seed.mjs --remote` (o rascunho `debriefing` v1 criado na UI ficou intacto; a publicada é a do seed).
+**Data**: 2026-09-07 · **Worker**: `https://witly-templates.projetos-145.workers.dev` (versão 24753408, viewer com seletor de filtro) · D1 de produção com os 5 templates publicados pelo `seed.mjs --remote` (o rascunho `debriefing` v1 criado na UI ficou intacto; a publicada é a do seed).
 
 ## Automatizado (`npm run test:py` = `scripts/test-kits.mjs`)
 | Kit | Motor | unittest | Paridade kit == app (fixture) |
@@ -23,6 +23,7 @@ Worker: 63 testes Vitest continuam verdes (nada mudou em `src/`).
 
 ## MCP real (produção, sessão Claude Code)
 - `listar_templates` → 5 templates: `acompanhamento-diario` v8, `criativos` v3, `conversao-perfil` v1, `debriefing` v5, `historico` v2, cada um com tarefas de contexto e parâmetros.
+- `obter_template('conversao-perfil')` → kit v1 completo (manifesto, 5 tarefas, query, documento, guia, perguntas, contextos gerais) + URL assinada; o zip baixado traz o viewer novo (`sa-filters`), o `gerar.py` genérico e a fixture sem e-mail.
 - `montar_query('debriefing', {field_conversion, field_conversion_anterior})` → 3 SQLs preenchidos e escapados (dump, goals obrigatório, hist opcional), com a instrução de salvar como `dump.csv` / `goals.csv` / `hist.csv`.
 
 ## UI (local, `/ui/dev-login`)
