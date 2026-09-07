@@ -1,0 +1,19 @@
+{
+  "type": "conversao-perfil",
+  "client": "fixture", "client_name": "Cliente Fixture", "title": "Cliente Fixture · Conversão por Perfil",
+  "campaign_label": "2025–2026",
+  "channels": ["Geral", "Pago", "Orgânico"],
+  "window": "lcto", "long_window": "12m",
+  "criterios": [
+    { "id": "renda", "col": "renda_mensal", "label": "Renda mensal", "tab": "Renda", "abbr": "Renda", "ordinal": true,
+      "order": ["Até R$ 3.000", "R$ 3.000 a R$ 10.000", "Acima de R$ 10.000"],
+      "aliases": {}, "short_labels": { "Até R$ 3.000": "<3k", "R$ 3.000 a R$ 10.000": "3–10k", "Acima de R$ 10.000": ">10k" },
+      "cores": ["#4C1D95", "#7C3AED", "#3B82F6", "#0EA5E9", "#0D9488", "#10B981"] },
+    { "id": "idade", "col": "idade", "label": "Faixa etária", "tab": "Idade", "abbr": "Idade", "ordinal": true,
+      "order": ["18-29", "30-44", "45+"], "aliases": {}, "short_labels": {},
+      "cores": ["#4C1D95", "#7C3AED", "#3B82F6", "#0EA5E9", "#0D9488", "#10B981"] },
+    { "id": "genero", "col": "genero", "label": "Gênero", "tab": "Gênero", "abbr": "Gênero", "ordinal": false,
+      "order": ["Feminino", "Masculino"], "aliases": {}, "short_labels": {},
+      "cores": ["#4C1D95", "#7C3AED", "#3B82F6", "#0EA5E9", "#0D9488", "#10B981"] }
+  ]
+}

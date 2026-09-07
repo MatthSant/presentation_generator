@@ -1,0 +1,153 @@
+field_conversion,tipo_trafego,renda_mensal,idade,genero,total_leads,vendas_lancamento,vendas_6meses,vendas_12meses
+lcto-fixture-mar25,Pago,Até R$ 3.000,18-29,Feminino,120,1,1,1
+lcto-fixture-mar25,Pago,Até R$ 3.000,18-29,Masculino,120,1,1,1
+lcto-fixture-mar25,Pago,Até R$ 3.000,30-44,Feminino,120,1,1,2
+lcto-fixture-mar25,Pago,Até R$ 3.000,30-44,Masculino,120,1,1,2
+lcto-fixture-mar25,Pago,Até R$ 3.000,45+,Feminino,120,1,2,2
+lcto-fixture-mar25,Pago,Até R$ 3.000,45+,Masculino,120,1,2,2
+lcto-fixture-mar25,Pago,R$ 3.000 a R$ 10.000,18-29,Feminino,120,2,2,2
+lcto-fixture-mar25,Pago,R$ 3.000 a R$ 10.000,18-29,Masculino,120,2,2,2
+lcto-fixture-mar25,Pago,R$ 3.000 a R$ 10.000,30-44,Feminino,120,2,2,3
+lcto-fixture-mar25,Pago,R$ 3.000 a R$ 10.000,30-44,Masculino,120,2,2,3
+lcto-fixture-mar25,Pago,R$ 3.000 a R$ 10.000,45+,Feminino,120,2,3,4
+lcto-fixture-mar25,Pago,R$ 3.000 a R$ 10.000,45+,Masculino,120,2,3,4
+lcto-fixture-mar25,Pago,Acima de R$ 10.000,18-29,Feminino,120,3,4,5
+lcto-fixture-mar25,Pago,Acima de R$ 10.000,18-29,Masculino,120,3,4,5
+lcto-fixture-mar25,Pago,Acima de R$ 10.000,30-44,Feminino,120,4,5,6
+lcto-fixture-mar25,Pago,Acima de R$ 10.000,30-44,Masculino,120,4,5,6
+lcto-fixture-mar25,Pago,Acima de R$ 10.000,45+,Feminino,120,5,6,7
+lcto-fixture-mar25,Pago,Acima de R$ 10.000,45+,Masculino,120,5,6,7
+lcto-fixture-mar25,Pago,,,,6480,64,84,103
+lcto-fixture-mar25,Orgânico,Até R$ 3.000,18-29,Feminino,80,1,1,1
+lcto-fixture-mar25,Orgânico,Até R$ 3.000,18-29,Masculino,80,1,1,1
+lcto-fixture-mar25,Orgânico,Até R$ 3.000,30-44,Feminino,80,1,1,2
+lcto-fixture-mar25,Orgânico,Até R$ 3.000,30-44,Masculino,80,1,1,2
+lcto-fixture-mar25,Orgânico,Até R$ 3.000,45+,Feminino,80,1,2,2
+lcto-fixture-mar25,Orgânico,Até R$ 3.000,45+,Masculino,80,1,2,2
+lcto-fixture-mar25,Orgânico,R$ 3.000 a R$ 10.000,18-29,Feminino,80,2,2,2
+lcto-fixture-mar25,Orgânico,R$ 3.000 a R$ 10.000,18-29,Masculino,80,2,2,2
+lcto-fixture-mar25,Orgânico,R$ 3.000 a R$ 10.000,30-44,Feminino,80,2,2,3
+lcto-fixture-mar25,Orgânico,R$ 3.000 a R$ 10.000,30-44,Masculino,80,2,2,3
+lcto-fixture-mar25,Orgânico,R$ 3.000 a R$ 10.000,45+,Feminino,80,2,3,4
+lcto-fixture-mar25,Orgânico,R$ 3.000 a R$ 10.000,45+,Masculino,80,2,3,4
+lcto-fixture-mar25,Orgânico,Acima de R$ 10.000,18-29,Feminino,80,3,4,5
+lcto-fixture-mar25,Orgânico,Acima de R$ 10.000,18-29,Masculino,80,3,4,5
+lcto-fixture-mar25,Orgânico,Acima de R$ 10.000,30-44,Feminino,80,4,5,6
+lcto-fixture-mar25,Orgânico,Acima de R$ 10.000,30-44,Masculino,80,4,5,6
+lcto-fixture-mar25,Orgânico,Acima de R$ 10.000,45+,Feminino,80,5,6,7
+lcto-fixture-mar25,Orgânico,Acima de R$ 10.000,45+,Masculino,80,5,6,7
+lcto-fixture-mar25,Orgânico,,,,4320,43,56,69
+lcto-fixture-jul25,Pago,Até R$ 3.000,18-29,Feminino,120,1,1,1
+lcto-fixture-jul25,Pago,Até R$ 3.000,18-29,Masculino,120,1,1,1
+lcto-fixture-jul25,Pago,Até R$ 3.000,30-44,Feminino,120,1,1,2
+lcto-fixture-jul25,Pago,Até R$ 3.000,30-44,Masculino,120,1,1,2
+lcto-fixture-jul25,Pago,Até R$ 3.000,45+,Feminino,120,1,2,2
+lcto-fixture-jul25,Pago,Até R$ 3.000,45+,Masculino,120,1,2,2
+lcto-fixture-jul25,Pago,R$ 3.000 a R$ 10.000,18-29,Feminino,120,2,2,2
+lcto-fixture-jul25,Pago,R$ 3.000 a R$ 10.000,18-29,Masculino,120,2,2,2
+lcto-fixture-jul25,Pago,R$ 3.000 a R$ 10.000,30-44,Feminino,120,2,2,3
+lcto-fixture-jul25,Pago,R$ 3.000 a R$ 10.000,30-44,Masculino,120,2,2,3
+lcto-fixture-jul25,Pago,R$ 3.000 a R$ 10.000,45+,Feminino,120,2,3,4
+lcto-fixture-jul25,Pago,R$ 3.000 a R$ 10.000,45+,Masculino,120,2,3,4
+lcto-fixture-jul25,Pago,Acima de R$ 10.000,18-29,Feminino,120,3,4,5
+lcto-fixture-jul25,Pago,Acima de R$ 10.000,18-29,Masculino,120,3,4,5
+lcto-fixture-jul25,Pago,Acima de R$ 10.000,30-44,Feminino,120,4,5,6
+lcto-fixture-jul25,Pago,Acima de R$ 10.000,30-44,Masculino,120,4,5,6
+lcto-fixture-jul25,Pago,Acima de R$ 10.000,45+,Feminino,120,5,6,7
+lcto-fixture-jul25,Pago,Acima de R$ 10.000,45+,Masculino,120,5,6,7
+lcto-fixture-jul25,Pago,,,,6480,64,84,103
+lcto-fixture-jul25,Orgânico,Até R$ 3.000,18-29,Feminino,80,1,1,1
+lcto-fixture-jul25,Orgânico,Até R$ 3.000,18-29,Masculino,80,1,1,1
+lcto-fixture-jul25,Orgânico,Até R$ 3.000,30-44,Feminino,80,1,1,2
+lcto-fixture-jul25,Orgânico,Até R$ 3.000,30-44,Masculino,80,1,1,2
+lcto-fixture-jul25,Orgânico,Até R$ 3.000,45+,Feminino,80,1,2,2
+lcto-fixture-jul25,Orgânico,Até R$ 3.000,45+,Masculino,80,1,2,2
+lcto-fixture-jul25,Orgânico,R$ 3.000 a R$ 10.000,18-29,Feminino,80,2,2,2
+lcto-fixture-jul25,Orgânico,R$ 3.000 a R$ 10.000,18-29,Masculino,80,2,2,2
+lcto-fixture-jul25,Orgânico,R$ 3.000 a R$ 10.000,30-44,Feminino,80,2,2,3
+lcto-fixture-jul25,Orgânico,R$ 3.000 a R$ 10.000,30-44,Masculino,80,2,2,3
+lcto-fixture-jul25,Orgânico,R$ 3.000 a R$ 10.000,45+,Feminino,80,2,3,4
+lcto-fixture-jul25,Orgânico,R$ 3.000 a R$ 10.000,45+,Masculino,80,2,3,4
+lcto-fixture-jul25,Orgânico,Acima de R$ 10.000,18-29,Feminino,80,3,4,5
+lcto-fixture-jul25,Orgânico,Acima de R$ 10.000,18-29,Masculino,80,3,4,5
+lcto-fixture-jul25,Orgânico,Acima de R$ 10.000,30-44,Feminino,80,4,5,6
+lcto-fixture-jul25,Orgânico,Acima de R$ 10.000,30-44,Masculino,80,4,5,6
+lcto-fixture-jul25,Orgânico,Acima de R$ 10.000,45+,Feminino,80,5,6,7
+lcto-fixture-jul25,Orgânico,Acima de R$ 10.000,45+,Masculino,80,5,6,7
+lcto-fixture-jul25,Orgânico,,,,4320,43,56,69
+lcto-fixture-nov25,Pago,Até R$ 3.000,18-29,Feminino,120,1,1,1
+lcto-fixture-nov25,Pago,Até R$ 3.000,18-29,Masculino,120,1,1,1
+lcto-fixture-nov25,Pago,Até R$ 3.000,30-44,Feminino,120,1,1,2
+lcto-fixture-nov25,Pago,Até R$ 3.000,30-44,Masculino,120,1,1,2
+lcto-fixture-nov25,Pago,Até R$ 3.000,45+,Feminino,120,1,2,2
+lcto-fixture-nov25,Pago,Até R$ 3.000,45+,Masculino,120,1,2,2
+lcto-fixture-nov25,Pago,R$ 3.000 a R$ 10.000,18-29,Feminino,120,2,2,2
+lcto-fixture-nov25,Pago,R$ 3.000 a R$ 10.000,18-29,Masculino,120,2,2,2
+lcto-fixture-nov25,Pago,R$ 3.000 a R$ 10.000,30-44,Feminino,120,2,2,3
+lcto-fixture-nov25,Pago,R$ 3.000 a R$ 10.000,30-44,Masculino,120,2,2,3
+lcto-fixture-nov25,Pago,R$ 3.000 a R$ 10.000,45+,Feminino,120,2,3,4
+lcto-fixture-nov25,Pago,R$ 3.000 a R$ 10.000,45+,Masculino,120,2,3,4
+lcto-fixture-nov25,Pago,Acima de R$ 10.000,18-29,Feminino,120,3,4,5
+lcto-fixture-nov25,Pago,Acima de R$ 10.000,18-29,Masculino,120,3,4,5
+lcto-fixture-nov25,Pago,Acima de R$ 10.000,30-44,Feminino,120,4,5,6
+lcto-fixture-nov25,Pago,Acima de R$ 10.000,30-44,Masculino,120,4,5,6
+lcto-fixture-nov25,Pago,Acima de R$ 10.000,45+,Feminino,120,5,6,7
+lcto-fixture-nov25,Pago,Acima de R$ 10.000,45+,Masculino,120,5,6,7
+lcto-fixture-nov25,Pago,,,,6480,64,84,103
+lcto-fixture-nov25,Orgânico,Até R$ 3.000,18-29,Feminino,80,1,1,1
+lcto-fixture-nov25,Orgânico,Até R$ 3.000,18-29,Masculino,80,1,1,1
+lcto-fixture-nov25,Orgânico,Até R$ 3.000,30-44,Feminino,80,1,1,2
+lcto-fixture-nov25,Orgânico,Até R$ 3.000,30-44,Masculino,80,1,1,2
+lcto-fixture-nov25,Orgânico,Até R$ 3.000,45+,Feminino,80,1,2,2
+lcto-fixture-nov25,Orgânico,Até R$ 3.000,45+,Masculino,80,1,2,2
+lcto-fixture-nov25,Orgânico,R$ 3.000 a R$ 10.000,18-29,Feminino,80,2,2,2
+lcto-fixture-nov25,Orgânico,R$ 3.000 a R$ 10.000,18-29,Masculino,80,2,2,2
+lcto-fixture-nov25,Orgânico,R$ 3.000 a R$ 10.000,30-44,Feminino,80,2,2,3
+lcto-fixture-nov25,Orgânico,R$ 3.000 a R$ 10.000,30-44,Masculino,80,2,2,3
+lcto-fixture-nov25,Orgânico,R$ 3.000 a R$ 10.000,45+,Feminino,80,2,3,4
+lcto-fixture-nov25,Orgânico,R$ 3.000 a R$ 10.000,45+,Masculino,80,2,3,4
+lcto-fixture-nov25,Orgânico,Acima de R$ 10.000,18-29,Feminino,80,3,4,5
+lcto-fixture-nov25,Orgânico,Acima de R$ 10.000,18-29,Masculino,80,3,4,5
+lcto-fixture-nov25,Orgânico,Acima de R$ 10.000,30-44,Feminino,80,4,5,6
+lcto-fixture-nov25,Orgânico,Acima de R$ 10.000,30-44,Masculino,80,4,5,6
+lcto-fixture-nov25,Orgânico,Acima de R$ 10.000,45+,Feminino,80,5,6,7
+lcto-fixture-nov25,Orgânico,Acima de R$ 10.000,45+,Masculino,80,5,6,7
+lcto-fixture-nov25,Orgânico,,,,4320,43,56,69
+lcto-fixture-mar26,Pago,Até R$ 3.000,18-29,Feminino,120,1,1,1
+lcto-fixture-mar26,Pago,Até R$ 3.000,18-29,Masculino,120,1,1,1
+lcto-fixture-mar26,Pago,Até R$ 3.000,30-44,Feminino,120,1,1,2
+lcto-fixture-mar26,Pago,Até R$ 3.000,30-44,Masculino,120,1,1,2
+lcto-fixture-mar26,Pago,Até R$ 3.000,45+,Feminino,120,1,2,2
+lcto-fixture-mar26,Pago,Até R$ 3.000,45+,Masculino,120,1,2,2
+lcto-fixture-mar26,Pago,R$ 3.000 a R$ 10.000,18-29,Feminino,120,2,2,2
+lcto-fixture-mar26,Pago,R$ 3.000 a R$ 10.000,18-29,Masculino,120,2,2,2
+lcto-fixture-mar26,Pago,R$ 3.000 a R$ 10.000,30-44,Feminino,120,2,2,3
+lcto-fixture-mar26,Pago,R$ 3.000 a R$ 10.000,30-44,Masculino,120,2,2,3
+lcto-fixture-mar26,Pago,R$ 3.000 a R$ 10.000,45+,Feminino,120,2,3,4
+lcto-fixture-mar26,Pago,R$ 3.000 a R$ 10.000,45+,Masculino,120,2,3,4
+lcto-fixture-mar26,Pago,Acima de R$ 10.000,18-29,Feminino,120,3,4,5
+lcto-fixture-mar26,Pago,Acima de R$ 10.000,18-29,Masculino,120,3,4,5
+lcto-fixture-mar26,Pago,Acima de R$ 10.000,30-44,Feminino,120,4,5,6
+lcto-fixture-mar26,Pago,Acima de R$ 10.000,30-44,Masculino,120,4,5,6
+lcto-fixture-mar26,Pago,Acima de R$ 10.000,45+,Feminino,120,5,6,7
+lcto-fixture-mar26,Pago,Acima de R$ 10.000,45+,Masculino,120,5,6,7
+lcto-fixture-mar26,Pago,,,,6480,64,84,103
+lcto-fixture-mar26,Orgânico,Até R$ 3.000,18-29,Feminino,80,1,1,1
+lcto-fixture-mar26,Orgânico,Até R$ 3.000,18-29,Masculino,80,1,1,1
+lcto-fixture-mar26,Orgânico,Até R$ 3.000,30-44,Feminino,80,1,1,2
+lcto-fixture-mar26,Orgânico,Até R$ 3.000,30-44,Masculino,80,1,1,2
+lcto-fixture-mar26,Orgânico,Até R$ 3.000,45+,Feminino,80,1,2,2
+lcto-fixture-mar26,Orgânico,Até R$ 3.000,45+,Masculino,80,1,2,2
+lcto-fixture-mar26,Orgânico,R$ 3.000 a R$ 10.000,18-29,Feminino,80,2,2,2
+lcto-fixture-mar26,Orgânico,R$ 3.000 a R$ 10.000,18-29,Masculino,80,2,2,2
+lcto-fixture-mar26,Orgânico,R$ 3.000 a R$ 10.000,30-44,Feminino,80,2,2,3
+lcto-fixture-mar26,Orgânico,R$ 3.000 a R$ 10.000,30-44,Masculino,80,2,2,3
+lcto-fixture-mar26,Orgânico,R$ 3.000 a R$ 10.000,45+,Feminino,80,2,3,4
+lcto-fixture-mar26,Orgânico,R$ 3.000 a R$ 10.000,45+,Masculino,80,2,3,4
+lcto-fixture-mar26,Orgânico,Acima de R$ 10.000,18-29,Feminino,80,3,4,5
+lcto-fixture-mar26,Orgânico,Acima de R$ 10.000,18-29,Masculino,80,3,4,5
+lcto-fixture-mar26,Orgânico,Acima de R$ 10.000,30-44,Feminino,80,4,5,6
+lcto-fixture-mar26,Orgânico,Acima de R$ 10.000,30-44,Masculino,80,4,5,6
+lcto-fixture-mar26,Orgânico,Acima de R$ 10.000,45+,Feminino,80,5,6,7
+lcto-fixture-mar26,Orgânico,Acima de R$ 10.000,45+,Masculino,80,5,6,7
+lcto-fixture-mar26,Orgânico,,,,4320,43,56,69

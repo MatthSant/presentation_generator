@@ -150,9 +150,46 @@ def _numeros_por_lancamento(calc, rows, opts):
     }
 
 
+def _numeros_por_criterio(cc, rows, config):
+    """Motor de conversão por perfil (conv_calc): por critério × canal, o resumo de cada
+    grupo (conversão média, diff vs benchmark, uplift, representatividade, wins/n),
+    os benchmarks por lançamento, a relevância do critério e a codependência."""
+    dims = cc.dim_columns(rows)
+    lctos = cc.ordered_lancamentos(rows)
+    canais = config.get('channels') or ['Geral', 'Pago', 'Orgânico']
+    crit = config.get('criterios') or []
+    window, long_w = config.get('window', 'lcto'), config.get('long_window', '12m')
+    canon = {c['id']: cc.make_canon(c.get('order') or [], c.get('aliases') or None) for c in crit}
+    keep = ('avgConvLcto', 'avgConv12m', 'avgDiff_lcto', 'avgDiff_12m', 'avgUplift', 'avgRep', 'wins', 'n')
+    out = {'lancamentos': lctos, 'canais': canais, 'window': window, 'long_window': long_w, 'criterios': {}, 'codependencia': {}}
+    for c in crit:
+        blk = {'label': c.get('label'), 'col': c['col'], 'canais': {}}
+        for ch in canais:
+            cd = cc.agg_criterio(rows, c['col'], dims, lctos, ch, canon=canon[c['id']], window=window, long_window=long_w)
+            blk['canais'][ch] = {
+                'relevancia': round(cc.relevancia(cd), 2),
+                'bench_pesq_lcto': cd['bench_pesq_lcto'], 'bench_pesq_12m': cd['bench_pesq_12m'],
+                'bench_total_lcto': cd['bench_total_lcto'],
+                'grupos': {g: {**{k: pg.get(k) for k in keep}, 'conv_lcto': pg['conv_lcto'], 'diff_lcto': pg['diff_lcto'], 'leads': pg['leads']}
+                           for g, pg in cd['por_grupo'].items()},
+            }
+        out['criterios'][c['id']] = blk
+    spec = [{'id': c['id'], 'label': c.get('label'), 'col': c['col'], 'canon': canon[c['id']]} for c in crit]
+    if len(spec) >= 2:
+        for ch in canais:
+            cod = cc.codependencia(rows, spec, dims, ch, lctos)
+            out['codependencia'][ch] = {'ids': cod['ids'], 'matrix': cod['matrix'], 'fatores': cod['fatores']}
+    return out
+
+
 def numeros(calc, rows, config, out_dir, opts=None):
     """Resumo numérico: o `build(rows, config)` do calc (sem linhas cruas / chaves privadas)
     ou, se o motor não expõe um, um sumário das tabelas do dataset."""
+    if calc is not None and hasattr(calc, 'agg_criterio') and hasattr(calc, 'codependencia'):
+        try:
+            return _jsonable(_numeros_por_criterio(calc, rows, config))
+        except Exception as e:
+            sys.stderr.write(f'aviso: agg_criterio não gerou resumo ({e})\n')
     if calc is not None and not hasattr(calc, 'build') and hasattr(calc, 'build_series'):
         try:
             return _jsonable(_numeros_por_lancamento(calc, rows, opts))
