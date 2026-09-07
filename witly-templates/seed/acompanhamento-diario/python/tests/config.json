@@ -1,0 +1,14 @@
+{
+  "type": "acompanhamento-lancamento",
+  "client": "fixture", "client_name": "Cliente Fixture", "title": "Cliente Fixture · Acompanhamento de Campanha",
+  "nome_campanha": "Lançamento Fixture", "field_conversion": "lcto-fixture",
+  "tipo_funil": "lancamento-padrao", "data_corte": "2026-08-05", "data_report": "2026-08-06",
+  "metas": { "cpl": 8, "cpmql": 25, "taxa_resp": 40, "taxa_qual": 40, "_leads_total": 400, "_leads_td": 225 },
+  "temp_rules": [
+    { "contains": ["hot-", "quente-", "hot", "rmkt", "remarketing"], "label": "Quente" },
+    { "contains": ["warm-", "morno-", "warm", "lal", "lookalike"], "label": "Morno" },
+    { "contains": ["cold-", "frio-", "cold", "interesse", "aberto"], "label": "Frio" },
+    { "contains": ["adv-", "adv", "advantage"], "label": "Advantage" }
+  ],
+  "temp_overwrite": true
+}

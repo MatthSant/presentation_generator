@@ -1,0 +1,33 @@
+name: witly-templates
+
+on:
+  push:
+    paths: ['witly-templates/**', '.github/workflows/witly-templates.yml']
+  pull_request:
+    paths: ['witly-templates/**', '.github/workflows/witly-templates.yml']
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: witly-templates }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: witly-templates/package-lock.json }
+      - run: npm ci
+      - run: npx wrangler types
+      - run: npm run typecheck
+      - run: npm test
+
+  python-kit:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: witly-templates }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: unittest do kit (stdlib, sem pip)
+        run: |
+          if [ -d seed/acompanhamento-diario/python/tests ]; then npm run test:py; else echo "kit ainda não existe — pulando"; fi

@@ -1,0 +1,16 @@
+field_conversion,data,utm_source,utm_medium,utm_campaign,utm_content,field_adset_name,field_campaign_name,field_ad_name,leads,leads_mqls,respostas,leads_novo,leads_antigos,cliente_inscrito,vendas,faturamento,invest_total,impressoes,link_clicks,pageviews,leads_trafego,leads_mqls_trafego,views_totais,views_50pc,one_day_click_attribution,link_criativo
+lcto-fixture,2026-08-01,facebook,cpc,HOT-RMKT-envolvimento,ad-quente,rmkt 30d,HOT-RMKT-envolvimento,ad-quente,20,8,12,15,5,1,0,0,100,10000,200,160,20,8,3000,900,20,https://example.com/p/quente
+lcto-fixture,2026-08-01,facebook,cpc,COLD-interesses,ad-frio,interesses maternidade,COLD-interesses,ad-frio,15,3,6,14,1,0,0,0,150,20000,300,210,15,3,5000,1200,15,https://example.com/p/frio
+lcto-fixture,2026-08-01,instagram,social,bio,,,,,10,4,5,6,4,2,0,0,0,0,0,0,0,0,0,0,0,
+lcto-fixture,2026-08-02,facebook,cpc,HOT-RMKT-envolvimento,ad-quente,rmkt 30d,HOT-RMKT-envolvimento,ad-quente,20,8,12,15,5,1,0,0,100,10000,200,160,20,8,3000,900,20,https://example.com/p/quente
+lcto-fixture,2026-08-02,facebook,cpc,COLD-interesses,ad-frio,interesses maternidade,COLD-interesses,ad-frio,15,3,6,14,1,0,0,0,150,20000,300,210,15,3,5000,1200,15,https://example.com/p/frio
+lcto-fixture,2026-08-02,instagram,social,bio,,,,,10,4,5,6,4,2,0,0,0,0,0,0,0,0,0,0,0,
+lcto-fixture,2026-08-03,facebook,cpc,HOT-RMKT-envolvimento,ad-quente,rmkt 30d,HOT-RMKT-envolvimento,ad-quente,20,8,12,15,5,1,0,0,100,10000,200,160,20,8,3000,900,20,https://example.com/p/quente
+lcto-fixture,2026-08-03,facebook,cpc,COLD-interesses,ad-frio,interesses maternidade,COLD-interesses,ad-frio,15,3,6,14,1,0,0,0,150,20000,300,210,15,3,5000,1200,15,https://example.com/p/frio
+lcto-fixture,2026-08-03,instagram,social,bio,,,,,10,4,5,6,4,2,0,0,0,0,0,0,0,0,0,0,0,
+lcto-fixture,2026-08-04,facebook,cpc,HOT-RMKT-envolvimento,ad-quente,rmkt 30d,HOT-RMKT-envolvimento,ad-quente,20,8,12,15,5,1,0,0,100,10000,200,160,20,8,3000,900,20,https://example.com/p/quente
+lcto-fixture,2026-08-04,facebook,cpc,COLD-interesses,ad-frio,interesses maternidade,COLD-interesses,ad-frio,15,3,6,14,1,0,0,0,150,20000,300,210,15,3,5000,1200,15,https://example.com/p/frio
+lcto-fixture,2026-08-04,instagram,social,bio,,,,,10,4,5,6,4,2,0,0,0,0,0,0,0,0,0,0,0,
+lcto-fixture,2026-08-05,facebook,cpc,HOT-RMKT-envolvimento,ad-quente,rmkt 30d,HOT-RMKT-envolvimento,ad-quente,20,8,12,15,5,1,0,0,100,10000,200,160,20,8,3000,900,20,https://example.com/p/quente
+lcto-fixture,2026-08-05,facebook,cpc,COLD-interesses,ad-frio,interesses maternidade,COLD-interesses,ad-frio,15,3,6,14,1,0,0,0,150,20000,300,210,15,3,5000,1200,15,https://example.com/p/frio
+lcto-fixture,2026-08-05,instagram,social,bio,,,,,10,4,5,6,4,2,0,0,0,0,0,0,0,0,0,0,0,

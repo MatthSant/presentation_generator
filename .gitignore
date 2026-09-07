@@ -11,6 +11,8 @@ app/.env
 
 # Dados de cliente / artefatos pesados — nunca versionar (LGPD)
 *.csv
+# fixtures SINTÉTICAS dos kits do witly-templates (sem dado de cliente)
+!witly-templates/seed/**/tests/*.csv
 guia-exemplo/
 Ajsute de design/
 inde-conversao-perfil*.html
