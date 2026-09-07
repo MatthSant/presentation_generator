@@ -113,11 +113,40 @@ def recorte(rows, config, opts):
     return out or rows
 
 
-def numeros(calc, rows, config, out_dir):
+def _numeros_por_criativo(calc, rows, config, opts):
+    """Motor de criativos: build(rows, dic, opts). Reproduz a preparação do assemble
+    (temperatura + tipo de campanha) e devolve só agregados: totais, médias, série
+    diária e as métricas de cada criativo válido (nome do anúncio não é dado pessoal)."""
+    cfg = config or {}
+    if cfg.get('temp_rules'):
+        rows = calc.apply_temp_rules(rows, cfg['temp_rules'], overwrite=bool(cfg.get('temp_overwrite')))
+    rows = calc.apply_tipo_rules(rows, cfg.get('tipo_rules'))
+    tipo = (cfg.get('tipo_campanha') or '').strip()
+    if tipo:
+        rows = [r for r in rows if (r.get('tipo_campanha') or '').strip() == tipo]
+    o = {k: v for k, v in (opts or {}).items() if k in ('temp', 'min_invest')}
+    B = calc.build(rows, {}, o)
+    return {
+        'produto': B.get('produto'), 'tipo_campanha': tipo or None, 'recorte': o or None,
+        'total': B.get('total'), 'avg': B.get('avg'), 'daily': B.get('daily'),
+        'temps': B.get('temps'), 'campanhas': B.get('campanhas'), 'publicos': B.get('publicos'),
+        'bench': calc.resolve_bench(cfg) if hasattr(calc, 'resolve_bench') else B.get('bench'),
+        'n_criativos': len(B.get('creatives') or []), 'n_validos': len(B.get('valid') or []),
+        'criativos': [{'name': c['name'], 'is_video': c['is_video'], 'temps': c['temps'], 'm': c['m'],
+                       'by_temp': {t: v for t, v in (c.get('by_temp') or {}).items()}}
+                      for c in (B.get('valid') or [])],
+    }
+
+
+def numeros(calc, rows, config, out_dir, opts=None):
     """Resumo numérico: o `build(rows, config)` do calc (sem linhas cruas / chaves privadas)
     ou, se o motor não expõe um, um sumário das tabelas do dataset."""
     if calc is not None and hasattr(calc, 'build'):
         try:
+            import inspect
+            params = list(inspect.signature(calc.build).parameters)
+            if len(params) >= 2 and params[1] == 'dic':
+                return _jsonable(_numeros_por_criativo(calc, rows, config, opts))
             r = calc.build(rows, config)
             if isinstance(r, dict):
                 return _jsonable({k: v for k, v in r.items() if not str(k).startswith('_') and k not in ('rows_corte', 'rows')})
@@ -210,13 +239,15 @@ def gerar(config_path, csv_path, out_dir, aux=None, content_path=None, opts=None
     rows = load_rows(calc, csv_path)
     if opts:
         rows = recorte(rows, config, opts)
+        if config.get('dict_csv') and hasattr(calc, 'load_dict') and 'dict' not in opts and os.path.exists(config['dict_csv']):
+            opts = dict(opts, dict=calc.load_dict(config['dict_csv']))   # como o render_view do app
         r = build_report.assemble(rows, dict(config), content, opts)
         summ = _write_layers(out_dir, r)
     else:
         summ = build_report.build(csv_path, dict(config), content, out_dir)
     if config.get('dict_csv') and not config.get('dict_links') and hasattr(build_report, '_load_dict_links'):
         config['dict_links'] = build_report._load_dict_links(config['dict_csv'])
-    nums = numeros(calc, rows, config, out_dir)
+    nums = numeros(calc, rows, config, out_dir, opts)
     with open(os.path.join(out_dir, 'numeros.json'), 'w', encoding='utf-8') as f:
         json.dump(nums, f, ensure_ascii=False, indent=2)
     pq = perguntas(out_dir)

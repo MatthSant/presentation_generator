@@ -1,0 +1,19 @@
+{
+  "type": "criativos",
+  "client": "fixture", "client_name": "Cliente Fixture", "title": "Cliente Fixture · Análise de Criativos",
+  "campaign_label": "LF ago/26",
+  "tipo_rules": [
+    { "contains": ["_lead", "cadastro"], "label": "Lead" },
+    { "contains": ["_venda", "carrinho"], "label": "Venda" }
+  ],
+  "tipo_campanha": "Lead",
+  "temp_rules": [
+    { "contains": ["advantage", "adv"], "label": "Advantage" },
+    { "contains": ["quente", "hot", "envolvimento"], "label": "Quente" },
+    { "contains": ["frio", "cold", "interesse", "aberto"], "label": "Frio" },
+    { "contains": ["rmkt", "remarketing"], "label": "Remarketing" }
+  ],
+  "temp_overwrite": false,
+  "tipo_funil": "lancamento-padrao",
+  "funnel_bench": { "hook": 30, "hold": 30, "ctr": 1.5, "connect": 80, "conv_pag": 40 }
+}
