@@ -3,6 +3,7 @@
 **Saída:** `config.temp_rules`. **Confirmar com o consultor** mostrando a tabela campanha → temperatura.
 
 ## Definição
+**A temperatura é lida do NOME DA CAMPANHA (`field_campaign_name`), nunca do público/adset.** O público (conjunto de anúncios) é outra dimensão do relatório; não use o nome dele para classificar.
 Estágio do público que a campanha de tráfego pago atinge: **quente** (conhece a marca: envolvimento, lista, visitantes), **frio** (nunca viu: interesses, aberto), **remarketing** (carrinho/página) e **advantage** (Advantage+, a Meta decide). No debriefing a temperatura aparece nas páginas Tráfego pago e 360° (CPL, CPMQL, qualificação e vendas por temperatura) e nas perguntas norteadoras "qual temperatura escalar".
 
 ## Regra padrão (a primeira que casa vence)

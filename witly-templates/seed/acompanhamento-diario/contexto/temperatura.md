@@ -3,6 +3,7 @@
 **Saída:** `config.temp_rules` (lista de regras) e `config.temp_overwrite: true`. **Confirmar com o consultor** mostrando a tabela campanha → temperatura antes de gerar.
 
 ## Definição
+**A temperatura é lida do NOME DA CAMPANHA (`field_campaign_name`), nunca do público/adset.** O público (conjunto de anúncios) é outra dimensão do relatório; não use o nome dele para classificar.
 Temperatura é o estágio do público que a campanha atinge:
 - **Quente**: já conhece a marca — remarketing, envolvimento, lista, visitantes do site.
 - **Morno**: parecido com quem já converteu — lookalike (LAL), públicos semelhantes.
