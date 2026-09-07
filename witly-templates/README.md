@@ -20,7 +20,13 @@ Claude.ai (Conectores) e Codex/Cursor: a mesma URL. Depois, no chat: "liste os t
 da Witly" → `obter_template` → o agente segue as tarefas de contexto, monta o SQL com
 `montar_query`, roda no Delfos, baixa o kit (`curl`) e gera com `python gerar.py`.
 
-UI de edição: `https://witly-templates.projetos-145.workers.dev/` (mesmo login).
+Depois de gerar, o agente propõe no chat as perguntas norteadoras mais relevantes
+(`saida/perguntas.json`), constrói aprofundamentos no design system (`design-system.md` +
+`python/aprofundar.py`), registra o que fez (`registrar`, `avaliar`) e pode guardar um padrão
+próprio como template pessoal (`salvar_template`).
+
+UI de edição: `https://witly-templates.projetos-145.workers.dev/` (mesmo login). Páginas:
+Templates (editor por abas + Versões), Pessoais, Atividade (+ Uso), Contextos gerais, Usuários.
 
 ## Desenvolver
 
@@ -33,6 +39,8 @@ npm run dev                   # http://localhost:8788 — com DEV_LOGIN=1 em .de
 npm test                      # Vitest no pool de Workers (D1/DO reais)
 npm run test:py               # unittest do kit (stdlib)
 node scripts/parity.mjs       # dataset do kit == do app para a fixture
+npm run test:import           # importador do deepen_history (node:sqlite)
+npm run import:history -- <comments.db> --remote   # traz o histórico do app como atividade
 ```
 
 `.dev.vars` (não versionado): `COOKIE_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID`,

@@ -1,6 +1,6 @@
 # Spec: Fase 2 — Atividade, avaliação, versões, templates pessoais e perguntas norteadoras
 
-**Branch**: `feat/mcp-templates` (continua) · **Criada**: 2026-09-07 · **Status**: Rascunho revisado em 2026-09-07 (2 decisões + US6 do dono) — aguarda OK final para o plano
+**Branch**: `feat/mcp-templates` (continua) · **Criada**: 2026-09-07 · **Status**: Implementada em 2026-09-07 (produção). Ancorada: ver "Decisões durante a implementação" no fim.
 **Origem**: [PLANO.md](../../PLANO.md) §Registro de atividade e §Fases (2) · [constitution.md](../../constitution.md) · Fase 1 em [../001-fase1-mcp-templates/](../001-fase1-mcp-templates/)
 
 Escopo: o que faz o Grimório **aprender com o uso** e ficar seguro de evoluir. Fora de escopo
@@ -330,3 +330,14 @@ vez.
 | VI | Mesmo Worker, mesmo login. |
 | VII | Atividade/versões são genéricas para qualquer template. |
 | VIII/IX | Esta spec; plano e tarefas após revisão; FR-009. |
+
+---
+
+## Decisões durante a implementação (spec ancorada)
+
+- **Visibilidade dos pessoais** (decidido): só o dono usa no MCP; na UI, editores veem todos em "Pessoais", leitores só os seus. Dono edita o próprio pessoal na UI mesmo sendo leitor.
+- **Perguntas norteadoras não vão ao HTML** (decidido pelo dono): `gerar.py` grava `perguntas.json`; o kit instrui o agente a propor as mais relevantes no chat. O viewer continua sem a página de perguntas.
+- **Aprofundamento no design system** (US8): `design-system.md` gerado do app (contrato + `docs/WIDGETS.md` + regras) e `python/aprofundar.py` (valida tipos de widget, binds contra tabelas/colunas existentes e **número solto na prosa que não esteja em tabela**; grava as camadas e regera o HTML).
+- **Registro de aprofundamento** guarda a resposta inteira (agregada), limite 200 KB; o gate de PII pré-checa `@` e dígitos para não ser quadrático.
+- **Importador** usa `node:sqlite`; autor fixo `app@import` porque o `deepen_history` não tem e-mail do consultor.
+- **Tools novas** só aparecem no cliente MCP após reconectar (a lista de tools é lida na conexão).
