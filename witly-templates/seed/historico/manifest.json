@@ -1,0 +1,69 @@
+{
+  "slug": "historico",
+  "name": "Histórico de lançamentos",
+  "objective": "Mapear a evolução de uma operação de lançamentos ao longo do tempo (conversão, qualidade de lead, eficiência de mídia paga e reembolso) e distinguir se cada resultado vem do canal, da plataforma, da temperatura ou do perfil MQL, para orientar os próximos ciclos.",
+  "when_to_use": "Quando a pergunta é 'estamos melhorando ou piorando de lançamento para lançamento?'. Precisa de pelo menos 3 lançamentos encerrados do mesmo cliente. Para fechar um lançamento só use o debriefing; em curso, o acompanhamento.",
+  "audience": "Consultor Witly e a direção do cliente. Panorama e Investimentos vão para o cliente.",
+  "engine": "historico-lancamentos",
+  "perguntas_bank": "historico_lancamentos",
+  "required_files": [],
+
+  "params": [
+    { "id": "meta_like", "label": "Prefixo de utm_source do Meta Ads", "type": "string", "required": true, "default": "meta-ads", "task_id": "classificacao",
+      "desc": "utm_source que começa com este prefixo vira plataforma 'Meta Ads' (ex.: meta-ads, facebook-ads)." },
+    { "id": "google_like", "label": "Prefixo de utm_source do Google Ads", "type": "string", "required": true, "default": "google-ads", "task_id": "classificacao",
+      "desc": "utm_source que começa com este prefixo vira plataforma 'Google Ads'." },
+    { "id": "tipo_lancamento", "label": "Tipo de evento", "type": "enum", "enum": ["Todos", "Lançamento", "Perpétuo"], "required": true, "default": "Todos", "task_id": "recorte",
+      "desc": "Restringe aos eventos de um tipo (classificado pelo prefixo do field_conversion: lcto-/lco- = Lançamento, ppt-/ppto- = Perpétuo)." }
+  ],
+
+  "queries": [
+    { "id": "dump", "file": "queries/dump.sql", "title": "Consolidado por evento × tráfego × plataforma × temperatura", "saida": "dump.csv",
+      "desc": "Uma linha por field_conversion × tipo_trafego × plataforma × temperatura_lead, com date_start de wtl_campaign_definition. O CASE de temperatura usa palavras-chave padrão: ajuste pelas regras do cliente (tarefa temperatura) antes de rodar." }
+  ],
+
+  "tarefas_contexto": [
+    { "id": "cliente-lancamentos", "objetivo": "Identificar o cliente e confirmar quais eventos (lançamentos) entram na série", "saida": "config.client, config.client_name, config.title, config.campaign_label", "confirmar": true },
+    { "id": "classificacao", "objetivo": "Confirmar como distinguir pago × orgânico e Meta × Google pelo utm_source", "saida": "params meta_like / google_like", "confirmar": true },
+    { "id": "temperatura", "objetivo": "Ajustar o CASE de temperatura da query (Hot / Warm / Cold / Advantage) às regras do cliente", "saida": "CASE temperatura_lead editado no SQL", "confirmar": true },
+    { "id": "recorte", "objetivo": "Perguntar ao consultor se o relatório é da série inteira ou de um recorte (tipo de evento, lançamentos selecionados, indicador do bloco de evolução)", "saida": "param tipo_lancamento; --opts {\"launches\": [...], \"metric\": ...} ou nenhum", "confirmar": true }
+  ],
+
+  "config": {
+    "descricao": "config.json que o gerar.py recebe. O histórico não tem regras no config: a classificação vem pronta no CSV (query).",
+    "exemplo": {
+      "type": "historico-lancamentos",
+      "client": "cliente-slug",
+      "client_name": "Nome do Cliente",
+      "title": "Nome do Cliente · Histórico de Lançamentos",
+      "campaign_label": "2024–2026"
+    }
+  },
+
+  "como_gerar": [
+    "1. Execute as tarefas de contexto (contexto/*.md) com o consultor e monte config.json.",
+    "2. montar_query('historico', {meta_like, google_like, tipo_lancamento}) → ajuste o CASE de temperatura pelas regras do cliente → rode no Delfos → dump.csv.",
+    "3. python python/gerar.py --config config.json --csv dump.csv --out saida/ [--opts '{\"launches\":[\"jul/25\",\"nov/25\"],\"metric\":\"qual\"}']",
+    "4. Abra saida/relatorio.html (Panorama + Investimentos). Os números por lançamento estão em saida/numeros.json.",
+    "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
+    "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (tabela, trend, variacao, series, correlacao, decomposicao, por_dimensao).",
+    "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+  ],
+
+  "arquivos": {
+    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + perguntas.json + relatorio.html (--opts = lançamentos selecionados + indicador)",
+    "python/calc.py": "os números (overview e mídia por lançamento; quebras por canal, plataforma, temperatura)",
+    "python/build_report.py": "monta Panorama + Investimentos",
+    "python/query_api.py": "consultas sob demanda (trend, variação, decomposição do CPA, por_dimensao…)",
+    "python/render_view.py": "referência de como o app aplica lançamentos/indicador (o gerar.py usa --opts)",
+    "python/common/": "layout, formatação, builders",
+    "python/perguntas/": "banco + relevância das 17 perguntas norteadoras",
+    "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
+    "python/tests/": "fixture sintética (4 lançamentos) e testes",
+    "viewer/": "viewer offline",
+    "documento.md": "Panorama e Investimentos: o que cada bloco mostra",
+    "guia.md": "mecânica, definições, classificação, o que não concluir",
+    "perguntas.md": "banco de perguntas norteadoras legível",
+    "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
+  }
+}

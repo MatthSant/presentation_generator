@@ -1,0 +1,17 @@
+field_conversion,date_start,tipo_lancamento,tipo_trafego,plataforma,temperatura_lead,invest_total,paidmedia_tax,impressoes,link_clicks,leads,leads_mqls,leads_antigos,respostas_pesquisa,vendas,faturamento,vendas_sale,vendas_mql,vendas_nao_mql,sales_tax,broker_fee,refunds,refunded_value
+lcto-fixture-mar25,2025-03-01,Lançamento,Pago,Meta Ads,Hot,2000,0,200000,4000,400,160,80,240,20,20000,20,14,6,1000,500,1,1000
+lcto-fixture-mar25,2025-03-01,Lançamento,Pago,Meta Ads,Cold,3000,0,400000,6000,300,60,10,100,6,6000,6,4,2,300,150,0,0
+lcto-fixture-mar25,2025-03-01,Lançamento,Pago,Google Ads,N/C,500,0,20000,1000,50,15,5,25,2,2000,2,2,0,100,50,0,0
+lcto-fixture-mar25,2025-03-01,Lançamento,Orgânico,,Orgânico,0,0,0,0,250,100,120,150,15,15000,15,10,5,750,375,0,0
+lcto-fixture-jul25,2025-07-01,Lançamento,Pago,Meta Ads,Hot,2000,0,200000,4000,600,240,120,360,30,30000,30,21,9,1000,500,1,1000
+lcto-fixture-jul25,2025-07-01,Lançamento,Pago,Meta Ads,Cold,3000,0,400000,6000,450,90,15,150,9,9000,9,6,3,300,150,0,0
+lcto-fixture-jul25,2025-07-01,Lançamento,Pago,Google Ads,N/C,500,0,20000,1000,75,22,8,38,3,3000,3,3,0,100,50,0,0
+lcto-fixture-jul25,2025-07-01,Lançamento,Orgânico,,Orgânico,0,0,0,0,375,150,180,225,22,22500,22,15,8,750,375,0,0
+lcto-fixture-nov25,2025-11-01,Lançamento,Pago,Meta Ads,Hot,2000,0,200000,4000,500,200,100,300,25,25000,25,18,8,1000,500,1,1000
+lcto-fixture-nov25,2025-11-01,Lançamento,Pago,Meta Ads,Cold,3000,0,400000,6000,375,75,12,125,8,7500,8,5,2,300,150,0,0
+lcto-fixture-nov25,2025-11-01,Lançamento,Pago,Google Ads,N/C,500,0,20000,1000,62,19,6,31,2,2500,2,2,0,100,50,0,0
+lcto-fixture-nov25,2025-11-01,Lançamento,Orgânico,,Orgânico,0,0,0,0,312,125,150,188,19,18750,19,12,6,750,375,0,0
+lcto-fixture-mar26,2026-03-01,Lançamento,Pago,Meta Ads,Hot,2000,0,200000,4000,800,320,160,480,40,40000,40,28,12,1000,500,1,1000
+lcto-fixture-mar26,2026-03-01,Lançamento,Pago,Meta Ads,Cold,3000,0,400000,6000,600,120,20,200,12,12000,12,8,4,300,150,0,0
+lcto-fixture-mar26,2026-03-01,Lançamento,Pago,Google Ads,N/C,500,0,20000,1000,100,30,10,50,4,4000,4,4,0,100,50,0,0
+lcto-fixture-mar26,2026-03-01,Lançamento,Orgânico,,Orgânico,0,0,0,0,500,200,240,300,30,30000,30,20,10,750,375,0,0

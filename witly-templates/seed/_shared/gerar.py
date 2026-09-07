@@ -138,9 +138,26 @@ def _numeros_por_criativo(calc, rows, config, opts):
     }
 
 
+def _numeros_por_lancamento(calc, rows, opts):
+    """Motor de histórico: build_series(rows, only=labels) → um bloco por lançamento
+    (overview + mídia paga), na ordem cronológica."""
+    S = calc.build_series(rows, only=(opts or {}).get('launches'))
+    return {
+        'produto': S.get('produto'), 'recorte': {'launches': (opts or {}).get('launches')} if (opts or {}).get('launches') else None,
+        'all_labels': S.get('all_labels'),
+        'lancamentos': [{'field_conversion': fc, 'label': S['labels'][fc], 'ov': S['ov'][fc], 'media': S['media'][fc]}
+                        for fc in S['events']],
+    }
+
+
 def numeros(calc, rows, config, out_dir, opts=None):
     """Resumo numérico: o `build(rows, config)` do calc (sem linhas cruas / chaves privadas)
     ou, se o motor não expõe um, um sumário das tabelas do dataset."""
+    if calc is not None and not hasattr(calc, 'build') and hasattr(calc, 'build_series'):
+        try:
+            return _jsonable(_numeros_por_lancamento(calc, rows, opts))
+        except Exception as e:
+            sys.stderr.write(f'aviso: build_series não gerou resumo ({e})\n')
     if calc is not None and hasattr(calc, 'build'):
         try:
             import inspect
