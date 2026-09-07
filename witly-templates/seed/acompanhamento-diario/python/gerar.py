@@ -7,7 +7,10 @@ uso:
 saída (em --out):
   dataset.json · data.json · layout.json · sXX.json   (as 4 camadas do relatório)
   numeros.json                                        (o que o calc.py calculou — números só daqui)
+  perguntas.json                                      (perguntas norteadoras ranqueadas por relevância — para o CHAT, não para o HTML)
   relatorio.html                                      (standalone: viewer + JSON embutidos, abre offline)
+
+  --rerender: só regera o relatorio.html a partir das camadas já gravadas em --out (após aprofundar.py).
 
 Só stdlib. O número nasce no calc.py; este arquivo só orquestra e empacota.
 """
@@ -91,6 +94,22 @@ def render_html(out_dir, title):
     return path
 
 
+def perguntas(out_dir):
+    """perguntas.json ranqueado (banco do kit em python/perguntas). Sem banco → lista vazia."""
+    try:
+        from perguntas import perguntas_calc
+    except Exception:
+        return None
+    ds = os.path.join(out_dir, 'dataset.json')
+    if not os.path.exists(ds):
+        return None
+    out = os.path.join(out_dir, 'perguntas.json')
+    r = perguntas_calc.run(ds, out)
+    with open(out, 'w', encoding='utf-8') as f:
+        json.dump(r, f, ensure_ascii=False, indent=2)
+    return r
+
+
 def gerar(config_path, csv_path, out_dir, goals=None, dict_csv=None):
     with open(config_path, encoding='utf-8') as f:
         config = json.load(f)
@@ -108,20 +127,30 @@ def gerar(config_path, csv_path, out_dir, goals=None, dict_csv=None):
     nums = numeros(rows, config)
     with open(os.path.join(out_dir, 'numeros.json'), 'w', encoding='utf-8') as f:
         json.dump(nums, f, ensure_ascii=False, indent=2)
+    pq = perguntas(out_dir)
     html = render_html(out_dir, config.get('title') or config.get('client_name') or 'Relatório')
     return {'out_dir': out_dir, 'secoes': summ['sections'], 'tabelas': summ['tables'],
-            'html': html, 'corte': nums.get('corte'), 'dia_campanha': nums.get('dia_campanha')}
+            'html': html, 'corte': nums.get('corte'), 'dia_campanha': nums.get('dia_campanha'),
+            'perguntas': len((pq or {}).get('perguntas', [])) if pq else None}
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description='gera o acompanhamento diário (4 camadas + numeros.json + relatorio.html)')
-    ap.add_argument('--config', required=True)
-    ap.add_argument('--csv', required=True)
+    ap.add_argument('--config')
+    ap.add_argument('--csv')
     ap.add_argument('--out', required=True)
     ap.add_argument('--goals')
     ap.add_argument('--dict')
+    ap.add_argument('--rerender', action='store_true', help='só regera o HTML a partir das camadas em --out')
     a = ap.parse_args(argv)
-    r = gerar(a.config, a.csv, a.out, a.goals, a.dict)
+    if a.rerender:
+        with open(os.path.join(a.out, 'data.json'), encoding='utf-8') as f:
+            title = (json.load(f).get('meta') or {}).get('title') or 'Relatório'
+        r = {'out_dir': a.out, 'html': render_html(a.out, title)}
+    else:
+        if not a.config or not a.csv:
+            ap.error('--config e --csv são obrigatórios (ou use --rerender)')
+        r = gerar(a.config, a.csv, a.out, a.goals, a.dict)
     sys.stdout.buffer.write((json.dumps(r, ensure_ascii=False) + '\n').encode('utf-8'))
     if not r['html']:
         sys.stderr.write('aviso: pasta viewer/ não encontrada — relatorio.html não foi gerado (as 4 camadas e numeros.json estão em --out)\n')

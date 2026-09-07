@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Witly Grimório — Arquitetura</title>
+<style>
+  :root{--bg:#F9FAFB;--fg:#111827;--muted:#6B7280;--line:rgba(0,0,0,.08);--card:#fff;--purple:#7C3AED;--plum:#2E084B;--green:#3B6D11;--amber:#854F0B;--blue:#185FA5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:28px;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 28px}
+  h2{font-size:18px;margin:36px 0 12px;padding-top:6px;border-top:1px solid var(--line)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  code{background:#F3F4F6;padding:2px 6px;border-radius:6px;font-size:13px}
+  pre{background:#111827;color:#E5E7EB;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#EDE9FE;color:var(--purple);margin-right:6px}
+  .ok{color:var(--green)} .todo{color:var(--amber)}
+  ol li,ul li{margin:4px 0}
+  svg text{font-family:inherit}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:8px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+<main>
+  <h1>Witly Grimório — como funciona</h1>
+  <p class="sub">Uma plataforma na Cloudflare que entrega <b>templates de análise</b> ao agente que a pessoa já usa. O MCP é inteligência, não compute: o Python roda na máquina do consultor. Atualizado em 2026-09-07 · Fase 1: US1 em produção com login Google.</p>
+
+  <h2>O fluxo, ponta a ponta</h2>
+  <div class="card">
+    <svg viewBox="0 0 1000 420" width="100%" role="img" aria-label="Diagrama do fluxo">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6B7280"/></marker>
+        <style>.box{fill:#fff;stroke:#D1D5DB;stroke-width:1.2;rx:12}.t{font-size:13px;fill:#111827}.s{font-size:11px;fill:#6B7280}.l{font-size:11px;fill:#374151}.ar{stroke:#6B7280;stroke-width:1.4;fill:none;marker-end:url(#a)}</style>
+      </defs>
+
+      <!-- Consultor + agente -->
+      <rect class="box" x="20" y="150" width="200" height="120" style="stroke:#7C3AED"/>
+      <text class="t" x="120" y="180" text-anchor="middle" font-weight="700">Consultor + agente</text>
+      <text class="s" x="120" y="200" text-anchor="middle">Claude Code · Codex · Claude.ai</text>
+      <text class="s" x="120" y="222" text-anchor="middle">Python 3 na máquina</text>
+      <text class="s" x="120" y="240" text-anchor="middle">gerar.py → relatorio.html</text>
+
+      <!-- Worker -->
+      <rect class="box" x="360" y="60" width="300" height="300" style="stroke:#2E084B"/>
+      <text class="t" x="510" y="88" text-anchor="middle" font-weight="700">Worker witly-templates (Cloudflare)</text>
+      <rect class="box" x="380" y="104" width="260" height="46"/>
+      <text class="l" x="510" y="123" text-anchor="middle">OAuth Google → token MCP</text>
+      <text class="s" x="510" y="140" text-anchor="middle">/authorize · /callback · /token · /register</text>
+      <rect class="box" x="380" y="160" width="260" height="70"/>
+      <text class="l" x="510" y="180" text-anchor="middle">MCP  /mcp  (Durable Object)</text>
+      <text class="s" x="510" y="198" text-anchor="middle">listar_templates · obter_template</text>
+      <text class="s" x="510" y="214" text-anchor="middle">montar_query · guia · resources</text>
+      <rect class="box" x="380" y="240" width="125" height="46"/>
+      <text class="l" x="442" y="259" text-anchor="middle">/dl/&lt;slug&gt;/&lt;v&gt;</text>
+      <text class="s" x="442" y="276" text-anchor="middle">zip assinado (15 min)</text>
+      <rect class="box" x="515" y="240" width="125" height="46"/>
+      <text class="l" x="577" y="259" text-anchor="middle">UI  /api · assets</text>
+      <text class="s" x="577" y="276" text-anchor="middle">editar · publicar · usuários</text>
+      <text class="s" x="510" y="340" text-anchor="middle">D1 (templates, versões, contexto, usuários, uso) · KV (OAuth) · Assets (UI, viewer)</text>
+
+      <!-- Delfos -->
+      <rect class="box" x="20" y="300" width="200" height="90" style="stroke:#185FA5"/>
+      <text class="t" x="120" y="330" text-anchor="middle" font-weight="700">Delfos (MCP, existe)</text>
+      <text class="s" x="120" y="350" text-anchor="middle">Credentials · Witly_Query</text>
+      <text class="s" x="120" y="368" text-anchor="middle">banco do cliente → CSV local</text>
+
+      <!-- Google -->
+      <rect class="box" x="760" y="60" width="210" height="60" style="stroke:#3B6D11"/>
+      <text class="t" x="865" y="86" text-anchor="middle" font-weight="700">Google (identidade)</text>
+      <text class="s" x="865" y="105" text-anchor="middle">domínio @witly.digital = leitor</text>
+
+      <!-- Editor -->
+      <rect class="box" x="760" y="220" width="210" height="80" style="stroke:#854F0B"/>
+      <text class="t" x="865" y="248" text-anchor="middle" font-weight="700">Editor (UI)</text>
+      <text class="s" x="865" y="268" text-anchor="middle">cadastra / edita template</text>
+      <text class="s" x="865" y="286" text-anchor="middle">contexto por tarefa · guia · publicar</text>
+
+      <!-- arrows -->
+      <path class="ar" d="M220,190 C300,190 300,127 380,127"/>
+      <text class="l" x="290" y="150" text-anchor="middle">1. cola a URL, loga</text>
+      <path class="ar" d="M220,210 C300,210 300,195 380,195"/>
+      <text class="l" x="290" y="228" text-anchor="middle">2. pede o template</text>
+      <path class="ar" d="M380,263 C300,263 300,250 220,250"/>
+      <text class="l" x="290" y="280" text-anchor="middle">3. curl do kit (zip)</text>
+      <path class="ar" d="M120,300 L120,270"/>
+      <text class="l" x="200" y="290" text-anchor="start">4. SQL do kit no Delfos</text>
+      <path class="ar" d="M640,127 L760,95"/>
+      <path class="ar" d="M760,260 L640,263"/>
+      <text class="l" x="700" y="248" text-anchor="middle">edita</text>
+    </svg>
+    <div class="legend">
+      <span><span class="dot" style="background:#7C3AED"></span>máquina da pessoa</span>
+      <span><span class="dot" style="background:#2E084B"></span>este projeto</span>
+      <span><span class="dot" style="background:#185FA5"></span>Delfos (não muda)</span>
+      <span><span class="dot" style="background:#3B6D11"></span>Google</span>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <span class="tag">O que acontece</span>
+      <ol>
+        <li>A pessoa cola a URL do MCP no agente; o navegador abre o login Google; sem token digitado.</li>
+        <li>O agente chama <code>listar_templates</code> e <code>obter_template</code>: recebe manifesto, <b>tarefas de contexto</b>, queries, documento, guia e contextos gerais como texto, e uma URL assinada do zip.</li>
+        <li>Executa as tarefas de contexto com o consultor (lançamento, tipo de funil, temperatura, metas…) e monta o <code>config.json</code>.</li>
+        <li><code>montar_query</code> devolve o SQL preenchido; roda no Delfos; salva <code>dump.csv</code> local.</li>
+        <li><code>python gerar.py</code> → 4 camadas + <code>numeros.json</code> + <code>relatorio.html</code> (o mesmo relatório do app, offline).</li>
+        <li>Dali em diante o documento é da pessoa.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <span class="tag">Princípios que não mudam</span>
+      <ul>
+        <li>Número nasce no <code>calc.py</code>; o modelo escreve prosa.</li>
+        <li>Dado pessoal nunca sobe; linha crua nunca; agregado pode.</li>
+        <li>Contexto é por análise; os gerais são poucos e curados.</li>
+        <li>Template autossuficiente e versionado; o MCP serve só o publicado.</li>
+        <li>Uma plataforma, um login (Google).</li>
+        <li>Spec-driven + testes unitários por tarefa.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>O que usa</h2>
+  <div class="card">
+    <table>
+      <tr><th>Peça</th><th>Tecnologia</th><th>Para quê</th></tr>
+      <tr><td>Worker</td><td>Cloudflare Workers, Hono, TypeScript</td><td>API, OAuth, downloads, UI</td></tr>
+      <tr><td>MCP</td><td><code>agents</code> (McpAgent, Durable Object) + <code>@modelcontextprotocol/sdk</code></td><td>tools e resources por Streamable HTTP</td></tr>
+      <tr><td>Login</td><td><code>@cloudflare/workers-oauth-provider</code> + Google OAuth</td><td>registro dinâmico de cliente; token MCP com e-mail</td></tr>
+      <tr><td>Dados</td><td>D1 (SQLite)</td><td>templates, versões, arquivos do kit, tarefas de contexto, contextos gerais, usuários, log de uso</td></tr>
+      <tr><td>Estado OAuth</td><td>KV <code>OAUTH_KV</code></td><td>códigos, tokens, grants</td></tr>
+      <tr><td>Estáticos</td><td>Workers Assets (<code>public/</code>)</td><td>UI e o <b>viewer</b> (client do app empacotado com esbuild)</td></tr>
+      <tr><td>Kit</td><td>zip montado na hora (<code>fflate</code>)</td><td>python/ (cópia literal do <code>app/pysrc</code>), viewer/, exemplo/, textos</td></tr>
+      <tr><td>Máquina da pessoa</td><td>Python 3.8+ (stdlib) · curl</td><td>gerar as camadas e o HTML; consultas com <code>query_api.py</code></td></tr>
+      <tr><td>Testes</td><td>Vitest (pool de Workers) · <code>unittest</code> · script de paridade</td><td>31 testes no Worker, 7 no Python, kit == app</td></tr>
+    </table>
+  </div>
+
+  <h2>Requisitos para estar funcionando</h2>
+  <div class="grid">
+    <div class="card">
+      <span class="tag">Na Cloudflare (conta Witly)</span>
+      <ul>
+        <li>Worker publicado (<code>npm run deploy</code>) no <code>workers.dev</code>.</li>
+        <li>D1 <code>witly-templates</code> criado, migrations aplicadas, seed rodado (<code>npm run seed:remote</code>).</li>
+        <li>KV <code>OAUTH_KV</code> criado; ids no <code>wrangler.jsonc</code>.</li>
+        <li>Secrets: <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>COOKIE_ENCRYPTION_KEY</code>.</li>
+        <li>Vars: <code>ALLOWED_DOMAIN=witly.digital</code>, <code>EDITOR_SEED</code> (primeiro editor), <code>PUBLIC_URL</code> (a URL do Worker).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag">No Google Cloud</span>
+      <ul>
+        <li>Um OAuth client (tipo Web) com redirect <code>https://&lt;worker&gt;/callback</code>.</li>
+        <li>Tela de consentimento com escopos <code>email profile</code>.</li>
+      </ul>
+      <span class="tag">Na máquina de quem usa</span>
+      <ul>
+        <li>Um agente com MCP remoto (Claude Code, Claude.ai, Codex, Cursor).</li>
+        <li>Conta Google do domínio.</li>
+        <li>Python 3 e curl. Acesso ao Delfos para o dado.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Como instalar (a pessoa)</h2>
+  <pre>claude mcp add --transport http witly https://witly-templates.projetos-145.workers.dev/mcp     # Claude Code
+# Claude.ai: Conectores → adicionar → a mesma URL    # Codex/Cursor: a mesma URL no config
+# → abre o navegador → login Google → pronto</pre>
+
+  <h2>Estado (Fase 1)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Tarefa</th><th>Estado</th></tr>
+      <tr><td>Setup, D1, OAuth Google, MCP vazio (T001–T008)</td><td class="ok">✓ feito, testes verdes</td></tr>
+      <tr><td>montar_query, URL assinada + zip, tools do MCP (T009–T011)</td><td class="ok">✓ feito, testes verdes</td></tr>
+      <tr><td>Viewer offline + gerar.py + kit acompanhamento-diario + seed + paridade (T012–T016)</td><td class="ok">✓ feito; kit == app na fixture</td></tr>
+      <tr><td>Deploy + login Google real + instalar em Claude Code (T017)</td><td class="ok">✓ em produção: <code>witly-templates.projetos-145.workers.dev</code>; Claude.ai e Codex pendentes</td></tr>
+      <tr><td>Corte de acesso, API de usuários, UI de edição (Fases D/E)</td><td class="ok">✓ UI em <code>/</code> (login Google), páginas Templates · Contextos gerais · Usuários</td></tr>
+    </table>
+  </div>
+  <p class="sub" style="margin-top:20px">Fonte: <code>witly-templates/PLANO.md</code>, <code>constitution.md</code>, <code>specs/001-fase1-mcp-templates/</code>. Este desenho é atualizado ao fechar cada fase.</p>
+</main>
+</body>
+</html>

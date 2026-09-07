@@ -19,6 +19,7 @@ jobs:
       - run: npx wrangler types
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:import
 
   python-kit:
     runs-on: ubuntu-latest
@@ -28,6 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - name: unittest do kit (stdlib, sem pip)
-        run: |
-          if [ -d seed/acompanhamento-diario/python/tests ]; then npm run test:py; else echo "kit ainda não existe — pulando"; fi
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: unittest do kit (stdlib, sem pip; kit-assemble copia o motor do app)
+        run: npm run test:py

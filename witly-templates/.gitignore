@@ -18,5 +18,8 @@ seed/*/python/render_view.py
 seed/*/python/common/
 seed/*/exemplo.html
 seed/*/viewer/
-# cópia de docs/arquitetura.html feita pelo build
-public/docs/
+# copia de docs/arquitetura.html feita pelo build
+public/docs/
+seed/*/python/perguntas/
+seed/*/perguntas.md
+seed/*/design-system.md

@@ -7,6 +7,8 @@ import * as db from './db/index.js';
 import { undeclaredParams, type ParamDef } from './kit/montar-query.js';
 import { clearSessionCookie, sessionUser, setSessionCookie, signSession, startUiLogin } from './auth/session.js';
 import { resolveAccess } from './auth/access.js';
+import { diffVersions } from './kit/versions.js';
+import { virarExemplo, virarRegra } from './kit/curate.js';
 
 type Ctx = Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>;
 export const api = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
@@ -20,6 +22,15 @@ async function requireUser(c: Ctx, role?: db.Role): Promise<db.User | Response> 
   if (!u) return c.json({ error: 'sem sessão' }, 401);
   if (role === 'editor' && u.role !== 'editor') return c.json({ error: 'só editores podem alterar' }, 403);
   return u;
+}
+/** Escrita num template: editor, ou o dono se for pessoal. */
+async function requireWriter(c: Ctx, slug: string): Promise<db.User | Response> {
+  const u = await sessionUser(c);
+  if (!u) return c.json({ error: 'sem sessão' }, 401);
+  if (u.role === 'editor') return u;
+  const t = await db.getTemplate(c.env.DB, slug);
+  if (t && db.isOwner(t, u.email)) return u;
+  return c.json({ error: 'só editores (ou o dono de um template pessoal) podem alterar' }, 403);
 }
 const isResp = (x: unknown): x is Response => x instanceof Response;
 
@@ -45,7 +56,7 @@ api.get('/api/me', async (c) => {
 // ── templates ───────────────────────────────────────────────────────────────
 api.get('/api/templates', async (c) => {
   const u = await requireUser(c); if (isResp(u)) return u;
-  return c.json(await db.listTemplates(c.env.DB, c.env.ORG_ID));
+  return c.json(await db.listTemplates(c.env.DB, c.env.ORG_ID, u.role === 'editor' ? '*' : u.email));
 });
 
 api.post('/api/templates', async (c) => {
@@ -71,7 +82,7 @@ api.get('/api/templates/:slug', async (c) => {
   const u = await requireUser(c); if (isResp(u)) return u;
   const slug = c.req.param('slug');
   const t = await db.getTemplate(c.env.DB, slug);
-  if (!t) return c.json({ error: 'não existe' }, 404);
+  if (!t || !(u.role === 'editor' || db.canSee(t, u.email))) return c.json({ error: 'não existe' }, 404);
   const state = c.req.query('state') === 'draft' ? 'draft' : 'published';
   const kit = state === 'draft' ? await db.getDraftKit(c.env.DB, slug) : await db.getPublishedKit(c.env.DB, slug);
   if (!kit) return c.json({ template: t, kit: null });
@@ -79,14 +90,14 @@ api.get('/api/templates/:slug', async (c) => {
 });
 
 api.patch('/api/templates/:slug', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
   const b = await c.req.json<{ name?: string; objective?: string; when_to_use?: string }>();
   try { await db.updateTemplateMeta(c.env.DB, c.req.param('slug'), b); } catch (e) { return c.json({ error: (e as Error).message }, 404); }
   return c.json({ ok: true });
 });
 
 api.post('/api/templates/:slug/draft', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
   try { return c.json({ ok: true, version: await db.ensureDraft(c.env.DB, c.req.param('slug'), u.email) }); }
   catch (e) { return c.json({ error: (e as Error).message }, 404); }
 });
@@ -96,7 +107,7 @@ async function draftId(c: Ctx, slug: string, email: string): Promise<string> {
 }
 
 api.put('/api/templates/:slug/draft/manifest', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
   const b = await c.req.json<{ manifest?: unknown }>();
   if (!b.manifest || typeof b.manifest !== 'object') return c.json({ error: 'manifest deve ser um objeto JSON' }, 400);
   try { await db.saveManifest(c.env.DB, await draftId(c, c.req.param('slug'), u.email), b.manifest); }
@@ -106,7 +117,7 @@ api.put('/api/templates/:slug/draft/manifest', async (c) => {
 
 /** Salva um arquivo do rascunho. Para queries/*.sql devolve `undeclared` (aviso, não bloqueia — US2.4). */
 api.put('/api/templates/:slug/draft/files/*', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
   const slug = c.req.param('slug');
   const path = decodeURIComponent(c.req.path.split('/draft/files/')[1] || '');
   if (!PATH.test(path)) return c.json({ error: 'caminho inválido' }, 400);
@@ -126,7 +137,7 @@ api.put('/api/templates/:slug/draft/files/*', async (c) => {
 });
 
 api.delete('/api/templates/:slug/draft/files/*', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
   const path = decodeURIComponent(c.req.path.split('/draft/files/')[1] || '');
   if (!PATH.test(path)) return c.json({ error: 'caminho inválido' }, 400);
   try { await db.deleteFile(c.env.DB, await draftId(c, c.req.param('slug'), u.email), path); }
@@ -135,7 +146,7 @@ api.delete('/api/templates/:slug/draft/files/*', async (c) => {
 });
 
 api.put('/api/templates/:slug/draft/tasks/:task', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
   const task_id = c.req.param('task');
   if (!TASK.test(task_id)) return c.json({ error: 'id de tarefa inválido' }, 400);
   const b = await c.req.json<{ title?: string; body_md?: string; sort?: number }>();
@@ -146,9 +157,105 @@ api.put('/api/templates/:slug/draft/tasks/:task', async (c) => {
 });
 
 api.post('/api/templates/:slug/publish', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
-  try { return c.json({ ok: true, version: await db.publishDraft(c.env.DB, c.req.param('slug')) }); }
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
+  const b = await c.req.json<{ changelog?: string }>().catch(() => ({} as { changelog?: string }));
+  try { return c.json({ ok: true, version: await db.publishDraft(c.env.DB, c.req.param('slug'), String(b.changelog || '').slice(0, 500)) }); }
   catch (e) { return c.json({ error: (e as Error).message }, 409); }
+});
+
+
+// ── Fase 2: pessoais, atividade, uso, versões, curadoria ────────────────────
+
+api.get('/api/pessoais', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  return c.json(await db.listPersonal(c.env.DB, c.env.ORG_ID, u.role === 'editor' ? '*' : u.email));
+});
+api.post('/api/templates/:slug/promover', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ novo_slug?: string }>().catch(() => ({} as { novo_slug?: string }));
+  if (b.novo_slug && !SLUG.test(b.novo_slug)) return c.json({ error: 'novo_slug inválido' }, 400);
+  try { return c.json({ ok: true, template: await db.promoteTemplate(c.env.DB, c.req.param('slug'), b.novo_slug) }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 409); }
+});
+api.delete('/api/templates/:slug', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const t = await db.getTemplate(c.env.DB, c.req.param('slug'));
+  if (!t) return c.json({ error: 'não existe' }, 404);
+  if (!(u.role === 'editor' || db.isOwner(t, u.email))) return c.json({ error: 'só o dono ou um editor remove' }, 403);
+  await db.deleteTemplate(c.env.DB, t.slug);
+  return c.json({ ok: true });
+});
+
+api.get('/api/atividade', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const q = c.req.query();
+  const f: db.ActivityFilter = {
+    slug: q.slug || undefined, cliente: q.cliente || undefined, evento: q.evento || undefined,
+    desde: q.desde || undefined, ate: q.ate || undefined,
+    avaliacao: q.avaliacao ? Number(q.avaliacao) : undefined,
+    descartado: q.descartado === '1' ? true : q.descartado === '0' ? false : undefined,
+    limit: q.limit ? Number(q.limit) : undefined, offset: q.offset ? Number(q.offset) : undefined,
+    email: u.role === 'editor' ? (q.email || undefined) : u.email,   // leitor: só as suas
+  };
+  const rows = await db.listActivity(c.env.DB, c.env.ORG_ID, f);
+  // lista = resumo (a resposta completa vai no detalhe)
+  return c.json(rows.map((r) => {
+    let d: Record<string, unknown> = {};
+    try { d = JSON.parse(r.dados_json) as Record<string, unknown>; } catch { /* ignora */ }
+    const resposta = typeof d.resposta === 'string' ? d.resposta : '';
+    return { ...r, dados_json: undefined, resumo: { pergunta: d.pergunta ?? null, resposta: resposta.slice(0, 240), mudanca: d.mudanca ?? null, resultado: d.resultado ?? null } };
+  }));
+});
+api.get('/api/atividade/:id', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const a = await db.getActivity(c.env.DB, c.req.param('id'));
+  if (!a || (u.role !== 'editor' && a.email !== u.email)) return c.json({ error: 'não existe' }, 404);
+  return c.json({ ...a, dados: JSON.parse(a.dados_json) });
+});
+api.patch('/api/atividade/:id', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ editor_nota?: number | null; editor_comentario?: string | null }>();
+  if (b.editor_nota != null && !(Number.isInteger(b.editor_nota) && b.editor_nota >= 1 && b.editor_nota <= 5)) return c.json({ error: 'editor_nota 1–5' }, 400);
+  try { await db.updateActivityEditor(c.env.DB, c.req.param('id'), { editor_nota: b.editor_nota, editor_comentario: b.editor_comentario }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 404); }
+  return c.json({ ok: true });
+});
+api.post('/api/atividade/:id/virar-exemplo', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const r = await virarExemplo(c.env.DB, c.req.param('id'), u.email);
+  return r.ok ? c.json(r) : c.json({ error: r.motivo }, 409);
+});
+api.post('/api/atividade/:id/virar-regra', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ texto?: string }>().catch(() => ({} as { texto?: string }));
+  const r = await virarRegra(c.env.DB, c.req.param('id'), u.email, b.texto);
+  return r.ok ? c.json(r) : c.json({ error: r.motivo }, 409);
+});
+
+api.get('/api/uso', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const slug = c.req.query('slug') || undefined;
+  const [stats, top] = await Promise.all([db.usageStats(c.env.DB, c.env.ORG_ID), db.topQuestions(c.env.DB, c.env.ORG_ID, slug, 10)]);
+  return c.json({ stats: slug ? stats.filter((s) => s.slug === slug) : stats, top_perguntas: top });
+});
+
+api.get('/api/templates/:slug/versoes', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const t = await db.getTemplate(c.env.DB, c.req.param('slug'));
+  if (!t || !(u.role === 'editor' || db.canSee(t, u.email))) return c.json({ error: 'não existe' }, 404);
+  return c.json(await db.listVersions(c.env.DB, t.slug));
+});
+api.get('/api/templates/:slug/versoes/diff', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const from = Number(c.req.query('de')); const to = Number(c.req.query('para'));
+  if (!Number.isInteger(from) || !Number.isInteger(to)) return c.json({ error: 'de/para inválidos' }, 400);
+  try { return c.json(await diffVersions(c.env.DB, c.req.param('slug'), from, to)); }
+  catch (e) { return c.json({ error: (e as Error).message }, 404); }
+});
+api.post('/api/templates/:slug/versoes/:n/restaurar', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  try { return c.json({ ok: true, version: await db.restoreVersion(c.env.DB, c.req.param('slug'), Number(c.req.param('n')), u.email) }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 404); }
 });
 
 // ── contextos gerais ────────────────────────────────────────────────────────

@@ -58,6 +58,33 @@ async function buildExample(slug) {
   }
 }
 
+/** perguntas.md: banco legível gerado do QUESTIONS do banco Python do kit. */
+async function buildPerguntasMd(slug, bank) {
+  const py = path.join(SEED, slug, 'python');
+  const code = `import json,sys; sys.path.insert(0, ${JSON.stringify(py)}); from perguntas.banks import ${bank} as b; print(json.dumps([{'id':q['id'],'pergunta':q['pergunta'],'prompt':q['prompt']} for q in b.QUESTIONS], ensure_ascii=False))`;
+  const out = execFileSync(PY, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+  const qs = JSON.parse(out);
+  const lines = ['# Perguntas norteadoras', '',
+    'O que vale aprofundar nesta análise e como. A **relevância** de cada pergunta para uma campanha é calculada pelo kit (`saida/perguntas.json`, 0–100, com justificativa e KPIs) — apresente as mais relevantes ao consultor **no chat**, com a justificativa; elas não entram no HTML. Aceita uma, construa o aprofundamento no design system e registre com o `id`.', ''];
+  for (const q of qs) lines.push(`## ${q.pergunta}  \`${q.id}\``, '', `**Como aprofundar:** ${q.prompt}`, '');
+  const file = path.join(SEED, slug, 'perguntas.md');
+  await writeFile(file, lines.join('\n'), 'utf8');
+  return qs.length;
+}
+
+/** design-system.md: contrato (seed/_shared) + catálogo de widgets do app + regras de design. */
+async function buildDesignSystemMd(slug) {
+  const APP = path.resolve(ROOT, '..', 'app');
+  const contrato = await readFile(path.join(SEED, '_shared', 'design-system-contrato.md'), 'utf8');
+  const widgets = await readFile(path.join(APP, 'docs', 'WIDGETS.md'), 'utf8');
+  const claude = await readFile(path.resolve(ROOT, '..', 'CLAUDE.md'), 'utf8');
+  const m = claude.match(/## Regras críticas de design[\s\S]*?(?=\n## |$)/);
+  const regras = m ? m[0].replace('## Regras críticas de design', '## Regras críticas de design (do app)') : '';
+  const cat = widgets.replace(/^# .*\n/, '').replace(/^> .*\n(> .*\n)*/m, '');
+  const file = path.join(SEED, slug, 'design-system.md');
+  await writeFile(file, `${contrato.trimEnd()}\n\n${cat.trim()}\n\n${regras.trim()}\n`, 'utf8');
+}
+
 function splitMd(md) {
   const m = md.match(/^#\s+(.+?)\s*\n([\s\S]*)$/);
   return m ? { title: m[1].trim(), body: m[2].trim() } : { title: '', body: md.trim() };
@@ -66,6 +93,8 @@ function splitMd(md) {
 async function kitSql(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
+  if (manifest.perguntas_bank) console.log(`  perguntas.md: ${await buildPerguntasMd(slug, manifest.perguntas_bank)} perguntas`);
+  await buildDesignSystemMd(slug);
   const files = [];
   for (const rel of await walk(dir)) {
     if (rel === 'manifest.json' || rel.startsWith('contexto/') || rel.startsWith('viewer/') || rel === 'exemplo.html') continue;
