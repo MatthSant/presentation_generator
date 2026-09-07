@@ -12,6 +12,7 @@
  * fonte de verdade é o D1, editado na UI. */
 
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -49,7 +50,13 @@ async function buildExample(slug) {
     await cp(path.join(py, 'tests', 'fixture.csv'), fixture);
     const out = path.join(tmp, 'out');
     // sem viewer aqui de propósito: só as camadas (o HTML do exemplo é sintetizado no Worker)
-    execFileSync(PY, [path.join(py, 'gerar.py'), '--config', path.join(py, 'tests', 'config.json'), '--csv', fixture, '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+    // auxiliares da fixture (goals/hist/dict), quando o kit os tem — o debriefing exige goals
+    const aux = [];
+    for (const k of ['goals', 'hist', 'dict']) {
+      const f = path.join(py, 'tests', `${k}.csv`);
+      if (existsSync(f)) aux.push(`--${k}`, f);
+    }
+    execFileSync(PY, [path.join(py, 'gerar.py'), '--config', path.join(py, 'tests', 'config.json'), '--csv', fixture, '--out', out, ...aux], { stdio: ['ignore', 'ignore', 'inherit'] });
     const files = [];
     for (const f of await readdir(out)) if (f.endsWith('.json')) files.push({ path: `exemplo/${f}`, content: await readFile(path.join(out, f), 'utf8') });
     return files;
@@ -96,6 +103,19 @@ function splitMd(md) {
   return m ? { title: m[1].trim(), body: m[2].trim() } : { title: '', body: md.trim() };
 }
 
+/** D1 limita cada statement a 100 KB: arquivos grandes entram em pedaços
+ * (INSERT do primeiro + UPDATE content = content || pedaço). */
+const CHUNK = 60_000;
+function fileSql(vid, f) {
+  const parts = [];
+  for (let i = 0; i < Math.max(1, f.content.length); i += CHUNK) parts.push(f.content.slice(i, i + CHUNK));
+  const [first, ...rest] = parts;
+  return [
+    `INSERT INTO template_files (version_id, path, content) VALUES (${q(vid)}, ${q(f.path)}, ${q(first ?? '')});`,
+    ...rest.map((c) => `UPDATE template_files SET content = content || ${q(c)} WHERE version_id = ${q(vid)} AND path = ${q(f.path)};`),
+  ];
+}
+
 async function kitSql(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
@@ -122,7 +142,7 @@ async function kitSql(slug) {
        ON CONFLICT(slug) DO UPDATE SET name = excluded.name, objective = excluded.objective, when_to_use = excluded.when_to_use;`,
     `INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at)
        VALUES (${q(vid)}, ${q(slug)}, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ${q(slug)}), 0) + 1, 'published', ${q(AUTHOR)}, ${q(JSON.stringify(rest))}, strftime('%Y-%m-%dT%H:%M:%fZ','now'));`,
-    ...files.map((f) => `INSERT INTO template_files (version_id, path, content) VALUES (${q(vid)}, ${q(f.path)}, ${q(f.content)});`),
+    ...files.flatMap((f) => fileSql(vid, f)),
     ...tasks.map((t) => `INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (${q(vid)}, ${q(t.task_id)}, ${q(t.title)}, ${q(t.body)}, ${t.sort});`),
     `UPDATE templates SET published_version_id = ${q(vid)} WHERE slug = ${q(slug)};`,
   ];
