@@ -8,13 +8,25 @@ export interface User { email: string; name: string | null; org_id: string; role
 export interface Template {
   slug: string; org_id: string; name: string; objective: string; when_to_use: string;
   published_version_id: string | null; draft_version_id: string | null;
+  /** NULL = da organização; e-mail = template pessoal do dono. */
+  owner_email: string | null; promoted_from: string | null; notas: string;
 }
 
 export interface Version {
   id: string; slug: string; number: number; state: 'draft' | 'published';
   author_email: string | null; created_at: string; updated_at: string; published_at: string | null;
-  manifest_json: string;
+  manifest_json: string; changelog: string;
 }
+
+export interface Activity {
+  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao';
+  slug: string; version_number: number | null; cliente: string | null; pergunta_id: string | null;
+  dados_json: string; avaliacao: number | null; descartado: number; motivo: string | null;
+  editor_nota: number | null; editor_comentario: string | null; virou_exemplo: number; virou_regra: number;
+  origem: 'mcp' | 'app'; at: string;
+}
+
+export interface Rating { id: string; org_id: string; slug: string; version_number: number | null; email: string; nota: number; comentario: string | null; at: string }
 
 export interface TemplateFile { version_id: string; path: string; content: string }
 export interface ContextTask { version_id: string; task_id: string; title: string; body_md: string; sort: number }
@@ -54,14 +66,42 @@ export async function listUsers(db: D1Database, org_id: string): Promise<User[]>
 
 // ── templates & versões ─────────────────────────────────────────────────────
 
-export async function listTemplates(db: D1Database, org_id: string): Promise<Array<Template & { published_number: number | null; draft_number: number | null }>> {
-  return (await db.prepare(
+export type TemplateRow = Template & { published_number: number | null; draft_number: number | null };
+
+/** Templates visíveis: os da organização + os pessoais do `viewer`. `viewer='*'` = todos (editor na UI). */
+export async function listTemplates(db: D1Database, org_id: string, viewer: string | '*' = '*'): Promise<TemplateRow[]> {
+  const where = viewer === '*' ? '' : ' AND (t.owner_email IS NULL OR t.owner_email = ?)';
+  const stmt = db.prepare(
     `SELECT t.*, p.number AS published_number, d.number AS draft_number
        FROM templates t
        LEFT JOIN template_versions p ON p.id = t.published_version_id
        LEFT JOIN template_versions d ON d.id = t.draft_version_id
-      WHERE t.org_id = ? ORDER BY t.name`,
-  ).bind(org_id).all<Template & { published_number: number | null; draft_number: number | null }>()).results;
+      WHERE t.org_id = ?${where} ORDER BY t.owner_email IS NOT NULL, t.name`,
+  );
+  return (await (viewer === '*' ? stmt.bind(org_id) : stmt.bind(org_id, viewer.toLowerCase())).all<TemplateRow>()).results;
+}
+
+/** Só os pessoais (UI "Pessoais"): todos para editor, os seus para leitor. */
+export async function listPersonal(db: D1Database, org_id: string, viewer: string | '*'): Promise<Array<TemplateRow & { geracoes: number; aprofundamentos: number }>> {
+  const where = viewer === '*' ? '' : ' AND t.owner_email = ?';
+  const stmt = db.prepare(
+    `SELECT t.*, p.number AS published_number, d.number AS draft_number,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos
+       FROM templates t
+       LEFT JOIN template_versions p ON p.id = t.published_version_id
+       LEFT JOIN template_versions d ON d.id = t.draft_version_id
+      WHERE t.org_id = ? AND t.owner_email IS NOT NULL${where} ORDER BY t.owner_email, t.name`,
+  );
+  return (await (viewer === '*' ? stmt.bind(org_id) : stmt.bind(org_id, viewer.toLowerCase())).all<TemplateRow & { geracoes: number; aprofundamentos: number }>()).results;
+}
+
+/** Quem enxerga um template: org = todos; pessoal = só o dono (editores veem na UI via listPersonal). */
+export function canSee(t: Pick<Template, 'owner_email'>, email: string): boolean {
+  return t.owner_email == null || t.owner_email === email.toLowerCase();
+}
+export function isOwner(t: Pick<Template, 'owner_email'>, email: string): boolean {
+  return t.owner_email != null && t.owner_email === email.toLowerCase();
 }
 
 export async function getTemplate(db: D1Database, slug: string): Promise<Template | null> {
@@ -105,16 +145,22 @@ export interface NewTemplateInput {
   manifest: unknown; files: Array<{ path: string; content: string }>;
   tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>;
   author_email?: string | null;
+  /** Template pessoal: e-mail do dono. */
+  owner_email?: string | null;
+  notas?: string;
+  /** true = já nasce publicado (templates pessoais salvos pelo MCP). */
+  publish?: boolean;
 }
 
 /** Cria o template com a versão 1 já como RASCUNHO (publicar é passo explícito). */
 export async function createTemplate(db: D1Database, input: NewTemplateInput): Promise<Version> {
   const vid = crypto.randomUUID();
+  const pub = !!input.publish;
   const stmts = [
-    db.prepare('INSERT INTO templates (slug, org_id, name, objective, when_to_use, draft_version_id) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(input.slug, input.org_id, input.name, input.objective ?? '', input.when_to_use ?? '', vid),
-    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json) VALUES (?, ?, 1, ?, ?, ?)')
-      .bind(vid, input.slug, 'draft', input.author_email ?? null, JSON.stringify(input.manifest)),
+    db.prepare('INSERT INTO templates (slug, org_id, name, objective, when_to_use, draft_version_id, published_version_id, owner_email, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(input.slug, input.org_id, input.name, input.objective ?? '', input.when_to_use ?? '', pub ? null : vid, pub ? vid : null, input.owner_email?.toLowerCase() ?? null, input.notas ?? ''),
+    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at) VALUES (?, ?, 1, ?, ?, ?, ?)')
+      .bind(vid, input.slug, pub ? 'published' : 'draft', input.author_email ?? null, JSON.stringify(input.manifest), pub ? now() : null),
     ...input.files.map((f) => db.prepare('INSERT INTO template_files (version_id, path, content) VALUES (?, ?, ?)').bind(vid, f.path, f.content)),
     ...input.tasks.map((t, i) => db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (?, ?, ?, ?, ?)').bind(vid, t.task_id, t.title, t.body_md, t.sort ?? i)),
   ];
@@ -175,16 +221,184 @@ export async function updateTemplateMeta(db: D1Database, slug: string, m: { name
 }
 
 /** Publica o rascunho: vira a versão publicada; o draft_version_id é limpo. */
-export async function publishDraft(db: D1Database, slug: string): Promise<Version> {
+export async function publishDraft(db: D1Database, slug: string, changelog = ''): Promise<Version> {
   const t = await getTemplate(db, slug);
   if (!t?.draft_version_id) throw new Error(`sem rascunho para publicar: ${slug}`);
   const ts = now();
   await db.batch([
-    db.prepare('UPDATE template_versions SET state = ?, published_at = ? WHERE id = ?').bind('published', ts, t.draft_version_id),
+    db.prepare('UPDATE template_versions SET state = ?, published_at = ?, changelog = ? WHERE id = ?').bind('published', ts, changelog, t.draft_version_id),
     db.prepare('UPDATE templates SET published_version_id = ?, draft_version_id = NULL WHERE slug = ?').bind(t.draft_version_id, slug),
   ]);
   return (await getVersion(db, t.draft_version_id))!;
 }
+
+/** Publica uma versão NOVA já pronta (pessoal salvo pelo MCP): número max+1, publicada na hora. */
+export async function publishNewVersion(db: D1Database, slug: string, v: { manifest: unknown; files: Array<{ path: string; content: string }>; tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>; author_email: string | null; changelog?: string }): Promise<Version> {
+  const vid = crypto.randomUUID();
+  const ts = now();
+  await db.batch([
+    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, changelog) VALUES (?, ?, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ?), 0) + 1, ?, ?, ?, ?, ?)')
+      .bind(vid, slug, slug, 'published', v.author_email, JSON.stringify(v.manifest), ts, v.changelog ?? ''),
+    ...v.files.map((f) => db.prepare('INSERT INTO template_files (version_id, path, content) VALUES (?, ?, ?)').bind(vid, f.path, f.content)),
+    ...v.tasks.map((t, i) => db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (?, ?, ?, ?, ?)').bind(vid, t.task_id, t.title, t.body_md, t.sort ?? i)),
+    db.prepare('UPDATE templates SET published_version_id = ? WHERE slug = ?').bind(vid, slug),
+  ]);
+  return (await getVersion(db, vid))!;
+}
+
+export async function listVersions(db: D1Database, slug: string): Promise<Version[]> {
+  return (await db.prepare('SELECT * FROM template_versions WHERE slug = ? ORDER BY number DESC').bind(slug).all<Version>()).results;
+}
+
+export async function getVersionByNumber(db: D1Database, slug: string, number: number): Promise<Version | null> {
+  return db.prepare('SELECT * FROM template_versions WHERE slug = ? AND number = ?').bind(slug, number).first<Version>();
+}
+
+/** Restaura a versão `number` como RASCUNHO novo (max+1). Substitui o rascunho atual, se houver. */
+export async function restoreVersion(db: D1Database, slug: string, number: number, author_email: string | null): Promise<Version> {
+  const t = await getTemplate(db, slug);
+  if (!t) throw new Error(`template inexistente: ${slug}`);
+  const src = await getVersionByNumber(db, slug, number);
+  if (!src) throw new Error(`versão ${number} não existe`);
+  const vid = crypto.randomUUID();
+  const stmts: D1PreparedStatement[] = [];
+  if (t.draft_version_id) stmts.push(db.prepare('DELETE FROM template_versions WHERE id = ?').bind(t.draft_version_id));
+  stmts.push(
+    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, changelog) VALUES (?, ?, (SELECT MAX(number) FROM template_versions WHERE slug = ?) + 1, ?, ?, ?, ?)')
+      .bind(vid, slug, slug, 'draft', author_email, src.manifest_json, `restaurada da v${number}`),
+    db.prepare('INSERT INTO template_files (version_id, path, content) SELECT ?, path, content FROM template_files WHERE version_id = ?').bind(vid, src.id),
+    db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) SELECT ?, task_id, title, body_md, sort FROM context_tasks WHERE version_id = ?').bind(vid, src.id),
+    db.prepare('UPDATE templates SET draft_version_id = ? WHERE slug = ?').bind(vid, slug),
+  );
+  await db.batch(stmts);
+  return (await getVersion(db, vid))!;
+}
+
+/** Promove um pessoal para a organização. `newSlug` quando o slug colide com um da org. */
+export async function promoteTemplate(db: D1Database, slug: string, newSlug?: string): Promise<Template> {
+  const t = await getTemplate(db, slug);
+  if (!t?.owner_email) throw new Error('não é um template pessoal');
+  const target = newSlug && newSlug !== slug ? newSlug : slug;
+  const stmts: D1PreparedStatement[] = [];
+  if (target !== slug) {
+    if (await getTemplate(db, target)) throw new Error(`slug ${target} já existe`);
+    stmts.push(
+      db.prepare('INSERT INTO templates (slug, org_id, name, objective, when_to_use, published_version_id, draft_version_id, owner_email, promoted_from, notas) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)')
+        .bind(target, t.org_id, t.name, t.objective, t.when_to_use, t.published_version_id, t.draft_version_id, t.owner_email, t.notas),
+      db.prepare('UPDATE template_versions SET slug = ? WHERE slug = ?').bind(target, slug),
+      db.prepare('UPDATE activity SET slug = ? WHERE slug = ?').bind(target, slug),
+      db.prepare('UPDATE template_ratings SET slug = ? WHERE slug = ?').bind(target, slug),
+      db.prepare('DELETE FROM templates WHERE slug = ?').bind(slug),
+    );
+  } else {
+    stmts.push(db.prepare('UPDATE templates SET owner_email = NULL, promoted_from = ? WHERE slug = ?').bind(t.owner_email, slug));
+  }
+  await db.batch(stmts);
+  return (await getTemplate(db, target))!;
+}
+
+/** Remove um template e suas versões (arquivos/tarefas caem por CASCADE). Atividade fica (histórico). */
+export async function deleteTemplate(db: D1Database, slug: string): Promise<void> {
+  await db.batch([
+    db.prepare('UPDATE templates SET published_version_id = NULL, draft_version_id = NULL WHERE slug = ?').bind(slug),
+    db.prepare('DELETE FROM template_versions WHERE slug = ?').bind(slug),
+    db.prepare('DELETE FROM templates WHERE slug = ?').bind(slug),
+  ]);
+}
+
+// ── atividade & avaliações ──────────────────────────────────────────────────
+
+export interface NewActivity {
+  org_id: string; email: string; evento: Activity['evento']; slug: string; version_number?: number | null;
+  cliente?: string | null; pergunta_id?: string | null; dados: unknown; avaliacao?: number | null;
+  descartado?: boolean; motivo?: string | null; origem?: 'mcp' | 'app'; at?: string;
+}
+
+export async function insertActivity(db: D1Database, a: NewActivity): Promise<string> {
+  const id = crypto.randomUUID();
+  await db.prepare(
+    `INSERT INTO activity (id, org_id, email, evento, slug, version_number, cliente, pergunta_id, dados_json, avaliacao, descartado, motivo, origem, at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))`,
+  ).bind(id, a.org_id, a.email.toLowerCase(), a.evento, a.slug, a.version_number ?? null, a.cliente ?? null, a.pergunta_id ?? null,
+    JSON.stringify(a.dados ?? {}), a.avaliacao ?? null, a.descartado ? 1 : 0, a.motivo ?? null, a.origem ?? 'mcp', a.at ?? null).run();
+  return id;
+}
+
+export interface ActivityFilter { email?: string; slug?: string; cliente?: string; evento?: string; desde?: string; ate?: string; avaliacao?: number; descartado?: boolean; limit?: number; offset?: number }
+
+export async function listActivity(db: D1Database, org_id: string, f: ActivityFilter = {}): Promise<Activity[]> {
+  const w: string[] = ['org_id = ?']; const b: unknown[] = [org_id];
+  if (f.email) { w.push('email = ?'); b.push(f.email.toLowerCase()); }
+  if (f.slug) { w.push('slug = ?'); b.push(f.slug); }
+  if (f.cliente) { w.push('cliente = ?'); b.push(f.cliente); }
+  if (f.evento) { w.push('evento = ?'); b.push(f.evento); }
+  if (f.desde) { w.push('at >= ?'); b.push(f.desde); }
+  if (f.ate) { w.push('at <= ?'); b.push(f.ate); }
+  if (f.avaliacao != null) { w.push('avaliacao = ?'); b.push(f.avaliacao); }
+  if (f.descartado != null) { w.push('descartado = ?'); b.push(f.descartado ? 1 : 0); }
+  b.push(Math.min(f.limit ?? 100, 500), f.offset ?? 0);
+  return (await db.prepare(`SELECT * FROM activity WHERE ${w.join(' AND ')} ORDER BY at DESC LIMIT ? OFFSET ?`).bind(...b).all<Activity>()).results;
+}
+
+export async function getActivity(db: D1Database, id: string): Promise<Activity | null> {
+  return db.prepare('SELECT * FROM activity WHERE id = ?').bind(id).first<Activity>();
+}
+
+export async function updateActivityEditor(db: D1Database, id: string, p: { editor_nota?: number | null; editor_comentario?: string | null; virou_exemplo?: boolean; virou_regra?: boolean }): Promise<void> {
+  const cur = await getActivity(db, id);
+  if (!cur) throw new Error('atividade não existe');
+  await db.prepare('UPDATE activity SET editor_nota = ?, editor_comentario = ?, virou_exemplo = ?, virou_regra = ? WHERE id = ?')
+    .bind(p.editor_nota === undefined ? cur.editor_nota : p.editor_nota, p.editor_comentario === undefined ? cur.editor_comentario : p.editor_comentario,
+      p.virou_exemplo === undefined ? cur.virou_exemplo : (p.virou_exemplo ? 1 : 0), p.virou_regra === undefined ? cur.virou_regra : (p.virou_regra ? 1 : 0), id).run();
+}
+
+export async function insertRating(db: D1Database, r: { org_id: string; slug: string; version_number: number | null; email: string; nota: number; comentario?: string | null }): Promise<string> {
+  const id = crypto.randomUUID();
+  await db.prepare('INSERT INTO template_ratings (id, org_id, slug, version_number, email, nota, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind(id, r.org_id, r.slug, r.version_number, r.email.toLowerCase(), r.nota, r.comentario ?? null).run();
+  return id;
+}
+
+export interface UsageRow { slug: string; version_number: number | null; geracoes: number; aprofundamentos: number; descartados: number; nota_media: number | null; avaliacoes: number }
+
+/** Uso por template × versão (gerações, aprofundamentos, descartados, nota média dos ratings). */
+export async function usageStats(db: D1Database, org_id: string): Promise<UsageRow[]> {
+  return (await db.prepare(
+    `WITH a AS (
+       SELECT slug, version_number,
+              SUM(evento = 'geracao') AS geracoes, SUM(evento = 'aprofundamento') AS aprofundamentos,
+              SUM(evento = 'aprofundamento' AND descartado = 1) AS descartados
+         FROM activity WHERE org_id = ? GROUP BY slug, version_number),
+     r AS (SELECT slug, version_number, AVG(nota) AS nota_media, COUNT(*) AS avaliacoes FROM template_ratings WHERE org_id = ? GROUP BY slug, version_number)
+     SELECT a.slug, a.version_number, a.geracoes, a.aprofundamentos, a.descartados, r.nota_media, COALESCE(r.avaliacoes, 0) AS avaliacoes
+       FROM a LEFT JOIN r ON r.slug = a.slug AND r.version_number IS a.version_number
+     UNION ALL
+     SELECT r.slug, r.version_number, 0, 0, 0, r.nota_media, r.avaliacoes FROM r
+      WHERE NOT EXISTS (SELECT 1 FROM a WHERE a.slug = r.slug AND a.version_number IS r.version_number)
+     ORDER BY 1, 2 DESC`,
+  ).bind(org_id, org_id).all<UsageRow>()).results;
+}
+
+/** Top perguntas de aprofundamento por template (por pergunta_id ou texto normalizado). */
+export async function topQuestions(db: D1Database, org_id: string, slug?: string, limit = 10): Promise<Array<{ slug: string; chave: string; pergunta: string; n: number }>> {
+  const stmt = slug
+    ? db.prepare("SELECT slug, pergunta_id, dados_json FROM activity WHERE org_id = ? AND evento = 'aprofundamento' AND slug = ?").bind(org_id, slug)
+    : db.prepare("SELECT slug, pergunta_id, dados_json FROM activity WHERE org_id = ? AND evento = 'aprofundamento'").bind(org_id);
+  const rows = (await stmt.all<{ slug: string; pergunta_id: string | null; dados_json: string }>()).results;
+  const agg = new Map<string, { slug: string; chave: string; pergunta: string; n: number }>();
+  for (const r of rows) {
+    let pergunta = '';
+    try { pergunta = String((JSON.parse(r.dados_json) as { pergunta?: string }).pergunta || ''); } catch { /* ignora */ }
+    const chave = r.pergunta_id || pergunta.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!chave) continue;
+    const k = `${r.slug} ${chave}`;
+    const cur = agg.get(k) || { slug: r.slug, chave, pergunta: pergunta || chave, n: 0 };
+    cur.n++;
+    agg.set(k, cur);
+  }
+  return [...agg.values()].sort((a, b) => b.n - a.n).slice(0, limit);
+}
+
 
 // ── contextos gerais ────────────────────────────────────────────────────────
 
