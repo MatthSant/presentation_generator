@@ -93,7 +93,7 @@
 
 ## Fase F — Fechamento
 
-- [ ] T022 Atualizar `PLANO.md`/`spec.md` com o que mudou na implementação (spec ancorada);
+- [x] T022 Atualizar `PLANO.md`/`spec.md` com o que mudou na implementação (spec ancorada);
       `README.md` de instalação (URL, `claude mcp add`, Claude.ai, Codex).
 - [ ] T023 PR para `master` com evidências dos testes manuais; deploy final.
 

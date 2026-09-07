@@ -1,6 +1,6 @@
 # Spec: Fase 1 — MCP de templates com login Google, UI mínima e o template "Acompanhamento diário"
 
-**Branch**: `feat/mcp-templates` · **Criada**: 2026-09-07 · **Status**: Revisada em 2026-09-07 (pendências resolvidas) — segue para plano
+**Branch**: `feat/mcp-templates` · **Criada**: 2026-09-07 · **Status**: Implementada em 2026-09-07 (produção). Ancorada: ver "Decisões durante a implementação" no fim.
 **Origem**: conversa de 2026-09-07 + [PLANO.md](../../PLANO.md) (visão) + [constitution.md](../../constitution.md)
 
 Esta spec cobre **só a Fase 1** do PLANO.md. Fora de escopo: versões/rollback, papéis e
@@ -231,3 +231,14 @@ todas as partes preenchidas.
 | VII. Genérico | Tools e UI não conhecem o slug `acompanhamento-diario`. |
 | VIII. Spec-driven | Este documento; plano e tarefas só após revisão. |
 | IX. Testes unitários | FR-012, SC-006; tarefas só fecham com teste verde. |
+
+---
+
+## Decisões durante a implementação (spec ancorada)
+
+- **SC-001** validado só no Claude Code; Claude.ai e Codex dispensados por decisão do dono.
+- **Exemplo** guardado como JSON (`exemplo/*.json`); o HTML é sintetizado no zip.
+- **Login da UI** usa o mesmo `/callback` do Google (state `ui.<token>`), sem redirect novo.
+- **FR-014** implementado: desativar revoga grants; `accessTokenTTL` 1 h; refresh 30 dias.
+- **Nome do produto**: Witly Grimório. Worker/URL permanecem `witly-templates`.
+- `/ui/dev-login` existe só em localhost com `DEV_LOGIN=1` (não é comportamento de produto).
