@@ -68,9 +68,9 @@
 
 ## Fase D — US3 Acesso (P2)
 
-- [ ] T018 [US3] Página "peça acesso" na UI e no fluxo OAuth com o e-mail usado; teste
+- [x] T018 [US3] Página "peça acesso" na UI e no fluxo OAuth com o e-mail usado; teste
       manual com conta Google externa (cenários US3.1–3).
-- [ ] T018b [US3] Corte de acesso: `accessTokenTTL` ≤ 1h no provider; API `/api/users`
+- [x] T018b [US3] Corte de acesso: `accessTokenTTL` ≤ 1h no provider; API `/api/users`
       (listar, papel, desativar/reativar, **encerrar sessões** = revogar grants via
       `OAUTH_PROVIDER.listUserGrants/revokeGrant`); tela de usuários na UI. Teste: usuário
       desativado → tool e API falham; grants revogados somem do KV (cenário US3.4).
@@ -79,13 +79,13 @@
 
 ## Fase E — US2 UI de edição (P2)
 
-- [ ] T019 [US2] `src/auth/session.ts`: `/ui/login`, `/ui/callback`, cookie assinado,
+- [x] T019 [US2] `src/auth/session.ts`: `/ui/login`, `/ui/callback`, cookie assinado,
       middleware de papel. Teste: leitor lê, não escreve; sem cookie → 401.
-- [ ] T020 [US2] `src/app.ts` `/api`: listar templates; obter versão (publicada/rascunho);
+- [x] T020 [US2] `src/app.ts` `/api`: listar templates; obter versão (publicada/rascunho);
       criar rascunho; salvar parte (manifesto, tarefa de contexto, arquivo, guia,
       documento, exemplo); publicar; contextos gerais CRUD; aviso de `{{param}}` fora do
       manifesto. Testes por rota, incluindo "MCP continua servindo a publicada".
-- [ ] T021 [US2] `public/{index.html,app.js,style.css}`: catálogo, editor por abas
+- [x] T021 [US2] `public/{index.html,app.js,style.css}`: catálogo, editor por abas
       (Manifesto · Contexto (uma subpágina por tarefa) · Queries · Python · Documento ·
       Guia · Exemplo), botões Salvar rascunho / Publicar, área Contextos gerais. Design
       system light do app. Teste manual no browser (cenários US2.1–5) + `guia` no agente

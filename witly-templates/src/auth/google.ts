@@ -15,6 +15,7 @@ import {
 } from '../oauth-utils.js';
 import { resolveAccess, type GoogleProfile } from './access.js';
 import { pageAccessDenied } from '../pages.js';
+import { finishUiLogin, takeUiState } from './session.js';
 
 /** O que vai dentro do token MCP e chega ao McpAgent como `this.props`. */
 export interface Props extends Record<string, unknown> { email: string; name: string }
@@ -24,7 +25,7 @@ type Bindings = Env & { OAUTH_PROVIDER: OAuthHelpers };
 export const google = new Hono<{ Bindings: Bindings }>();
 
 const SERVER_INFO = {
-  name: 'Witly Templates',
+  name: 'Witly Grimório',
   description: 'Templates de análise da Witly para o seu agente (Claude, Codex, Cursor…). Entre com a conta Google da Witly.',
 };
 
@@ -123,6 +124,15 @@ export async function finishAuthorization(
 }
 
 google.get('/callback', async (c) => {
+  // O MESMO callback serve a UI: o state `ui.<token>` vem do /ui/login (session.ts).
+  const ui = await takeUiState(c.env.OAUTH_KV, c.req.query('state'));
+  if (ui) {
+    const code = c.req.query('code');
+    if (!code) return c.text('Código ausente', 400);
+    const r = await finishUiLogin(c, code, ui.next);
+    return r.ok ? r.response : c.html(pageAccessDenied(r.email, r.access.reason), 403);
+  }
+
   let oauthReqInfo: AuthRequest;
   let clearSessionCookie: string;
   try {

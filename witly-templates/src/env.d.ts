@@ -9,6 +9,8 @@ interface ExtraEnv {
   /** Segredo p/ assinar URLs de download do kit (HMAC). Se ausente, usa COOKIE_ENCRYPTION_KEY. */
   DOWNLOAD_SIGNING_KEY?: string;
   PUBLIC_URL?: string;
+  /** '1' habilita /ui/dev-login em localhost (só .dev.vars). */
+  DEV_LOGIN?: string;
 }
 
 declare global {

@@ -14,4 +14,6 @@ export default new OAuthProvider({
   authorizeEndpoint: '/authorize',
   tokenEndpoint: '/token',
   clientRegistrationEndpoint: '/register',
+  // Token curto: junto com a revalidação por chamada, cortar acesso vale em minutos (spec FR-014).
+  accessTokenTTL: 3600,
 });

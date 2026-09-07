@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Witly Grimório</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header id="top">
+  <a class="brand" href="#/">
+    <span class="brand-box">witly</span>
+    <span class="brand-name">Grimório</span>
+  </a>
+  <nav id="nav" hidden>
+    <a href="#/" data-nav="templates">Templates</a>
+    <a href="#/gerais" data-nav="gerais">Contextos gerais</a>
+    <a href="#/usuarios" data-nav="usuarios" data-editor>Usuários</a>
+    <a href="/docs/arquitetura.html" target="_blank" rel="noopener">Como funciona</a>
+  </nav>
+  <div id="who" class="who" hidden>
+    <span id="who-name"></span><span id="who-role" class="pill"></span>
+    <a class="btn btn-ghost" href="/ui/logout">Sair</a>
+  </div>
+</header>
+<main id="app"><p class="muted">Carregando…</p></main>
+<div id="toast" class="toast" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

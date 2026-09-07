@@ -1,4 +1,4 @@
-# Constituição — witly-templates
+# Constituição — Witly Grimório (`witly-templates`)
 
 Princípios que valem para toda spec, plano e tarefa deste projeto. Uma mudança que viole
 um princípio precisa de emenda aqui antes, não de exceção no código.

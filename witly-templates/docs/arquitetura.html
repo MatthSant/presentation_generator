@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Witly Templates — Arquitetura</title>
+<title>Witly Grimório — Arquitetura</title>
 <style>
   :root{--bg:#F9FAFB;--fg:#111827;--muted:#6B7280;--line:rgba(0,0,0,.08);--card:#fff;--purple:#7C3AED;--plum:#2E084B;--green:#3B6D11;--amber:#854F0B;--blue:#185FA5}
   *{box-sizing:border-box}
@@ -29,7 +29,7 @@
 </head>
 <body>
 <main>
-  <h1>Witly Templates — como funciona</h1>
+  <h1>Witly Grimório — como funciona</h1>
   <p class="sub">Uma plataforma na Cloudflare que entrega <b>templates de análise</b> ao agente que a pessoa já usa. O MCP é inteligência, não compute: o Python roda na máquina do consultor. Atualizado em 2026-09-07 · Fase 1: US1 em produção com login Google.</p>
 
   <h2>O fluxo, ponta a ponta</h2>
@@ -62,7 +62,7 @@
       <text class="s" x="442" y="276" text-anchor="middle">zip assinado (15 min)</text>
       <rect class="box" x="515" y="240" width="125" height="46"/>
       <text class="l" x="577" y="259" text-anchor="middle">UI  /api · assets</text>
-      <text class="s" x="577" y="276" text-anchor="middle">editar · publicar (Fase E)</text>
+      <text class="s" x="577" y="276" text-anchor="middle">editar · publicar · usuários</text>
       <text class="s" x="510" y="340" text-anchor="middle">D1 (templates, versões, contexto, usuários, uso) · KV (OAuth) · Assets (UI, viewer)</text>
 
       <!-- Delfos -->
@@ -184,7 +184,7 @@
       <tr><td>montar_query, URL assinada + zip, tools do MCP (T009–T011)</td><td class="ok">✓ feito, testes verdes</td></tr>
       <tr><td>Viewer offline + gerar.py + kit acompanhamento-diario + seed + paridade (T012–T016)</td><td class="ok">✓ feito; kit == app na fixture</td></tr>
       <tr><td>Deploy + login Google real + instalar em Claude Code (T017)</td><td class="ok">✓ em produção: <code>witly-templates.projetos-145.workers.dev</code>; Claude.ai e Codex pendentes</td></tr>
-      <tr><td>Corte de acesso, API de usuários, UI de edição (Fases D/E)</td><td class="todo">próximas</td></tr>
+      <tr><td>Corte de acesso, API de usuários, UI de edição (Fases D/E)</td><td class="ok">✓ UI em <code>/</code> (login Google), páginas Templates · Contextos gerais · Usuários</td></tr>
     </table>
   </div>
   <p class="sub" style="margin-top:20px">Fonte: <code>witly-templates/PLANO.md</code>, <code>constitution.md</code>, <code>specs/001-fase1-mcp-templates/</code>. Este desenho é atualizado ao fechar cada fase.</p>

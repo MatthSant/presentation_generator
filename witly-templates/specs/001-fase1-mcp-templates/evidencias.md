@@ -34,3 +34,15 @@
 - Assets com `html_handling: none` (o binding devolvia 307 para `shell.html`).
 - Comentário do `dump.sql` continha o placeholder e era substituído → texto fixo; republicado como v2.
 - `EDITOR_SEED = projetos@witly.digital`; a conta foi promovida a editor no D1.
+
+## Fases D e E — UI de edição e corte de acesso (2026-09-07, local com `/ui/dev-login`, editor `projetos@witly.digital`)
+| Cenário | Resultado |
+|---|---|
+| US2.1 catálogo | lista o template com pills publicada v1 / rascunho |
+| US2.2 salvar parte | editar a tarefa de contexto "temperatura" → rascunho v2 com a edição; publicada v1 intacta |
+| US2.3 publicar | "Publicar rascunho" → publicada v2 com a edição, rascunho removido |
+| US2.4 aviso de `{{param}}` | coberto em `api.test.ts` (query com `{{nao_existe}}` → warnings) |
+| US2.5 contexto geral | página lista "Cuidados com números pequenos"; salvar publica na hora (teste em `api.test.ts`) |
+| US3.4 corte de acesso | convidar `parceiro@exemplo.com` → desativar → toast "Desativado e sessões encerradas"; `revoke` → `{revoked:0}` (sem grants); em `api.test.ts` o usuário desativado recebe 401 na UI e `revokeAll` percorre páginas de grants |
+| Link profundo | `#/t/<slug>/contexto/temperatura` mantém a tarefa selecionada após salvar |
+Suíte: 40 testes no Worker + 7 no kit, verdes.

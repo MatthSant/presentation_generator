@@ -14,7 +14,7 @@ const text = (t: string): ToolResult => ({ content: [{ type: 'text', text: t }] 
 const fail = (t: string): ToolResult => ({ content: [{ type: 'text', text: t }], isError: true });
 
 export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
-  server = new McpServer({ name: 'witly-templates', version: '0.1.0' });
+  server = new McpServer({ name: 'witly-grimorio', version: '0.1.0' });
 
   /** Revalida o usuário a cada tool: token válido + usuário removido = erro (spec US3.3). */
   protected async requireUser(): Promise<ToolUser> {

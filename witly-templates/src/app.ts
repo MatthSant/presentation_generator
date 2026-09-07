@@ -3,6 +3,7 @@
 
 import { Hono } from 'hono';
 import { google } from './auth/google.js';
+import { api } from './api.js';
 import { getPublishedKit } from './db/index.js';
 import { signingKey, verifyDownload } from './kit/sign.js';
 import { buildKitZip, loadViewer } from './kit/zip.js';
@@ -10,8 +11,12 @@ import { buildKitZip, loadViewer } from './kit/zip.js';
 export const app = new Hono<{ Bindings: Env }>();
 
 app.route('/', google);
+app.route('/', api);
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'witly-templates' }));
+
+// Com html_handling: none os assets não mapeiam "/" → index.html; a UI é servida daqui.
+app.get('/', (c) => c.env.ASSETS.fetch(new Request(new URL('/index.html', c.req.url).href, { headers: c.req.raw.headers })));
 
 /** Download do kit publicado. Autorização = assinatura na URL (emitida por obter_template). */
 app.get('/dl/:slug/:n', async (c) => {

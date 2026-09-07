@@ -190,6 +190,16 @@ app/src/client/standalone.ts   (novo, no app)
   (53M/sem), `esbuild` (242M/sem), `@modelcontextprotocol/sdk` (org oficial, 48M/sem),
   `vitest`, `typescript`. Todas MIT/Apache-2, versões pinadas.
 
+- **Login da UI reaproveita o `/callback` do Google** (state `ui.<token>` no KV) para não
+  exigir outro redirect URI no console do Google. Cookie `wt_session` assinado; o papel
+  é relido no D1 a cada request (rebaixar/desativar vale na hora).
+- **`/ui/dev-login`** (só `DEV_LOGIN=1` em `.dev.vars` + localhost) para testar a UI sem
+  Google. Nunca configurado em produção.
+- **`html_handling: none`** nos assets (o binding devolvia 307 para `shell.html`); a
+  raiz `/` é servida pelo Worker a partir de `index.html`.
+- **Nome do produto: Witly Grimório** (servidor MCP `witly-grimorio`); o Worker/URL
+  continua `witly-templates`.
+
 ## Riscos
 
 - `workers-oauth-provider` + `McpAgent` versões: seguir as do demo (`agents ^0.17`,

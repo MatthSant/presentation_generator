@@ -87,6 +87,9 @@ async function main() {
 </html>
 `;
   await writeFile(path.join(OUT, 'shell.html'), shell);
+  // docs/arquitetura.html é servido em /docs/ pela UI ("Como funciona").
+  await mkdir(path.join(ROOT, 'public', 'docs'), { recursive: true });
+  await writeFile(path.join(ROOT, 'public', 'docs', 'arquitetura.html'), await readFile(path.join(ROOT, 'docs', 'arquitetura.html'), 'utf8'));
   const kb = (s) => `${Math.round(Buffer.byteLength(s) / 1024)} KB`;
   console.log(`viewer.js ${kb(js)} · viewer.css ${kb(css)} · shell.html ${kb(shell)} → ${path.relative(ROOT, OUT)}/`);
 }

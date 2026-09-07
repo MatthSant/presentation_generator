@@ -1,4 +1,4 @@
-# Plano — Plataforma de templates + MCP (`witly-templates`)
+# Plano — Witly Grimório: plataforma de templates + MCP (`witly-templates`)
 
 Uma plataforma pequena, em Node na Cloudflare, com dois lados da mesma moeda:
 
