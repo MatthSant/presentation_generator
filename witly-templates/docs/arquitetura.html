@@ -109,7 +109,7 @@
       <ol>
         <li>A pessoa cola a URL do MCP no agente; o navegador abre o login Google; sem token digitado.</li>
         <li>O agente chama <code>listar_templates</code> e <code>obter_template</code>: recebe manifesto, <b>tarefas de contexto</b>, queries, documento, guia e contextos gerais como texto, e uma URL assinada do zip.</li>
-        <li>Executa as tarefas de contexto com o consultor (lançamento, tipo de funil, temperatura, metas…) e monta o <code>config.json</code>.</li>
+        <li>Executa as tarefas de contexto com o consultor (lançamento, tipo de funil, temperatura, metas, recorte…) e monta o <code>config.json</code>. Cinco templates: acompanhamento diário, debriefing, criativos, histórico, conversão por perfil.</li>
         <li><code>montar_query</code> devolve o SQL preenchido; roda no Delfos; salva <code>dump.csv</code> local.</li>
         <li><code>python gerar.py</code> → 4 camadas + <code>numeros.json</code> + <code>perguntas.json</code> + <code>relatorio.html</code> (o mesmo relatório do app, offline).</li>
         <li>O agente propõe no chat as perguntas norteadoras mais relevantes; aceita uma, calcula com <code>query_api.py</code>, monta a seção no design system e roda <code>aprofundar.py</code>.</li>
@@ -178,7 +178,7 @@
 # Claude.ai: Conectores → adicionar → a mesma URL    # Codex/Cursor: a mesma URL no config
 # → abre o navegador → login Google → pronto</pre>
 
-  <h2>Estado (Fase 1)</h2>
+  <h2>Estado (Fases 1–3)</h2>
   <div class="card">
     <table>
       <tr><th>Tarefa</th><th>Estado</th></tr>
@@ -188,6 +188,7 @@
       <tr><td>Deploy + login Google real + instalar em Claude Code (T017)</td><td class="ok">✓ em produção: <code>witly-templates.projetos-145.workers.dev</code>; Claude.ai e Codex pendentes</td></tr>
       <tr><td>Corte de acesso, API de usuários, UI de edição (Fases D/E)</td><td class="ok">✓ UI em <code>/</code> (login Google), páginas Templates · Contextos gerais · Usuários</td></tr>
       <tr><td><b>Fase 2</b>: atividade (registrar/avaliar), curadoria (virar exemplo/regra), versões com diff e restaurar, templates pessoais (salvar pelo agente, promover na UI), perguntas norteadoras no kit (relevância local, sugestão no chat), aprofundamento no design system (<code>aprofundar.py</code>), importador do deepen_history</td><td class="ok">✓ em produção (template v3)</td></tr>
+      <tr><td><b>Fase 3</b>: <code>seed/_shared/gerar.py</code> genérico (motor por manifesto, <code>--goals/--dict/--hist</code>, <code>--opts</code> = recorte igual ao app, <code>numeros.json</code> por motor) + kits <code>debriefing</code> (metas obrigatórias), <code>criativos</code> (tipo de campanha + modo), <code>historico</code>, <code>conversao-perfil</code> (benchmark = respondentes, codependência); viewer offline ganha o seletor de filtro de dataset (canal); <code>scripts/test-kits.mjs</code> roda unittest + paridade dos 5 kits no CI</td><td class="ok">✓ em produção (5 templates publicados)</td></tr>
     </table>
   </div>
   <p class="sub" style="margin-top:20px">Fonte: <code>witly-templates/PLANO.md</code>, <code>constitution.md</code>, <code>specs/001-fase1-mcp-templates/</code>. Este desenho é atualizado ao fechar cada fase.</p>

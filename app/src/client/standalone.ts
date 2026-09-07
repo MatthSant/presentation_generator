@@ -48,6 +48,12 @@ class StandaloneApp {
     this.store.datasets = report.dataset;
     this.store.layout = report.layout || { sections: {} };
     for (const s of Object.values(report.sections)) this.store.putSection(s);
+    // Filtro de dataset começa no valor padrão (ex.: canal = Geral); sem isso as tabelas
+    // com `filters` entrariam com todos os recortes misturados.
+    for (const def of this.store.filterDefs) {
+      const v = def.default ?? def.allValue ?? def.options[0];
+      if (v != null) this.store.active[def.id] = v;
+    }
     this.root = document.getElementById('export-root') as HTMLElement;
     this.nav = new Navigation(this.store, (p, s) => this.go(p, s));
   }
@@ -89,7 +95,36 @@ class StandaloneApp {
     if (h.badge) { const b = document.createElement('div'); b.className = 'badge badge-p'; b.textContent = h.badge; wrap.appendChild(b); }
     const t = document.createElement('h1'); t.className = 'sec-title'; t.textContent = h.title || ''; wrap.appendChild(t);
     if (h.sub && !keep) { const s = document.createElement('p'); s.className = 'sm'; s.innerHTML = h.sub; wrap.appendChild(s); }
+    const filters = this.filtersEl(section);
+    if (filters) wrap.appendChild(filters);
     return wrap;
+  }
+
+  /** Filtros de dataset do relatório (`meta.filters`, ex.: canal Geral/Pago/Orgânico).
+   *  No app ficam no FAB; offline viram um seletor no cabeçalho da seção. A troca
+   *  refaz a seção com o filtro ativo (mesmo `resolveBind` do app). */
+  private filtersEl(section: Section): HTMLElement | null {
+    const defs = this.store.filterDefs;
+    if (!defs.length) return null;
+    const box = document.createElement('div');
+    box.className = 'sp-ctrls sa-filters';
+    for (const def of defs) {
+      const lbl = document.createElement('span'); lbl.className = 'sp-lbl'; lbl.textContent = def.label || def.id;
+      const sel = document.createElement('select'); sel.className = 'sp-sel';
+      const cur = String(this.store.active[def.id] ?? def.default ?? def.allValue ?? def.options[0] ?? '');
+      for (const o of def.options) {
+        const opt = document.createElement('option'); opt.value = o; opt.textContent = o; if (o === cur) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener('change', () => {
+        this.store.active[def.id] = sel.value;
+        const y = window.scrollY;
+        this.renderSection(section, false);
+        window.scrollTo({ top: y });
+      });
+      box.append(lbl, sel);
+    }
+    return box;
   }
 
   private renderSection(section: Section, isFirst: boolean): void {

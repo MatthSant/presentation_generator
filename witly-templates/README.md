@@ -37,11 +37,11 @@ O kit baixado é autossuficiente: a pessoa não precisa deste repositório.
 npm install
 npm run build                 # viewer offline (esbuild sobre app/src/client/standalone.ts) + docs
 npm run db:migrate:local
-npm run seed:local            # kit acompanhamento-diario + contexto geral no D1 local
+npm run seed:local            # os 5 kits de seed/ + contexto geral + design system no D1 local
 npm run dev                   # http://localhost:8788 — com DEV_LOGIN=1 em .dev.vars, /ui/dev-login entra sem Google
 npm test                      # Vitest no pool de Workers (D1/DO reais)
-npm run test:py               # unittest do kit (stdlib)
-node scripts/parity.mjs       # dataset do kit == do app para a fixture
+npm run test:py               # scripts/test-kits.mjs: unittest (stdlib) + paridade kit == app, para os 5 kits
+node scripts/parity.mjs <slug> <motor>   # paridade de um kit só
 npm run test:import           # importador do deepen_history (node:sqlite)
 npm run import:history -- <comments.db> --remote   # traz o histórico do app como atividade
 ```
@@ -66,11 +66,11 @@ Vars em `wrangler.jsonc`: `ALLOWED_DOMAIN`, `EDITOR_SEED`, `ORG_ID`, `PUBLIC_URL
 fonte de verdade é o D1, editado na UI e versionado (rascunho → publicado).
 
 ```
-seed/acompanhamento-diario/
+seed/<slug>/            (acompanhamento-diario · debriefing · criativos · historico · conversao-perfil)
 ├── manifest.json      params das queries, queries (com `when`), índice das tarefas de contexto, como_gerar
 ├── contexto/*.md      uma página por tarefa de contexto (definição, regra padrão, query de apoio, exemplos, ambíguos, saída)
 ├── queries/*.sql      SQL do Delfos com {{param}}
 ├── documento.md       estrutura do relatório e placeholders de numeros.json
 ├── guia.md            mecânica, definições, benchmarks, o que NÃO concluir
-└── python/            gerar.py + tests/ (fixture sintética); calc/build_report/query_api/common são copiados do app/pysrc pelo kit-assemble
+└── python/            tests/ (fixture sintética + test_kit.py); gerar.py/aprofundar.py vêm de seed/_shared e calc/build_report/query_api/common do app/pysrc, copiados pelo kit-assemble
 ```
