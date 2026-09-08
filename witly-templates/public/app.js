@@ -43,12 +43,14 @@
     const ov = document.createElement('div'); ov.className = 'overlay';
     ov.innerHTML = `<div class="modal"><h3>${esc(title)}</h3><div id="m-body">${body}</div>
       <div class="actions"><button class="btn btn-ghost" id="m-no">Cancelar</button>${okLabel ? `<button class="btn btn-p" id="m-ok">${esc(okLabel)}</button>` : ''}</div></div>`;
-    const fechar = () => ov.remove();
+    const fecharEsc = (e) => { if (e.key === 'Escape') fechar(); };
+    const fechar = () => { ov.remove(); document.removeEventListener('keydown', fecharEsc); window.removeEventListener('hashchange', fechar); };
     ov.onclick = (e) => { if (e.target === ov) fechar(); };
     document.body.appendChild(ov);
     $('#m-no', ov).onclick = fechar;
     const ok = $('#m-ok', ov); if (ok) ok.onclick = () => onOk(fechar, ov);
-    document.addEventListener('keydown', function fecharEsc(e) { if (e.key === 'Escape') { fechar(); document.removeEventListener('keydown', fecharEsc); } });
+    document.addEventListener('keydown', fecharEsc);
+    window.addEventListener('hashchange', fechar);   // trocar de tela fecha o modal
     return ov;
   }
 
