@@ -3,7 +3,7 @@
 **Saída:** `config.metas` (manual) **ou** `goals.csv` (tabela de launch goals; tem prioridade). **Confirmar com o consultor.**
 
 ## Definição
-Sem metas o relatório não tem semáforo de desvio nem riscos: mostra os números, mas não diz se estão bons. As metas são do lançamento **inteiro**, não por canal ou temperatura.
+Sem metas o relatório não tem semáforo de desvio nem riscos: mostra os números, mas não diz se estão bons. As metas são do lançamento inteiro **e por canal**: a tabela de launch goals tem uma linha por `utm_source` × dia, então o motor soma a meta de cada canal até a data de corte (é o que marca, no bloco de origem, quanto cada canal deveria ter entregue). O que não existe é meta por temperatura, público ou criativo.
 
 | Chave | O que é | Clássico | Pago |
 |---|---|---|---|

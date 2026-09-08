@@ -189,6 +189,15 @@ async function kitSql(slug) {
   }
   files.push(...await buildExample(slug));
   const tasks = [];
+  // regras da análise: uma entrada por arquivo em regras/ (título = a regra, `Tipo:` no corpo)
+  const rules = [];
+  const rulesDir = path.join(dir, 'regras');
+  if (existsSync(rulesDir)) {
+    for (const [i, f] of (await readdir(rulesDir)).filter((x) => x.endsWith('.md')).entries()) {
+      const { title, body, tipo } = splitMd(await readFile(path.join(rulesDir, f), 'utf8'));
+      rules.push({ rule_id: f.replace(/\.md$/, ''), tipo, title: title || f, body, sort: i });
+    }
+  }
   const ctxDir = path.join(dir, 'contexto');
   const order = (manifest.tarefas_contexto || []).map((t) => t.id);
   for (const f of (await readdir(ctxDir)).filter((x) => x.endsWith('.md'))) {
@@ -206,9 +215,10 @@ async function kitSql(slug) {
                ${semverSql(slug)});`,
     ...files.flatMap((f) => fileSql(vid, f)),
     ...tasks.map((t) => `INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (${q(vid)}, ${q(t.task_id)}, ${q(t.title)}, ${q(t.body)}, ${t.sort});`),
+    ...rules.map((r) => `INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) VALUES (${q(vid)}, ${q(r.rule_id)}, ${q(r.tipo)}, ${q(r.title)}, ${q(r.body)}, ${r.sort});`),
     `UPDATE templates SET published_version_id = ${q(vid)} WHERE slug = ${q(slug)};`,
   ];
-  return { sql, files: files.length, tasks: tasks.length };
+  return { sql, files: files.length, tasks: tasks.length, rules: rules.length };
 }
 
 async function generalSql() {
@@ -232,7 +242,7 @@ async function main() {
     const a = await assembleKit(slug);
     const k = await kitSql(slug);
     lines.push(...k.sql);
-    console.log(`kit ${slug}: motor ${a.engine}, ${k.files} arquivos, ${k.tasks} tarefas de contexto`);
+    console.log(`kit ${slug}: motor ${a.engine}, ${k.files} arquivos, ${k.tasks} tarefas, ${k.rules} regras`);
   }
   const g = await generalSql();
   lines.push(...g);

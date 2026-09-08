@@ -63,28 +63,30 @@ describe('api — atividade, uso, curadoria (US1/US2/US3)', () => {
     expect((await call('/api/uso', { as: A })).status).toBe(403);
   });
 
-  it('virar exemplo / virar regra editam o guia do rascunho, publicada intacta, idempotentes', async () => {
+  it('virar exemplo edita o guia e virar regra cria a entrada de regra no rascunho; publicada intacta, idempotentes', async () => {
     await seedUser(ED, 'editor');
     const s = fresh(); await seedPublished(s);
     const ex = await db.insertActivity(env.DB, { org_id: ORG, email: A, evento: 'aprofundamento', slug: s, dados: { pergunta: 'Por que o CPL subiu?', resposta: 'CPM +30%.' }, avaliacao: 5 });
     const rg = await db.insertActivity(env.DB, { org_id: ORG, email: A, evento: 'aprofundamento', slug: s, dados: { pergunta: 'x' }, descartado: true, motivo: 'inventou meta por canal' });
     expect((await call(`/api/atividade/${ex}/virar-exemplo`, { method: 'POST', as: ED })).status).toBe(200);
     expect((await call(`/api/atividade/${rg}/virar-regra`, { method: 'POST', as: ED, body: '{}' })).status).toBe(200);
-    const draft = (await db.getDraftKit(env.DB, s))!.files.find((f) => f.path === 'guia.md')!.content;
+    const kit = (await db.getDraftKit(env.DB, s))!;
+    const draft = kit.files.find((f) => f.path === 'guia.md')!.content;
     expect(draft).toContain('## Exemplos de aprofundamento');
     expect(draft).toContain('### Por que o CPL subiu?');
-    expect(draft).toContain('## O que NÃO concluir');
-    expect(draft).toContain('- inventou meta por canal');
+    // a regra vira ENTRADA (título = a regra), não mais um bullet no guia
+    expect(draft).not.toContain('inventou meta por canal');
+    expect(kit.rules.map((r) => [r.tipo, r.title])).toEqual([['regra', 'inventou meta por canal']]);
     expect((await db.getPublishedKit(env.DB, s))!.files.find((f) => f.path === 'guia.md')!.content).toBe('# Guia\nLeia com cuidado.');
     expect((await call(`/api/atividade/${ex}/virar-exemplo`, { method: 'POST', as: ED })).status).toBe(409);
     expect((await virarRegra(env.DB, rg, ED)).ok).toBe(false);
     expect((await virarExemplo(env.DB, 'nao-existe', ED)).ok).toBe(false);
-    // segunda regra vai para a MESMA seção, sem duplicar o cabeçalho
+    // segunda regra: outra entrada, id próprio, sem tocar no guia
     const rg2 = await db.insertActivity(env.DB, { org_id: ORG, email: A, evento: 'aprofundamento', slug: s, dados: { pergunta: 'y' }, descartado: true, motivo: 'somou taxas' });
     await virarRegra(env.DB, rg2, ED);
-    const g2 = (await db.getDraftKit(env.DB, s))!.files.find((f) => f.path === 'guia.md')!.content;
-    expect(g2.split('## O que NÃO concluir').length).toBe(2);
-    expect(g2).toContain('- somou taxas');
+    const k2 = (await db.getDraftKit(env.DB, s))!;
+    expect(k2.rules.map((r) => r.title).sort()).toEqual(['inventou meta por canal', 'somou taxas']);
+    expect(new Set(k2.rules.map((r) => r.rule_id)).size).toBe(2);
   });
 });
 

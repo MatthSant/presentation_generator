@@ -33,16 +33,5 @@ Pago = `utm_source` contém um `paid_sources`; captação/vendas = `field_campai
 - **Métricas no tempo** (pickers em Panorama/Tráfego/Orgânico) e Q10/Q11: procure a semana de inflexão; a cauda pós-lançamento (sem mídia) distorce séries de custo — use `so_midia` no `query_api`.
 - **360°**: cada Q tem veredito; use como pauta da reunião, não como lista de tarefas.
 
-## O que NÃO concluir
-- Meta só existe no nível global (leads, vendas, faturamento, qualificação, CPL, CPMQL). Não invente meta por canal, temperatura ou criativo.
-- "Início" e "Recente" da decomposição são o primeiro e o último período, não o realizado: para "ficou na meta?" use o KPI agregado.
-- Taxa, ROAS e custo nunca somam entre grupos; para o geral use o ponderado (`incluir_geral`).
-- Temperatura e público contam só lead pago; não misture com o total.
-- A ponte de receita (`impacto_receita`) não inclui qualificação: o impacto da qualidade do lead é de custo (CPMQL).
-- Sem `hist.csv` não há histórico: diga isso, não invente.
-- Δ% acima de ±300% quase sempre é denominador errado (classificação): investigue antes de entregar.
-- Análise temporal é por data de inscrição; não existe curva de carrinho aqui.
-
-## Cuidados
-- Sem goals o `gerar.py` recusa; sem histórico as colunas de histórico ficam vazias.
-- Recorte por `--opts` é um snapshot: metas continuam globais, então atingimento num recorte perde sentido.
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.

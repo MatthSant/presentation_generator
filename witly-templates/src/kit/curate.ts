@@ -1,10 +1,16 @@
 /* curate — atividade → guia do template (spec 002 US2). "Virar exemplo" e "virar regra"
  * editam o guia.md do RASCUNHO (nunca a publicada) e marcam a entrada. Idempotentes. */
 
-import { ensureDraft, getActivity, getVersionFiles, saveFile, updateActivityEditor } from '../db/index.js';
+import { ensureDraft, getActivity, getTemplateRules, getVersionFiles, saveFile, saveTemplateRule, updateActivityEditor } from '../db/index.js';
 
 const SEC_EXEMPLOS = '## Exemplos de aprofundamento';
-const SEC_REGRAS = '## O que NÃO concluir';
+
+/** id curto e estável a partir do texto da regra (a-z0-9-). */
+function ruleId(texto: string): string {
+  const base = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 6).join('-');
+  return (base || 'regra').slice(0, 48);
+}
 
 function appendUnderSection(md: string, section: string, block: string): string {
   const idx = md.indexOf(section);
@@ -42,8 +48,12 @@ export async function virarRegra(db: D1Database, activityId: string, editorEmail
   if (a.virou_regra) return { ok: false, motivo: 'esta entrada já virou regra' };
   const regra = (texto || a.motivo || '').trim();
   if (!regra) return { ok: false, motivo: 'sem motivo de descarte nem texto da regra' };
-  const { vid, guia } = await guiaDoRascunho(db, a.slug, editorEmail);
-  await saveFile(db, vid, 'guia.md', appendUnderSection(guia, SEC_REGRAS, `- ${regra} <!-- atividade:${a.id} -->`));
+  // A regra vira ENTRADA no rascunho (o título é a regra), não mais um bullet no guia.
+  const d = await ensureDraft(db, a.slug, editorEmail);
+  const existentes = await getTemplateRules(db, d.id);
+  let id = ruleId(regra);
+  if (existentes.some((r) => r.rule_id === id)) id = `${id}-${existentes.length + 1}`.slice(0, 48);
+  await saveTemplateRule(db, d.id, { rule_id: id, tipo: 'regra', title: regra, body_md: `Veio de um aprofundamento descartado pelo editor. <!-- atividade:${a.id} -->`, sort: existentes.length });
   await updateActivityEditor(db, a.id, { virou_regra: true });
   return { ok: true, slug: a.slug };
 }

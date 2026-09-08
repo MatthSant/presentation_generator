@@ -85,7 +85,7 @@
   }
 
   // ── editor de template ─────────────────────────────────────────────────
-  const TABS = [['info', 'Info'], ['manifesto', 'Manifesto'], ['contexto', 'Contexto'], ['queries', 'Queries'], ['python', 'Python'], ['documento', 'Documento'], ['guia', 'Guia'], ['perguntas', 'Perguntas'], ['exemplo', 'Exemplo'], ['versoes', 'Versões']];
+  const TABS = [['info', 'Info'], ['manifesto', 'Manifesto'], ['tarefas', 'Tarefas'], ['regras', 'Regras'], ['queries', 'Queries'], ['python', 'Python'], ['documento', 'Documento'], ['guia', 'Guia'], ['perguntas', 'Perguntas'], ['exemplo', 'Exemplo'], ['versoes', 'Versões']];
 
   async function loadKit(slug) {
     const d = await api(`/api/templates/${encodeURIComponent(slug)}?state=draft`);
@@ -133,7 +133,7 @@
     };
     if (!kit) { $('#pane').innerHTML = '<div class="empty">Este template ainda não tem conteúdo.</div>'; return; }
     const ctx = { slug, kit, canEdit, state, sub };
-    ({ info: paneInfo, manifesto: paneManifest, contexto: paneContexto, queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: paneSingle('perguntas.md'), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
+    ({ info: paneInfo, manifesto: paneManifest, tarefas: paneTarefas, contexto: paneTarefas, regras: paneRegras, queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: paneSingle('perguntas.md'), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
   }
 
   function saveFile(slug, path, content) {
@@ -174,21 +174,45 @@
     });
   }
 
-  function paneContexto({ slug, kit, canEdit, sub }, el) {
+  function paneTarefas({ slug, kit, canEdit, sub }, el) {
     const tasks = [...kit.tasks].sort((a, b) => a.sort - b.sort);
     let cur = tasks.some((t) => t.task_id === sub) ? sub : (tasks[0] ? tasks[0].task_id : null);
     const draw = () => {
       const t = tasks.find((x) => x.task_id === cur);
-      el.innerHTML = `<p class="muted sm">Uma página por tarefa de contexto: o que o agente levanta com o consultor antes de gerar. O agente recebe o texto inteiro.</p>
+      el.innerHTML = `<p class="muted sm">Uma página por <b>tarefa</b>: o que o agente levanta com o consultor antes de gerar. O agente recebe o texto inteiro. As <b>regras</b> da análise ficam na aba ao lado.</p>
         <div class="split"><div class="card"><div class="list">${tasks.map((x) => `<button data-id="${esc(x.task_id)}" class="${x.task_id === cur ? 'on' : ''}">${esc(x.title)}<br><code>${esc(x.task_id)}</code></button>`).join('')}</div>
           ${canEdit ? '<div class="actions"><button class="btn" id="newtask">+ Tarefa</button></div>' : ''}</div>
         <div class="card">${t ? `<label>Título</label><input id="t-title" value="${esc(t.title)}" ${canEdit ? '' : 'readonly'}>
           <label>Ordem</label><input id="t-sort" type="number" value="${t.sort}" style="width:120px" ${canEdit ? '' : 'readonly'}>
           <label>Conteúdo (Markdown: definição, regra padrão, query de apoio, exemplos, casos ambíguos, saída)</label>
           ${editorBlock('t-body', t.body_md, '', canEdit)}${saveBar(canEdit)}` : '<div class="empty">Sem tarefas de contexto.</div>'}</div></div>`;
-      for (const b of el.querySelectorAll('.list button')) b.onclick = () => { location.hash = `#/t/${slug}/contexto/${encodeURIComponent(b.dataset.id)}`; };
+      for (const b of el.querySelectorAll('.list button')) b.onclick = () => { location.hash = `#/t/${slug}/tarefas/${encodeURIComponent(b.dataset.id)}`; };
       const nt = $('#newtask'); if (nt) nt.onclick = () => { const id = prompt('id da tarefa (a-z, 0-9, _ -), ex.: metas'); if (!id) return; tasks.push({ task_id: id, title: id, body_md: '', sort: tasks.length }); cur = id; draw(); };
       if (t) wireSave(() => api(`/api/templates/${encodeURIComponent(slug)}/draft/tasks/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#t-title').value, body_md: $('#t-body').value, sort: Number($('#t-sort').value) || 0 } }));
+    };
+    draw();
+  }
+
+  const TIPO_REGRA = { regra: 'regra', recomendacao: 'recomendação', definicao: 'definição' };
+
+  /** Regras DESTA análise: uma entrada por regra (o título é a regra), como os contextos gerais. */
+  function paneRegras({ slug, kit, canEdit, sub }, el) {
+    const rules = [...(kit.rules || [])].sort((a, b) => a.sort - b.sort);
+    let cur = rules.some((r) => r.rule_id === sub) ? sub : (rules[0] ? rules[0].rule_id : null);
+    const draw = () => {
+      const r = rules.find((x) => x.rule_id === cur);
+      el.innerHTML = `<p class="muted sm">O <b>título é a regra</b>: o agente lê pelos títulos, aqui e no <code>regras.md</code> do kit. Corpo curto: por quê + como aplicar.</p>
+        <div class="split"><div class="card"><div class="list">${rules.map((x) => `<button data-id="${esc(x.rule_id)}" class="${x.rule_id === cur ? 'on' : ''}"><span class="pill ${x.tipo === 'regra' ? 'pub' : x.tipo === 'definicao' ? 'leitor' : 'draft'}">${esc(TIPO_REGRA[x.tipo] || x.tipo || 'regra')}</span> ${esc(x.title)}<br><code>${esc(x.rule_id)}</code></button>`).join('') || '<div class="muted sm">Nenhuma regra ainda.</div>'}</div>
+          ${canEdit ? '<div class="actions"><button class="btn" id="newrule">+ Regra</button></div>' : ''}</div>
+        <div class="card">${r ? `<label>Tipo</label><select id="r-tipo" ${canEdit ? '' : 'disabled'}><option value="regra" ${r.tipo === 'regra' || !r.tipo ? 'selected' : ''}>Regra — o agente não pode descumprir</option><option value="recomendacao" ${r.tipo === 'recomendacao' ? 'selected' : ''}>Recomendação — siga, salvo motivo dito</option><option value="definicao" ${r.tipo === 'definicao' ? 'selected' : ''}>Definição — como o termo é entendido nesta análise</option></select>
+          <label>Título (a regra em uma frase: o que fazer / não fazer)</label><input id="r-title" value="${esc(r.title)}" ${canEdit ? '' : 'readonly'}>
+          <label>Ordem</label><input id="r-sort" type="number" value="${r.sort}" style="width:120px" ${canEdit ? '' : 'readonly'}>
+          <label>Corpo (por quê + como aplicar)</label>${editorBlock('r-body', r.body_md, '', canEdit)}
+          ${canEdit ? '<div class="actions"><button class="btn btn-ghost btn-danger" id="delrule">Excluir</button><button class="btn btn-p" id="save">Salvar no rascunho</button></div>' : ''}` : '<div class="empty">Sem regras. As regras chegam ao agente junto com o kit.</div>'}</div></div>`;
+      for (const b of el.querySelectorAll('.list button')) b.onclick = () => { location.hash = `#/t/${slug}/regras/${encodeURIComponent(b.dataset.id)}`; };
+      const nr = $('#newrule'); if (nr) nr.onclick = () => { const id = prompt('id da regra (a-z, 0-9, _ -), ex.: meta-por-canal-existe'); if (!id) return; rules.push({ rule_id: id, tipo: 'regra', title: id, body_md: '', sort: rules.length }); cur = id; draw(); };
+      const dr = $('#delrule'); if (dr) dr.onclick = async () => { if (!confirm(`Excluir a regra "${cur}" do rascunho?`)) return; try { await api(`/api/templates/${encodeURIComponent(slug)}/draft/regras/${encodeURIComponent(cur)}`, { method: 'DELETE' }); toast('Regra removida do rascunho'); route(); } catch (e) { toast(e.message, true); } };
+      if (r) wireSave(() => api(`/api/templates/${encodeURIComponent(slug)}/draft/regras/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#r-title').value, body_md: $('#r-body').value, tipo: $('#r-tipo').value, sort: Number($('#r-sort').value) || 0 } }));
     };
     draw();
   }
@@ -312,8 +336,8 @@
       ${isEditor() ? `<div class="row">${a.evento === 'aprofundamento' && !a.virou_exemplo ? '<button class="btn" id="ex">Virar exemplo</button>' : ''}${!a.virou_regra ? '<button class="btn" id="rg">Virar regra</button>' : ''}<a class="btn btn-p" href="#/t/${esc(a.slug)}/guia">Ajustar template</a></div>` : ''}</div>
       <div class="card">${body}</div>
       ${isEditor() ? `<div class="card" style="margin-top:14px"><h3>Sua avaliação (editor)</h3><div class="row"><select id="en" style="width:120px"><option value="">— nota</option>${[5, 4, 3, 2, 1].map((n) => `<option ${a.editor_nota === n ? 'selected' : ''}>${n}</option>`).join('')}</select><input id="ec" placeholder="comentário" value="${esc(a.editor_comentario || '')}" style="flex:1"><button class="btn btn-p" id="es">Salvar</button></div></div>` : ''}`;
-    const ex = $('#ex'); if (ex) ex.onclick = async () => { try { const r = await api(`/api/atividade/${id}/virar-exemplo`, { method: 'POST' }); toast('Exemplo adicionado ao guia do rascunho'); location.hash = `#/t/${r.slug}/guia`; } catch (e) { toast(e.message, true); } };
-    const rg = $('#rg'); if (rg) rg.onclick = async () => { const texto = prompt('Texto da regra ("o que NÃO concluir"):', a.motivo || ''); if (texto === null) return; try { const r = await api(`/api/atividade/${id}/virar-regra`, { method: 'POST', body: { texto } }); toast('Regra adicionada ao guia do rascunho'); location.hash = `#/t/${r.slug}/guia`; } catch (e) { toast(e.message, true); } };
+    const ex = $('#ex'); if (ex) ex.onclick = async () => { try { const r = await api(`/api/atividade/${id}/virar-exemplo`, { method: 'POST' }); toast('Exemplo adicionado ao guia do rascunho'); location.hash = `#/t/${r.slug}/regras`; } catch (e) { toast(e.message, true); } };
+    const rg = $('#rg'); if (rg) rg.onclick = async () => { const texto = prompt('A regra em uma frase (vira uma entrada na aba Regras):', a.motivo || ''); if (texto === null) return; try { const r = await api(`/api/atividade/${id}/virar-regra`, { method: 'POST', body: { texto } }); toast('Regra criada no rascunho'); location.hash = `#/t/${r.slug}/regras`; } catch (e) { toast(e.message, true); } };
     const es = $('#es'); if (es) es.onclick = async () => { try { await api(`/api/atividade/${id}`, { method: 'PATCH', body: { editor_nota: $('#en').value ? Number($('#en').value) : null, editor_comentario: $('#ec').value } }); toast('Salvo'); } catch (e) { toast(e.message, true); } };
   }
 

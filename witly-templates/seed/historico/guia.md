@@ -29,15 +29,5 @@ Tudo vem pronto no CSV pela query: tipo de evento (prefixo do `field_conversion`
 - **Investimentos**: CPA subiu → `decomposicao` diz se foi CPL ou conversão paga; CPL subiu → CPM (leilão) ou CTR (criativo).
 - **Temperatura no pago**: compare CPL e conv. paga por temperatura entre lançamentos; o mix (quanto foi para Cold) explica boa parte da variação do CPA.
 
-## O que NÃO concluir
-- Com menos de 3 lançamentos não há tendência nem sazonalidade: é hipótese.
-- Lançamentos de mecânica diferente (clássico × pago × perpétuo) não são comparáveis sem ressalva: use `tipo_lancamento`.
-- Taxas e custos não somam entre lançamentos; para o "geral do período" use os agregados do `query_api` (`tabela` com `incluir_geral`).
-- `vendas_mql` / `vendas_nao_mql` zeradas não significam "MQL não vende": significam coluna não preenchida.
-- Outlier removido das séries de mídia ainda existe: cite-o quando explicar o lançamento.
-- Reembolso de lançamento recente ainda cresce (janela de garantia aberta): não compare com os antigos sem dizer isso.
-- Rótulos iguais (dois eventos no mesmo mês) confundem a série: separe antes de concluir.
-
-## Cuidados
-- A query é uma base: confirme nomes de tabela/coluna e ajuste o CASE de temperatura.
-- `--opts` é um snapshot: para outro recorte, gere de novo.
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.

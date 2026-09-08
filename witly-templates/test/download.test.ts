@@ -33,15 +33,15 @@ describe('/dl/:slug/:n (T010)', () => {
     // viewer/ entra quando public/viewer/ foi buildado (npm run build); nunca quebra o zip
     if (viewer.length) expect(viewer).toEqual(['acomp/viewer/shell.html', 'acomp/viewer/viewer.css', 'acomp/viewer/viewer.js']);
     expect(names).toEqual([
-      'acomp/contexto/lancamento.md', 'acomp/design-system.md', 'acomp/documento.md', 'acomp/exemplo.html', 'acomp/guia.md',
-      'acomp/manifest.json', 'acomp/python/gerar.py', 'acomp/queries/dump.sql',
+      'acomp/design-system.md', 'acomp/documento.md', 'acomp/exemplo.html', 'acomp/guia.md',
+      'acomp/manifest.json', 'acomp/python/gerar.py', 'acomp/queries/dump.sql', 'acomp/tarefas/lancamento.md',
     ]);
     expect(strFromU8(files['acomp/design-system.md'])).toBe('# DS');
     const manifest = JSON.parse(strFromU8(files['acomp/manifest.json']));
     expect(manifest.version).toBe('1.0.0');
     expect(manifest.version_number).toBe(1);
     expect(manifest.params).toHaveLength(4);
-    expect(strFromU8(files['acomp/contexto/lancamento.md'])).toContain('# Identificar o lançamento');
+    expect(strFromU8(files['acomp/tarefas/lancamento.md'])).toContain('# Identificar o lançamento');
   });
 
   it('versão que não é a publicada → 404', async () => {

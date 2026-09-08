@@ -5,6 +5,7 @@ import { versionLabel } from '../db/semver.js';
 import { canSee, getPlatformDoc, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
+import { rulesBlock } from './zip.js';
 
 export interface ToolEnv extends Pick<Env, 'DB' | 'ORG_ID' | 'COOKIE_ENCRYPTION_KEY' | 'DOWNLOAD_SIGNING_KEY' | 'PUBLIC_URL'> {}
 export interface ToolUser { email: string; name: string }
@@ -43,6 +44,7 @@ async function kitOrThrow(env: ToolEnv, user: ToolUser, slug: string): Promise<K
 }
 
 const TIPO_LABEL: Record<string, string> = { regra: 'REGRA', recomendacao: 'RECOMENDAÇÃO', definicao: 'DEFINIÇÃO' };
+
 
 /** Contextos gerais: o TÍTULO já é a regra; o corpo é curto (porquê + como aplicar).
  *  REGRA não se descumpre; RECOMENDAÇÃO pode ser relaxada com motivo; DEFINIÇÃO fixa um termo. */
@@ -111,7 +113,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push(fence('json', JSON.stringify({ ...m, slug, name: kit.template.name, version: kit.version.semver ?? String(n), version_number: n }, null, 2)));
   out.push('');
   const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
-  out.push('## Tarefas de contexto (execute ANTES de gerar; as marcadas PERGUNTE ao consultor, não decida sozinho)');
+  out.push('## Tarefas (execute ANTES de gerar; as marcadas PERGUNTE ao consultor, não decida sozinho)');
   for (const t of kit.tasks) {
     out.push('');
     out.push(`### ${t.title}  \`${t.task_id}\`  — ${confirmar.get(t.task_id) === false ? 'resolva pela regra (pergunte só se ambíguo)' : '**PERGUNTE AO CONSULTOR e confirme antes de gerar**'}`);
@@ -144,6 +146,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('## Guia de leitura');
   out.push('');
   out.push(text('guia.md').trim());
+  out.push(rulesBlock(kit.rules));
   if (files.has('perguntas.md')) {
     out.push('');
     out.push('## Perguntas norteadoras (o que vale aprofundar)');
@@ -214,7 +217,7 @@ export async function guia(env: ToolEnv, user: ToolUser, slug: string): Promise<
   const kit = await kitOrThrow(env, user, slug);
   await logUsage(env.DB, { email: user.email, tool: 'guia', slug, version_number: kit.version.number });
   const g = kit.files.find((f) => f.path === 'guia.md')?.content ?? '(sem guia)';
-  return g.trim() + generalBlock(await listGeneralContexts(env.DB, env.ORG_ID));
+  return g.trim() + rulesBlock(kit.rules) + generalBlock(await listGeneralContexts(env.DB, env.ORG_ID));
 }
 
 // ── resources ────────────────────────────────────────────────────────────────

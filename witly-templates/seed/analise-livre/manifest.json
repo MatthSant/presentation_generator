@@ -8,35 +8,101 @@
   "livre": true,
   "perguntas_bank": null,
   "required_files": [],
-
   "params": [],
   "queries": [],
-
   "tarefas_contexto": [
-    { "id": "objetivo", "objetivo": "Fixar a pergunta de negócio, a decisão que ela alimenta e o público do documento", "saida": "relatorio/meta.json (title, client, client_name, pergunta, decisao)", "confirmar": true },
-    { "id": "dados", "objetivo": "Definir a fonte (Delfos, CSV do consultor) e checar dado pessoal antes de qualquer cálculo", "saida": "queries/*.sql próprias + dump.csv local sem PII", "confirmar": true },
-    { "id": "estrutura", "objetivo": "Combinar páginas/seções do documento e o que cada bloco responde, antes de calcular", "saida": "relatorio/paginas.json + esqueleto das seções", "confirmar": true }
+    {
+      "id": "objetivo",
+      "objetivo": "Fixar a pergunta de negócio, a decisão que ela alimenta e o público do documento",
+      "saida": "relatorio/meta.json (title, client, client_name, pergunta, decisao)",
+      "confirmar": true
+    },
+    {
+      "id": "dados",
+      "objetivo": "Definir a fonte (Delfos, CSV do consultor) e checar dado pessoal antes de qualquer cálculo",
+      "saida": "queries/*.sql próprias + dump.csv local sem PII",
+      "confirmar": true
+    },
+    {
+      "id": "estrutura",
+      "objetivo": "Combinar páginas/seções do documento e o que cada bloco responde, antes de calcular",
+      "saida": "relatorio/paginas.json + esqueleto das seções",
+      "confirmar": true
+    }
   ],
-
   "config": {
     "descricao": "Não há config.json de motor. O relatório é a pasta relatorio/ que você monta: meta.json, dataset.json (tabelas com os números), sNN.json (seções) e paginas.json.",
     "exemplo": {
-      "meta.json": { "client": "cliente-slug", "client_name": "Nome do Cliente", "title": "Nome do Cliente · Pergunta X", "pergunta": "…", "decisao": "…" },
-      "paginas.json": [{ "id": "panorama", "label": "Panorama", "sections": [{ "id": "s01", "label": "Resposta" }] }],
-      "dataset.json": { "q-cpl-canal": { "dims": ["canal"], "filters": [], "rows": [{ "canal": "facebook", "leads": 120, "invest": 900, "cpl": 7.5 }] } },
-      "s01.json": { "id": "s01", "header": { "badge": "Panorama", "title": "…" }, "widgets": [{ "id": "hl", "type": "highlight", "text": "…" }, { "id": "c1", "type": "chart", "chartType": "bar", "title": "CPL por canal", "bind": { "dataset": "q-cpl-canal", "x": "canal", "y": "cpl" } }] }
+      "meta.json": {
+        "client": "cliente-slug",
+        "client_name": "Nome do Cliente",
+        "title": "Nome do Cliente · Pergunta X",
+        "pergunta": "…",
+        "decisao": "…"
+      },
+      "paginas.json": [
+        {
+          "id": "panorama",
+          "label": "Panorama",
+          "sections": [
+            {
+              "id": "s01",
+              "label": "Resposta"
+            }
+          ]
+        }
+      ],
+      "dataset.json": {
+        "q-cpl-canal": {
+          "dims": [
+            "canal"
+          ],
+          "filters": [],
+          "rows": [
+            {
+              "canal": "facebook",
+              "leads": 120,
+              "invest": 900,
+              "cpl": 7.5
+            }
+          ]
+        }
+      },
+      "s01.json": {
+        "id": "s01",
+        "header": {
+          "badge": "Panorama",
+          "title": "…"
+        },
+        "widgets": [
+          {
+            "id": "hl",
+            "type": "highlight",
+            "text": "…"
+          },
+          {
+            "id": "c1",
+            "type": "chart",
+            "chartType": "bar",
+            "title": "CPL por canal",
+            "bind": {
+              "dataset": "q-cpl-canal",
+              "x": "canal",
+              "y": "cpl"
+            }
+          }
+        ]
+      }
     }
   },
-
   "como_gerar": [
-    "1. Execute as tarefas de contexto (objetivo, dados, estrutura) com o consultor. Leia design-system.md e os contextos gerais ANTES de calcular.",
+    "1. Execute as tarefas (objetivo, dados, estrutura) com o consultor. Leia design-system.md e os contextos gerais ANTES de calcular.",
     "2. Escreva python/calc_livre.py (só stdlib) que lê o CSV e grava relatorio/dataset.json: toda tabela com os números que o documento vai mostrar. O modelo não digita número: número nasce nesse script.",
     "3. Escreva relatorio/meta.json, relatorio/paginas.json e as seções relatorio/sNN.json no contrato do design system (widgets com bind para as tabelas; prosa só com números que estão nas tabelas).",
     "4. python python/montar.py --relatorio relatorio/ --out saida/  → valida (tipos de widget, binds, número solto na prosa) e gera saida/relatorio.html. Erro = corrija e rode de novo; nada é gravado com erro.",
     "5. Aprofundamento depois de gerado: python python/aprofundar.py --out saida --secao det.json --tabela q.json (mesmo fluxo dos templates).",
     "6. Ao terminar: registrar(evento='geracao', slug='analise-livre', …). Se a análise vale repetir, salve como template pessoal (salvar_template) com o calc_livre.py, as queries e as seções."
   ],
-
   "arquivos": {
     "python/montar.py": "valida a pasta relatorio/ e gera as 4 camadas + relatorio.html (viewer offline)",
     "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
@@ -44,7 +110,8 @@
     "python/tests/": "exemplo mínimo de relatorio/ + testes do montar.py",
     "viewer/": "viewer offline",
     "documento.md": "como montar a pasta relatorio/ (meta, páginas, dataset, seções) e o que cada widget espera",
-    "guia.md": "as regras da análise livre: número no Python, PII, benchmark, comunicação, o que não concluir",
+    "guia.md": "as regras da análise livre: número no Python, PII, benchmark, comunicação, como ler",
+    "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
     "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
   }
 }

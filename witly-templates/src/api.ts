@@ -70,7 +70,7 @@ api.post('/api/templates', async (c) => {
     slug: b.slug, org_id: c.env.ORG_ID, name: b.name.trim(), objective: b.objective ?? '', when_to_use: b.when_to_use ?? '',
     manifest: { params: [], queries: [], tarefas_contexto: [], como_gerar: [] },
     files: [
-      { path: 'guia.md', content: `# Guia de leitura: ${b.name.trim()}\n\n## Como funciona a mecânica\n\n## Definições\n\n## O que NÃO concluir\n` },
+      { path: 'guia.md', content: `# Guia de leitura: ${b.name.trim()}\n\n## Como funciona a mecânica\n\n## Definições\n\n## Como ler cada bloco\n` },
       { path: 'documento.md', content: `# Documento: ${b.name.trim()}\n` },
       { path: 'python/gerar.py', content: '#!/usr/bin/env python3\n"""gerar — TODO"""\n' },
     ],
@@ -87,7 +87,7 @@ api.get('/api/templates/:slug', async (c) => {
   const state = c.req.query('state') === 'draft' ? 'draft' : 'published';
   const kit = state === 'draft' ? await db.getDraftKit(c.env.DB, slug) : await db.getPublishedKit(c.env.DB, slug);
   if (!kit) return c.json({ template: t, kit: null });
-  return c.json({ template: t, kit: { version: kit.version, manifest: JSON.parse(kit.version.manifest_json), files: kit.files, tasks: kit.tasks } });
+  return c.json({ template: t, kit: { version: kit.version, manifest: JSON.parse(kit.version.manifest_json), files: kit.files, tasks: kit.tasks, rules: kit.rules } });
 });
 
 api.patch('/api/templates/:slug', async (c) => {
@@ -154,6 +154,25 @@ api.put('/api/templates/:slug/draft/tasks/:task', async (c) => {
   if (!b.title?.trim() || typeof b.body_md !== 'string') return c.json({ error: 'title e body_md obrigatórios' }, 400);
   try { await db.saveContextTask(c.env.DB, await draftId(c, c.req.param('slug'), u.email), { task_id, title: b.title.trim(), body_md: b.body_md, sort: b.sort }); }
   catch (e) { return c.json({ error: (e as Error).message }, 404); }
+  return c.json({ ok: true });
+});
+
+api.put('/api/templates/:slug/draft/regras/:id', async (c) => {
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
+  const rule_id = c.req.param('id');
+  if (!SLUG.test(rule_id)) return c.json({ error: 'id da regra inválido' }, 400);
+  const b = await c.req.json<{ title?: string; body_md?: string; tipo?: string; sort?: number }>();
+  if (!b.title?.trim()) return c.json({ error: 'title obrigatório (a regra em uma frase)' }, 400);
+  const tipo = (['regra', 'recomendacao', 'definicao'] as const).find((t) => t === b.tipo) ?? 'regra';
+  const d = await db.ensureDraft(c.env.DB, c.req.param('slug'), u.email);
+  await db.saveTemplateRule(c.env.DB, d.id, { rule_id, tipo, title: b.title.trim(), body_md: b.body_md ?? '', sort: b.sort ?? 0 });
+  return c.json({ ok: true, version: d.number });
+});
+
+api.delete('/api/templates/:slug/draft/regras/:id', async (c) => {
+  const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
+  const d = await db.ensureDraft(c.env.DB, c.req.param('slug'), u.email);
+  await db.deleteTemplateRule(c.env.DB, d.id, c.req.param('id'));
   return c.json({ ok: true });
 });
 

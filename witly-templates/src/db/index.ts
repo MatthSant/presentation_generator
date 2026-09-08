@@ -34,11 +34,13 @@ export interface Rating { id: string; org_id: string; slug: string; version_numb
 
 export interface TemplateFile { version_id: string; path: string; content: string }
 export interface ContextTask { version_id: string; task_id: string; title: string; body_md: string; sort: number }
+/** Regra da análise: o TÍTULO é a regra; `tipo` diz o peso (mesma taxonomia dos contextos gerais). */
+export interface TemplateRule { version_id: string; rule_id: string; tipo: ContextoTipo; title: string; body_md: string; sort: number }
 export type ContextoTipo = 'regra' | 'recomendacao' | 'definicao';
 export interface GeneralContext { slug: string; org_id: string; title: string; body_md: string; tipo: ContextoTipo; author_email: string | null; updated_at: string }
 
 /** Kit completo de uma versão: o que o MCP entrega e a UI edita. */
-export interface Kit { template: Template; version: Version; files: TemplateFile[]; tasks: ContextTask[] }
+export interface Kit { template: Template; version: Version; files: TemplateFile[]; tasks: ContextTask[]; rules: TemplateRule[] }
 
 const now = () => new Date().toISOString();
 
@@ -125,12 +127,16 @@ export async function getContextTasks(db: D1Database, version_id: string): Promi
   return (await db.prepare('SELECT * FROM context_tasks WHERE version_id = ? ORDER BY sort, task_id').bind(version_id).all<ContextTask>()).results;
 }
 
+export async function getTemplateRules(db: D1Database, version_id: string): Promise<TemplateRule[]> {
+  return (await db.prepare("SELECT * FROM template_rules WHERE version_id = ? ORDER BY CASE tipo WHEN 'regra' THEN 0 WHEN 'definicao' THEN 1 ELSE 2 END, sort, rule_id").bind(version_id).all<TemplateRule>()).results;
+}
+
 async function loadKit(db: D1Database, template: Template, version_id: string | null): Promise<Kit | null> {
   if (!version_id) return null;
   const version = await getVersion(db, version_id);
   if (!version) return null;
-  const [files, tasks] = await Promise.all([getVersionFiles(db, version_id), getContextTasks(db, version_id)]);
-  return { template, version, files, tasks };
+  const [files, tasks, rules] = await Promise.all([getVersionFiles(db, version_id), getContextTasks(db, version_id), getTemplateRules(db, version_id)]);
+  return { template, version, files, tasks, rules };
 }
 
 /** Kit da versão PUBLICADA (o que o MCP serve). null = template inexistente ou sem publicada. */
@@ -149,6 +155,7 @@ export interface NewTemplateInput {
   slug: string; org_id: string; name: string; objective?: string; when_to_use?: string;
   manifest: unknown; files: Array<{ path: string; content: string }>;
   tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>;
+  rules?: Array<{ rule_id: string; tipo?: ContextoTipo; title: string; body_md?: string; sort?: number }>;
   author_email?: string | null;
   /** Template pessoal: e-mail do dono. */
   owner_email?: string | null;
@@ -168,6 +175,7 @@ export async function createTemplate(db: D1Database, input: NewTemplateInput): P
       .bind(vid, input.slug, pub ? 'published' : 'draft', input.author_email ?? null, JSON.stringify(input.manifest), pub ? now() : null, pub ? '1.0.0' : null),
     ...input.files.map((f) => db.prepare('INSERT INTO template_files (version_id, path, content) VALUES (?, ?, ?)').bind(vid, f.path, f.content)),
     ...input.tasks.map((t, i) => db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (?, ?, ?, ?, ?)').bind(vid, t.task_id, t.title, t.body_md, t.sort ?? i)),
+    ...(input.rules ?? []).map((r, i) => db.prepare('INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) VALUES (?, ?, ?, ?, ?, ?)').bind(vid, r.rule_id, r.tipo ?? 'regra', r.title, r.body_md ?? '', r.sort ?? i)),
   ];
   await db.batch(stmts);
   return (await getVersion(db, vid))!;
@@ -186,6 +194,7 @@ export async function ensureDraft(db: D1Database, slug: string, author_email: st
       .bind(vid, slug, pub.number + 1, 'draft', author_email, pub.manifest_json),
     db.prepare('INSERT INTO template_files (version_id, path, content) SELECT ?, path, content FROM template_files WHERE version_id = ?').bind(vid, pub.id),
     db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) SELECT ?, task_id, title, body_md, sort FROM context_tasks WHERE version_id = ?').bind(vid, pub.id),
+    db.prepare('INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) SELECT ?, rule_id, tipo, title, body_md, sort FROM template_rules WHERE version_id = ?').bind(vid, pub.id),
     db.prepare('UPDATE templates SET draft_version_id = ? WHERE slug = ?').bind(vid, slug),
   ]);
   return (await getVersion(db, vid))!;
@@ -207,6 +216,19 @@ export async function saveFile(db: D1Database, version_id: string, path: string,
 
 export async function deleteFile(db: D1Database, version_id: string, path: string): Promise<void> {
   await db.prepare('DELETE FROM template_files WHERE version_id = ? AND path = ?').bind(version_id, path).run();
+  await touch(db, version_id);
+}
+
+export async function saveTemplateRule(db: D1Database, version_id: string, r: { rule_id: string; tipo?: ContextoTipo; title: string; body_md?: string; sort?: number }): Promise<void> {
+  await db.prepare(
+    `INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(version_id, rule_id) DO UPDATE SET tipo = excluded.tipo, title = excluded.title, body_md = excluded.body_md, sort = excluded.sort`,
+  ).bind(version_id, r.rule_id, r.tipo ?? 'regra', r.title, r.body_md ?? '', r.sort ?? 0).run();
+  await touch(db, version_id);
+}
+
+export async function deleteTemplateRule(db: D1Database, version_id: string, rule_id: string): Promise<void> {
+  await db.prepare('DELETE FROM template_rules WHERE version_id = ? AND rule_id = ?').bind(version_id, rule_id).run();
   await touch(db, version_id);
 }
 
@@ -239,7 +261,7 @@ export async function publishDraft(db: D1Database, slug: string, changelog = '',
 }
 
 /** Publica uma versão NOVA já pronta (pessoal salvo pelo MCP): número max+1, publicada na hora. */
-export async function publishNewVersion(db: D1Database, slug: string, v: { manifest: unknown; files: Array<{ path: string; content: string }>; tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>; author_email: string | null; changelog?: string; bump?: Bump }): Promise<Version> {
+export async function publishNewVersion(db: D1Database, slug: string, v: { manifest: unknown; files: Array<{ path: string; content: string }>; tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>; rules?: Array<{ rule_id: string; tipo?: ContextoTipo; title: string; body_md?: string; sort?: number }>; author_email: string | null; changelog?: string; bump?: Bump }): Promise<Version> {
   const vid = crypto.randomUUID();
   const ts = now();
   const t = await getTemplate(db, slug);
@@ -249,6 +271,7 @@ export async function publishNewVersion(db: D1Database, slug: string, v: { manif
       .bind(vid, slug, slug, 'published', v.author_email, JSON.stringify(v.manifest), ts, v.changelog ?? '', nextSemver(cur, v.bump ?? 'patch')),
     ...v.files.map((f) => db.prepare('INSERT INTO template_files (version_id, path, content) VALUES (?, ?, ?)').bind(vid, f.path, f.content)),
     ...v.tasks.map((t, i) => db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (?, ?, ?, ?, ?)').bind(vid, t.task_id, t.title, t.body_md, t.sort ?? i)),
+    ...(v.rules ?? []).map((r, i) => db.prepare('INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) VALUES (?, ?, ?, ?, ?, ?)').bind(vid, r.rule_id, r.tipo ?? 'regra', r.title, r.body_md ?? '', r.sort ?? i)),
     db.prepare('UPDATE templates SET published_version_id = ? WHERE slug = ?').bind(vid, slug),
   ]);
   return (await getVersion(db, vid))!;
@@ -276,6 +299,7 @@ export async function restoreVersion(db: D1Database, slug: string, number: numbe
       .bind(vid, slug, slug, 'draft', author_email, src.manifest_json, `restaurada da v${src.semver ?? number}`),
     db.prepare('INSERT INTO template_files (version_id, path, content) SELECT ?, path, content FROM template_files WHERE version_id = ?').bind(vid, src.id),
     db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) SELECT ?, task_id, title, body_md, sort FROM context_tasks WHERE version_id = ?').bind(vid, src.id),
+    db.prepare('INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) SELECT ?, rule_id, tipo, title, body_md, sort FROM template_rules WHERE version_id = ?').bind(vid, src.id),
     db.prepare('UPDATE templates SET draft_version_id = ? WHERE slug = ?').bind(vid, slug),
   );
   await db.batch(stmts);

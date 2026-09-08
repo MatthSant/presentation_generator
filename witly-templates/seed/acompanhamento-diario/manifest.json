@@ -166,7 +166,7 @@
     }
   },
   "como_gerar": [
-    "1. Execute as tarefas de contexto (contexto/*.md) com o consultor e monte config.json.",
+    "1. Execute as tarefas (tarefas/*.md) com o consultor e monte config.json.",
     "2. Rode as queries no Delfos (montar_query já devolve o SQL preenchido) e salve dump.csv (+ goals.csv / dict.csv se houver).",
     "3. python python/gerar.py --config config.json --csv dump.csv --out saida/ [--goals goals.csv] [--dict dict.csv]",
     "4. Abra saida/relatorio.html (filtros de origem/canal/público/campanha/anúncio em cascata e combináveis, pré-calculados; --sem-filtros para um HTML menor). Os números estão em saida/numeros.json; as 4 camadas (dataset/data/layout/sXX) também ficam em saida/.",
@@ -183,7 +183,8 @@
     "python/tests/": "fixture sintética + testes (python -m unittest)",
     "viewer/": "viewer offline (viewer.js, viewer.css, shell.html) que o gerar.py embute no HTML",
     "documento.md": "estrutura do relatório e onde cada número aparece",
-    "guia.md": "como ler: mecânica, definições, benchmarks, o que não concluir",
+    "guia.md": "como ler: mecânica, definições, benchmarks, como ler",
+    "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
     "exemplo.html": "um relatório gerado a partir da fixture sintética",
     "python/aprofundar.py": "coloca um aprofundamento no relatório (design system) e regera o HTML",
     "python/perguntas/": "banco + cálculo de relevância das perguntas norteadoras (perguntas.json)",

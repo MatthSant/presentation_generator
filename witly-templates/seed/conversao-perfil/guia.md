@@ -36,16 +36,5 @@ Em cada lançamento parte dos leads responde uma pesquisa de perfil (renda, idad
 - **Codependência**: veredito combinado: amplitude alta/média + qualificador → **priorizar**; amplitude alta/média + qualificante → proxy de X (priorize X); amplitude baixa → baixo impacto, independente ou não.
 - **Pago × Orgânico**: grupo que muda de classe entre canais é um insight de canal.
 
-## O que NÃO concluir
-- Associação não é causalidade; relevância e lift controlado são heurísticas de priorização, não prova.
-- `rep` < 3 % é amostra pequena: não conclua sobre o grupo (contexto geral "números pequenos").
-- Não compare a conversão de respondentes com a conversão geral do lançamento.
-- Lançamentos recentes não completaram a janela longa: uplift subestimado.
-- Custom fields sem significado confirmado não viram critério.
-- Menos de 3 lançamentos: não existe consistência.
-- Não some conversões entre grupos ou canais; use o benchmark agregado.
-
-## Cuidados
-- O CSV é agregado (sem e-mail, sem linha por lead): a query já entrega assim; não exporte a CTE de inscrições.
-- Pesquisa editada no meio da série (faixas diferentes): mapeie ou declare a quebra.
-- `vendas_12meses` exige transações com data e e-mail casando com a inscrição; e-mails diferentes (pessoal × trabalho) subestimam a conversão.
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.

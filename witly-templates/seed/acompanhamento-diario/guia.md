@@ -34,16 +34,8 @@ Os indicadores de mídia (CPL, CPM, CPMQL) e o funil consideram **só campanhas 
 - **Criativos**: volume e qualificação separados. Criativo que traz muito lead com qualidade baixa custa CPMQL.
 - **Funil**: o furo aponta a alavanca: CTR = criativo/segmentação; Connect = página lenta ou clique acidental; Conv. de página = oferta/página; Resposta = pesquisa; Qualidade = público.
 
-## O que NÃO concluir
-- Não some taxas nem tire média simples de dias; para o geral use o total (o motor já faz).
-- Não afirme que "o indicador X caiu do dia A ao B" para um criativo específico: a série diária é geral, não por criativo.
-- Não invente meta por canal/temperatura/criativo: as metas existem só no nível global.
-- Não conclua "é o criativo X" sem verificar se a piora concentra nele (`query_api.py onde_concentra`); piora ampla é causa global (leilão, sazonalidade, página).
-- Não compare contra "a média dos melhores" sem trazer o número (`query_api.py ranking`).
-- Sem metas, o semáforo e os riscos não existem: diga isso, não preencha.
-- Hook/Hold/Connect/Conv. de página dependem de `views`/`pageviews`; sem eles o funil sinaliza dado inválido — não leia como zero.
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.
 
-## Cuidados
-- Informe sempre a data de corte; criativos e funil 3d respeitam o corte.
-- Nos primeiros e últimos dias as taxas diárias ficam ruidosas; leia a tendência.
-- Rode todo dia trocando a data de corte; o `preserve` mantém o que o consultor editou.
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.

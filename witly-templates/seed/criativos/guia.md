@@ -29,16 +29,5 @@ Tipo de campanha por `tipo_rules` sobre `field_campaign_name` (obrigatório); te
 - **Ficha**: compare a quebra por temperatura/público com a média do lançamento; o mesmo criativo pode funcionar no quente e falhar no frio.
 - **Saturação**: `saturacao_diaria` (ROAS/retorno por dia de um criativo) mostra fadiga.
 
-## O que NÃO concluir
-- Não compare Hook/Hold entre vídeo e estático: só vídeo tem os dois.
-- Não julgue ROAS/CAC no modo Captação (a venda não fechou); no máximo cite como sinal precoce, dizendo isso.
-- Criativo com pouco investimento e ROAS alto não é vencedor: é amostra pequena (contexto geral "números pequenos").
-- Ranking por uma métrica só engana: cruze volume (investimento/leads) com eficiência.
-- Sem dicionário não há preview; não é erro.
-- Não some razões entre criativos; use a agregada.
-- A análise já está recortada no tipo escolhido: não compare com o outro tipo.
-
-## Cuidados
-- Nomes de tabela/coluna da conta variam: a query é uma base.
-- `video_p100_views` pode não existir na conta: Hold fica vazio.
-- Recorte por `--opts` é um snapshot; para dois modos gere duas vezes.
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.

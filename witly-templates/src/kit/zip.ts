@@ -22,6 +22,21 @@ export async function loadViewer(assets: Fetcher | undefined): Promise<ViewerFil
   return out;
 }
 
+const TIPO_LABEL: Record<string, string> = { regra: 'REGRA', recomendacao: 'RECOMENDAÇÃO', definicao: 'DEFINIÇÃO' };
+
+/** Regras DESTA análise (entradas versionadas): o título é a regra; o corpo, curto.
+ *  Mesmo texto no MCP (obter_template/guia) e no `regras.md` do zip. */
+export function rulesBlock(rules: Array<{ tipo: string; title: string; body_md: string }>): string {
+  if (!rules.length) return '';
+  const out = ['', '## Regras desta análise (o título já é a regra)', '',
+    'REGRA = não descumpra. RECOMENDAÇÃO = siga, salvo motivo dito. DEFINIÇÃO = é assim que o termo é entendido aqui.'];
+  for (const r of rules) {
+    out.push('', `### [${TIPO_LABEL[r.tipo] ?? 'REGRA'}] ${r.title}`);
+    if (r.body_md.trim()) out.push('', r.body_md.trim());
+  }
+  return out.join('\n');
+}
+
 const dec = new TextDecoder();
 const noClose = (s: string): string => s.replace(/<\/script/gi, '<\\/script');
 
@@ -49,7 +64,7 @@ export function renderExampleHtml(kit: Kit, viewer: ViewerFile[]): string | null
     .replace('{{VIEWER_JS}}', () => noClose(dec.decode(js.bytes)));
 }
 
-/** Zip com a pasta `<slug>/` na raiz: manifest.json, contexto/<tarefa>.md, os arquivos da versão, viewer/ e exemplo/relatorio.html. */
+/** Zip com a pasta `<slug>/` na raiz: manifest.json, tarefas/<tarefa>.md, regras.md, os arquivos da versão, viewer/ e exemplo/relatorio.html. */
 export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ path: string; content: string }> = []): Uint8Array {
   const root = kit.template.slug;
   const entries: Record<string, Uint8Array> = {};
@@ -61,7 +76,8 @@ export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ pa
     slug: kit.template.slug, name: kit.template.name, objective: kit.template.objective, when_to_use: kit.template.when_to_use,
     version: kit.version.semver ?? String(kit.version.number), version_number: kit.version.number, published_at: kit.version.published_at,
   }, null, 2));
-  for (const t of kit.tasks) entries[`${root}/contexto/${t.task_id}.md`] = strToU8(`# ${t.title}\n\n${t.body_md}\n`);
+  for (const t of kit.tasks) entries[`${root}/tarefas/${t.task_id}.md`] = strToU8(`# ${t.title}\n\n${t.body_md}\n`);
+  if (kit.rules.length) entries[`${root}/regras.md`] = strToU8(`# Regras: ${kit.template.name}\n${rulesBlock(kit.rules)}\n`);
   for (const f of kit.files) entries[`${root}/${f.path}`] = strToU8(f.content);
   for (const v of viewer) entries[`${root}/${v.path}`] = v.bytes;
   const example = renderExampleHtml(kit, viewer);

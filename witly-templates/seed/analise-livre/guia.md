@@ -20,10 +20,9 @@ Uma análise livre é uma pergunta de negócio respondida com os dados do client
 - Todo número com janela e data do dado fechado.
 - Linguagem do cliente: sem jargão estatístico, sem nome de tabela ou coluna no texto visível.
 
-## O que NÃO concluir
-- Causalidade a partir de correlação ou de um cruzamento; diga "associação" e o tamanho dela.
-- Tendência com menos de 3 pontos.
-- Que "não há dado" sem ter consultado as tabelas/views disponíveis (`Tables_Views_Docs`).
 
 ## Quando virar template
 Se a mesma análise vai se repetir (outro cliente, outro mês): `salvar_template` com `calc_livre.py`, `queries/*.sql`, as seções e este guia adaptado. Um editor promove para todos na UI.
+
+## Regras desta análise
+As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.
