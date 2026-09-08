@@ -54,7 +54,7 @@ npm run import:history -- <comments.db> --remote   # traz o histórico do app co
 ```bash
 npm run deploy                # build + wrangler deploy
 npm run db:migrate:remote
-npm run seed:remote           # publica os kits de seed/ como versão nova (+1)
+npm run seed:remote           # publica os kits de seed/ como versão nova (semver: --bump patch|minor|major, padrão patch)
 ```
 
 Secrets em produção: `wrangler secret put GOOGLE_CLIENT_ID | GOOGLE_CLIENT_SECRET | COOKIE_ENCRYPTION_KEY`.
