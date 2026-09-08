@@ -211,6 +211,66 @@ def numeros(calc, rows, config, out_dir, opts=None):
     return {'tabelas': {k: {'dims': v.get('dims'), 'linhas': len(v.get('rows') or []), 'colunas': sorted((v.get('rows') or [{}])[0].keys())} for k, v in ds.items()}}
 
 
+MAX_VALORES_FILTRO = 30
+
+
+def _rows_como_render_view(calc, rows):
+    """O render_view do app prepara as linhas antes de filtrar (ex.: merge das colunas
+    de tráfego no acompanhamento). Espelha isso quando o motor expõe a função."""
+    fn = getattr(calc, 'merge_traf_columns', None)
+    return fn(rows) if fn else rows
+
+
+def variantes(calc, build_report, rows, config, content, out_dir, opts=None):
+    """Filtros do relatório offline: o app recalcula no servidor (render_view._filter +
+    assemble); aqui pré-calculamos UM snapshot por valor de cada dimensão declarada em
+    data.json → meta.controls.filters (exceto intervalos de data). O viewer troca
+    dataset/sections/layout ao selecionar. Um filtro por vez (sem combinação)."""
+    try:
+        rv = importlib.import_module('render_view')
+    except ImportError:
+        return None
+    flt = getattr(rv, '_filter', None)
+    if not flt:
+        return None
+    with open(os.path.join(out_dir, 'data.json'), encoding='utf-8') as f:
+        data = json.load(f)
+    filtros = ((data.get('meta') or {}).get('controls') or {}).get('filters') or []
+    filtros = [f for f in filtros if f.get('kind') != 'range' and f.get('key') and f.get('values')]
+    if not filtros:
+        return None
+    import inspect
+    n = len(inspect.signature(flt).parameters)
+    base = _rows_como_render_view(calc, rows)
+    out = {}
+    for f in filtros:
+        key = f['key']
+        items = {}
+        for v in (f['values'] or [])[:MAX_VALORES_FILTRO]:
+            vid = v.get('id') if isinstance(v, dict) else v
+            sel = {key: [vid]}
+            sub = flt(base, sel, config) if n >= 3 else flt(base, sel)
+            if not sub:
+                continue
+            o = dict(opts or {}); o['filters'] = sel
+            try:
+                r = build_report.assemble(sub, dict(config), content, o)
+            except Exception as e:  # um valor que quebra não derruba o relatório
+                sys.stderr.write(f'aviso: filtro {key}={vid} ignorado ({e})\n')
+                continue
+            items[str(vid)] = {'dataset': r['dataset'], 'sections': r['sections'], 'layout': r['layout']}
+        if items:
+            out[key] = {'label': f.get('label') or key,
+                        'values': [{'id': str(v.get('id') if isinstance(v, dict) else v), 'label': (v.get('label') if isinstance(v, dict) else str(v))}
+                                   for v in (f['values'] or [])[:MAX_VALORES_FILTRO] if str(v.get('id') if isinstance(v, dict) else v) in items],
+                        'items': items}
+    if not out:
+        return None
+    with open(os.path.join(out_dir, 'variantes.json'), 'w', encoding='utf-8') as fh:
+        json.dump(out, fh, ensure_ascii=False)
+    return {k: len(v['items']) for k, v in out.items()}
+
+
 def render_html(out_dir, title):
     vd = _viewer_dir()
     if not vd:
@@ -224,7 +284,7 @@ def render_html(out_dir, title):
     sections = {}
     for p in sorted(glob.glob(os.path.join(out_dir, '*.json'))):
         base = os.path.basename(p)
-        if base in ('dataset.json', 'data.json', 'layout.json', 'numeros.json', 'perguntas.json', 'config.json', 'content.json'):
+        if base in ('dataset.json', 'data.json', 'layout.json', 'numeros.json', 'perguntas.json', 'config.json', 'content.json', 'variantes.json'):
             continue
         try:
             sec = rj(base)
@@ -233,6 +293,8 @@ def render_html(out_dir, title):
         if isinstance(sec, dict) and sec.get('id') and 'widgets' in sec:
             sections[sec['id']] = sec
     report = {'data': rj('data.json'), 'dataset': rj('dataset.json'), 'sections': sections, 'layout': rj('layout.json')}
+    if os.path.exists(os.path.join(out_dir, 'variantes.json')):
+        report['variants'] = rj('variantes.json')
     safe = lambda s: s.replace('</script', '<\\/script')   # noqa: E731
     html = (rd('shell.html')
             .replace('{{TITLE}}', title.replace('<', '&lt;'))
@@ -301,19 +363,26 @@ def gerar(config_path, csv_path, out_dir, aux=None, content_path=None, opts=None
         summ = build_report.build(csv_path, dict(config), content, out_dir)
     if config.get('dict_csv') and not config.get('dict_links') and hasattr(build_report, '_load_dict_links'):
         config['dict_links'] = build_report._load_dict_links(config['dict_csv'])
+    vf = None
+    if not (opts or {}).get('_sem_filtros'):
+        try:
+            vf = variantes(calc, build_report, rows, config, content, out_dir, {k: v for k, v in (opts or {}).items() if k != 'filters'})
+        except Exception as e:
+            sys.stderr.write(f'aviso: filtros offline não gerados ({e})\n')
     nums = numeros(calc, rows, config, out_dir, opts)
     with open(os.path.join(out_dir, 'numeros.json'), 'w', encoding='utf-8') as f:
         json.dump(nums, f, ensure_ascii=False, indent=2)
     pq = perguntas(out_dir)
     html = render_html(out_dir, config.get('title') or config.get('client_name') or 'Relatório')
     return {'out_dir': out_dir, 'secoes': summ['sections'], 'tabelas': summ['tables'], 'paginas': summ.get('pages'),
-            'html': html, 'opts': opts or None, 'perguntas': len((pq or {}).get('perguntas', [])) if pq else None}
+            'html': html, 'opts': opts or None, 'perguntas': len((pq or {}).get('perguntas', [])) if pq else None, 'filtros': vf}
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description='gera o relatório do template (4 camadas + numeros.json + perguntas.json + relatorio.html)')
     ap.add_argument('--config'); ap.add_argument('--csv'); ap.add_argument('--out', required=True)
     ap.add_argument('--goals'); ap.add_argument('--dict'); ap.add_argument('--hist'); ap.add_argument('--content')
+    ap.add_argument('--sem-filtros', action='store_true', help='não pré-calcula os filtros do relatório (HTML menor; recortes só por --opts)')
     ap.add_argument('--opts', help='JSON de recorte passado ao assemble (snapshot), ex.: \'{"mode":"captacao"}\'')
     ap.add_argument('--rerender', action='store_true')
     a = ap.parse_args(argv)
@@ -325,6 +394,8 @@ def main(argv=None):
         if not a.config or not a.csv:
             ap.error('--config e --csv são obrigatórios (ou use --rerender)')
         opts = json.loads(a.opts) if a.opts else None
+        if a.sem_filtros:
+            opts = dict(opts or {}, _sem_filtros=True)
         r = gerar(a.config, a.csv, a.out, {'goals': a.goals, 'dict': a.dict, 'hist': a.hist}, a.content, opts)
     sys.stdout.buffer.write((json.dumps(r, ensure_ascii=False) + '\n').encode('utf-8'))
     if not r.get('html'):

@@ -96,8 +96,14 @@ class Gerar(unittest.TestCase):
         m = re.search(r'window\.__REPORT=(\{.*?\});window\.__REPORT\.logo', html, re.S)
         self.assertIsNotNone(m)
         rep = json.loads(m.group(1))
-        self.assertEqual(set(rep), {'data', 'dataset', 'sections', 'layout'})
+        self.assertEqual(set(rep), {'data', 'dataset', 'sections', 'layout', 'variants'})
         self.assertIn('s01', rep['sections'])
+        # filtros offline: um snapshot por valor de cada dimensão (sem o intervalo de datas)
+        self.assertNotIn('dia', rep['variants'])
+        self.assertEqual(set(rep['variants']['utm_source']['items']), {'facebook', 'instagram'})
+        fb = rep['variants']['utm_source']['items']['facebook']
+        self.assertEqual(set(fb), {'dataset', 'sections', 'layout'})
+        self.assertIn('s01', fb['sections'])
 
     def test_placeholders_do_documento_existem(self):
         with open(os.path.join(KIT, 'documento.md'), encoding='utf-8') as f:

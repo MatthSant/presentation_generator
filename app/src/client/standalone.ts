@@ -11,11 +11,17 @@ import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Dashboard } from './dashboard.js';
 
+/** Snapshot pré-calculado de um filtro do relatório (gerar.py → variantes.json). */
+interface Variant { dataset: DataMap; sections: Record<string, Section>; layout: Layout }
+interface VariantDim { label: string; values: Array<{ id: string; label: string }>; items: Record<string, Variant> }
+
 export interface EmbeddedReport {
   data: ReportData;
   dataset: DataMap;
   sections: Record<string, Section>;
   layout: Layout;
+  /** Filtros do relatório (meta.controls.filters) já recalculados por valor; um por vez. */
+  variants?: Record<string, VariantDim>;
   /** Logo (data: URI) p/ a sidebar; opcional. */
   logo?: string;
 }
@@ -25,26 +31,21 @@ declare global { interface Window { __REPORT?: EmbeddedReport } }
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (c) => ESC[c]);
 
-function coverHtml(meta: ReportData['meta']): string {
-  const cover = meta?.cover;
-  if (!cover) return '';
-  const parts: string[] = [];
-  if (cover.eyebrow) parts.push(`<div class="badge badge-p">${esc(cover.eyebrow)}</div>`);
-  parts.push(`<h1 class="sec-title">${esc(meta?.title || '')}</h1>`);
-  if (cover.meta?.length) parts.push(`<div class="cover-meta">${cover.meta.map(esc).join('<span class="cm-dot">◆</span>')}</div>`);
-  parts.push('<div class="cover-rule"></div>');
-  return `<header id="report-header">${parts.join('')}</header>`;
-}
-
 class StandaloneApp {
   private store = new Store();
   private nav: Navigation;
   private dashboard: Dashboard | null = null;
   private root: HTMLElement;
 
+  private active: { dim: string; value: string } | null = null;
+
   constructor(private report: EmbeddedReport) {
     // Páginas interativas (board de perguntas) não existem offline.
-    this.store.data = { ...report.data, pages: (report.data.pages || []).filter((p) => (p as { kind?: string }).kind !== 'perguntas') };
+    const pages = (report.data.pages || []).filter((p) => (p as { kind?: string }).kind !== 'perguntas');
+    const meta = { ...(report.data.meta || {}) } as ReportData['meta'] & { nav?: string };
+    // Página única: sem árvore lateral (como no app o relatório de uma página fica só no topnav).
+    if (pages.length <= 1) meta.nav = 'topnav';
+    this.store.data = { ...report.data, meta, pages };
     this.store.datasets = report.dataset;
     this.store.layout = report.layout || { sections: {} };
     for (const s of Object.values(report.sections)) this.store.putSection(s);
@@ -72,6 +73,10 @@ class StandaloneApp {
 
     const first = this.store.pages[0];
     const sec = first?.sections[0];
+    // Uma página com uma seção: a barra de seções não acrescenta nada.
+    if (this.store.pages.length === 1 && (first?.sections.length ?? 0) <= 1) {
+      for (const id of ['section-bar', 'tn-pages']) { const el = document.getElementById(id); if (el) { el.hidden = true; el.style.display = 'none'; } }
+    }
     if (first && sec) this.go(first.id, sec.id);
     else this.root.innerHTML = '<div style="padding:60px 56px"><p class="sm">Relatório sem páginas.</p></div>';
   }
@@ -103,11 +108,43 @@ class StandaloneApp {
   /** Filtros de dataset do relatório (`meta.filters`, ex.: canal Geral/Pago/Orgânico).
    *  No app ficam no FAB; offline viram um seletor no cabeçalho da seção. A troca
    *  refaz a seção com o filtro ativo (mesmo `resolveBind` do app). */
+  /** Troca as 4 camadas pelo snapshot de um filtro (ou volta ao completo). */
+  private applyVariant(dim: string | null, value: string | null): void {
+    const v = dim && value ? this.report.variants?.[dim]?.items?.[value] : null;
+    const src = v ?? this.report;
+    this.active = v ? { dim: dim!, value: value! } : null;
+    this.store.datasets = src.dataset;
+    this.store.layout = src.layout || { sections: {} };
+    for (const sec of Object.values(this.report.sections)) this.store.putSection(src.sections[sec.id] ?? sec);
+  }
+
   private filtersEl(section: Section): HTMLElement | null {
     const defs = this.store.filterDefs;
-    if (!defs.length) return null;
+    const variants = this.report.variants || {};
+    const dims = Object.keys(variants);
+    if (!defs.length && !dims.length) return null;
     const box = document.createElement('div');
     box.className = 'sp-ctrls sa-filters';
+    for (const dim of dims) {
+      const vd = variants[dim];
+      const lbl = document.createElement('span'); lbl.className = 'sp-lbl'; lbl.textContent = vd.label || dim;
+      const sel = document.createElement('select'); sel.className = 'sp-sel';
+      const all = document.createElement('option'); all.value = ''; all.textContent = 'Todos'; sel.appendChild(all);
+      for (const v of vd.values) {
+        const opt = document.createElement('option'); opt.value = v.id; opt.textContent = v.label || v.id;
+        if (this.active && this.active.dim === dim && this.active.value === v.id) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      sel.title = 'Recorte pré-calculado (offline): um filtro por vez.';
+      sel.addEventListener('change', () => {
+        this.applyVariant(sel.value ? dim : null, sel.value || null);
+        const y = window.scrollY;
+        const cur = this.store.getSection(section.id) || section;
+        this.renderSection(cur, false);
+        window.scrollTo({ top: y });
+      });
+      box.append(lbl, sel);
+    }
     for (const def of defs) {
       const lbl = document.createElement('span'); lbl.className = 'sp-lbl'; lbl.textContent = def.label || def.id;
       const sel = document.createElement('select'); sel.className = 'sp-sel';
@@ -130,7 +167,7 @@ class StandaloneApp {
   private renderSection(section: Section, isFirst: boolean): void {
     this.dashboard?.destroy();
     this.root.replaceChildren();
-    if (isFirst) this.root.insertAdjacentHTML('beforeend', coverHtml(this.store.data.meta));
+    void isFirst;   // a capa (meta.cover) é só da exportação do app; o relatório não a mostra
 
     const ref = this.store.sectionRef(section.id);
     const host = document.createElement('section');

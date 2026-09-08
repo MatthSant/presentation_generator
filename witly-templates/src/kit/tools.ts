@@ -101,8 +101,23 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('');
   out.push(fence('json', JSON.stringify({ ...m, slug, name: kit.template.name, version: n }, null, 2)));
   out.push('');
-  out.push('## Tarefas de contexto (execute ANTES de gerar; confirme com o consultor o que estiver marcado)');
-  for (const t of kit.tasks) { out.push(''); out.push(`### ${t.title}  \`${t.task_id}\``); out.push(''); out.push(t.body_md.trim()); }
+  const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
+  out.push('## Tarefas de contexto (execute ANTES de gerar; as marcadas PERGUNTE ao consultor, não decida sozinho)');
+  for (const t of kit.tasks) {
+    out.push('');
+    out.push(`### ${t.title}  \`${t.task_id}\`  — ${confirmar.get(t.task_id) === false ? 'resolva pela regra (pergunte só se ambíguo)' : '**PERGUNTE AO CONSULTOR e confirme antes de gerar**'}`);
+    out.push('');
+    out.push(t.body_md.trim());
+  }
+  out.push('');
+  out.push('## Checklist antes de gerar (não pule)');
+  out.push('');
+  const perguntar = kit.tasks.filter((t) => confirmar.get(t.task_id) !== false);
+  if (perguntar.length) out.push(`- Perguntas ao consultor (uma tarefa por vez, mostrando o que você propõe): ${perguntar.map((t) => `**${t.task_id}**`).join(', ')}.`);
+  if (m.params?.length) out.push(`- Parâmetros das queries com valor confirmado: ${m.params.map((p) => `\`${p.id}\`${p.required === false ? ' (opcional)' : ''}${p.default != null ? ` (padrão ${p.default})` : ''}`).join(', ')}.`);
+  const req = (m.required_files as string[] | undefined) || [];
+  if (req.length) out.push(`- Arquivos auxiliares obrigatórios: ${req.map((r) => `\`${r}.csv\``).join(', ')} (o gerar.py recusa sem eles).`);
+  out.push('- Só então `montar_query` → Delfos → CSV → `python python/gerar.py`.');
   out.push('');
   out.push('## Queries (use `montar_query` para preencher os parâmetros com escape)');
   for (const q of m.queries || []) {
