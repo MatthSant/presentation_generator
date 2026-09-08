@@ -102,7 +102,7 @@ class Gerar(unittest.TestCase):
         self.assertNotIn('dia', rep['variants'])
         self.assertEqual(set(rep['variants']['utm_source']['items']), {'facebook', 'instagram'})
         fb = rep['variants']['utm_source']['items']['facebook']
-        self.assertEqual(set(fb), {'dataset', 'sections', 'layout'})
+        self.assertTrue({'dataset', 'sections', 'layout'} <= set(fb))
         self.assertIn('s01', fb['sections'])
 
     def test_placeholders_do_documento_existem(self):

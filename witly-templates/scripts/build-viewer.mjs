@@ -57,7 +57,7 @@ async function main() {
   const style = await readFile(path.join(APP, 'public', 'style.css'), 'utf8');
   const css = `${fonts}\n${style}\n` + [
     'body{margin:0}',
-    '#layout-edit-btn,#tn-edit-actions,#update-btn,#export-html-btn,#filter-fab{display:none!important}',
+    '#layout-edit-btn,#tn-edit-actions,#update-btn,#export-html-btn{display:none!important}',
   ].join('\n');
   await writeFile(path.join(OUT, 'viewer.css'), css);
 
@@ -79,6 +79,22 @@ async function main() {
   <div class="tn-right"></div>
 </nav>
 <div id="section-bar"><span id="sb-page-label">—</span><div id="sb-tabs"></div></div>
+<button id="filter-fab" hidden title="Filtrar os dados do relatório" aria-label="Filtros">
+  <span class="flt-icon"><svg class="svg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6.3 7.4V19L10.3 21v-8.6z"/></svg></span>
+  <span id="filter-count">0</span>
+</button>
+<div id="filter-modal">
+  <div class="flt-dialog">
+    <div class="flt-hd">
+      <div class="flt-title">Filtros</div>
+      <button class="flt-x" id="filter-close">&#215;</button>
+    </div>
+    <div id="filter-body"></div>
+    <div class="flt-actions">
+      <button class="flt-clear" id="filter-clear">Limpar</button>
+    </div>
+  </div>
+</div>
 <main id="main"><div id="export-root"></div></main>
 <div id="modal-root"></div>
 <script>window.__REPORT={{REPORT_JSON}};window.__REPORT.logo=window.__REPORT.logo||${JSON.stringify(logo)};</script>

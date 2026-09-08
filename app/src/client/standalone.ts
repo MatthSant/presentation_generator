@@ -10,9 +10,10 @@ import type { ReportData, DataMap, Section, Layout } from '../shared/types.js';
 import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Dashboard } from './dashboard.js';
+import { el, mountShell, setBadge, type FabShell } from './controls-utils.js';
 
 /** Snapshot pré-calculado de um filtro do relatório (gerar.py → variantes.json). */
-interface Variant { dataset: DataMap; sections: Record<string, Section>; layout: Layout }
+interface Variant { dataset: DataMap; sections: Record<string, Section>; layout: Layout; pages?: ReportData['pages'] }
 interface VariantDim { label: string; values: Array<{ id: string; label: string }>; items: Record<string, Variant> }
 
 export interface EmbeddedReport {
@@ -38,6 +39,9 @@ class StandaloneApp {
   private root: HTMLElement;
 
   private active: { dim: string; value: string } | null = null;
+  /** FAB de filtros (#filter-*): o mesmo chrome do app; offline as opções são snapshots. */
+  private shell: FabShell | null = null;
+  private openKey: string | null = null;
 
   constructor(private report: EmbeddedReport) {
     // Páginas interativas (board de perguntas) não existem offline.
@@ -65,12 +69,9 @@ class StandaloneApp {
     const tn = document.getElementById('tn-client');
     if (tn) tn.textContent = meta.client_name || meta.client || '';
 
-    this.nav.build();
-    // Offline: sem "/" nem "/assets" — o logo vem embutido e os links da marca viram inertes.
-    for (const a of document.querySelectorAll<HTMLAnchorElement>('#sidenav a, #topnav a')) { a.href = '#'; a.addEventListener('click', (e) => e.preventDefault()); }
-    const logo = document.querySelector<HTMLImageElement>('#sidenav img.sn-logo, #topnav img.tn-logo');
-    if (logo) { if (this.report.logo) logo.src = this.report.logo; else logo.remove(); }
+    this.buildNav();
 
+    this.mountFilters();
     const first = this.store.pages[0];
     const sec = first?.sections[0];
     // Uma página com uma seção: a barra de seções não acrescenta nada.
@@ -79,6 +80,16 @@ class StandaloneApp {
     }
     if (first && sec) this.go(first.id, sec.id);
     else this.root.innerHTML = '<div style="padding:60px 56px"><p class="sm">Relatório sem páginas.</p></div>';
+  }
+
+  /** Monta a navegação e a deixa offline: sem "/" nem "/assets" — o logo vem embutido e
+   *  os links da marca viram inertes. Chamado no boot e sempre que as páginas mudam. */
+  private buildNav(): void {
+    this.nav.build();
+    for (const a of document.querySelectorAll<HTMLAnchorElement>('#sidenav a, #topnav a')) { a.href = '#'; a.addEventListener('click', (e) => e.preventDefault()); }
+    for (const logo of document.querySelectorAll<HTMLImageElement>('#sidenav img.sn-logo, #topnav img.tn-logo')) {
+      if (this.report.logo) logo.src = this.report.logo; else logo.remove();
+    }
   }
 
   private go(pageId: string, sectionId: string): void {
@@ -100,14 +111,9 @@ class StandaloneApp {
     if (h.badge) { const b = document.createElement('div'); b.className = 'badge badge-p'; b.textContent = h.badge; wrap.appendChild(b); }
     const t = document.createElement('h1'); t.className = 'sec-title'; t.textContent = h.title || ''; wrap.appendChild(t);
     if (h.sub && !keep) { const s = document.createElement('p'); s.className = 'sm'; s.innerHTML = h.sub; wrap.appendChild(s); }
-    const filters = this.filtersEl(section);
-    if (filters) wrap.appendChild(filters);
     return wrap;
   }
 
-  /** Filtros de dataset do relatório (`meta.filters`, ex.: canal Geral/Pago/Orgânico).
-   *  No app ficam no FAB; offline viram um seletor no cabeçalho da seção. A troca
-   *  refaz a seção com o filtro ativo (mesmo `resolveBind` do app). */
   /** Troca as 4 camadas pelo snapshot de um filtro (ou volta ao completo). */
   private applyVariant(dim: string | null, value: string | null): void {
     const v = dim && value ? this.report.variants?.[dim]?.items?.[value] : null;
@@ -115,53 +121,112 @@ class StandaloneApp {
     this.active = v ? { dim: dim!, value: value! } : null;
     this.store.datasets = src.dataset;
     this.store.layout = src.layout || { sections: {} };
-    for (const sec of Object.values(this.report.sections)) this.store.putSection(src.sections[sec.id] ?? sec);
+    for (const sec of Object.values(src.sections)) this.store.putSection(sec);
+    for (const sec of Object.values(this.report.sections)) if (!src.sections[sec.id]) this.store.putSection(sec);
+    // Recortes que mudam QUAIS seções existem (fichas por temperatura; série sem um lançamento).
+    const pages = (v?.pages ?? this.report.data.pages ?? []).filter((p) => (p as { kind?: string }).kind !== 'perguntas');
+    this.store.data = { ...this.store.data, pages };
+    this.buildNav();
   }
 
-  private filtersEl(section: Section): HTMLElement | null {
-    const defs = this.store.filterDefs;
-    const variants = this.report.variants || {};
-    const dims = Object.keys(variants);
-    if (!defs.length && !dims.length) return null;
-    const box = document.createElement('div');
-    box.className = 'sp-ctrls sa-filters';
-    for (const dim of dims) {
-      const vd = variants[dim];
-      const lbl = document.createElement('span'); lbl.className = 'sp-lbl'; lbl.textContent = vd.label || dim;
-      const sel = document.createElement('select'); sel.className = 'sp-sel';
-      const all = document.createElement('option'); all.value = ''; all.textContent = 'Todos'; sel.appendChild(all);
-      for (const v of vd.values) {
-        const opt = document.createElement('option'); opt.value = v.id; opt.textContent = v.label || v.id;
-        if (this.active && this.active.dim === dim && this.active.value === v.id) opt.selected = true;
-        sel.appendChild(opt);
-      }
-      sel.title = 'Recorte pré-calculado (offline): um filtro por vez.';
-      sel.addEventListener('change', () => {
-        this.applyVariant(sel.value ? dim : null, sel.value || null);
-        const y = window.scrollY;
-        const cur = this.store.getSection(section.id) || section;
-        this.renderSection(cur, false);
-        window.scrollTo({ top: y });
-      });
-      box.append(lbl, sel);
+  private variantDims(): string[] { return Object.keys(this.report.variants || {}); }
+
+  /** Liga o FAB (#filter-fab / #filter-modal) quando há filtros de dataset (`meta.filters`)
+   *  ou snapshots pré-calculados (`variants`). Sem nenhum dos dois o botão fica oculto. */
+  private mountFilters(): void {
+    const has = this.store.filterDefs.length > 0 || this.variantDims().length > 0;
+    if (!has || !document.getElementById('filter-fab')) return;
+    try {
+      this.shell = mountShell('offline-filters', () => this.clearFilters());
+    } catch { this.shell = null; return; }
+    this.shell.fab.hidden = false;
+    this.renderFilterBody();
+    this.updateBadge();
+  }
+
+  private clearFilters(): void {
+    for (const def of this.store.filterDefs) {
+      const v = def.default ?? def.allValue ?? def.options[0];
+      if (v != null) this.store.active[def.id] = v; else delete this.store.active[def.id];
     }
-    for (const def of defs) {
-      const lbl = document.createElement('span'); lbl.className = 'sp-lbl'; lbl.textContent = def.label || def.id;
-      const sel = document.createElement('select'); sel.className = 'sp-sel';
+    this.applyVariant(null, null);
+    this.afterFilterChange();
+  }
+
+  private afterFilterChange(): void {
+    this.renderFilterBody();
+    this.updateBadge();
+    const secId = this.store.currentSectionId;
+    const y = window.scrollY;
+    const still = this.store.allSections().some((x) => x.id === secId);
+    if (!still) { const f = this.store.pages[0]; const fs = f?.sections[0]; if (f && fs) this.go(f.id, fs.id); return; }
+    this.nav.setActive(this.store.currentPageId, secId);
+    const cur = this.store.getSection(secId);
+    if (cur) this.renderSection(cur, false);
+    window.scrollTo({ top: y });
+  }
+
+  private updateBadge(): void {
+    if (!this.shell) return;
+    let n = this.active ? 1 : 0;
+    for (const def of this.store.filterDefs) {
+      const base = def.default ?? def.allValue ?? def.options[0];
+      const v = this.store.active[def.id];
+      if (v != null && v !== base) n++;
+    }
+    setBadge(this.shell, n);
+  }
+
+  private renderFilterBody(): void {
+    if (!this.shell) return;
+    const body = this.shell.body;
+    body.replaceChildren();
+    // Filtros de dataset (ex.: canal Geral/Pago/Orgânico): segmento, igual ao Filters do app.
+    for (const def of this.store.filterDefs) {
+      const g = el('div', 'flt-group');
+      const l = el('div', 'flt-label'); l.textContent = def.label || def.id; g.appendChild(l);
+      const seg = el('div', 'flt-seg');
       const cur = String(this.store.active[def.id] ?? def.default ?? def.allValue ?? def.options[0] ?? '');
       for (const o of def.options) {
-        const opt = document.createElement('option'); opt.value = o; opt.textContent = o; if (o === cur) opt.selected = true;
-        sel.appendChild(opt);
+        const b = el('button', 'flt-opt' + (o === cur ? ' flt-active' : '')) as HTMLButtonElement;
+        b.type = 'button'; b.textContent = o;
+        b.addEventListener('click', () => { this.store.active[def.id] = o; this.afterFilterChange(); });
+        seg.appendChild(b);
       }
-      sel.addEventListener('change', () => {
-        this.store.active[def.id] = sel.value;
-        const y = window.scrollY;
-        this.renderSection(section, false);
-        window.scrollTo({ top: y });
-      });
-      box.append(lbl, sel);
+      g.appendChild(seg); body.appendChild(g);
     }
-    return box;
+    // Snapshots pré-calculados: um dropdown-accordion por dimensão (seleção única; um filtro por vez).
+    const variants = this.report.variants || {};
+    for (const dim of this.variantDims()) {
+      const vd = variants[dim];
+      const open = this.openKey === dim;
+      const dd = el('div', 'flt-dd' + (open ? ' is-open' : ''));
+      const head = el('button', 'flt-dd-head') as HTMLButtonElement; head.type = 'button';
+      const lbl = el('span', 'flt-dd-lbl'); lbl.textContent = vd.label || dim;
+      const sum = el('span', 'flt-dd-sum');
+      const curV = this.active && this.active.dim === dim ? vd.values.find((v) => v.id === this.active!.value) : null;
+      sum.textContent = curV ? (curV.label || curV.id) : 'Todos';
+      const chev = el('span', 'flt-dd-chev'); chev.textContent = '⌄';
+      head.append(lbl, sum, chev);
+      head.addEventListener('click', () => { this.openKey = open ? null : dim; this.renderFilterBody(); });
+      dd.appendChild(head);
+      if (open) {
+        const panel = el('div', 'flt-dd-panel');
+        const seg = el('div', 'flt-seg');
+        const opts = [{ id: '', label: 'Todos' }, ...vd.values];
+        for (const o of opts) {
+          const isCur = o.id ? (!!curV && curV.id === o.id) : !curV;
+          const b = el('button', 'flt-opt' + (isCur ? ' flt-active' : '')) as HTMLButtonElement;
+          b.type = 'button'; b.textContent = o.label || o.id;
+          b.addEventListener('click', () => { this.applyVariant(o.id ? dim : null, o.id || null); this.afterFilterChange(); });
+          seg.appendChild(b);
+        }
+        panel.appendChild(seg);
+        if (this.variantDims().length > 1) { const n = el('div', 'flt-label'); n.style.marginTop = '8px'; n.textContent = 'Offline: um recorte por vez.'; panel.appendChild(n); }
+        dd.appendChild(panel);
+      }
+      body.appendChild(dd);
+    }
   }
 
   private renderSection(section: Section, isFirst: boolean): void {

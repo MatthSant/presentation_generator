@@ -3,7 +3,7 @@
 **Saída:** parâmetro `tipo_lancamento` da query; `--opts '{"launches": [...], "metric": "..."}'` ou nenhum. **Perguntar ao consultor antes de gerar.**
 
 ## Definição
-No app o histórico tem pílulas de lançamento (quais entram) e um seletor de indicador do bloco "Evolução" do Panorama, recalculados no servidor. O HTML offline é um snapshot.
+No app o histórico tem pílulas de lançamento (quais entram) e um seletor de indicador do bloco "Evolução" do Panorama, recalculados no servidor. O HTML offline traz o seletor de indicador e a opção "sem <lançamento>" (tira um ponto da série) **pré-calculados, um por vez**; para tirar mais de um lançamento ou combinar com o indicador, gere com `--opts`.
 - **`tipo_lancamento`** (na query): `Todos`, `Lançamento` (lcto-/lco-) ou `Perpétuo` (ppt-/ppto-). Misturar os dois tipos costuma quebrar a comparação (mecânicas diferentes).
 - **`launches`**: lista de rótulos (`jul/25`, `nov/25`…) que entram; vazio = todos. Serve para tirar um evento atípico.
 - **`metric`**: indicador dos 4 gráficos de quebra: `conv` (padrão), `leads`, `investimento`, `vendas`, `faturamento`, `qual`, `taxa_qualidade`, `conv_mql`, `reembolso`, `roas`.

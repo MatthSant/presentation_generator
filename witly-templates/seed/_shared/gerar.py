@@ -221,6 +221,55 @@ def _rows_como_render_view(calc, rows):
     return fn(rows) if fn else rows
 
 
+def _snapshot(r):
+    return {'dataset': r['dataset'], 'sections': r['sections'], 'layout': r['layout'],
+            'pages': (r.get('data') or {}).get('pages')}
+
+
+def _gravar_variantes(out_dir, out):
+    if not out:
+        return None
+    with open(os.path.join(out_dir, 'variantes.json'), 'w', encoding='utf-8') as fh:
+        json.dump(out, fh, ensure_ascii=False)
+    return {k: len(v['items']) for k, v in out.items()}
+
+
+def _variantes_por_opts(calc, build_report, rows, config, content, out_dir, opts, ctr):
+    """Motores cujo controle do app é um recompute por `opts` (não por filtro de linhas):
+    criativos (mode / temp / min_invest) e histórico (metric / launches). Um snapshot por
+    opção; lançamentos viram "sem <lançamento>" (tira um ponto da série)."""
+    dims = []
+    if ctr.get('modes'):
+        dims.append(('mode', 'Modo', [(m['id'], m.get('label') or m['id'], {'mode': m['id']}) for m in ctr['modes']]))
+    if ctr.get('temps'):
+        dims.append(('temp', 'Temperatura', [(t, t, {'temp': t}) for t in ctr['temps']]))
+    if ctr.get('minInvestPresets'):
+        dims.append(('min_invest', 'Investimento mínimo', [(str(v), f'≥ R$ {v}', {'min_invest': v}) for v in ctr['minInvestPresets']]))
+    if ctr.get('metrics'):
+        dims.append(('metric', 'Indicador', [(m['id'], m.get('label') or m['id'], {'metric': m['id']}) for m in ctr['metrics']]))
+    if ctr.get('launches') and len(ctr['launches']) > 2:
+        L = ctr['launches']
+        dims.append(('launches', 'Lançamentos', [(f'sem:{l}', f'sem {l}', {'launches': [x for x in L if x != l]}) for l in L]))
+    if not dims:
+        return None
+    base_opts = {k: v for k, v in (opts or {}).items() if k != 'filters'}
+    if config.get('dict_csv') and hasattr(calc, 'load_dict') and 'dict' not in base_opts and os.path.exists(config['dict_csv']):
+        base_opts['dict'] = calc.load_dict(config['dict_csv'])
+    out = {}
+    for key, label, values in dims:
+        items, vals = {}, []
+        for vid, vlabel, o in values[:MAX_VALORES_FILTRO]:
+            try:
+                r = build_report.assemble(rows, dict(config), content, dict(base_opts, **o))
+            except Exception as e:
+                sys.stderr.write(f'aviso: opção {key}={vid} ignorada ({e})\n')
+                continue
+            items[vid] = _snapshot(r); vals.append({'id': vid, 'label': vlabel})
+        if items:
+            out[key] = {'label': label, 'values': vals, 'items': items}
+    return _gravar_variantes(out_dir, out)
+
+
 def variantes(calc, build_report, rows, config, content, out_dir, opts=None):
     """Filtros do relatório offline: o app recalcula no servidor (render_view._filter +
     assemble); aqui pré-calculamos UM snapshot por valor de cada dimensão declarada em
@@ -229,20 +278,19 @@ def variantes(calc, build_report, rows, config, content, out_dir, opts=None):
     try:
         rv = importlib.import_module('render_view')
     except ImportError:
-        return None
-    flt = getattr(rv, '_filter', None)
-    if not flt:
-        return None
+        rv = None
+    flt = getattr(rv, '_filter', None) if rv else None
     with open(os.path.join(out_dir, 'data.json'), encoding='utf-8') as f:
         data = json.load(f)
-    filtros = ((data.get('meta') or {}).get('controls') or {}).get('filters') or []
+    ctr = (data.get('meta') or {}).get('controls') or {}
+    filtros = ctr.get('filters') or []
     filtros = [f for f in filtros if f.get('kind') != 'range' and f.get('key') and f.get('values')]
-    if not filtros:
-        return None
+    out = {}
+    if not filtros or not flt:
+        return _variantes_por_opts(calc, build_report, rows, config, content, out_dir, opts, ctr)
     import inspect
     n = len(inspect.signature(flt).parameters)
     base = _rows_como_render_view(calc, rows)
-    out = {}
     for f in filtros:
         key = f['key']
         items = {}
@@ -258,17 +306,13 @@ def variantes(calc, build_report, rows, config, content, out_dir, opts=None):
             except Exception as e:  # um valor que quebra não derruba o relatório
                 sys.stderr.write(f'aviso: filtro {key}={vid} ignorado ({e})\n')
                 continue
-            items[str(vid)] = {'dataset': r['dataset'], 'sections': r['sections'], 'layout': r['layout']}
+            items[str(vid)] = _snapshot(r)
         if items:
             out[key] = {'label': f.get('label') or key,
                         'values': [{'id': str(v.get('id') if isinstance(v, dict) else v), 'label': (v.get('label') if isinstance(v, dict) else str(v))}
                                    for v in (f['values'] or [])[:MAX_VALORES_FILTRO] if str(v.get('id') if isinstance(v, dict) else v) in items],
                         'items': items}
-    if not out:
-        return None
-    with open(os.path.join(out_dir, 'variantes.json'), 'w', encoding='utf-8') as fh:
-        json.dump(out, fh, ensure_ascii=False)
-    return {k: len(v['items']) for k, v in out.items()}
+    return _gravar_variantes(out_dir, out)
 
 
 def render_html(out_dir, title):

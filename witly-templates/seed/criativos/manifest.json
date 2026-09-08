@@ -62,7 +62,7 @@
     "1. Execute as tarefas de contexto (contexto/*.md) com o consultor e monte config.json (tipo_campanha é obrigatório).",
     "2. Rode a query dump no Delfos (montar_query devolve o SQL preenchido com tabelas e período) e salve dump.csv; a query dict é opcional (dict.csv).",
     "3. python python/gerar.py --config config.json --csv dump.csv [--dict dict.csv] --out saida/ [--opts '{\"mode\":\"captacao\"}']",
-    "4. Abra saida/relatorio.html (Panorama + uma ficha por criativo). Os números estão em saida/numeros.json.",
+    "4. Abra saida/relatorio.html (Panorama + uma ficha por criativo; modo, temperatura e investimento mínimo pré-calculados, um por vez; --sem-filtros para um HTML menor). Os números estão em saida/numeros.json.",
     "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
     "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (tabela, ranking, correlacao, por_temperatura, saturacao_diaria, benchmark_gap).",
     "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."

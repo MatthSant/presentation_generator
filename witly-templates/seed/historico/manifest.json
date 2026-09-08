@@ -44,7 +44,7 @@
     "1. Execute as tarefas de contexto (contexto/*.md) com o consultor e monte config.json.",
     "2. montar_query('historico', {meta_like, google_like, tipo_lancamento}) → ajuste o CASE de temperatura pelas regras do cliente → rode no Delfos → dump.csv.",
     "3. python python/gerar.py --config config.json --csv dump.csv --out saida/ [--opts '{\"launches\":[\"jul/25\",\"nov/25\"],\"metric\":\"qual\"}']",
-    "4. Abra saida/relatorio.html (Panorama + Investimentos). Os números por lançamento estão em saida/numeros.json.",
+    "4. Abra saida/relatorio.html (Panorama + Investimentos; indicador do bloco de evolução e \"sem <lançamento>\" pré-calculados, um por vez; --sem-filtros para um HTML menor). Os números por lançamento estão em saida/numeros.json.",
     "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
     "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (tabela, trend, variacao, series, correlacao, decomposicao, por_dimensao).",
     "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
