@@ -58,7 +58,8 @@ async function buildExample(slug) {
     }
     execFileSync(PY, [path.join(py, 'gerar.py'), '--config', path.join(py, 'tests', 'config.json'), '--csv', fixture, '--out', out, ...aux], { stdio: ['ignore', 'ignore', 'inherit'] });
     const files = [];
-    for (const f of await readdir(out)) if (f.endsWith('.json')) files.push({ path: `exemplo/${f}`, content: await readFile(path.join(out, f), 'utf8') });
+    // variantes.json (filtros pré-calculados) fica fora do exemplo: pesa ~1 MB por versão e o kit gera de novo
+    for (const f of await readdir(out)) if (f.endsWith('.json') && f !== 'variantes.json') files.push({ path: `exemplo/${f}`, content: await readFile(path.join(out, f), 'utf8') });
     return files;
   } finally {
     await rm(tmp, { recursive: true, force: true });

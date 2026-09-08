@@ -32,3 +32,10 @@ Worker: 63 testes Vitest continuam verdes (nada mudou em `src/`).
 ## Pendências
 - Reconexão do Grimório no cliente MCP para que as tools da Fase 2 apareçam (mesma pendência da Fase 2).
 - Claude.ai e Codex não testados (decisão anterior).
+
+## Ajustes pós-uso (2026-09-08, feedback do consultor no acompanhamento real)
+- Viewer offline: sem a capa/masthead (o app não a mostra no relatório); relatório de uma página fica só no topnav, sem árvore lateral nem barra de seções.
+- Filtros do relatório no HTML offline: `gerar.py` pré-calcula um snapshot por valor de cada dimensão de `meta.controls.filters` (acompanhamento: origem/utm_source/utm_medium/utm_campaign/utm_content; debriefing: tipo/canal/temperatura/campanha/público/criativo), um filtro por vez; `--sem-filtros` desliga. Provado no browser: utm_source=facebook muda leads de 225 para 175 e volta.
+- `obter_template` marca em cada tarefa se o agente deve PERGUNTAR ao consultor e fecha com um checklist (tarefas a perguntar, parâmetros com padrão, auxiliares obrigatórios). Data de corte/report do acompanhamento passou a ser tarefa a perguntar (o agente estava decidindo sozinho).
+- Worker versão f3ec0d58; templates republicados (acompanhamento v11, debriefing v7, criativos v5, histórico v4, conversão v3).
+
