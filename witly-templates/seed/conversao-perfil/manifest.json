@@ -5,7 +5,6 @@
   "when_to_use": "Quando o cliente tem pesquisa de perfil respondida em vários lançamentos (3 ou mais) e quer apertar a segmentação com dado histórico: 'quem compra de forma consistente?', 'quem nunca converte apesar do volume?', 'quem compra mais no longo prazo?'. Não serve para um lançamento só nem para métricas de mídia.",
   "audience": "Consultor Witly e o time de marketing do cliente. Panorama e páginas por critério vão para o cliente.",
   "engine": "conversao-perfil",
-  "perguntas_bank": "conversao_perfil",
   "required_files": [],
   "params": [
     {
@@ -123,24 +122,21 @@
     "2. montar_query('conversao-perfil', {dias_lancamento, pago_like}) → espelhe as dimensões escolhidas no SELECT/GROUP BY → rode no Delfos → dump.csv (agregado: sem e-mail, sem linha individual).",
     "3. python python/gerar.py --config config.json --csv dump.csv --out saida/",
     "4. Abra saida/relatorio.html (Panorama, Insights, Codependência, uma página por critério; o toggle Geral/Pago/Orgânico é do próprio HTML). Os números estão em saida/numeros.json.",
-    "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
-    "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (meta, cut_by_criterion, trend, crosstab, association).",
-    "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+    "5. Leia saida/numeros.json e o perguntas.md do kit e proponha NO CHAT as 3–5 perguntas mais relevantes para este caso (não vão para o HTML).",
+    "6. Aprofundamento aceito: design-system.md → corte em Python (importe calc.py) → q-<id>.json + det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
   ],
   "arquivos": {
-    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + perguntas.json + relatorio.html",
+    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + relatorio.html",
     "python/conv_calc.py": "os números (benchmark = respondentes; conversões em %; ordem cronológica; normalização; relevância e codependência)",
     "python/build_report.py": "monta Panorama, Insights, Codependência e as páginas por critério",
-    "python/query_api.py": "consultas sob demanda (cut_by_criterion, trend, crosstab, association)",
     "python/common/": "layout, formatação, builders",
-    "python/perguntas/": "banco + relevância das 10 perguntas norteadoras",
     "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
     "python/tests/": "fixture sintética (3 critérios × 4 lançamentos × 2 canais) e testes",
     "viewer/": "viewer offline",
     "documento.md": "as páginas e seus blocos",
     "guia.md": "regras de cálculo (benchmark, %, ordem, normalização), classificação, relevância × codependência, como ler",
     "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
-    "perguntas.md": "banco de perguntas norteadoras legível",
+    "perguntas.md": "as perguntas norteadoras desta análise, uma por entrada (o título é a pergunta); geradas da plataforma",
     "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
   }
 }

@@ -18,8 +18,8 @@ Duas páginas: **Panorama** e **Fichas** (uma seção por criativo válido, list
 - **Onde este criativo rodou** (`heatmap-toggle`): quebra por campanha / público / temperatura com as métricas do modo.
 
 ## O que o agente escreve no chat (não no HTML)
-- As 3–5 perguntas norteadoras mais relevantes (`perguntas.json` × `numeros.json`), sempre citando o modo.
+- As 3–5 perguntas norteadoras mais relevantes (leia `numeros.json`; as perguntas vêm no kit em `perguntas.md`), sempre citando o modo.
 - As premissas: tipo de campanha escolhido, regras de temperatura, benchmark usado (próprio ou padrão), dicionário presente ou não, recorte.
 
 ## Aprofundamentos
-Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números do `query_api.py` (`por_temperatura`, `saturacao_diaria`, `benchmark_gap`, `ranking`, `correlacao`, `tabela`).
+Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números calculados em Python a partir do `calc.py` (mesmas definições do relatório).

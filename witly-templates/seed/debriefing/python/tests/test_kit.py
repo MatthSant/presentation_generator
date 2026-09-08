@@ -64,7 +64,7 @@ class Gerar(unittest.TestCase):
 
     def test_gera_camadas(self):
         self.assertEqual(self.res.returncode, 0, self.res.stderr)
-        for f in ('dataset.json', 'data.json', 'layout.json', 'numeros.json', 'perguntas.json', 'relatorio.html'):
+        for f in ('dataset.json', 'data.json', 'layout.json', 'numeros.json', 'relatorio.html'):
             self.assertTrue(os.path.exists(os.path.join(self.out, f)), f)
         data = json.load(open(os.path.join(self.out, 'data.json'), encoding='utf-8'))
         self.assertEqual([p['id'] for p in data['pages']], ['panorama', 'canal', 'trafego', 'organico', 'analise', 'onepager'])
@@ -74,9 +74,6 @@ class Gerar(unittest.TestCase):
         self.assertEqual(n['leads_total'], E['leads'])
         self.assertEqual(n['goals']['leads'], E['meta_leads'])
 
-    def test_perguntas(self):
-        p = json.load(open(os.path.join(self.out, 'perguntas.json'), encoding='utf-8'))
-        self.assertGreaterEqual(len(p['perguntas']), 10)
 
     def test_html_offline(self):
         html = open(os.path.join(self.out, 'relatorio.html'), encoding='utf-8').read()

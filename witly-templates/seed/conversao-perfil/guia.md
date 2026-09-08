@@ -18,16 +18,6 @@ Em cada lançamento parte dos leads responde uma pesquisa de perfil (renda, idad
 4. **Grupos normalizados** antes de agregar (`order` + `aliases`); valor sem match é anomalia.
 5. **Três canais sempre** (Geral / Pago / Orgânico) calculados separadamente.
 
-## Definições
-- `conv_lcto` = vendas_lancamento ÷ total_leads × 100 (do grupo) · `conv_12m` idem na janela longa.
-- `diff_lcto` = (conv_lcto − bench_lcto) ÷ bench_lcto × 100 (variação vs benchmark, em %).
-- `uplift_12m` = (conv_12m − conv_lcto) ÷ conv_lcto × 100 (quanto o longo prazo acrescenta).
-- `rep` = leads do grupo ÷ leads respondentes do critério × 100 (representatividade).
-- **Classe por wins/N** (lançamentos com diff > 0): Consistente 100 % · Positivo ≥ 70 % · Variável ≥ 40 % · Negativo ≥ 10 % · Crítico 0 %.
-- **Tendência** = média dos 2 últimos lançamentos − média dos 2 anteriores (abs.) e descontando o benchmark (rel.): Acelerando / Ganhando terreno / Perdendo espaço / Deteriorando.
-- **Relevância** = desvio médio absoluto do diff entre grupos, ponderado pela representatividade: alta ≥ 30 % · média ≥ 12 % · baixa < 12 %.
-- **Codependência**: associação (Cramér's V) entre critérios sobre a distribuição de leads + lift controlado (quanto do poder de discriminar sobrevive ao estratificar pelo fator mais associado). Survival ≥ 0,5 → **qualificador** (sinal próprio); < 0,5 → **qualificante** (proxy de outro).
-
 ## Como ler cada bloco
 - **Panorama**: comece pelos critérios com maior amplitude (melhor − pior); a escala é compartilhada para comparar critérios.
 - **Ranking**: classe primeiro, diff depois. Consistente com `rep` alta = a mina; Crítico com `rep` alta = sangria da base (alto volume, retorno baixo).

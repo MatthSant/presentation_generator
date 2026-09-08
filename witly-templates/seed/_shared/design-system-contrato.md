@@ -3,12 +3,12 @@
 Todo aprofundamento entra **dentro do relatório**, como uma seção nova na página
 "Aprofundamentos", usando os widgets do app. Nada de HTML solto. O agente escreve prosa
 (título, achados, notas); **número só via `bind`** a uma tabela do dataset que você
-calculou com `python/query_api.py`. O `python/aprofundar.py` valida e regera o HTML.
+calculou em Python (importe `python/calc.py` para usar as mesmas definições do relatório). O `python/aprofundar.py` valida e regera o HTML.
 
 ## Fluxo
 
 ```
-python python/query_api.py config.json dump.csv <fn> '<args json>'   → JSON {status, table:{dims,rows}, summary}
+python meu_corte.py config.json dump.csv                       → grava q-<id>.json {name, dims, filters, rows} (importe calc: mesmas definições)
    salve como q-<id>.json (o nome do arquivo vira o nome da tabela)
 escreva det-<id>.json (seção abaixo)
 python python/aprofundar.py --out saida --secao det-<id>.json --tabela q-<id>.json --pergunta "…"

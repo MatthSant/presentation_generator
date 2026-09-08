@@ -49,4 +49,4 @@ Mesma estrutura; os KPIs macro passam a ser exposição de caixa, ingressos, CAC
 
 ## Onde o agente pode escrever
 - O HTML é a v0. Para acrescentar leitura, edite `s01.json` (widgets `find-block`/`find-note`, sempre citando o número de `numeros.json`) e rode de novo o `gerar.py` **sem** o `--csv` novo, ou edite o HTML diretamente.
-- Para recortes que o relatório não mostra (CPL por dia só do Quente, decomposição do CPL, onde a piora se concentra): `python/query_api.py`.
+- Para recortes que o relatório não mostra (CPL por dia só do Quente, decomposição do CPL, onde a piora se concentra): calcule o corte em Python importando `python/calc.py` (mesmas definições do relatório) e leve a tabela ao `aprofundar.py`.

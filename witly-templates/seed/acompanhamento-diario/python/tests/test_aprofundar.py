@@ -1,4 +1,4 @@
-"""Perguntas norteadoras (perguntas.json ranqueado) e aprofundar.py (seção válida entra no
+"""Perguntas norteadoras (são entradas do template: o kit NÃO gera perguntas.json) e aprofundar.py (seção válida entra no
 relatório e regera o HTML; seção inválida falha listando erros e não grava nada)."""
 import json
 import os
@@ -46,23 +46,13 @@ class Base(unittest.TestCase):
 
 
 class Perguntas(Base):
-    def test_perguntas_json_ranqueado(self):
-        p = os.path.join(self.out, 'perguntas.json')
-        self.assertTrue(os.path.exists(p))
-        with open(p, encoding='utf-8') as f:
-            d = json.load(f)
-        qs = d['perguntas']
-        self.assertGreaterEqual(len(qs), 5)
-        for q in qs:
-            for k in ('id', 'pergunta', 'justificativa', 'kpis', 'relevancia', 'nivel', 'deepen'):
-                self.assertIn(k, q)
-            self.assertIn(q['nivel'], ('alta', 'media', 'baixa'))
-            self.assertTrue(q['deepen'].get('prompt'))
-        self.assertEqual([q['relevancia'] for q in qs], sorted((q['relevancia'] for q in qs), reverse=True))
-        # não entra no HTML: nenhuma página "perguntas" no data.json do kit
+    def test_perguntas_nao_sao_calculadas_no_kit(self):
+        # spec 005: as perguntas vêm como entradas (perguntas.md do kit); o agente ranqueia
+        # lendo numeros.json — nada de perguntas.json nem página "perguntas" no HTML
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'perguntas.json')))
         with open(os.path.join(self.out, 'data.json'), encoding='utf-8') as f:
             pages = json.load(f)['pages']
-        self.assertFalse(any(p.get('kind') == 'perguntas' and p.get('sections') for p in pages if p['id'] != 'perguntas'))
+        self.assertFalse(any(p.get('kind') == 'perguntas' and p.get('sections') for p in pages))
 
 
 class Aprofundar(Base):

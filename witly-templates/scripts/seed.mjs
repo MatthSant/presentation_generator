@@ -9,10 +9,11 @@
  * Passos: kit-assemble (copia o motor do app) → fixture → gerar.py → exemplo/*.json →
  * SQL de INSERT (uma linha por arquivo; exemplo fica como JSON, o HTML é sintetizado
  * pelo Worker) → wrangler d1 execute. Re-rodar substitui a versão publicada do template
- * (número +1) sem tocar em rascunhos. Os .md daqui são SÓ a semente: depois disso a
+ * (número +1) sem tocar em rascunhos; kit cujo conteúdo (hash) não mudou é pulado (--force publica). Os .md daqui são SÓ a semente: depois disso a
  * fonte de verdade é o D1, editado na UI. */
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -70,20 +71,6 @@ async function buildExample(slug) {
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
-}
-
-/** perguntas.md: banco legível gerado do QUESTIONS do banco Python do kit. */
-async function buildPerguntasMd(slug, bank) {
-  const py = path.join(SEED, slug, 'python');
-  const code = `import json,sys; sys.path.insert(0, ${JSON.stringify(py)}); from perguntas.banks import ${bank} as b; print(json.dumps([{'id':q['id'],'pergunta':q['pergunta'],'prompt':q['prompt']} for q in b.QUESTIONS], ensure_ascii=False))`;
-  const out = execFileSync(PY, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
-  const qs = JSON.parse(out);
-  const lines = ['# Perguntas norteadoras', '',
-    'O que vale aprofundar nesta análise e como. A **relevância** de cada pergunta para uma campanha é calculada pelo kit (`saida/perguntas.json`, 0–100, com justificativa e KPIs) — apresente as mais relevantes ao consultor **no chat**, com a justificativa; elas não entram no HTML. Aceita uma, construa o aprofundamento no design system e registre com o `id`.', ''];
-  for (const q of qs) lines.push(`## ${q.pergunta}  \`${q.id}\``, '', `**Como aprofundar:** ${q.prompt}`, '');
-  const file = path.join(SEED, slug, 'perguntas.md');
-  await writeFile(file, lines.join('\n'), 'utf8');
-  return qs.length;
 }
 
 /** design-system.md: contrato (seed/_shared) + catálogo de widgets do app + regras de design.
@@ -146,9 +133,13 @@ function splitMd(md) {
   let title = m ? m[1].trim() : '', body = (m ? m[2] : md).trim();
   // contextos gerais: linha `Tipo: regra|recomendacao|definicao` logo abaixo do título
   let tipo = 'regra';
-  const t = body.match(/^Tipo:\s*(regra|recomendacao|definicao)\s*\n?/i);
+  const t = body.match(/^Tipo:\s*(regra|recomendacao|definicao|pergunta)\s*\n?/i);
   if (t) { tipo = t[1].toLowerCase(); body = body.slice(t[0].length).trim(); }
-  return { title, body, tipo };
+  // `Ordem: N` opcional (perguntas seguem a ordem do banco, não a alfabética do arquivo)
+  let ordem = null;
+  const o = body.match(/^Ordem:\s*(\d+)\s*\n?/i);
+  if (o) { ordem = Number(o[1]); body = body.slice(o[0].length).trim(); }
+  return { title, body, tipo, ordem };
 }
 
 /** D1 limita cada statement a 100 KB: arquivos grandes entram em pedaços
@@ -180,10 +171,9 @@ function semverSql(slug) {
 async function kitSql(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
-  if (manifest.perguntas_bank) console.log(`  perguntas.md: ${await buildPerguntasMd(slug, manifest.perguntas_bank)} perguntas`);
   const files = [];
   for (const rel of await walk(dir)) {
-    if (rel === 'manifest.json' || rel.startsWith('contexto/') || rel.startsWith('viewer/') || rel === 'exemplo.html' || rel === 'design-system.md') continue;
+    if (rel === 'manifest.json' || rel.startsWith('tarefas/') || rel.startsWith('regras/') || rel.startsWith('perguntas/') || rel.startsWith('viewer/') || rel === 'exemplo.html' || rel === 'design-system.md' || rel === 'perguntas.md') continue;
     if (rel.startsWith('python/tests/out')) continue;
     files.push({ path: rel, content: await readFile(path.join(dir, rel), 'utf8') });
   }
@@ -198,7 +188,15 @@ async function kitSql(slug) {
       rules.push({ rule_id: f.replace(/\.md$/, ''), tipo, title: title || f, body, sort: i });
     }
   }
-  const ctxDir = path.join(dir, 'contexto');
+  // perguntas norteadoras: entradas tipo 'pergunta' na mesma tabela (título = a pergunta)
+  const qDir = path.join(dir, 'perguntas');
+  if (existsSync(qDir)) {
+    for (const [i, f] of (await readdir(qDir)).filter((x) => x.endsWith('.md')).entries()) {
+      const { title, body, ordem } = splitMd(await readFile(path.join(qDir, f), 'utf8'));
+      rules.push({ rule_id: f.replace(/\.md$/, ''), tipo: 'pergunta', title: title || f, body, sort: 100 + (ordem ?? i) });
+    }
+  }
+  const ctxDir = path.join(dir, 'tarefas');
   const order = (manifest.tarefas_contexto || []).map((t) => t.id);
   for (const f of (await readdir(ctxDir)).filter((x) => x.endsWith('.md'))) {
     const task_id = f.replace(/\.md$/, '');
@@ -206,19 +204,26 @@ async function kitSql(slug) {
     tasks.push({ task_id, title: title || task_id, body, sort: order.indexOf(task_id) === -1 ? 99 : order.indexOf(task_id) });
   }
   const { slug: _s, name, objective, when_to_use, ...rest } = manifest;
+  // hash do conteúdo (sem o exemplo, que é derivado): igual ao publicado = não publica de novo
+  const hash = createHash('sha256').update(JSON.stringify({
+    manifest: rest,
+    files: files.filter((f) => !f.path.startsWith('exemplo/')).map((f) => [f.path, f.content]).sort(),
+    tasks: tasks.map((x) => [x.task_id, x.title, x.body, x.sort]).sort(),
+    rules: rules.map((x) => [x.rule_id, x.tipo, x.title, x.body, x.sort]).sort(),
+  })).digest('hex');
   const vid = id();
   const sql = [
     `INSERT INTO templates (slug, org_id, name, objective, when_to_use) VALUES (${q(slug)}, ${q(ORG)}, ${q(name)}, ${q(objective || '')}, ${q(when_to_use || '')})
        ON CONFLICT(slug) DO UPDATE SET name = excluded.name, objective = excluded.objective, when_to_use = excluded.when_to_use;`,
-    `INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, semver)
+    `INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, semver, content_hash)
        VALUES (${q(vid)}, ${q(slug)}, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ${q(slug)}), 0) + 1, 'published', ${q(AUTHOR)}, ${q(JSON.stringify(rest))}, strftime('%Y-%m-%dT%H:%M:%fZ','now'),
-               ${semverSql(slug)});`,
+               ${semverSql(slug)}, ${q(hash)});`,
     ...files.flatMap((f) => fileSql(vid, f)),
     ...tasks.map((t) => `INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (${q(vid)}, ${q(t.task_id)}, ${q(t.title)}, ${q(t.body)}, ${t.sort});`),
     ...rules.map((r) => `INSERT INTO template_rules (version_id, rule_id, tipo, title, body_md, sort) VALUES (${q(vid)}, ${q(r.rule_id)}, ${q(r.tipo)}, ${q(r.title)}, ${q(r.body)}, ${r.sort});`),
     `UPDATE templates SET published_version_id = ${q(vid)} WHERE slug = ${q(slug)};`,
   ];
-  return { sql, files: files.length, tasks: tasks.length, rules: rules.length };
+  return { sql, files: files.length, tasks: tasks.length, rules: rules.length, hash };
 }
 
 async function generalSql() {
@@ -237,12 +242,28 @@ async function main() {
   const args = process.argv.slice(2);
   const remote = args.includes('--remote');
   const sqlOut = args.includes('--sql') ? args[args.indexOf('--sql') + 1] : null;
+  const force = args.includes('--force');
+  const target = remote ? '--remote' : '--local';
+  // Chama o wrangler pelo Node (sem npx/.cmd: no Windows o spawn de .cmd exige shell).
+  const wrangler = path.join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
+  // hash do que está publicado hoje: kit igual não vira versão nova
+  const atual = new Map();
+  if (!sqlOut && !force) {
+    try {
+      const out = execFileSync(process.execPath, [wrangler, 'd1', 'execute', 'witly-templates', target, '--json',
+        '--command', 'SELECT t.slug, v.content_hash FROM templates t JOIN template_versions v ON v.id = t.published_version_id'], { encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] });
+      for (const r of JSON.parse(out)[0].results) atual.set(r.slug, r.content_hash);
+    } catch { /* banco vazio ou sem a coluna: publica tudo */ }
+  }
   const lines = ['-- gerado por scripts/seed.mjs', 'INSERT OR IGNORE INTO orgs (id, name) VALUES (\'witly\', \'Witly\');'];
+  let publicados = 0;
   for (const slug of await kits()) {
     const a = await assembleKit(slug);
     const k = await kitSql(slug);
+    if (atual.get(slug) === k.hash) { console.log(`kit ${slug}: igual à publicada (hash), pulado`); continue; }
     lines.push(...k.sql);
-    console.log(`kit ${slug}: motor ${a.engine}, ${k.files} arquivos, ${k.tasks} tarefas, ${k.rules} regras`);
+    publicados++;
+    console.log(`kit ${slug}: motor ${a.engine}, ${k.files} arquivos, ${k.tasks} tarefas, ${k.rules} regras/perguntas`);
   }
   const g = await generalSql();
   lines.push(...g);
@@ -254,9 +275,7 @@ async function main() {
   await writeFile(file, lines.join('\n') + '\n', 'utf8');
   console.log(`SQL: ${file} (${Math.round((await readFile(file)).length / 1024)} KB)`);
   if (sqlOut) return;
-  const target = remote ? '--remote' : '--local';
-  // Chama o wrangler pelo Node (sem npx/.cmd: no Windows o spawn de .cmd exige shell).
-  const wrangler = path.join(ROOT, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
+  console.log(`templates publicados: ${publicados}`);
   execFileSync(process.execPath, [wrangler, 'd1', 'execute', 'witly-templates', target, `--file=${file}`, '-y'], { stdio: ['ignore', 'ignore', 'inherit'], cwd: ROOT });
   if (!remote) await rm(file, { force: true });
 }

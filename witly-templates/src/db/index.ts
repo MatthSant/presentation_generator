@@ -20,10 +20,12 @@ export interface Version {
   semver: string | null; state: 'draft' | 'published';
   author_email: string | null; created_at: string; updated_at: string; published_at: string | null;
   manifest_json: string; changelog: string;
+  /** sha-256 do conteúdo (seed): versão igual não é republicada. */
+  content_hash?: string | null;
 }
 
 export interface Activity {
-  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao';
+  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao' | 'sugestao';
   slug: string; version_number: number | null; cliente: string | null; pergunta_id: string | null;
   dados_json: string; avaliacao: number | null; descartado: number; motivo: string | null;
   editor_nota: number | null; editor_comentario: string | null; virou_exemplo: number; virou_regra: number;
@@ -41,7 +43,10 @@ export interface TemplateFile { version_id: string; path: string; content: strin
 export interface ContextTask { version_id: string; task_id: string; title: string; body_md: string; sort: number }
 /** Regra da análise: o TÍTULO é a regra; `tipo` diz o peso (mesma taxonomia dos contextos gerais). */
 export interface TemplateRule { version_id: string; rule_id: string; tipo: ContextoTipo; title: string; body_md: string; sort: number }
-export type ContextoTipo = 'regra' | 'recomendacao' | 'definicao';
+/** regra = não descumpra · recomendacao = siga salvo motivo · definicao = como o termo é entendido ·
+ *  pergunta = o que vale aprofundar (só em template_rules; o título é a pergunta, o corpo é como aprofundar). */
+export type ContextoTipo = 'regra' | 'recomendacao' | 'definicao' | 'pergunta';
+export const CONTEXTO_TIPOS: ContextoTipo[] = ['regra', 'recomendacao', 'definicao', 'pergunta'];
 export interface GeneralContext { slug: string; org_id: string; title: string; body_md: string; tipo: ContextoTipo; author_email: string | null; updated_at: string }
 
 /** Kit completo de uma versão: o que o MCP entrega e a UI edita. */
@@ -88,7 +93,8 @@ export async function listTemplates(db: D1Database, org_id: string, viewer: stri
             p.published_at AS publicada_em,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos,
-            (SELECT MAX(a.at) FROM activity a WHERE a.slug = t.slug) AS ultimo_uso
+            NULLIF(MAX(COALESCE((SELECT MAX(a.at) FROM activity a WHERE a.slug = t.slug), ''),
+                       COALESCE((SELECT MAX(u.at) FROM usage_log u WHERE u.slug = t.slug), '')), '') AS ultimo_uso
        FROM templates t
        LEFT JOIN template_versions p ON p.id = t.published_version_id
        LEFT JOIN template_versions d ON d.id = t.draft_version_id
@@ -137,7 +143,7 @@ export async function getContextTasks(db: D1Database, version_id: string): Promi
 }
 
 export async function getTemplateRules(db: D1Database, version_id: string): Promise<TemplateRule[]> {
-  return (await db.prepare("SELECT * FROM template_rules WHERE version_id = ? ORDER BY CASE tipo WHEN 'regra' THEN 0 WHEN 'definicao' THEN 1 ELSE 2 END, sort, rule_id").bind(version_id).all<TemplateRule>()).results;
+  return (await db.prepare("SELECT * FROM template_rules WHERE version_id = ? ORDER BY CASE tipo WHEN 'regra' THEN 0 WHEN 'recomendacao' THEN 1 WHEN 'definicao' THEN 2 ELSE 3 END, sort, rule_id").bind(version_id).all<TemplateRule>()).results;
 }
 
 async function loadKit(db: D1Database, template: Template, version_id: string | null): Promise<Kit | null> {
@@ -380,7 +386,10 @@ function activityWhere(org_id: string, f: ActivityFilter): { sql: string; bind: 
   if (f.email) { w.push('email = ?'); b.push(f.email.toLowerCase()); }
   if (f.slug) { w.push('slug = ?'); b.push(f.slug); }
   if (f.cliente) { w.push('cliente = ?'); b.push(f.cliente); }
-  if (f.evento) { w.push('evento = ?'); b.push(f.evento); }
+  if (f.evento) {   // um evento ou lista separada por vírgula (a triagem junta aprofundamento e sugestao)
+    const evs = f.evento.split(',').map((x) => x.trim()).filter(Boolean);
+    w.push(`evento IN (${evs.map(() => '?').join(', ')})`); b.push(...evs);
+  }
   if (f.desde) { w.push('at >= ?'); b.push(f.desde); }
   if (f.ate) { w.push('at <= ?'); b.push(f.ate); }
   if (f.avaliacao != null) { w.push('avaliacao = ?'); b.push(f.avaliacao); }
@@ -402,8 +411,8 @@ export async function countActivity(db: D1Database, org_id: string, f: ActivityF
   const { sql, bind } = activityWhere(org_id, f);
   const r = await db.prepare(
     `SELECT COUNT(*) AS total,
-            SUM(evento = 'aprofundamento' AND veredito IS NULL) AS sem_veredito,
-            MIN(CASE WHEN evento = 'aprofundamento' AND veredito IS NULL THEN at END) AS mais_antiga_sem_veredito
+            SUM(evento IN ('aprofundamento', 'sugestao') AND veredito IS NULL) AS sem_veredito,
+            MIN(CASE WHEN evento IN ('aprofundamento', 'sugestao') AND veredito IS NULL THEN at END) AS mais_antiga_sem_veredito
        FROM activity WHERE ${sql}`,
   ).bind(...bind).first<{ total: number; sem_veredito: number | null; mais_antiga_sem_veredito: string | null }>();
   return { total: r?.total ?? 0, sem_veredito: r?.sem_veredito ?? 0, mais_antiga_sem_veredito: r?.mais_antiga_sem_veredito ?? null };
@@ -451,9 +460,10 @@ export async function catalogStats(db: D1Database, org_id: string, desde30: stri
             (SELECT MAX(v.published_at) FROM template_versions v JOIN templates x ON x.slug = v.slug
               WHERE x.org_id = ? AND v.state = 'published') AS ultima_publicacao,
             SUM(t.published_version_id IS NOT NULL
-                AND NOT EXISTS (SELECT 1 FROM activity a WHERE a.slug = t.slug AND a.at >= ?)) AS sem_uso_30d
+                AND NOT EXISTS (SELECT 1 FROM activity a WHERE a.slug = t.slug AND a.at >= ?)
+                AND NOT EXISTS (SELECT 1 FROM usage_log u WHERE u.slug = t.slug AND u.at >= ?)) AS sem_uso_30d
        FROM templates t WHERE t.org_id = ?`,
-  ).bind(org_id, desde30, org_id).first<CatalogStats>();
+  ).bind(org_id, desde30, desde30, org_id).first<CatalogStats>();
   return { publicados: r?.publicados ?? 0, rascunhos: r?.rascunhos ?? 0, ultima_publicacao: r?.ultima_publicacao ?? null, sem_uso_30d: r?.sem_uso_30d ?? 0 };
 }
 
@@ -466,7 +476,7 @@ export async function healthStats(db: D1Database, org_id: string): Promise<Healt
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento' AND a.descartado = 1) AS descartados,
-            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento' AND a.veredito IS NULL) AS sem_veredito,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento IN ('aprofundamento', 'sugestao') AND a.veredito IS NULL) AS sem_veredito,
             (SELECT AVG(r.nota) FROM template_ratings r WHERE r.slug = t.slug AND r.org_id = t.org_id) AS nota_media
        FROM templates t LEFT JOIN template_versions p ON p.id = t.published_version_id
       WHERE t.org_id = ? AND t.owner_email IS NULL

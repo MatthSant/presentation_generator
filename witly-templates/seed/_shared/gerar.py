@@ -10,7 +10,6 @@ uso:
 saída (em --out):
   dataset.json · data.json · layout.json · sXX.json   (as 4 camadas do relatório, iguais às do app)
   numeros.json                                        (o que o motor calculou — números só daqui)
-  perguntas.json                                      (perguntas norteadoras ranqueadas — para o CHAT, não para o HTML)
   relatorio.html                                      (standalone: viewer + JSON embutidos, abre offline)
 
 Este arquivo é o MESMO em todos os kits (seed/_shared): lê o manifest.json do kit para saber
@@ -438,21 +437,6 @@ def render_html(out_dir, title):
     return path
 
 
-def perguntas(out_dir):
-    try:
-        from perguntas import perguntas_calc
-    except Exception:
-        return None
-    ds = os.path.join(out_dir, 'dataset.json')
-    if not os.path.exists(ds):
-        return None
-    out = os.path.join(out_dir, 'perguntas.json')
-    r = perguntas_calc.run(ds, out)
-    with open(out, 'w', encoding='utf-8') as f:
-        json.dump(r, f, ensure_ascii=False, indent=2)
-    return r
-
-
 def _write_layers(out_dir, r):
     def dump(name, obj):
         with open(os.path.join(out_dir, name), 'w', encoding='utf-8') as f:
@@ -503,14 +487,13 @@ def gerar(config_path, csv_path, out_dir, aux=None, content_path=None, opts=None
     nums = numeros(calc, rows, config, out_dir, opts)
     with open(os.path.join(out_dir, 'numeros.json'), 'w', encoding='utf-8') as f:
         json.dump(nums, f, ensure_ascii=False, indent=2)
-    pq = perguntas(out_dir)
     html = render_html(out_dir, config.get('title') or config.get('client_name') or 'Relatório')
     return {'out_dir': out_dir, 'secoes': summ['sections'], 'tabelas': summ['tables'], 'paginas': summ.get('pages'),
-            'html': html, 'opts': opts or None, 'perguntas': len((pq or {}).get('perguntas', [])) if pq else None, 'filtros': vf}
+            'html': html, 'opts': opts or None, 'filtros': vf}
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='gera o relatório do template (4 camadas + numeros.json + perguntas.json + relatorio.html)')
+    ap = argparse.ArgumentParser(description='gera o relatório do template (4 camadas + numeros.json + relatorio.html)')
     ap.add_argument('--config'); ap.add_argument('--csv'); ap.add_argument('--out', required=True)
     ap.add_argument('--goals'); ap.add_argument('--dict'); ap.add_argument('--hist'); ap.add_argument('--content')
     ap.add_argument('--sem-filtros', action='store_true', help='não pré-calcula os filtros do relatório (HTML menor; recortes só por --opts)')

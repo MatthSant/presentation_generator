@@ -9,16 +9,6 @@ Um lançamento tem uma **captação** (o lead entra na lista ou compra o ingress
 ## Objetivo do documento
 Responder, todo dia: (1) estamos no ritmo da meta? (2) o que melhorou ou piorou nos **últimos 3 dias**? (3) onde está o **maior gargalo** para agir ainda dentro da campanha?
 
-## Definições
-- **CPL** = investimento ÷ leads pagos. **CPMQL** = CPL ÷ taxa de qualidade. **CPM** = investimento × 1000 ÷ impressões.
-- **Taxa de resposta** = respostas ÷ leads. **Taxa de qualidade** = MQLs ÷ **respostas** (não ÷ leads).
-- **Funil de tráfego**: Impressões → Cliques (**CTR** = cliques ÷ impressões) → Pageviews (**Connect** = pageviews ÷ cliques) → Leads (**Conv. de página** = leads de tráfego ÷ pageviews) → Respostas → MQLs.
-  - Base **sem pageviews**: não há Connect nem etapa Pageviews; a Conv. de página passa a ser leads ÷ cliques e o benchmark é o produto dos dois. Não cite Hook/Hold/Connect nesse caso.
-- **Hook** = views totais ÷ impressões. **Hold** = views 50% ÷ views totais (só com `views` preenchido).
-- **Tendência** = média dos últimos 3 dias vs o início da campanha (±3% = neutro; em custos, subir é pior).
-- **Semáforo de desvio** (KPI vs meta): ok ≤ 5%, atenção 5–15%, ruim > 15%.
-- **Maior furo do funil** = a etapa com a maior queda **relativa ao benchmark**, não a maior perda absoluta.
-
 ## Benchmarks padrão (quando não há meta)
 CTR 1% · Connect 80% · Conv. de página 40% · Hook 30% · Hold 30%. Taxa de resposta e qualidade usam a meta do lançamento. No pago: order bump 20% e conv. de página 5% são benchmarks fixos da mecânica.
 

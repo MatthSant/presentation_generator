@@ -6,7 +6,6 @@
   "audience": "Consultor Witly. O HTML pode ir ao cliente quando o consultor aprovar.",
   "engine": null,
   "livre": true,
-  "perguntas_bank": null,
   "required_files": [],
   "params": [],
   "queries": [],

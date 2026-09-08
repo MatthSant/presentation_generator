@@ -5,7 +5,6 @@
   "when_to_use": "Quando a pergunta é sobre anúncios, não sobre canais: 'qual criativo escalar?', 'o hook está segurando?', 'qual público converte melhor por criativo?'. Precisa de dados de mídia ao nível anúncio × dia (Meta Ads) juntados a leads/vendas atribuídos por field_ad_name. Para o lançamento como um todo use o debriefing; em curso, o acompanhamento.",
   "audience": "Consultor Witly e gestor de tráfego do cliente. Panorama + fichas por criativo vão para o cliente.",
   "engine": "criativos",
-  "perguntas_bank": "criativos",
   "required_files": [],
   "params": [
     {
@@ -172,25 +171,22 @@
     "2. Rode a query dump no Delfos (montar_query devolve o SQL preenchido com tabelas e período) e salve dump.csv; a query dict é opcional (dict.csv).",
     "3. python python/gerar.py --config config.json --csv dump.csv [--dict dict.csv] --out saida/ [--opts '{\"mode\":\"captacao\"}']",
     "4. Abra saida/relatorio.html (Panorama + uma ficha por criativo; modo, temperatura e investimento mínimo pré-calculados, um por vez; --sem-filtros para um HTML menor). Os números estão em saida/numeros.json.",
-    "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
-    "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (tabela, ranking, correlacao, por_temperatura, saturacao_diaria, benchmark_gap).",
-    "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+    "5. Leia saida/numeros.json e o perguntas.md do kit e proponha NO CHAT as 3–5 perguntas mais relevantes para este caso (não vão para o HTML).",
+    "6. Aprofundamento aceito: design-system.md → corte em Python (importe calc.py) → q-<id>.json + det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
   ],
   "arquivos": {
-    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + perguntas.json + relatorio.html (--opts = modo/temperatura/investimento mínimo)",
+    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + relatorio.html (--opts = modo/temperatura/investimento mínimo)",
     "python/calc.py": "os números (métricas por criativo e por recorte, benchmark, regras de tipo e temperatura)",
     "python/build_report.py": "monta Panorama + fichas (uma seção por criativo)",
-    "python/query_api.py": "consultas sob demanda (por_temperatura, saturacao_diaria, benchmark_gap, ranking, correlação…)",
     "python/render_view.py": "referência de como o app recalcula o modo (o gerar.py usa --opts)",
     "python/common/": "layout, formatação, temperatura, builders",
-    "python/perguntas/": "banco + relevância das 12 perguntas norteadoras",
     "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
     "python/tests/": "fixture sintética (dump + dict) e testes",
     "viewer/": "viewer offline",
     "documento.md": "Panorama e ficha: o que cada bloco mostra",
     "guia.md": "mecânica, modos, definições, benchmarks, como ler",
     "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
-    "perguntas.md": "banco de perguntas norteadoras legível",
+    "perguntas.md": "as perguntas norteadoras desta análise, uma por entrada (o título é a pergunta); geradas da plataforma",
     "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
   }
 }
