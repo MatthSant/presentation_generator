@@ -30,6 +30,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 22, cache: npm, cache-dependency-path: witly-templates/package-lock.json }
+      - run: npm ci
+      # o relatorio.html do kit embute o viewer offline (public/viewer/ é gerado, não versionado)
+      - run: npm run build
       - name: unittest do kit (stdlib, sem pip; kit-assemble copia o motor do app)
         run: npm run test:py

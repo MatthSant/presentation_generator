@@ -5,6 +5,8 @@
  *   app/pysrc/perguntas/perguntas_calc.py + banks/<bank>.py          → seed/<slug>/python/perguntas/
  *     (com um banks/__init__.py LOCAL que registra só o banco do kit)
  * O mapeamento vem de seed/<slug>/manifest.json (`engine`, `perguntas_bank`) ou dos defaults.
+ * Copia também o viewer offline (public/viewer/ → seed/<slug>/viewer/), que o gerar.py
+ * embute no relatorio.html; rode `npm run build` antes, se ele ainda não existir.
  * As cópias são gitignored; rode antes de `test:py`, `seed` e `parity`. */
 
 import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -20,6 +22,7 @@ const DEFAULT_ENGINE = { 'acompanhamento-diario': 'acompanhamento-lancamento' };
 const DEFAULT_BANK = { 'acompanhamento-diario': 'acompanhamento_lancamento' };
 const ENGINE_FILES = ['calc.py', 'conv_calc.py', 'build_report.py', 'query_api.py', 'render_view.py'];
 const SHARED = path.join(SEED, '_shared');
+const VIEWER = path.join(ROOT, 'public', 'viewer');
 
 export async function assembleKit(slug) {
   const dir = path.join(SEED, slug);
@@ -63,6 +66,12 @@ def pick_bank(dataset):
 `);
     n += 4;
   }
+  // viewer offline: sem ele o gerar.py grava só as camadas, sem relatorio.html
+  try {
+    const vd = path.join(dir, 'viewer');
+    await mkdir(vd, { recursive: true });
+    for (const f of await readdir(VIEWER)) { await copyFile(path.join(VIEWER, f), path.join(vd, f)); n++; }
+  } catch { throw new Error(`kit ${slug}: public/viewer/ não existe — rode 'npm run build' antes`); }
   return { slug, engine: engine || 'livre', bank, files: n };
 }
 
