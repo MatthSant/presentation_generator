@@ -4,22 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Witly Grimório — Arquitetura</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-  :root{--bg:#F9FAFB;--fg:#111827;--muted:#6B7280;--line:rgba(0,0,0,.08);--card:#fff;--purple:#7C3AED;--plum:#2E084B;--green:#3B6D11;--amber:#854F0B;--blue:#185FA5}
+  :root{--bg:#F7F6FB;--fg:#1A1330;--muted:#5C5675;--line:#E4E0EE;--line-soft:#EFEDF6;--card:#fff;--zebra:#FBFAFE;--purple:#7C3AED;--purple-700:#5B21B6;--plum:#2E084B;--green:#2F6B12;--amber:#8A5205;--blue:#185FA5;
+    --sans:Poppins,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
   main{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
-  h1{font-size:28px;margin:0 0 6px}
+  h1{font-size:26px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}
   .sub{color:var(--muted);margin:0 0 28px}
-  h2{font-size:18px;margin:36px 0 12px;padding-top:6px;border-top:1px solid var(--line)}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  h2{font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--purple);margin:34px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
   .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
   table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-  code{background:#F3F4F6;padding:2px 6px;border-radius:6px;font-size:13px}
-  pre{background:#111827;color:#E5E7EB;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px}
-  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#EDE9FE;color:var(--purple);margin-right:6px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{color:#8E88A6;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;background:var(--zebra);border-bottom:1px solid var(--line)}
+  code{background:none;padding:0;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  pre{background:var(--plum);color:#E6DDF5;padding:14px 16px;border-radius:9px;overflow:auto;font-family:var(--mono);font-size:12.5px}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#EDE9FE;color:var(--purple-700);margin-right:6px}
   .ok{color:var(--green)} .todo{color:var(--amber)}
   ol li,ul li{margin:4px 0}
   svg text{font-family:inherit}
@@ -36,8 +39,8 @@
   <div class="card">
     <svg viewBox="0 0 1000 420" width="100%" role="img" aria-label="Diagrama do fluxo">
       <defs>
-        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6B7280"/></marker>
-        <style>.box{fill:#fff;stroke:#D1D5DB;stroke-width:1.2;rx:12}.t{font-size:13px;fill:#111827}.s{font-size:11px;fill:#6B7280}.l{font-size:11px;fill:#374151}.ar{stroke:#6B7280;stroke-width:1.4;fill:none;marker-end:url(#a)}</style>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9A93AE"/></marker>
+        <style>.box{fill:#fff;stroke:#E4E0EE;stroke-width:1.2;rx:12}.t{font-size:13px;fill:#1A1330}.s{font-size:11px;fill:#8E88A6}.l{font-size:11px;fill:#5C5675}.ar{stroke:#9A93AE;stroke-width:1.4;fill:none;marker-end:url(#a)}</style>
       </defs>
 
       <!-- Consultor + agente -->
