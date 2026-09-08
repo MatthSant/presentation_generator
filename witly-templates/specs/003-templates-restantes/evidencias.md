@@ -48,3 +48,11 @@ Worker: 63 testes Vitest continuam verdes (nada mudou em `src/`).
 - Worker versão a72b1e8e; templates em v1.0.1 (análise livre v1.0.0); 67 testes Vitest, 6 kits com unittest (paridade nos 5 com motor).
 - Spec 004 (dados no HTML + JS) escrita para revisão: `specs/004-dados-no-html/spec.md`.
 
+## Regras como entradas (2026-09-08, feedback: "as regras ainda estão em md" e "o contexto é mais tarefa que contexto")
+- **`template_rules`** (migração 0006), versionada como as tarefas: `rule_id`, `tipo` (regra | recomendacao | definicao), `title` (a regra em uma frase), `body_md` (por quê + como aplicar), `sort`. Copiada em rascunho, versão nova e restauração.
+- **48 regras** semeadas dos 6 kits (acompanhamento 8, debriefing 10, criativos 8, histórico 7, conversão 10, análise livre 5), extraídas do "O que NÃO concluir" e "Cuidados" dos guias — que perderam essas seções.
+- **Nomes**: a aba "Contexto" virou **Tarefas** (é o que elas são) e nasceu a aba **Regras**; no zip, `contexto/*.md` virou `tarefas/*.md` e entrou `regras.md` gerado das entradas; no MCP, "## Tarefas" + "## Regras desta análise" + "## Contextos gerais".
+- **Curadoria**: "virar regra" cria uma entrada no rascunho (com o id derivado do texto) em vez de anexar um bullet no guia.
+- **Correção de conteúdo**: os launch goals têm uma linha por `utm_source` × dia e o `load_goals` do acompanhamento soma `por_canal` — então **meta por canal existe**. A regra geral virou "meta só existe onde a tabela define: por canal sim; por temperatura, campanha, público ou criativo, não invente", e a tarefa de metas do acompanhamento foi corrigida.
+- Worker 2fe5f508; templates em v1.0.3 (análise livre v1.0.2); 67 testes Vitest, 6 kits verdes.
+

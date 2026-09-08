@@ -36,6 +36,3 @@ Os indicadores de mídia (CPL, CPM, CPMQL) e o funil consideram **só campanhas 
 
 ## Regras desta análise
 As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.
-
-## Regras desta análise
-As regras (o que não concluir, os cuidados) são **entradas**, não texto solto: chegam no `obter_template` e no `regras.md` do kit, cada uma com o título dizendo a regra. Na plataforma ficam na aba **Regras**.
