@@ -1,0 +1,40 @@
+{
+  "name": "witly-templates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Plataforma de templates de análise + servidor MCP (Cloudflare Workers)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "node scripts/build-viewer.mjs",
+    "deploy": "npm run build && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:py": "node scripts/test-kits.mjs",
+    "test:kits": "node scripts/test-kits.mjs",
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply witly-templates --local",
+    "db:migrate:remote": "wrangler d1 migrations apply witly-templates --remote",
+    "seed:local": "node scripts/seed.mjs --local",
+    "seed:remote": "node scripts/seed.mjs --remote",
+    "test:import": "node --test test/import.test.mjs",
+    "import:history": "node scripts/import-deepen-history.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "0.10.3",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "agents": "0.22.0",
+    "fflate": "0.8.3",
+    "hono": "4.13.7",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@cloudflare/workers-types": "5.20260907.1",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.0",
+    "wrangler": "4.129.1"
+  }
+}

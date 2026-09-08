@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const n=new URLSearchParams(location.search).get("theme");if(n==="light"||n==="dark"){document.documentElement.dataset.theme=n}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const n=(f)=>{const g=f.focus;if(!g)return;f.focus=function(h){g.call(this,{...h,preventScroll:true})}};n(HTMLElement.prototype);n(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){n(MathMLElement.prototype)}const d=(f)=>{f.removeAttribute("autofocus");f.inert=true;if(!(f instanceof HTMLElement))f.removeAttribute("tabindex")};const p=(f)=>{if(f.hasAttribute("autofocus"))d(f);for(const g of f.querySelectorAll("[autofocus]")){d(g)}};p(document.documentElement);new MutationObserver((f)=>{for(const g of f){for(const h of g.addedNodes){if(h.nodeType===1)p(h)}}}).observe(document,{childList:true,subtree:true})}}{const n=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const d=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if(d&&d!=="normal")return;const p=(y)=>{if(!y)return null;const m=getComputedStyle(y).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!m)return null;const w=m[4]==null?1:parseFloat(m[4])/(m[4].endsWith("%")?100:1);if(w<0.99)return null;return[+m[1],+m[2],+m[3]]};const f=p(document.body)||p(document.documentElement);if(!f)return;const g=(y)=>{const m=y/255;return m<=0.04045?m/12.92:((m+0.055)/1.055)**2.4};const h=0.2126*g(f[0])+0.7152*g(f[1])+0.0722*g(f[2]);document.documentElement.style.setProperty("color-scheme",h<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")n();else window.addEventListener("load",n)}var I=[];var B=false;var K=false;var C=()=>{};if(K===true){try{const n=setTimeout.bind(window);const d=1e4;const p=15;const f=1e4;const g=120000;const h=200;const y=(o)=>{try{let r;if(typeof o==="string")r=o;else if(o instanceof URL)r=o.href;else if(typeof Request!=="undefined"&&o instanceof Request)r=o.url;else return null;if(!r)return null;const l=document.baseURI;const i=new URL(r,l);if(i.protocol!=="http:"&&i.protocol!=="https:")return null;if(i.origin!==new URL(l).origin)return null;return i.origin+i.pathname}catch{return null}};const m=new Map;const w=(o)=>{let r=m.get(o);if(!r){if(m.size>=h){const l=m.keys().next().value;if(l!==undefined)m.delete(l)}r={fails:[],until:0,cooldown:f,hard:false};m.set(o,r)}return r};const R=(o)=>{const r=m.get(o);return r!==undefined&&r.until>Date.now()};const O=(o,r)=>{const l=Date.now();const i=w(o);if(r)i.hard=true;if(i.until>l)return;i.fails.push(l);while(i.fails.length>0&&i.fails[0]<=l-d)i.fails.shift();if(i.fails.length>=p){i.until=l+i.cooldown;if(i.hard)i.cooldown=Math.min(i.cooldown*2,g);i.fails.length=0;try{n(()=>{try{S(true)}catch{}},i.until-l+100)}catch{}console.warn("[omelette] asset circuit breaker: pausing requests to "+o+" for "+Math.round((i.until-l)/1000)+"s after "+p+" failures in "+d/1000+"s")}};const e=(o)=>{m.delete(o)};const t=100;const a=new WeakMap;const u=new Set;let s=null;const S=(o)=>{for(const r of Array.from(u)){try{const l=a.get(r);if(l===undefined){u.delete(r);continue}if(o){const i=y(l);if(i!==null&&R(i))continue}a.delete(r);u.delete(r);if(s!==null)s.call(r,l)}catch{}}};C=()=>{try{m.clear();S(false)}catch{}};document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")C()});const _=window.fetch;if(typeof _==="function"){const o=function(...r){let l=null;try{l=y(r[0])}catch{}if(l!==null&&R(l)){let c;try{if(r[1]&&r[1].signal!==undefined){c=r[1].signal||undefined}else if(typeof Request!=="undefined"&&r[0]instanceof Request){c=r[0].signal||undefined}}catch{c=undefined}return new Promise((k,b)=>{const E=()=>{try{return c.reason!==undefined?c.reason:new DOMException("The operation was aborted.","AbortError")}catch{return new DOMException("The operation was aborted.","AbortError")}};try{if(c&&c.aborted){b(E());return}}catch{}let T=false;const j=()=>{if(T)return;T=true;b(E())};try{if(c)c.addEventListener("abort",j,{once:true})}catch{}n(()=>{if(T)return;T=true;try{if(c)c.removeEventListener("abort",j)}catch{}let L;try{L=new Response(null,{status:429,statusText:"Too Many Requests",headers:{"Retry-After":"10"}})}catch{L={ok:false,status:429}}k(L)},250)})}const i=_.apply(window,r);if(l!==null){const c=l;i.then((k)=>{try{if(k.ok)e(c);else if(k.status===401||k.status===403||k.status===404||k.status===429){O(c,k.status!==404)}}catch{}},()=>{})}return i};window.fetch=o}const v=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(v!==undefined&&v.set!==undefined&&v.get!==undefined){const o=v.set;s=o;Object.defineProperty(HTMLImageElement.prototype,"src",{configurable:true,enumerable:v.enumerable,get:v.get,set(r){const l=`${r}`;try{const i=y(l);if(i!==null&&R(i)){a.set(this,l);if(u.size<t)u.add(this);return}}catch{}try{a.delete(this);u.delete(this)}catch{}o.call(this,l)}})}try{const o=HTMLImageElement.prototype.setAttribute;HTMLImageElement.prototype.setAttribute=function(r,l){if(arguments.length<2){o.apply(this,arguments);return}if(typeof r==="string"&&r.toLowerCase()==="src"){const i=`${l}`;try{const c=y(i);if(c!==null&&R(c)){a.set(this,i);if(u.size<t)u.add(this);return}a.delete(this);u.delete(this)}catch{}o.call(this,r,i);return}o.call(this,r,l)}}catch{}window.addEventListener("error",(o)=>{try{const r=o.target;if(r instanceof HTMLImageElement){const l=y(r.currentSrc||r.src||"");if(l!==null)O(l,true)}}catch{}},true);window.addEventListener("load",(o)=>{try{const r=o.target;if(r instanceof HTMLImageElement){const l=y(r.currentSrc||r.src||"");if(l!==null)e(l);const i=a.get(r);if(i!==undefined){let c=false;try{c=new URL(i,document.baseURI).href===new URL(r.currentSrc||r.src||"",document.baseURI).href}catch{c=false}if(c){a.delete(r);u.delete(r)}}}}catch{}},true)}catch{}}var J=30000;var G=3000;document.addEventListener("DOMContentLoaded",()=>{const n=window.Babel;const d="om-src-id";if(n&&n.registerPlugin&&!(n.availablePlugins&&n.availablePlugins[d])){n.registerPlugin(d,({types:h})=>({visitor:{JSXOpeningElement(y,m){const w=y.node;if(w.name&&w.name.type==="JSXMemberExpression")return;for(let t=0;t<w.attributes.length;t++){const a=w.attributes[t];if(a.type==="JSXAttribute"&&a.name&&a.name.name==="data-om-id")return}const R=m.file&&m.file.opts&&m.file.opts.filename||"?";const O=w.loc&&w.loc.start;const e=`jsx:${R}:${w.start??0}:${O?O.line:0}:${O?O.column+1:0}`;w.attributes.push(h.jsxAttribute(h.jsxIdentifier("data-om-id"),h.stringLiteral(e)))}}}))}const p="om-text-extract";let f=false;if(B&&n&&n.registerPlugin&&!(n.availablePlugins&&n.availablePlugins[p])){const h=window.React;if(h&&h.useSyncExternalStore&&h.createElement){f=true;const y={};const m=new Set;let w=0;window.__omTextO=y;window.__omTextSet=(e)=>{for(const t in e){const a=e[t];if(a==null)delete y[t];else y[t]=a}w++;m.forEach((t)=>t())};const R=(e)=>{m.add(e);return()=>m.delete(e)};const O=()=>w;window.__OmT=function e(t){h.useSyncExternalStore(R,O,O);return h.createElement("span",{"data-om-text":t.i,className:"__om-t"},t.i in y?y[t.i]:t.children)};n.registerPlugin(p,({types:e})=>{const t={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const a={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const u=(o,r)=>e.logicalExpression("??",e.memberExpression(e.logicalExpression("||",e.memberExpression(e.identifier("window"),e.identifier("__omTextO")),e.objectExpression([])),e.stringLiteral(o),true),r);const s=(o)=>o.file&&o.file.opts&&o.file.opts.filename||"?";const S=(o)=>o.file&&o.file.code||"";const _=(o,r)=>{const l=(c)=>c&&c.start!=null&&c.end!=null&&(c.type==="StringLiteral"||c.type==="TemplateLiteral"&&c.expressions.length===0)?[c.start,c.end]:null;const i=l(r);if(i)return i;if(r&&r.type==="Identifier"){const c=o.scope.getBinding(r.name);if(c&&c.constant&&c.path.node.type==="VariableDeclarator"){return l(c.path.node.init)}}return null};const v=(o,r,l)=>{const i=o.node;let c=false;const k=(E,T)=>{c=true;return e.jsxElement(e.jsxOpeningElement(e.jsxIdentifier("__OmT"),[e.jsxAttribute(e.jsxIdentifier("i"),e.stringLiteral(E))],false),e.jsxClosingElement(e.jsxIdentifier("__OmT")),[T],false)};const b=i.children.map((E)=>{if(E.type==="JSXText"){if(E.start==null||E.end==null)return E;const T=l.slice(E.start,E.end);const j=T.length-T.trimStart().length;const L=T.length-T.trimEnd().length;if(j+L>=T.length)return E;return k(`txt:${r}:${E.start+j}:${E.end-L}`,E)}if(E.type==="JSXExpressionContainer"){const T=_(o,E.expression);if(T)return k(`str:${r}:${T[0]}:${T[1]}`,E)}return E});if(c)i.children=b};return{visitor:{JSXOpeningElement(o,r){const l=o.node;const i=s(r);const c={};for(let k=0;k<l.attributes.length;k++){const b=l.attributes[k];if(b.type!=="JSXAttribute"||!b.name)continue;const E=b.name.name;if(!a[E])continue;if(!b.value||b.value.type!=="StringLiteral")continue;if(b.value.start==null||b.value.end==null)continue;const T=`txt:${i}:${b.value.start}:${b.value.end}`;c[E]=T;b.value=e.jsxExpressionContainer(u(T,e.stringLiteral(b.value.value)))}if(Object.keys(c).length){l.attributes.push(e.jsxAttribute(e.jsxIdentifier("data-om-text-attrs"),e.stringLiteral(JSON.stringify(c))))}},JSXElement(o,r){const l=o.node.openingElement;const i=l&&l.name&&l.name.name;if(i==="__OmT")return;if(typeof i==="string"&&t[i])return;v(o,s(r),S(r))},JSXFragment(o,r){v(o,s(r),S(r))}}}})}}const g=f?["transform-react-jsx-source",d,p]:["transform-react-jsx-source",d];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((h,y)=>{const m=h.getAttribute("data-plugins")||"";const w=g.filter((R)=>m.indexOf(R)<0);if(w.length){h.setAttribute("data-plugins",m?`${m},${w.join(",")}`:w.join(","))}if(!h.hasAttribute("data-filename")){h.setAttribute("data-filename",h.getAttribute("src")||`inline-${y}`)}})});var A=window.parent;var U="not editable here — open the project in the Claude Design editor to save";var W=()=>Promise.resolve({persisted:false,noHost:true,reason:U});var H=W;var M="data/storage.json";var z=()=>{try{const n=new URL(document.baseURI);const d=n.pathname.match(/\/projects\/([^/]+)\/serve\//);if(d)return d[1];return n.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var Z=()=>{try{const n=new URL(document.baseURI);const d=n.pathname.indexOf("/serve/");if(d>=0)return n.origin+n.pathname.slice(0,d+"/serve/".length)+M}catch{}return"./"+M};var x=null;var N=()=>{if(!x){x=fetch(Z(),{cache:"no-store"}).then((n)=>{if(n.ok)return n.text();return n.status===404?"":null}).catch(()=>null).then((n)=>{if(n===null){x=null;return null}const d=new Map;if(!n)return d;let p;try{p=JSON.parse(n)}catch{console.warn("[omelette.storage] "+M+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");x=null;return null}if(p===null||typeof p!=="object"||Array.isArray(p)){console.warn("[omelette.storage] "+M+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");x=null;return null}const f=p;if("data"in f){const g=f.data;if(g===null||typeof g!=="object"||Array.isArray(g)){console.warn("[omelette.storage] "+M+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');x=null;return null}const h=f._meta;const y=h!==null&&typeof h==="object"?h.project:undefined;if(typeof y==="string"&&y!==""&&y!==z())return d;for(const m of Object.keys(g))d.set(m,g[m]);return d}for(const g of Object.keys(f)){if(g!=="_meta")d.set(g,f[g])}return d})}return x};var F=(n)=>H(M,JSON.stringify({_meta:{project:z(),version:1},data:Object.fromEntries(n)},null,2));var D=Promise.resolve();var $=(n)=>{const d=D.then(n);D=d.then(()=>{return},()=>{return});return d};var V=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var Y=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var Q=(n,d,p)=>{if(V.test(d)||Y.test(n)&&typeof p==="string"&&p.length>=8){console.warn('[omelette.storage] the value for "'+n+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var q={persisted:false,reason:"could not load the existing store — not overwriting it"};var X={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var P=new Set;var ee={get:(n)=>{if(typeof n!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return $(N).then((d)=>{if(d===null){P.add(n);return null}P.delete(n);if(!d.has(n))return null;const p=d.get(n);return p==null?null:JSON.parse(JSON.stringify(p))})},set:(n,d)=>{if(typeof n!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let p;try{p=JSON.stringify(d)}catch(g){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(g)+")"))}if(p===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}Q(n,p,d);const f=JSON.parse(p);return $(()=>N().then((g)=>{if(g===null)return q;if(P.has(n)){if(g.has(n))return X;P.delete(n)}g.set(n,f);return F(g)}))},delete:(n)=>{if(typeof n!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return $(()=>N().then((d)=>{if(d===null)return q;if(P.has(n)){if(d.has(n))return X;P.delete(n)}d.delete(n);return F(d)}))},keys:()=>$(N).then((n)=>n===null?[]:Array.from(n.keys()))};window.omelette={writeFile:(n,d)=>H(n,d).then((p)=>{if(!p.persisted&&!p.noHost){throw new Error(p.reason||"write failed")}}),storage:ee};if(A&&A!==window){const n=(e,t)=>{try{A.postMessage({__omelette_log:true,type:e,data:t},"*")}catch{}};["log","warn","error"].forEach((e)=>{const t=console[e];console[e]=(...a)=>{const u=a.map((s)=>{try{return typeof s==="object"?JSON.stringify(s):String(s)}catch{try{return String(s)}catch{return"[unstringifiable]"}}}).join(" ");n(e,u);t.apply(console,a)}});window.addEventListener("error",(e)=>{const t=e.target;if(t&&t!==window&&t.tagName){const a=t.src||t.href||"";n("resource_error",`${t.tagName} failed to load: ${a}`)}else{n("error",`${e.message||"Unknown error"} at ${e.filename||"?"}:${e.lineno||0}:${e.colno||0}`)}},true);window.addEventListener("unhandledrejection",(e)=>{const t=e.reason;const a=t instanceof Error?`${t.message} ${t.stack}`:String(t);n("error",`Unhandled rejection: ${a}`)});window.addEventListener("click",(e)=>{if(e.defaultPrevented||e.button!==0)return;if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;const t=e.composedPath?e.composedPath():[];const a=["button","input","select","textarea","summary","label"];let u=null;for(const v of t){if(!(v instanceof Element))continue;if(v.localName==="a"){if(!(v instanceof HTMLAnchorElement))return;u=v;break}if(a.indexOf(v.localName)!==-1)return}if(!u)return;if(u.isContentEditable)return;const s=u.closest("[contenteditable]");if(s&&s.getAttribute("contenteditable")!=="false")return;const S=(u.getAttribute("target")||"_self").toLowerCase();if(S!=="_self"&&S!=="_top"&&S!=="_parent")return;let _;try{_=new URL(u.href)}catch{return}if(_.protocol!=="http:"&&_.protocol!=="https:")return;if(location.origin==="null")return;if(_.origin===location.origin)return;e.preventDefault();window.open(_.href,"_blank","noopener,noreferrer")});const d=()=>{try{A.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver(d).observe(document.documentElement);const p=()=>{d();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const e=()=>document.getElementById("root")||document.querySelector("body > div[id]");const t=e()?.firstElementChild??null;let a=0;const u=()=>{const s=e();if(s&&s.firstElementChild!==t||++a>30){d();return}setTimeout(u,100)};setTimeout(u,100)};if(document.readyState==="complete")p();else window.addEventListener("load",p);const f={};let g=0;const h=(e)=>new Promise((t,a)=>{if(!I.length){a(new Error("claude.complete: no parent origin"));return}const u=`c${++g}`;const s=()=>setTimeout(()=>{delete f[u];a(new Error(`claude.complete: no data for ${J/1000}s`))},J);const S=s();f[u]={resolve:t,reject:a,text:"",t:S,arm:s};try{for(const _ of I){A.postMessage({__om_api:true,id:u,body:e},_)}}catch(_){clearTimeout(S);delete f[u];a(_)}});const y=8;const m=async(e,t)=>{if(!Array.isArray(e.messages)){throw new Error("claude.complete: tools require a messages array")}const a=e.messages.slice();const u={...e,tools:e.tools.map((_)=>{if(_===null||typeof _!=="object")return _;const v={};for(const o of Object.keys(_)){if(typeof _[o]!=="function")v[o]=_[o]}return v})};const s=u.tool_choice;const S=s!=null&&(s.type==="any"||s.type==="tool")?{...u,tool_choice:s.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:s.disable_parallel_tool_use}:{type:"auto"}}:u;for(let _=0;_<y;_++){const v=await h({..._===0?u:S,messages:a});const o=v.message;const r=o&&Array.isArray(o.content)?o.content:null;const l=r?r.filter((c)=>c?.type==="tool_use"):[];if(o?.stop_reason!=="tool_use"||l.length===0){return v.text}const i=[];for(const c of l){const k=t.get(c.name);if(!k){i.push({type:"tool_result",tool_use_id:c.id,content:`no handler for tool "${c.name}"`,is_error:true});continue}try{const b=await k(c.input);const E=typeof b==="string"?b:O(b)??"";i.push({type:"tool_result",tool_use_id:c.id,content:E})}catch(b){i.push({type:"tool_result",tool_use_id:c.id,content:String(b?.message??b??"tool handler failed"),is_error:true})}}a.push({role:"assistant",content:r},{role:"user",content:i})}throw new Error(`claude.complete: exceeded ${y} tool turns`)};window.claude={complete(e){const t=e;if(t!==null&&typeof t==="object"&&Array.isArray(t.tools)&&t.tools.some((a)=>a!==null&&typeof a==="object"&&typeof a.run==="function")){const a=new Map;for(const u of t.tools){if(u!==null&&typeof u==="object"&&typeof u.run==="function"){a.set(String(u.name),u.run)}}return m(t,a)}return h(e).then((a)=>a.text)}};const w={};let R=0;H=(e,t)=>new Promise((a)=>{if(!I.length){a({persisted:false,noHost:true,reason:U});return}const u=`f${++R}`;const s=setTimeout(()=>{delete w[u];a({persisted:false,noHost:true,reason:U})},G);w[u]={settle:a,t:s};try{for(const S of I){A.postMessage({__om_file:true,id:u,op:"write",path:e,content:t},S)}}catch{clearTimeout(s);delete w[u];a({persisted:false,noHost:true,reason:U})}});const O=(e)=>{try{return JSON.stringify(e)}catch{return JSON.stringify(String(e))}};window.addEventListener("message",(e)=>{if(I.indexOf(e.origin)<0)return;if(e.source!==A)return;const t=e.data;if(!t)return;if(t.type==="omelette-preview-refresh"){if(typeof t.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(t.token))return;const s=Math.max(1,Math.floor((t.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+t.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+s;C();return}if(t.__om_file_r){const s=w[t.id];if(!s)return;clearTimeout(s.t);delete w[t.id];s.settle(t.ok?{persisted:true}:{persisted:false,reason:t.error||"write failed"});return}if(t.__om_api_r){const s=f[t.id];if(!s)return;if(t.error!=null){clearTimeout(s.t);delete f[t.id];s.reject(new Error(t.error));return}if(t.chunk!=null){clearTimeout(s.t);s.t=s.arm();s.text+=t.chunk;return}if(t.done){clearTimeout(s.t);delete f[t.id];s.resolve({text:t.text!=null?t.text:s.text,message:t.message});return}return}if(!t.__om_eval)return;const a=t;const u=(s)=>{e.source.postMessage({...s,__om_eval_r:1,id:a.id},e.origin)};try{const s=(0,eval)(a.code);if(s&&typeof s.then==="function"){s.then((S)=>u({ok:1,v:O(S)}),(S)=>u({ok:0,e:String(S)}))}else{u({ok:1,v:O(s)})}}catch(s){u({ok:0,e:String(s)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  html, body { margin:0; padding:0; background:#F7F6FB; color:#1A1330; font-family:Poppins,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  * { box-sizing:border-box; }
+  a { color:#7C3AED; text-decoration:none; }
+  a:hover { color:#5B21B6; }
+  button { font-family:inherit; }
+  pre { margin:0; }
+  @keyframes shimmer { 0% { background-position:-340px 0 } 100% { background-position:340px 0 } }
+  @keyframes toastin { from { opacity:0; transform:translate(-50%,10px) } to { opacity:1; transform:translate(-50%,0) } }
+</style>
+</helmet>
+
+<div style="display:flex; align-items:stretch; min-height:100vh">
+
+  <nav style="flex:0 0 218px; padding:20px 12px 22px; display:flex; flex-direction:column; gap:24px; background:#2E084B; color:#E6DDF5">
+    <div style="display:flex; align-items:center; gap:8px; padding:2px 8px 0">
+      <span style="background:#7C3AED; color:#fff; border-radius:7px; padding:3px 9px; font-size:12px; font-weight:700; letter-spacing:.02em">witly</span>
+      <span style="font-weight:600; font-size:15px; color:#fff">Grimório</span>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:3px">
+      <div style="font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:#9A86BE; padding:0 10px 6px">Design system</div>
+      <sc-for list="{{ views }}" as="v" hint-placeholder-count="4">
+        <button onClick="{{ v.go }}" style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; text-align:left; border:none; border-radius:9px; padding:8px 10px; font-size:13.5px; font-weight:500; cursor:pointer; background:{{ v.bg }}; color:{{ v.fg }}">
+          <span>{{ v.label }}</span>
+          <span style="font-family:'IBM Plex Mono',monospace; font-size:10px; opacity:.6">{{ v.tag }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="margin-top:auto; padding:0 10px; display:flex; flex-direction:column; gap:8px">
+      <div style="height:1px; background:#48226B"></div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#9A86BE">projetos@witly.digital</div>
+      <span style="align-self:flex-start; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; background:#48226B; color:#D6C7F0; border-radius:999px; padding:2px 8px">editor</span>
+    </div>
+  </nav>
+
+  <div style="flex:1 1 auto; min-width:0">
+
+    <!-- ============ SPEC ============ -->
+    <sc-if value="{{ isSpec }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width:1040px; margin:0 auto; padding:44px 36px 110px">
+
+      <header style="border-bottom:1px solid #E4E0EE; padding-bottom:24px; margin-bottom:34px">
+        <div style="font-size:11px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; margin-bottom:10px">Witly Grimório · UI v2</div>
+        <h1 style="font-size:38px; font-weight:600; line-height:1.1; letter-spacing:-.025em; margin:0 0 12px; max-width:20ch">Uma tela por vez, um estado por vez.</h1>
+        <p style="max-width:640px; margin:0; font-size:15px; color:#5C5675; text-wrap:pretty">O Grimório é lido por gente e por agentes. Hierarquia vem de espaço e régua, não de sombra; o roxo Witly marca só o que é ação ou o que está publicado agora; tudo que o agente copia literalmente — slug, versão, arquivo, timestamp — vive em monoespaçado.</p>
+      </header>
+
+      <section style="display:grid; grid-template-columns:repeat(auto-fit,minmax(216px,1fr)); gap:12px; margin-bottom:52px">
+        <div style="background:#fff; border:1px solid #E4E0EE; border-top:2px solid #7C3AED; border-radius:12px; padding:16px 18px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:7px">01</div>
+          <div style="font-weight:600; font-size:15px; margin-bottom:5px">Régua antes de caixa</div>
+          <p style="margin:0; font-size:12.5px; color:#5C5675">Card só quando o bloco é clicável ou editável. Listas usam linha de 1px.</p>
+        </div>
+        <div style="background:#fff; border:1px solid #E4E0EE; border-top:2px solid #7C3AED; border-radius:12px; padding:16px 18px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:7px">02</div>
+          <div style="font-weight:600; font-size:15px; margin-bottom:5px">Roxo é ação</div>
+          <p style="margin:0; font-size:12.5px; color:#5C5675">Ameixa estrutura a navegação; #7C3AED só em botão, link, aba ativa e publicado.</p>
+        </div>
+        <div style="background:#fff; border:1px solid #E4E0EE; border-top:2px solid #7C3AED; border-radius:12px; padding:16px 18px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:7px">03</div>
+          <div style="font-weight:600; font-size:15px; margin-bottom:5px">Estado com palavra</div>
+          <p style="margin:0; font-size:12.5px; color:#5C5675">Publicado, rascunho, descartado: cor <b>e</b> texto. Nunca cor sozinha.</p>
+        </div>
+        <div style="background:#fff; border:1px solid #E4E0EE; border-top:2px solid #7C3AED; border-radius:12px; padding:16px 18px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:7px">04</div>
+          <div style="font-weight:600; font-size:15px; margin-bottom:5px">Literal em mono</div>
+          <p style="margin:0; font-size:12.5px; color:#5C5675">Slug, versão, e-mail, data e caminho de arquivo em IBM Plex Mono 12px.</p>
+        </div>
+      </section>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">01 · Cores e tokens</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(136px,1fr)); gap:12px; margin-bottom:18px">
+        <sc-for list="{{ swatches }}" as="s" hint-placeholder-count="12">
+          <div>
+            <div style="height:70px; border-radius:9px; border:1px solid #E4E0EE; background:{{ s.hex }}"></div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; margin-top:7px; font-weight:500">{{ s.name }}</div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8E88A6">{{ s.hex }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; gap:10px; background:#F3EFFE; border-left:2px solid #7C3AED; border-radius:0 9px 9px 0; padding:12px 16px; margin-bottom:20px">
+        <span style="font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7C3AED; padding-top:3px; white-space:nowrap">Regra</span>
+        <p style="margin:0; font-size:13px; color:#5C5675">Parágrafo é sempre <b>ink</b> ou <b>ink-soft</b>. As cores semânticas ficam em pill, régua de 2px e texto curto de estado. Sem gradiente; sombra só em modal e dropdown.</p>
+      </div>
+      <div style="position:relative; margin-bottom:52px">
+        <button onClick="{{ copyTokens }}" style="position:absolute; top:11px; right:11px; border:1px solid #4A2A78; background:transparent; color:#CDB9F2; border-radius:6px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:11px; cursor:pointer" style-hover="background:#4A2A78; color:#fff">copiar</button>
+        <pre id="snip-tokens" style="background:#211238; color:#D8CCEE; border-radius:12px; padding:42px 20px 18px; overflow:auto; font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.75">:root{
+  --bg:#F7F6FB; --surface:#FFFFFF; --wash:#F3F1F9; --line:#E4E0EE;
+  --ink:#1A1330; --ink-soft:#5C5675; --ink-faint:#8E88A6;
+  --plum:#2E084B; --plum-2:#48226B;
+  --purple:#7C3AED; --purple-700:#5B21B6; --purple-wash:#EDE9FE;
+  --green:#2F6B12; --green-wash:#E7F3DC;
+  --amber:#8A5205; --amber-wash:#FBEED3;
+  --red:#A4271A;   --red-wash:#F8E1DD;
+  --sans:Poppins,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --r:12px; --r-sm:9px; --r-xs:6px;
+  --pad:18px; --gap:12px;
+}</pre>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">02 · Tipografia</h2>
+      <div style="border-top:1px solid #E4E0EE; margin-bottom:52px">
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">display · 600<br>38 / 1.1 / -.025em</div>
+          <div style="font-size:34px; font-weight:600; letter-spacing:-.025em; line-height:1.1">Debriefing de lançamento</div>
+        </div>
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">título de tela · 600<br>24 / 1.2</div>
+          <div style="font-size:24px; font-weight:600; letter-spacing:-.015em">Templates</div>
+        </div>
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">seção · 600 caps<br>13 / .16em / roxo</div>
+          <div style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED">Contextos gerais</div>
+        </div>
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">corpo · 400<br>14 / 1.5</div>
+          <div style="font-size:14px; color:#1A1330; max-width:56ch">O MCP entrega ao agente só a versão publicada. Edições ficam num rascunho até você publicar.</div>
+        </div>
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">apoio · 400<br>12.5 / ink-soft</div>
+          <div style="font-size:12.5px; color:#5C5675">Atualizado 2026-09-08 15:01 por seed</div>
+        </div>
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">literal · mono 400<br>12</div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:12px">acompanhamento-diario · v1.0.2 · design-system.md</div>
+        </div>
+        <div style="display:grid; grid-template-columns:200px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #E4E0EE; align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">label de campo · 600 caps<br>11 / .08em</div>
+          <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6">Nome do arquivo no kit</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">03 · Botões</h2>
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:16px; margin-bottom:16px">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+          <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6; border-color:#5B21B6">Salvar e publicar</button>
+          <button style="border:1px solid #E4E0EE; background:#fff; color:#1A1330; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="border-color:#7C3AED; color:#5B21B6">Novo template</button>
+          <button style="border:1px solid transparent; background:transparent; color:#5C5675; border-radius:9px; padding:8px 13px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#F3F1F9; color:#1A1330">Cancelar</button>
+          <button style="border:1px solid transparent; background:transparent; color:#A4271A; border-radius:9px; padding:8px 13px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#F8E1DD">Descartar rascunho</button>
+          <button disabled="disabled" style="border:1px solid #E4E0EE; background:#F3F1F9; color:#8E88A6; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:default">Publicar</button>
+        </div>
+        <div style="height:1px; background:#E4E0EE"></div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+          <button style="border:1px solid #E4E0EE; background:#fff; color:#1A1330; border-radius:7px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer" style-hover="border-color:#7C3AED">pequeno</button>
+          <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:7px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">pequeno primário</button>
+          <span style="font-size:12.5px; color:#8E88A6">altura 34px padrão · 26px compacto (dentro de tabela e filtro)</span>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin-bottom:52px">
+        <div style="background:#fff; border:1px solid #E4E0EE; border-left:2px solid #2F6B12; border-radius:0 12px 12px 0; padding:14px 16px">
+          <div style="font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#2F6B12; margin-bottom:6px">Faça</div>
+          <p style="margin:0; font-size:12.5px; color:#5C5675">Um primário por tela, sempre o que grava. Verbo + objeto: “Salvar e publicar”.</p>
+        </div>
+        <div style="background:#fff; border:1px solid #E4E0EE; border-left:2px solid #A4271A; border-radius:0 12px 12px 0; padding:14px 16px">
+          <div style="font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#A4271A; margin-bottom:6px">Não faça</div>
+          <p style="margin:0; font-size:12.5px; color:#5C5675">Dois roxos lado a lado, botão vermelho cheio, ou “OK / Enviar” sem objeto.</p>
+        </div>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">04 · Pills de estado</h2>
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:20px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:52px">
+        <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#E7F3DC; color:#2F6B12">publicado v1.0.2</span>
+        <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#FBEED3; color:#8A5205">rascunho</span>
+        <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#F8E1DD; color:#A4271A">descartado</span>
+        <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#EDE9FE; color:#7C3AED">exemplo</span>
+        <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#F3F1F9; color:#5C5675">leitor</span>
+        <span style="display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px 3px 7px; background:#EDE9FE; color:#7C3AED"><span style="width:5px; height:5px; border-radius:99px; background:#7C3AED"></span>ativo agora</span>
+        <span style="font-size:12px; color:#8E88A6; margin-left:4px">badge de contagem →</span>
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:500; border-radius:999px; padding:2px 8px; background:#2E084B; color:#fff">12</span>
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:500; border-radius:999px; padding:2px 8px; background:#F3F1F9; color:#5C5675; border:1px solid #E4E0EE">0</span>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">05 · Formulários</h2>
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:20px; margin-bottom:52px; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px">
+        <div>
+          <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin-bottom:6px">Título</label>
+          <input value="Design system dos aprofundamentos" style="width:100%; font:inherit; font-size:13.5px; color:#1A1330; background:#fff; border:1px solid #E4E0EE; border-radius:9px; padding:9px 11px" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+          <p style="margin:6px 0 0; font-size:12px; color:#8E88A6">Aparece no catálogo e no cabeçalho do kit.</p>
+
+          <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Nome do arquivo no kit</label>
+          <input value="design-system.md" style="width:100%; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#1A1330; background:#fff; border:1px solid #E4E0EE; border-radius:9px; padding:9px 11px" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+
+          <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Slug</label>
+          <input value="design system!" style="width:100%; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#1A1330; background:#fff; border:1px solid #A4271A; border-radius:9px; padding:9px 11px" />
+          <p style="margin:6px 0 0; font-size:12px; color:#A4271A">Só minúsculas, números e hífen.</p>
+        </div>
+        <div>
+          <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin-bottom:6px">Conteúdo (Markdown)</label>
+          <textarea style="width:100%; min-height:186px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.6; color:#1A1330; background:#FDFDFF; border:1px solid #E4E0EE; border-radius:9px; padding:11px; resize:vertical; white-space:pre" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE"># Design system dos aprofundamentos
+
+Todo aprofundamento entra **dentro do relatório**,
+como seção nova na página "Aprofundamentos",
+usando os widgets do app. Número só via `bind`.</textarea>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px">
+            <button style="border:1px solid transparent; background:transparent; color:#5C5675; border-radius:9px; padding:8px 13px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#F3F1F9">Descartar</button>
+            <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Salvar e publicar</button>
+          </div>
+        </div>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">06 · Navegação e abas</h2>
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:20px; margin-bottom:52px">
+        <div style="display:flex; gap:20px; border-bottom:1px solid #E4E0EE; margin-bottom:14px">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+            <button onClick="{{ t.go }}" style="border:none; background:none; padding:0 0 9px; font-size:13.5px; font-weight:600; cursor:pointer; color:{{ t.fg }}; border-bottom:2px solid {{ t.bd }}; margin-bottom:-1px">{{ t.label }}</button>
+          </sc-for>
+        </div>
+        <p style="margin:0 0 16px; font-size:13px; color:#5C5675">Aba ativa: texto roxo + régua de 2px. Sem pílula de fundo — o fundo roxo fica reservado para a navegação lateral.</p>
+        <div style="display:flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8E88A6">
+          <a href="#">templates</a><span>/</span><a href="#">acompanhamento-diario</a><span>/</span><span style="color:#1A1330">v1.0.2</span>
+        </div>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">07 · Tabela, busca e paginação</h2>
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden; margin-bottom:16px">
+        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:14px 16px; border-bottom:1px solid #E4E0EE; background:#FBFAFE">
+          <div style="position:relative; flex:1 1 200px; min-width:160px">
+            <span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:12px; color:#8E88A6">⌕</span>
+            <input placeholder="buscar em atividade" style="width:100%; font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:7px 11px 7px 27px; background:#fff" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+          </div>
+          <select style="font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:7px 10px; background:#fff; color:#1A1330"><option>todos os templates</option><option>acompanhamento-diario</option></select>
+          <button onClick="{{ toggleMenu }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:9px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">Evento ▾</button>
+          <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#7C3AED; background:#EDE9FE; border-radius:999px; padding:3px 10px">nota 5 <span style="cursor:pointer; opacity:.7">×</span></span>
+          <button style="border:none; background:none; font-size:12.5px; font-weight:600; color:#5C5675; cursor:pointer">limpar</button>
+        </div>
+        <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative">
+            <div style="position:absolute; z-index:4; top:2px; right:16px; width:190px; background:#fff; border:1px solid #E4E0EE; border-radius:10px; box-shadow:0 12px 28px rgba(26,19,48,.14); padding:6px">
+              <sc-for list="{{ menuItems }}" as="m" hint-placeholder-count="3">
+                <button style="display:flex; width:100%; justify-content:space-between; text-align:left; border:none; background:none; border-radius:7px; padding:7px 9px; font-size:13px; cursor:pointer; color:#1A1330" style-hover="background:#F3F1F9">
+                  <span>{{ m.label }}</span><span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8E88A6">{{ m.count }}</span>
+                </button>
+              </sc-for>
+              <div style="height:1px; background:#E4E0EE; margin:5px 0"></div>
+              <button onClick="{{ toggleMenu }}" style="display:block; width:100%; text-align:left; border:none; background:none; border-radius:7px; padding:7px 9px; font-size:13px; cursor:pointer; color:#A4271A" style-hover="background:#F8E1DD">Fechar</button>
+            </div>
+          </div>
+        </sc-if>
+        <div style="overflow-x:auto">
+        <table style="width:100%; min-width:560px; border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; padding:10px 16px; border-bottom:1px solid #E4E0EE">Quando</th>
+              <th style="text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; padding:10px 16px; border-bottom:1px solid #E4E0EE">Quem</th>
+              <th style="text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; padding:10px 16px; border-bottom:1px solid #E4E0EE">Evento</th>
+              <th style="text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; padding:10px 16px; border-bottom:1px solid #E4E0EE">Resumo</th>
+              <th style="text-align:right; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; padding:10px 16px; border-bottom:1px solid #E4E0EE">Nota</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6; white-space:nowrap">2026-09-07<br />21:40</td>
+              <td style="padding:12px 12px; border-bottom:1px solid #EFEDF6; font-family:'IBM Plex Mono',monospace; font-size:11.5px; word-break:break-all">consultor@witly.digital</td>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; font-size:13px">Aprofundamento</td>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; font-size:13px"><b style="font-weight:600">Por que o CPL subiu?</b> <span style="color:#5C5675">CPM +31% com CTR estável; 84% da alta vem do leilão.</span> <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:2px 8px; background:#E7F3DC; color:#2F6B12">exemplo</span></td>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500">5</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6; white-space:nowrap">2026-09-07<br />21:38</td>
+              <td style="padding:12px 12px; border-bottom:1px solid #EFEDF6; font-family:'IBM Plex Mono',monospace; font-size:11.5px; word-break:break-all">consultor@witly.digital</td>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; font-size:13px">Aprofundamento</td>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; font-size:13px"><b style="font-weight:600">Qual canal está pior?</b> <span style="color:#5C5675">Inventou meta por canal.</span> <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:2px 8px; background:#F8E1DD; color:#A4271A">descartado</span></td>
+              <td style="padding:12px 16px; border-bottom:1px solid #EFEDF6; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#8E88A6">—</td>
+            </tr>
+            <tr>
+              <td colspan="5" style="padding:0">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:#FBFAFE">
+                  <span style="font-size:12.5px; color:#8E88A6">1–2 de 48</span>
+                  <div style="display:flex; gap:6px; align-items:center">
+                    <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-size:12px; font-weight:600; color:#8E88A6; cursor:default">←</button>
+                    <button style="border:1px solid #7C3AED; background:#EDE9FE; color:#5B21B6; border-radius:7px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; cursor:pointer">1</button>
+                    <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">2</button>
+                    <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">3</button>
+                    <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-size:12px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">→</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <p style="margin:0 0 52px; font-size:12.5px; color:#8E88A6">Linha de tabela: 1px <b>#EFEDF6</b> (mais leve que a borda do card). Cabeçalho e paginação em <b>#FBFAFE</b>. Números alinhados à direita, em mono.</p>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">08 · Avisos, vazio, carregando, toast</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-bottom:16px">
+        <div style="display:flex; gap:10px; background:#FBEED3; border-radius:10px; padding:12px 14px">
+          <span style="font-weight:700; color:#8A5205">!</span>
+          <p style="margin:0; font-size:13px; color:#6E4204">Há um rascunho não publicado. O agente continua recebendo <b>v1.0.2</b>.</p>
+        </div>
+        <div style="display:flex; gap:10px; background:#F8E1DD; border-radius:10px; padding:12px 14px">
+          <span style="font-weight:700; color:#A4271A">×</span>
+          <p style="margin:0; font-size:13px; color:#8A2015">Falha ao publicar: <span style="font-family:'IBM Plex Mono',monospace; font-size:12px">bind inválido na seção 3</span>.</p>
+        </div>
+        <div style="background:#fff; border:1px dashed #D9D4E8; border-radius:12px; padding:30px 20px; text-align:center">
+          <div style="font-weight:600; font-size:14px; margin-bottom:4px">Nenhum contexto geral ainda</div>
+          <p style="margin:0 0 12px; font-size:12.5px; color:#8E88A6">Documentos aqui entram em todo kit.</p>
+          <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Criar documento</button>
+        </div>
+        <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; gap:9px">
+          <div style="height:11px; width:45%; border-radius:5px; background:linear-gradient(90deg,#F3F1F9 25%,#E9E5F5 37%,#F3F1F9 63%); background-size:340px 100%; animation:shimmer 1.3s linear infinite"></div>
+          <div style="height:11px; width:88%; border-radius:5px; background:linear-gradient(90deg,#F3F1F9 25%,#E9E5F5 37%,#F3F1F9 63%); background-size:340px 100%; animation:shimmer 1.3s linear infinite"></div>
+          <div style="height:11px; width:70%; border-radius:5px; background:linear-gradient(90deg,#F3F1F9 25%,#E9E5F5 37%,#F3F1F9 63%); background-size:340px 100%; animation:shimmer 1.3s linear infinite"></div>
+          <div style="font-size:11.5px; color:#8E88A6; margin-top:2px">skeleton · 3 linhas, mesma altura do texto que substitui</div>
+        </div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:52px">
+        <div style="display:inline-flex; align-items:center; gap:9px; background:#1A1330; color:#fff; border-radius:10px; padding:9px 15px; font-size:13px; box-shadow:0 8px 24px rgba(26,19,48,.22)">Publicado <span style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#C9B8EE">v1.0.3</span></div>
+        <div style="display:inline-flex; align-items:center; gap:9px; background:#A4271A; color:#fff; border-radius:10px; padding:9px 15px; font-size:13px; box-shadow:0 8px 24px rgba(164,39,26,.22)">Não foi possível salvar</div>
+        <span style="font-size:12.5px; color:#8E88A6">toast: centro-inferior, 3.5s, entra com 10px de subida</span>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">09 · Modal e diff de versões</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-bottom:20px">
+        <div>
+          <button onClick="{{ openModal }}" style="border:1px solid #E4E0EE; background:#fff; color:#1A1330; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer; margin-bottom:12px" style-hover="border-color:#7C3AED">Abrir modal de exemplo</button>
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; box-shadow:0 16px 40px rgba(26,19,48,.12); padding:20px; max-width:400px">
+            <div style="font-size:17px; font-weight:600; margin-bottom:6px">Publicar v1.0.3?</div>
+            <p style="margin:0 0 16px; font-size:13px; color:#5C5675">O agente passa a receber esta versão na próxima chamada do MCP. A anterior fica no histórico.</p>
+            <div style="display:flex; gap:8px; justify-content:flex-end">
+              <button style="border:1px solid transparent; background:transparent; color:#5C5675; border-radius:9px; padding:8px 13px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#F3F1F9">Cancelar</button>
+              <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Publicar</button>
+            </div>
+          </div>
+        </div>
+        <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border-bottom:1px solid #E4E0EE; background:#FBFAFE; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#5C5675">
+            <span>v1.0.2 → rascunho</span><span style="color:#2F6B12">+2</span>
+          </div>
+          <pre style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.7; padding:0; overflow:auto"><div style="padding:2px 14px; color:#8E88A6">  ## Regras de contexto</div><div style="padding:2px 14px; background:#F8E1DD; color:#8A2015">- número pode vir do texto</div><div style="padding:2px 14px; background:#E7F3DC; color:#25560D">+ número só via `bind`</div><div style="padding:2px 14px; background:#E7F3DC; color:#25560D">+ tabela precisa de fonte no dataset</div><div style="padding:2px 14px; color:#8E88A6">  ## Layout</div></pre>
+        </div>
+      </div>
+      <p style="margin:0 0 52px; font-size:12.5px; color:#8E88A6">Diff sempre em mono, linha inteira colorida com wash, sinal <b>+/−</b> na primeira coluna. Nunca só cor: o sinal é o que o agente lê.</p>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 22px">10 · Snippets</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-bottom:24px">
+        <div style="position:relative">
+          <button onClick="{{ copyCard }}" style="position:absolute; top:11px; right:11px; border:1px solid #4A2A78; background:transparent; color:#CDB9F2; border-radius:6px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:11px; cursor:pointer" style-hover="background:#4A2A78; color:#fff">copiar</button>
+          <pre id="snip-card" style="background:#211238; color:#D8CCEE; border-radius:12px; padding:42px 20px 18px; overflow:auto; font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.7">.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  padding:16px 18px;
+}
+.card--link:hover{
+  border-color:var(--purple);
+  background:#FDFCFF;
+}</pre>
+        </div>
+        <div style="position:relative">
+          <button onClick="{{ copyPill }}" style="position:absolute; top:11px; right:11px; border:1px solid #4A2A78; background:transparent; color:#CDB9F2; border-radius:6px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:11px; cursor:pointer" style-hover="background:#4A2A78; color:#fff">copiar</button>
+          <pre id="snip-pill" style="background:#211238; color:#D8CCEE; border-radius:12px; padding:42px 20px 18px; overflow:auto; font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.7">.pill{
+  font-size:10.5px; font-weight:700;
+  letter-spacing:.06em; text-transform:uppercase;
+  border-radius:999px; padding:3px 9px;
+}
+.pill--pub{background:var(--green-wash);color:var(--green)}
+.pill--draft{background:var(--amber-wash);color:var(--amber)}
+.pill--off{background:var(--red-wash);color:var(--red)}</pre>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; background:#F3EFFE; border-left:2px solid #7C3AED; border-radius:0 9px 9px 0; padding:12px 16px">
+        <span style="font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7C3AED; padding-top:3px; white-space:nowrap">Para o agente</span>
+        <p style="margin:0; font-size:13px; color:#5C5675">Ao gerar tela nova: um <b>h1</b> por página, subtítulo em ink-soft 13px, ações no canto superior direito, conteúdo em card branco de 12px de raio, e nenhum valor numérico fora de mono.</p>
+      </div>
+
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: CATÁLOGO ============ -->
+    <sc-if value="{{ isCatalog }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1040px; margin:0 auto; padding:36px 36px 90px">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px">
+        <div>
+          <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Templates</h1>
+          <p style="margin:0; font-size:13px; color:#5C5675; max-width:62ch">O agente só recebe versão publicada. Edições vivem num rascunho até você publicar.</p>
+        </div>
+        <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap" style-hover="background:#5B21B6">+ Novo template</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1px; background:#E4E0EE; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden; margin-bottom:22px">
+        <div style="background:#fff; padding:14px 16px">
+          <div style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; margin-bottom:5px">No MCP agora</div>
+          <div style="font-size:20px; font-weight:600">7 <span style="font-size:13px; font-weight:400; color:#5C5675">publicados</span></div>
+        </div>
+        <div style="background:#fff; padding:14px 16px">
+          <div style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8A5205; margin-bottom:5px">Esperando publicação</div>
+          <div style="font-size:20px; font-weight:600; color:#8A5205">2 <span style="font-size:13px; font-weight:400; color:#5C5675">rascunhos</span></div>
+        </div>
+        <div style="background:#fff; padding:14px 16px">
+          <div style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; margin-bottom:5px">Última publicação</div>
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; padding-top:3px">2026-09-08 15:01</div>
+        </div>
+        <div style="background:#fff; padding:14px 16px">
+          <div style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6; margin-bottom:5px">Sem uso em 30d</div>
+          <div style="font-size:20px; font-weight:600">1 <span style="font-size:13px; font-weight:400; color:#5C5675">template</span></div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-bottom:14px; border-bottom:1px solid #E4E0EE; margin-bottom:18px">
+        <div style="position:relative; flex:1 1 220px; max-width:300px">
+          <span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:12px; color:#8E88A6">⌕</span>
+          <input placeholder="buscar nome ou slug" style="width:100%; font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:7px 11px 7px 27px; background:#fff" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+        </div>
+        <div style="display:flex; gap:2px; background:#F3F1F9; border-radius:9px; padding:3px">
+          <sc-for list="{{ catFilters }}" as="f" hint-placeholder-count="3">
+            <button onClick="{{ f.go }}" style="border:none; border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <span style="margin-left:auto; font-size:12.5px; color:#8E88A6">{{ catCount }}</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:12px">
+        <sc-for list="{{ templates }}" as="t" hint-placeholder-count="6">
+          <a href="#" onClick="{{ t.open }}" style="display:flex; flex-direction:column; color:inherit; background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:16px 18px; text-decoration:none" style-hover="border-color:#7C3AED; background:#FDFCFF">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px">
+              <span style="font-weight:600; font-size:14.5px; letter-spacing:-.005em">{{ t.name }}</span>
+              <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#E7F3DC; color:#2F6B12; white-space:nowrap">{{ t.version }}</span>
+            </div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6; margin-bottom:9px">{{ t.slug }}</div>
+            <p style="margin:0 0 12px; font-size:12.5px; color:#5C5675; text-wrap:pretty">{{ t.desc }}</p>
+            <div style="margin-top:auto; padding-top:11px; border-top:1px solid #EFEDF6; display:flex; align-items:center; gap:10px">
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">{{ t.uso }}</span>
+              <span style="margin-left:auto; font-size:12px; font-weight:600; color:{{ t.stateFg }}">{{ t.stateLabel }}</span>
+            </div>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: TEMPLATE (editor do kit) ============ -->
+    <sc-if value="{{ isTemplate }}" hint-placeholder-val="{{ false }}">
+    <div style="padding-bottom:78px">
+      <div style="max-width:1100px; margin:0 auto; padding:30px 36px 0">
+        <div style="display:flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6; margin-bottom:12px">
+          <a href="#" onClick="{{ goCatalog }}">templates</a><span>/</span><span style="color:#1A1330">acompanhamento-diario</span>
+        </div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap">
+          <div>
+            <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 7px">Acompanhamento diário de campanha</h1>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center">
+              <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#2F6B12; background:#E7F3DC; border-radius:999px; padding:3px 10px">agente recebe <span style="font-family:'IBM Plex Mono',monospace; font-weight:500">v1.0.2</span></span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">publicado 2026-09-08 15:01 · seed</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px">
+            <button onClick="{{ showKit }}" style="border:1px solid #E4E0EE; background:#fff; color:#1A1330; border-radius:9px; padding:8px 14px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="border-color:#7C3AED">Ver kit (zip)</button>
+            <button onClick="{{ openModal }}" style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Publicar rascunho</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:20px; border-bottom:1px solid #E4E0EE; margin:22px 0 18px">
+          <sc-for list="{{ panes }}" as="p" hint-placeholder-count="3">
+            <button onClick="{{ p.go }}" style="border:none; background:none; padding:0 0 9px; font-size:13.5px; font-weight:600; cursor:pointer; color:{{ p.fg }}; border-bottom:2px solid {{ p.bd }}; margin-bottom:-1px">{{ p.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="max-width:1100px; margin:0 auto; padding:0 36px">
+
+        <sc-if value="{{ paneKit }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid; grid-template-columns:270px minmax(0,1fr); gap:16px; align-items:start">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:12px; position:sticky; top:20px">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; padding:4px 8px 10px">
+              <span style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6">Kit do template</span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8E88A6">7/9</span>
+            </div>
+            <sc-for list="{{ kitGroups }}" as="g" hint-placeholder-count="4">
+              <div style="margin-bottom:10px">
+                <div style="font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#B3AEC4; padding:0 8px 5px">{{ g.label }}</div>
+                <sc-for list="{{ g.items }}" as="d" hint-placeholder-count="2">
+                  <button onClick="{{ d.go }}" style="display:flex; align-items:flex-start; gap:8px; width:100%; text-align:left; border:none; border-radius:8px; padding:7px 8px; cursor:pointer; background:{{ d.bg }}">
+                    <span style="width:6px; height:6px; border-radius:99px; margin-top:6px; flex:0 0 auto; background:{{ d.dot }}"></span>
+                    <span style="min-width:0">
+                      <span style="display:block; font-size:12.5px; font-weight:{{ d.weight }}; color:{{ d.fg }}">{{ d.label }}</span>
+                      <span style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8E88A6">{{ d.file }}</span>
+                    </span>
+                    <span style="margin-left:auto; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:{{ d.stateFg }}; white-space:nowrap; padding-top:2px">{{ d.state }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="height:1px; background:#E4E0EE; margin:4px 0 8px"></div>
+            <button style="width:100%; border:1px dashed #D9D4E8; background:none; border-radius:8px; padding:7px; font-size:12.5px; font-weight:600; color:#5C5675; cursor:pointer" style-hover="border-color:#7C3AED; color:#5B21B6">+ Documento</button>
+          </div>
+
+          <div style="min-width:0; display:flex; flex-direction:column; gap:12px">
+            <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px">
+                <div>
+                  <div style="font-size:16px; font-weight:600">{{ docTitle }}</div>
+                  <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6; margin-top:3px">{{ docFile }} · {{ docSize }}</div>
+                </div>
+                <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:{{ docStateBg }}; color:{{ docStateFg }}">{{ docState }}</span>
+              </div>
+              <p style="margin:0 0 14px; font-size:12.5px; color:#5C5675; max-width:70ch; text-wrap:pretty">{{ docHint }}</p>
+              <textarea key="{{ docFile }}" defaultValue="{{ docBody }}" style="width:100%; min-height:280px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.65; border:1px solid #E4E0EE; border-radius:9px; padding:12px; background:#FDFDFF; resize:vertical; white-space:pre" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE"></textarea>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap">
+                <span style="font-size:12px; color:#8E88A6">Salvo no rascunho automaticamente · <span style="font-family:'IBM Plex Mono',monospace">21:41</span></span>
+                <div style="margin-left:auto; display:flex; gap:8px">
+                  <button onClick="{{ showDiff }}" style="border:1px solid #E4E0EE; background:#fff; color:#1A1330; border-radius:9px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer" style-hover="border-color:#7C3AED">Comparar com v1.0.2</button>
+                  <button style="border:1px solid transparent; background:transparent; color:#A4271A; border-radius:9px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#F8E1DD">Reverter documento</button>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px 10px; background:#F3EFFE; border-left:2px solid #7C3AED; border-radius:0 10px 10px 0; padding:12px 16px">
+              <span style="flex:0 0 auto; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7C3AED; padding-top:3px">O agente lê</span>
+              <p style="flex:1 1 240px; margin:0; font-size:12.5px; color:#5C5675">Este documento entra no zip inteiro, sem corte. Títulos são a interface: o agente localiza a regra pelo título antes de ler o corpo.</p>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ paneInfo }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; align-items:start">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin-bottom:6px">Nome</label>
+            <input value="Acompanhamento diário de campanha" style="width:100%; font:inherit; font-size:13.5px; border:1px solid #E4E0EE; border-radius:9px; padding:9px 11px" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Slug</label>
+            <input value="acompanhamento-diario" style="width:100%; font-family:'IBM Plex Mono',monospace; font-size:12.5px; border:1px solid #E4E0EE; border-radius:9px; padding:9px 11px; color:#5C5675; background:#F9F8FC" readonly="readonly" />
+            <p style="margin:6px 0 0; font-size:12px; color:#8E88A6">O slug é a chave no MCP; mudar quebraria o histórico.</p>
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Objetivo</label>
+            <textarea style="width:100%; min-height:96px; font:inherit; font-size:13px; line-height:1.55; border:1px solid #E4E0EE; border-radius:9px; padding:10px; resize:vertical" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE">Acompanhar diariamente um lançamento em andamento: a cada dia, saber se está no ritmo da meta, o que melhorou ou piorou nos últimos 3 dias e onde está o maior gargalo para agir ainda dentro da campanha.</textarea>
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Quando usar</label>
+            <textarea style="width:100%; min-height:96px; font:inherit; font-size:13px; line-height:1.55; border:1px solid #E4E0EE; border-radius:9px; padding:10px; resize:vertical" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE">Durante a captação de um lançamento (clássico ou pago), com o dump diário da view de inscrições. Não serve para comparar lançamentos (use o histórico) nem para o pós-campanha (use o debriefing).</textarea>
+            <p style="margin:12px 0 0; font-size:12px; color:#8E88A6">Estes três campos valem para todas as versões e aparecem no catálogo que o agente consulta antes de escolher o template.</p>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:12px">Como o agente vê no catálogo</div>
+              <div style="border:1px solid #E4E0EE; border-radius:10px; padding:14px; background:#FBFAFE">
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.75; color:#5C5675"><span style="color:#7C3AED">slug:</span> acompanhamento-diario<br /><span style="color:#7C3AED">versao:</span> 1.0.2<br /><span style="color:#7C3AED">objetivo:</span> Acompanhar diariamente…<br /><span style="color:#7C3AED">quando_usar:</span> Durante a captação…<br /><span style="color:#7C3AED">arquivos:</span> 9</div>
+              </div>
+            </div>
+            <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:10px">Riscos</div>
+              <div style="display:flex; gap:10px; background:#FBEED3; border-radius:10px; padding:11px 13px">
+                <span style="font-weight:700; color:#8A5205">!</span>
+                <p style="margin:0; font-size:12.5px; color:#6E4204">50% dos aprofundamentos deste template foram descartados. Veja as lacunas em <a href="#" onClick="{{ goSaude }}">saúde dos templates</a>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ paneVersions }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:16px; align-items:start">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden">
+            <sc-for list="{{ versions }}" as="v" hint-placeholder-count="5">
+              <div style="display:flex; align-items:flex-start; gap:12px; padding:13px 16px; border-bottom:1px solid #EFEDF6; background:{{ v.bg }}">
+                <div style="min-width:0; flex:1 1 auto">
+                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+                    <span style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500">{{ v.v }}</span>
+                    <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:2px 8px; background:{{ v.pillBg }}; color:{{ v.pillFg }}">{{ v.state }}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8E88A6">nº {{ v.n }}</span>
+                  </div>
+                  <div style="font-size:12.5px; color:#5C5675; margin-top:4px">{{ v.note }}</div>
+                  <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8E88A6; margin-top:3px">{{ v.when }} · {{ v.who }}</div>
+                </div>
+                <div style="display:flex; gap:6px; flex:0 0 auto">
+                  <button onClick="{{ v.cmp }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-size:12px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">diff</button>
+                  <button style="border:1px solid transparent; background:none; border-radius:7px; padding:4px 9px; font-size:12px; font-weight:600; cursor:pointer; color:#5C5675" style-hover="background:#F3F1F9; color:#1A1330">restaurar</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden; position:sticky; top:20px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; border-bottom:1px solid #E4E0EE; background:#FBFAFE">
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#5C5675">{{ diffTitle }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#2F6B12">{{ diffStat }}</span>
+            </div>
+            <sc-if value="{{ hasDiff }}" hint-placeholder-val="{{ true }}">
+              <pre style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.7; overflow:auto; margin:0"><div style="padding:2px 14px; color:#8E88A6">  ## Regras de contexto</div><div style="padding:2px 14px; background:#F8E1DD; color:#8A2015">- número pode vir do texto</div><div style="padding:2px 14px; background:#E7F3DC; color:#25560D">+ número só via `bind`</div><div style="padding:2px 14px; background:#E7F3DC; color:#25560D">+ tabela precisa de fonte no dataset</div><div style="padding:2px 14px; color:#8E88A6">  ## Data de corte</div><div style="padding:2px 14px; background:#F8E1DD; color:#8A2015">- assumir ontem</div><div style="padding:2px 14px; background:#E7F3DC; color:#25560D">+ perguntar ao consultor</div></pre>
+            </sc-if>
+            <sc-if value="{{ noDiff }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:38px 20px; text-align:center">
+                <div style="font-weight:600; font-size:13.5px; margin-bottom:4px">Nada comparado ainda</div>
+                <p style="margin:0; font-size:12.5px; color:#8E88A6">Clique em <b>diff</b> numa versão para ver o que mudou em relação ao rascunho.</p>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+
+      <div style="position:fixed; left:218px; right:0; bottom:0; z-index:10; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:11px 36px; background:#211238; color:#E6DDF5; border-top:1px solid #48226B">
+        <span style="display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:#F0C97A"><span style="width:6px; height:6px; border-radius:99px; background:#F0C97A"></span>rascunho nº 3</span>
+        <span style="font-size:13px; color:#C4B2E0">2 documentos alterados · <span style="font-family:'IBM Plex Mono',monospace; font-size:12px">regras.md, contexto/data_corte.md</span></span>
+        <div style="margin-left:auto; display:flex; gap:8px">
+          <button onClick="{{ showDiff }}" style="border:1px solid #4A2A78; background:transparent; color:#E6DDF5; border-radius:9px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#4A2A78">Ver diff</button>
+          <button onClick="{{ openModal }}" style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Publicar v1.0.3</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: PESSOAIS ============ -->
+    <sc-if value="{{ isPessoais }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1040px; margin:0 auto; padding:36px 36px 90px">
+      <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Templates pessoais</h1>
+      <p style="margin:0 0 22px; font-size:13px; color:#5C5675; max-width:66ch">Salvos pelo próprio agente com <span style="font-family:'IBM Plex Mono',monospace; font-size:12px">salvar_template</span>. Só o dono recebe no MCP. Promova o que já provou valor; remova o que ninguém usa.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:12px; margin-bottom:16px">
+        <sc-for list="{{ pessoais }}" as="p" hint-placeholder-count="2">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:16px 18px">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px">
+              <div>
+                <div style="font-weight:600; font-size:14.5px">{{ p.name }}</div>
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6; margin-top:3px">{{ p.slug }} · {{ p.version }}</div>
+              </div>
+              <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#F3F1F9; color:#5C5675; white-space:nowrap">pessoal</span>
+            </div>
+            <div style="display:flex; gap:18px; margin:14px 0 4px">
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:500">{{ p.ger }}</div>
+                <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6">gerações</div>
+              </div>
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:500">{{ p.apr }}</div>
+                <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6">aprofund.</div>
+              </div>
+              <div style="min-width:0">
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; padding-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.owner }}</div>
+                <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6">dono</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; background:#F3F1F9; border-radius:9px; padding:9px 12px; margin:12px 0">
+              <p style="margin:0; font-size:12.5px; color:#5C5675">{{ p.verdict }}</p>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end">
+              <button style="border:1px solid transparent; background:transparent; color:#A4271A; border-radius:9px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#F8E1DD">Remover</button>
+              <button onClick="{{ p.promote }}" style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Promover para todos</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:0; font-size:12.5px; color:#8E88A6">Promover copia o kit para a biblioteca compartilhada como <b>v0.1.0 em rascunho</b> — nada chega aos outros consultores antes de você publicar.</p>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: CONTEXTOS GERAIS ============ -->
+    <sc-if value="{{ isGerais }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1100px; margin:0 auto; padding:36px 36px 90px">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap">
+        <div>
+          <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Contextos gerais</h1>
+          <p style="margin:0; font-size:13px; color:#5C5675; max-width:66ch">Poucos e curados: valem para <b>todos os 7 templates</b> e entram em qualquer kit. Aqui salvar publica na hora — não há rascunho.</p>
+        </div>
+        <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">+ Contexto geral</button>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; align-items:start">
+        <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:12px; position:sticky; top:20px; max-height:calc(100vh - 60px); overflow:auto">
+          <div style="position:relative; margin:4px 4px 10px">
+            <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; color:#8E88A6">⌕</span>
+            <input placeholder="buscar regra" style="width:100%; font:inherit; font-size:12.5px; border:1px solid #E4E0EE; border-radius:8px; padding:6px 10px 6px 26px" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+          </div>
+          <sc-for list="{{ geraisGroups }}" as="g" hint-placeholder-count="3">
+            <div style="margin-bottom:10px">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:0 8px 5px">
+                <span style="font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:{{ g.fg }}">{{ g.label }}</span>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8E88A6">{{ g.count }}</span>
+              </div>
+              <sc-for list="{{ g.items }}" as="d" hint-placeholder-count="3">
+                <button onClick="{{ d.go }}" style="display:block; width:100%; text-align:left; border:none; border-left:2px solid {{ d.bar }}; border-radius:0 8px 8px 0; padding:8px 10px; cursor:pointer; background:{{ d.bg }}; margin-bottom:2px">
+                  <span style="display:block; font-size:12.5px; font-weight:{{ d.weight }}; color:{{ d.fg }}; text-wrap:pretty">{{ d.title }}</span>
+                  <span style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8E88A6; margin-top:2px">{{ d.slug }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <div style="min-width:0; display:flex; flex-direction:column; gap:12px">
+          <div style="display:flex; flex-wrap:wrap; gap:4px 10px; background:#F3EFFE; border-left:2px solid #7C3AED; border-radius:0 10px 10px 0; padding:12px 16px">
+            <span style="flex:0 0 auto; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7C3AED; padding-top:3px">O título é a regra</span>
+            <p style="flex:1 1 240px; margin:0; font-size:12.5px; color:#5C5675">O agente decide lendo só os títulos. Escreva o título como ordem completa (o que fazer ou não fazer) e deixe o corpo curto: por quê + como aplicar.</p>
+          </div>
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px">
+              <div style="flex:1 1 200px">
+                <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin-bottom:6px">Tipo</label>
+                <select style="width:100%; font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:9px 10px; background:#fff; color:#1A1330"><option>Regra — o agente não pode descumprir</option><option>Recomendação — siga, salvo motivo dito</option><option>Definição — como o termo é entendido</option></select>
+              </div>
+              <div style="flex:0 0 auto; align-self:flex-end; display:flex; gap:8px; align-items:center; padding-bottom:2px">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">em 7 kits · publicado 15:01</span>
+              </div>
+            </div>
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin-bottom:6px">Título — a regra em uma frase</label>
+            <textarea style="width:100%; min-height:58px; font:inherit; font-size:13.5px; font-weight:500; line-height:1.5; border:1px solid #E4E0EE; border-radius:9px; padding:10px; resize:vertical" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE">Dado pessoal (e-mail, telefone, CPF, nome de lead) nunca entra em texto, tabela, registro ou template</textarea>
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Corpo — por quê + como aplicar</label>
+            <textarea style="width:100%; min-height:150px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.65; border:1px solid #E4E0EE; border-radius:9px; padding:11px; background:#FDFDFF; resize:vertical" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE">Métrica agregada pode; linha crua e identificador de pessoa, não.
+
+Se o CSV trouxer coluna pessoal, ela não sai da máquina e não vai para o relatório nem para o `registrar`.</textarea>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap">
+              <span style="font-size:12px; color:#8A5205">Salvar publica para todos os agentes na próxima chamada.</span>
+              <div style="margin-left:auto; display:flex; gap:8px">
+                <button style="border:1px solid transparent; background:transparent; color:#A4271A; border-radius:9px; padding:8px 13px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#F8E1DD">Excluir</button>
+                <button onClick="{{ publishNow }}" style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Salvar e publicar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: PLATAFORMA (design system dos aprofundamentos) ============ -->
+    <sc-if value="{{ isPlataforma }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1040px; margin:0 auto; padding:36px 36px 90px">
+      <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Design system dos aprofundamentos</h1>
+      <p style="margin:0 0 20px; font-size:13px; color:#5C5675; max-width:66ch">Documento único, anexado a <b>todo</b> kit: quais widgets existem, como fazer bind e o que nunca pode ser HTML solto. Salvar publica na hora.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; align-items:start">
+        <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px">
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#5C5675">design-system.md · 8.4 kB</span>
+            <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:#E7F3DC; color:#2F6B12">em 7 kits</span>
+          </div>
+          <textarea style="width:100%; min-height:340px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.65; border:1px solid #E4E0EE; border-radius:9px; padding:12px; background:#FDFDFF; resize:vertical" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE"># Design system dos aprofundamentos
+
+Todo aprofundamento entra **dentro do relatório**, como seção nova na página
+"Aprofundamentos", usando os widgets do app. Nada de HTML solto.
+
+O agente escreve prosa (título, achados, notas); **número só via `bind`** a uma
+tabela do dataset que você calculou.
+
+## Widgets
+- `kpi` — um número com janela e comparação
+- `tabela` — dataset nomeado, com fonte declarada
+- `serie` — evolução no tempo, mínimo 7 pontos
+- `nota` — texto curto de ressalva</textarea>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap">
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">atualizado 2026-09-08 15:01 · seed</span>
+            <button onClick="{{ publishNow }}" style="margin-left:auto; border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Salvar e publicar</button>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:10px">Impacto</div>
+            <p style="margin:0 0 12px; font-size:12.5px; color:#5C5675">Publicar aqui muda o comportamento de todos os templates ao mesmo tempo. Os 7 kits são regerados na próxima chamada do MCP.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:6px">
+              <sc-for list="{{ allSlugs }}" as="s" hint-placeholder-count="7">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; background:#F3F1F9; color:#5C5675; border-radius:6px; padding:2px 7px">{{ s }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; background:#FBEED3; border-radius:10px; padding:12px 14px">
+            <span style="font-weight:700; color:#8A5205">!</span>
+            <p style="margin:0; font-size:12.5px; color:#6E4204">Sem rascunho e sem histórico de versão neste documento. Se precisar voltar atrás, o texto anterior não fica salvo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: ATIVIDADE (triagem) ============ -->
+    <sc-if value="{{ isAtividade }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1100px; margin:0 auto; padding:36px 36px 90px">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap">
+        <div>
+          <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Atividade</h1>
+          <p style="margin:0; font-size:13px; color:#5C5675; max-width:66ch">O que os agentes registraram. Cada item vira exemplo aprovado, regra nova ou descarte — é aqui que o template aprende.</p>
+        </div>
+        <a href="#" onClick="{{ goSaude }}" style="border:1px solid #E4E0EE; background:#fff; color:#1A1330; border-radius:9px; padding:8px 14px; font-size:13.5px; font-weight:600; text-decoration:none; white-space:nowrap" style-hover="border-color:#7C3AED">Saúde dos templates →</a>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 14px; background:#fff; border:1px solid #E4E0EE; border-radius:12px; margin-bottom:8px">
+        <span style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#8A5205"><span style="width:6px; height:6px; border-radius:99px; background:#8A5205"></span>4 itens sem veredito</span>
+        <span style="font-size:12.5px; color:#8E88A6">triagem pendente desde 2026-09-05</span>
+        <button style="margin-left:auto; border:1px solid #E4E0EE; background:#fff; border-radius:9px; padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">Revisar em sequência</button>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 0 14px; border-bottom:1px solid #E4E0EE; margin-bottom:14px">
+        <div style="position:relative; flex:1 1 200px; max-width:260px">
+          <span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:12px; color:#8E88A6">⌕</span>
+          <input placeholder="buscar pergunta, cliente, e-mail" style="width:100%; font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:7px 11px 7px 27px; background:#fff" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+        </div>
+        <div style="display:flex; gap:2px; background:#F3F1F9; border-radius:9px; padding:3px">
+          <sc-for list="{{ actFilters }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.go }}" style="border:none; border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; background:{{ f.bg }}; color:{{ f.fg }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <select style="font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:7px 10px; background:#fff; color:#1A1330"><option>todos os templates</option><option>acompanhamento-diario</option><option>criativos</option></select>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <sc-for list="{{ activity }}" as="a" hint-placeholder-count="4">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-left:2px solid {{ a.bar }}; border-radius:0 12px 12px 0; padding:15px 18px">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px">
+              <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:2px 8px; background:{{ a.kindBg }}; color:{{ a.kindFg }}">{{ a.kind }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#5C5675">{{ a.slug }} {{ a.version }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">· {{ a.when }} · {{ a.who }} · cliente {{ a.client }}</span>
+              <sc-if value="{{ a.verdict }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:2px 8px; background:{{ a.verdictBg }}; color:{{ a.verdictFg }}">{{ a.verdict }}</span>
+              </sc-if>
+              <span style="margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500; color:{{ a.scoreFg }}">{{ a.score }}</span>
+            </div>
+            <div style="font-size:14px; font-weight:600; margin-bottom:4px; text-wrap:pretty">{{ a.q }}</div>
+            <p style="margin:0 0 12px; font-size:13px; color:#5C5675; text-wrap:pretty">{{ a.a }}</p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding-top:11px; border-top:1px solid #EFEDF6">
+              <a href="#" onClick="{{ a.open }}" style="font-size:12.5px; font-weight:600">Abrir revisão</a>
+              <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap">
+                <button onClick="{{ a.exemplo }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; color:#2F6B12" style-hover="border-color:#2F6B12; background:#F5FAEF">Virar exemplo</button>
+                <button onClick="{{ a.regra }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; color:#7C3AED" style-hover="border-color:#7C3AED; background:#FAF7FF">Virar regra</button>
+                <button onClick="{{ a.descartar }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; color:#A4271A" style-hover="border-color:#A4271A; background:#FDF4F2">Descartar</button>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px">
+        <span style="font-size:12.5px; color:#8E88A6">1–4 de 48</span>
+        <div style="display:flex; gap:6px; align-items:center">
+          <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-size:12px; font-weight:600; color:#8E88A6; cursor:default">←</button>
+          <button style="border:1px solid #7C3AED; background:#EDE9FE; color:#5B21B6; border-radius:7px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer">1</button>
+          <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">2</button>
+          <button style="border:1px solid #E4E0EE; background:#fff; border-radius:7px; padding:4px 10px; font-size:12px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">→</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: REVISÃO DE APROFUNDAMENTO ============ -->
+    <sc-if value="{{ isRevisao }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1100px; margin:0 auto; padding:30px 36px 90px">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px">
+        <a href="#" onClick="{{ goAtividade }}" style="font-family:'IBM Plex Mono',monospace; font-size:11.5px">← atividade</a>
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">item 1 de 4 sem veredito</span>
+        <div style="margin-left:auto; display:flex; gap:6px">
+          <button style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; color:#8E88A6">anterior</button>
+          <button onClick="{{ nextItem }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">próximo →</button>
+        </div>
+      </div>
+      <h1 style="font-size:22px; font-weight:600; letter-spacing:-.015em; margin:0 0 8px; max-width:34ch; text-wrap:pretty">Por que o CPL subiu nos últimos 3 dias?</h1>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:22px">
+        <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:2px 8px; background:#EDE9FE; color:#7C3AED">aprofundamento</span>
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#5C5675">acompanhamento-diario v2</span>
+        <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">· consultor@witly.digital · 2026-09-07 21:40 · cliente enxoval</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#2F6B12; background:#E7F3DC; border-radius:999px; padding:3px 10px">nota da pessoa 5</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,340px); gap:16px; align-items:start">
+        <div style="display:flex; flex-direction:column; gap:12px; min-width:0">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:8px">Resposta entregue ao consultor</div>
+            <p style="margin:0; font-size:14px; line-height:1.6; text-wrap:pretty">O CPM subiu 31% (R$ 8,3 → R$ 10,9) com CTR estável em 1,6%; a decomposição atribui 84% da alta ao leilão. Não é criativo.</p>
+          </div>
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden">
+            <div style="padding:11px 14px; border-bottom:1px solid #E4E0EE; background:#FBFAFE; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6">Consultas usadas</div>
+            <pre style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.7; padding:14px; margin:0; overflow:auto; color:#5C5675">[
+  { "fn": "decomposicao", "metrica": "cpl" }
+]</pre>
+          </div>
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:10px">Checagem rápida</div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <sc-for list="{{ checks }}" as="c" hint-placeholder-count="4">
+                <div style="display:flex; align-items:flex-start; gap:9px">
+                  <span style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; color:{{ c.fg }}; padding-top:1px">{{ c.mark }}</span>
+                  <span style="font-size:12.5px; color:#5C5675">{{ c.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; position:sticky; top:20px">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:18px">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:12px">Seu veredito</div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <button onClick="{{ vExemplo }}" style="display:block; width:100%; text-align:left; border:1px solid #E4E0EE; background:#fff; border-radius:9px; padding:10px 12px; cursor:pointer" style-hover="border-color:#2F6B12; background:#F5FAEF">
+                <span style="display:block; font-size:13px; font-weight:600; color:#2F6B12">Virar exemplo aprovado</span>
+                <span style="display:block; font-size:12px; color:#5C5675; margin-top:2px">Entra em exemplos.md do kit</span>
+              </button>
+              <button onClick="{{ vRegra }}" style="display:block; width:100%; text-align:left; border:1px solid #E4E0EE; background:#fff; border-radius:9px; padding:10px 12px; cursor:pointer" style-hover="border-color:#7C3AED; background:#FAF7FF">
+                <span style="display:block; font-size:13px; font-weight:600; color:#7C3AED">Virar regra</span>
+                <span style="display:block; font-size:12px; color:#5C5675; margin-top:2px">Abre um rascunho em regras.md</span>
+              </button>
+              <button onClick="{{ vDescartar }}" style="display:block; width:100%; text-align:left; border:1px solid #E4E0EE; background:#fff; border-radius:9px; padding:10px 12px; cursor:pointer" style-hover="border-color:#A4271A; background:#FDF4F2">
+                <span style="display:block; font-size:13px; font-weight:600; color:#A4271A">Descartar</span>
+                <span style="display:block; font-size:12px; color:#5C5675; margin-top:2px">Some do kit e conta na taxa de descarte</span>
+              </button>
+            </div>
+            <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin:16px 0 6px">Sua nota e o motivo</label>
+            <div style="display:flex; gap:6px; margin-bottom:8px">
+              <sc-for list="{{ scores }}" as="s" hint-placeholder-count="5">
+                <button onClick="{{ s.go }}" style="flex:1 1 0; border:1px solid {{ s.bd }}; background:{{ s.bg }}; color:{{ s.fg }}; border-radius:8px; padding:6px 0; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500; cursor:pointer">{{ s.n }}</button>
+              </sc-for>
+            </div>
+            <textarea placeholder="o que faltou ou o que acertou" style="width:100%; min-height:70px; font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:10px; resize:vertical" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE"></textarea>
+            <button onClick="{{ nextItem }}" style="width:100%; margin-top:10px; border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:9px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Salvar e ir ao próximo</button>
+          </div>
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:16px 18px">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#8E88A6; margin-bottom:8px">Contexto do template</div>
+            <p style="margin:0 0 10px; font-size:12.5px; color:#5C5675">Esta pergunta apareceu <b>1 vez</b> e não tem seção própria no relatório.</p>
+            <a href="#" onClick="{{ goTemplate }}" style="font-size:12.5px; font-weight:600">Ajustar acompanhamento-diario →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: SAÚDE DOS TEMPLATES ============ -->
+    <sc-if value="{{ isSaude }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1100px; margin:0 auto; padding:36px 36px 90px">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
+        <a href="#" onClick="{{ goAtividade }}" style="font-family:'IBM Plex Mono',monospace; font-size:11.5px">← atividade</a>
+      </div>
+      <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Saúde dos templates</h1>
+      <p style="margin:0 0 22px; font-size:13px; color:#5C5675; max-width:66ch">Descarte alto e perguntas repetidas são o mesmo sintoma: o template não entrega algo que o consultor precisa. Comece pelo topo da lista.</p>
+
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden; margin-bottom:26px">
+        <div style="display:grid; grid-template-columns:minmax(0,1.6fr) 70px 70px minmax(120px,1fr) 80px; gap:10px; padding:11px 16px; border-bottom:1px solid #E4E0EE; background:#FBFAFE; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8E88A6">
+          <span>Template</span><span style="text-align:right">Ger.</span><span style="text-align:right">Aprof.</span><span>Descarte</span><span style="text-align:right">Nota</span>
+        </div>
+        <sc-for list="{{ health }}" as="h" hint-placeholder-count="4">
+          <div style="display:grid; grid-template-columns:minmax(0,1.6fr) 70px 70px minmax(120px,1fr) 80px; gap:10px; align-items:center; padding:13px 16px; border-bottom:1px solid #EFEDF6">
+            <div style="min-width:0">
+              <a href="#" onClick="{{ h.open }}" style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500">{{ h.slug }}</a>
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8E88A6">{{ h.version }}</div>
+            </div>
+            <span style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:13px">{{ h.ger }}</span>
+            <span style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:13px">{{ h.apr }}</span>
+            <div style="display:flex; align-items:center; gap:8px; min-width:0">
+              <div style="flex:1 1 auto; height:6px; border-radius:99px; background:#F3F1F9; overflow:hidden">
+                <div style="height:100%; width:{{ h.pct }}; background:{{ h.barFg }}"></div>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:{{ h.barFg }}; white-space:nowrap">{{ h.pct }}</span>
+            </div>
+            <span style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:13px; color:{{ h.scoreFg }}">{{ h.score }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <h2 style="font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#7C3AED; border-bottom:1px solid #E4E0EE; padding-bottom:8px; margin:0 0 16px">Lacunas · perguntas que o template não responde sozinho</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px">
+        <sc-for list="{{ gaps }}" as="g" hint-placeholder-count="3">
+          <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:15px 18px">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#8E88A6">{{ g.slug }}</span>
+              <span style="margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#5C5675">{{ g.times }}× perguntada</span>
+            </div>
+            <div style="font-size:14px; font-weight:600; margin-bottom:6px; text-wrap:pretty">{{ g.q }}</div>
+            <p style="margin:0 0 12px; font-size:12.5px; color:#5C5675">{{ g.note }}</p>
+            <button onClick="{{ g.go }}" style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; color:#1A1330" style-hover="border-color:#7C3AED">Criar seção no template</button>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ TELA: USUÁRIOS ============ -->
+    <sc-if value="{{ isUsuarios }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1040px; margin:0 auto; padding:36px 36px 90px">
+      <h1 style="font-size:24px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px">Usuários</h1>
+      <p style="margin:0 0 20px; font-size:13px; color:#5C5675; max-width:66ch">Contas <span style="font-family:'IBM Plex Mono',monospace; font-size:12px">@witly.digital</span> entram sozinhas como leitor. Desativar corta MCP e UI na próxima chamada e encerra as sessões abertas.</p>
+
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; padding:14px 16px; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end">
+        <div style="flex:1 1 220px">
+          <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8E88A6; margin-bottom:6px">Convidar</label>
+          <input placeholder="e-mail" style="width:100%; font-family:'IBM Plex Mono',monospace; font-size:12.5px; border:1px solid #E4E0EE; border-radius:9px; padding:9px 11px" style-focus="border-color:#7C3AED; outline:2px solid #EDE9FE" />
+        </div>
+        <select style="font:inherit; font-size:13px; border:1px solid #E4E0EE; border-radius:9px; padding:9px 10px; background:#fff; color:#1A1330"><option>leitor</option><option>editor</option></select>
+        <button style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:9px 15px; font-size:13.5px; font-weight:600; cursor:pointer" style-hover="background:#5B21B6">Convidar</button>
+        <span style="flex:1 1 100%; font-size:12px; color:#8E88A6; margin-top:2px">Editor publica versões e muda contextos gerais. Leitor só consulta.</span>
+      </div>
+
+      <div style="background:#fff; border:1px solid #E4E0EE; border-radius:12px; overflow:hidden">
+        <sc-for list="{{ users }}" as="u" hint-placeholder-count="3">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 16px; border-bottom:1px solid #EFEDF6; background:{{ u.bg }}">
+            <div style="min-width:0; flex:1 1 220px">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; overflow:hidden; text-overflow:ellipsis">{{ u.email }}</div>
+              <div style="font-size:12px; color:#8E88A6; margin-top:2px">{{ u.name }}</div>
+            </div>
+            <span style="font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:3px 9px; background:{{ u.pillBg }}; color:{{ u.pillFg }}">{{ u.status }}</span>
+            <select style="font:inherit; font-size:12.5px; border:1px solid #E4E0EE; border-radius:8px; padding:6px 9px; background:#fff; color:#1A1330; width:104px"><option>{{ u.role }}</option><option>{{ u.roleAlt }}</option></select>
+            <div style="margin-left:auto; display:flex; gap:6px; align-items:center">
+              <sc-if value="{{ u.isMe }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:12.5px; color:#8E88A6">você</span>
+              </sc-if>
+              <sc-if value="{{ u.canEdit }}" hint-placeholder-val="{{ true }}">
+                <button style="border:1px solid transparent; background:none; border-radius:8px; padding:5px 10px; font-size:12.5px; font-weight:600; cursor:pointer; color:#5C5675" style-hover="background:#F3F1F9; color:#1A1330">Encerrar sessões</button>
+                <button style="border:1px solid #E4E0EE; background:#fff; border-radius:8px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; color:{{ u.actionFg }}" style-hover="border-color:#7C3AED">{{ u.action }}</button>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:14px 0 0; font-size:12.5px; color:#8E88A6">Mudança de papel vale na próxima chamada do MCP — não é preciso reiniciar sessão do agente.</p>
+    </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:fixed; inset:0; z-index:20; background:rgba(26,19,48,.42); display:flex; align-items:center; justify-content:center; padding:24px">
+      <div style="background:#fff; border-radius:12px; box-shadow:0 24px 60px rgba(26,19,48,.28); padding:22px; max-width:400px; width:100%">
+        <div style="font-size:17px; font-weight:600; margin-bottom:6px">Publicar v1.0.3?</div>
+        <p style="margin:0 0 16px; font-size:13px; color:#5C5675">O agente passa a receber esta versão na próxima chamada do MCP.</p>
+        <div style="display:flex; gap:8px; justify-content:flex-end">
+          <button onClick="{{ closeModal }}" style="border:1px solid transparent; background:transparent; color:#5C5675; border-radius:9px; padding:8px 13px; font-size:13.5px; font-weight:600; cursor:pointer">Cancelar</button>
+          <button onClick="{{ publish }}" style="border:1px solid #7C3AED; background:#7C3AED; color:#fff; border-radius:9px; padding:8px 15px; font-size:13.5px; font-weight:600; cursor:pointer">Publicar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; left:50%; bottom:26px; z-index:30; transform:translateX(-50%); background:#1A1330; color:#fff; border-radius:10px; padding:9px 16px; font-size:13px; box-shadow:0 8px 24px rgba(26,19,48,.24); animation:toastin .18s ease-out">{{ toast }}</div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7C3AED&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#7C3AED&quot;,&quot;#2E084B&quot;,&quot;#5B21B6&quot;]}}">
+class Component extends DCLogic {
+  state = { view: "spec", pane: "kit", doc: "regras", gDoc: "dado-pessoal-nunca", cat: "todos",
+            act: "sem veredito", score: 0, cmp: null, specTab: "Regras", menuOpen: false, modalOpen: false, toast: "" };
+
+  flash(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: "" }), 2600);
+  }
+
+  copy(id, label) {
+    const el = document.getElementById(id);
+    if (el && navigator.clipboard) navigator.clipboard.writeText(el.innerText).catch(() => {});
+    this.flash(label + " copiado");
+  }
+
+  go(view) { return () => { this.setState({ view: view }); window.scrollTo(0, 0); }; }
+
+  seg(list, current, key) {
+    return list.map(label => ({
+      label: label,
+      bg: current === label ? "#FFFFFF" : "transparent",
+      fg: current === label ? "#5B21B6" : "#5C5675",
+      go: () => { const o = {}; o[key] = label; this.setState(o); }
+    }));
+  }
+
+  renderVals() {
+    const accent = this.props.accent || "#7C3AED";
+    const S = this.state;
+
+    const views = [
+      { key: "spec", label: "Especificação", tag: "ds" },
+      { key: "catalog", label: "Templates", tag: "01" },
+      { key: "template", label: "Editar template", tag: "02" },
+      { key: "pessoais", label: "Pessoais", tag: "03" },
+      { key: "gerais", label: "Contextos gerais", tag: "04" },
+      { key: "plataforma", label: "Design system", tag: "05" },
+      { key: "atividade", label: "Atividade", tag: "06" },
+      { key: "revisao", label: "Revisão", tag: "07" },
+      { key: "saude", label: "Saúde dos templates", tag: "08" },
+      { key: "usuarios", label: "Usuários", tag: "09" }
+    ].map(v => ({
+      label: v.label, tag: v.tag,
+      bg: S.view === v.key ? "#48226B" : "transparent",
+      fg: S.view === v.key ? "#FFFFFF" : "#C4B2E0",
+      go: this.go(v.key)
+    }));
+
+    const tabs = ["Info", "Contexto", "Regras", "Versões"].map(label => ({
+      label: label,
+      fg: S.specTab === label ? accent : "#5C5675",
+      bd: S.specTab === label ? accent : "transparent",
+      go: () => this.setState({ specTab: label })
+    }));
+
+    const panes = [
+      { key: "kit", label: "Kit (9 documentos)" },
+      { key: "info", label: "Info" },
+      { key: "versoes", label: "Versões" }
+    ].map(p => ({
+      label: p.label,
+      fg: S.pane === p.key ? accent : "#5C5675",
+      bd: S.pane === p.key ? accent : "transparent",
+      go: () => this.setState({ pane: p.key })
+    }));
+
+    const M = String.fromCharCode(96);
+    const docsData = {
+      lancamento: { g: "Definição", label: "Identificar o lançamento", file: "contexto/lancamento.md", size: "2.1 kB", state: "ok", title: "Identificar o lançamento",
+        hint: "O que o agente levanta com o consultor antes de gerar. A saída vai para config.* e é sempre confirmada.",
+        body: "**Saída:** " + M + "config.field_conversion" + M + ", " + M + "config.client" + M + ". **Confirmar com o consultor.**\n\n## Definição\n" + M + "field_conversion" + M + " é o identificador do lançamento na base (ex.: lcto-enxoval-set26).\nTodas as views do acompanhamento filtram por ele." },
+      tipo_funil: { g: "Definição", label: "Tipo de funil", file: "contexto/tipo_funil.md", size: "1.4 kB", state: "ok", title: "Tipo de funil: clássico ou pago",
+        hint: "Define quais métricas fazem sentido no relatório.",
+        body: "## Regra padrão\nSe houver investimento em mídia nos últimos 7 dias, trate como pago." },
+      data_corte: { g: "Definição", label: "Data de corte", file: "contexto/data_corte.md", size: "1.1 kB", state: "alterado", title: "Data de corte e data do report",
+        hint: "Sem data fechada não há número comparável. Perguntar sempre, nunca assumir ontem.",
+        body: "## Regra\nPergunte a data de corte ao consultor. Não assuma ontem.\n\nO report cita as duas datas: corte do dado e geração." },
+      metas: { g: "Definição", label: "Metas do lançamento", file: "contexto/metas.md", size: "0.9 kB", state: "vazio", title: "Metas do lançamento",
+        hint: "Meta existe só no nível global — nunca por canal, temperatura ou criativo.", body: "" },
+      regras: { g: "Contexto", label: "Regras de contexto", file: "regras.md", size: "1.2 kB", state: "alterado", title: "Regras de contexto",
+        hint: "O que o agente não pode descumprir ao analisar e ao escrever. Uma linha por regra, título como ordem.",
+        body: "# Regras de contexto\n\n- Número **só via " + M + "bind" + M + "** a uma tabela do dataset.\n- Toda tabela precisa de fonte declarada no dataset.\n- Compare com os 3 dias anteriores, nunca com a média do mês.\n- Se o dado não existe, diga que não existe. Não estime." },
+      queries: { g: "Cálculo", label: "Queries", file: "queries.sql", size: "4.6 kB", state: "ok", title: "Queries",
+        hint: "SQL das views que alimentam o dataset.",
+        body: "-- inscrições por dia\nselect data, count(*) as leads\nfrom vw_inscricoes\nwhere field_conversion = :lcto\ngroup by 1" },
+      python: { g: "Cálculo", label: "Python", file: "motor.py", size: "9.8 kB", state: "ok", title: "Python",
+        hint: "Motor que calcula os agregados. Nenhum número do relatório sai de fora daqui.",
+        body: "def cpl(df):\n    return df.investimento.sum() / df.leads.sum()" },
+      documento: { g: "Entrega", label: "Documento", file: "documento.md", size: "3.2 kB", state: "ok", title: "Documento",
+        hint: "Estrutura das páginas e seções do relatório final.",
+        body: "## Páginas\n1. Ritmo da meta\n2. Últimos 3 dias\n3. Gargalo\n4. Aprofundamentos" },
+      exemplos: { g: "Aprendizado", label: "Exemplos aprovados", file: "exemplos.md", size: "2.7 kB", state: "ok", title: "Exemplos aprovados",
+        hint: "Aprofundamentos que você aprovou na triagem. O agente imita o tom e o nível de evidência daqui.",
+        body: "### Por que o CPL subiu nos últimos 3 dias?\nO CPM subiu 31% (R$ 8,3 → R$ 10,9) com CTR estável em 1,6%;\n84% da alta vem do leilão. Não é criativo." }
+    };
+    const stateColor = { ok: "#8E88A6", alterado: "#8A5205", vazio: "#A4271A" };
+    const dotColor = { ok: "#C9C4D6", alterado: "#E0A63A", vazio: "#E3B6AF" };
+    const stateBg = { ok: "#F3F1F9", alterado: "#FBEED3", vazio: "#F8E1DD" };
+    const kitGroups = ["Definição", "Contexto", "Cálculo", "Entrega", "Aprendizado"].map(g => ({
+      label: g,
+      items: Object.keys(docsData).filter(k => docsData[k].g === g).map(k => {
+        const d = docsData[k], on = S.doc === k;
+        return { label: d.label, file: d.file, state: d.state, stateFg: stateColor[d.state], dot: dotColor[d.state],
+                 bg: on ? "#EDE9FE" : "transparent", fg: on ? "#5B21B6" : "#1A1330", weight: on ? 600 : 400,
+                 go: () => this.setState({ doc: k }) };
+      })
+    }));
+    const cur = docsData[S.doc] || docsData.regras;
+
+    const pill = { publicada: ["#E7F3DC", "#2F6B12"], rascunho: ["#FBEED3", "#8A5205"], arquivada: ["#F3F1F9", "#5C5675"] };
+    const versions = [
+      { v: "rascunho", n: 3, state: "rascunho", note: "2 documentos alterados", when: "2026-09-07 21:41", who: "projetos@witly.digital" },
+      { v: "v1.0.2", n: 14, state: "publicada", note: "ajuste: contextos gerais tipados", when: "2026-09-08 15:01", who: "seed" },
+      { v: "v1.0.1", n: 13, state: "arquivada", note: "ajuste: data de corte vira pergunta", when: "2026-09-08 14:57", who: "seed" },
+      { v: "v1.0.0", n: 11, state: "arquivada", note: "linha de base", when: "2026-09-08 12:44", who: "seed" },
+      { v: "v0.2.0", n: 2, state: "arquivada", note: "guia reescrito", when: "2026-09-07 19:28", who: "projetos@witly.digital" }
+    ].map(v => ({
+      v: v.v, n: v.n, state: v.state, note: v.note, when: v.when, who: v.who,
+      bg: S.cmp === v.n ? "#FAF7FF" : "#FFFFFF",
+      pillBg: pill[v.state][0], pillFg: pill[v.state][1],
+      cmp: () => this.setState({ cmp: v.n })
+    }));
+
+    const allTemplates = [
+      { name: "Acompanhamento diário de campanha", slug: "acompanhamento-diario", version: "v1.0.2", draft: true, unused: false, uso: "1 geração · 2 aprof.", desc: "Saber, a cada dia, se o lançamento está no ritmo da meta e onde está o maior gargalo." },
+      { name: "Análise de criativos", slug: "criativos", version: "v1.0.2", draft: false, unused: false, uso: "34 gerações · 12 aprof.", desc: "Avaliar cada criativo isoladamente para decidir o que escalar, pausar e iterar." },
+      { name: "Análise livre", slug: "analise-livre", version: "v1.0.0", draft: false, unused: false, uso: "8 gerações · 5 aprof.", desc: "Análise fora dos templates, no mesmo padrão: só design system + regras." },
+      { name: "Conversão por perfil", slug: "conversao-perfil", version: "v1.0.2", draft: false, unused: false, uso: "11 gerações · 4 aprof.", desc: "Quais perfis de lead convertem melhor ao longo de vários lançamentos." },
+      { name: "Debriefing de lançamento", slug: "debriefing", version: "v1.0.2", draft: false, unused: false, uso: "22 gerações · 9 aprof.", desc: "Fechar o lançamento com evidência: metas, o que puxou e o que segurou." },
+      { name: "Histórico de lançamentos", slug: "historico", version: "v1.0.2", draft: true, unused: true, uso: "sem uso em 30 dias", desc: "Evolução da operação no tempo, separando canal, plataforma, temperatura e perfil." }
+    ];
+    const templates = allTemplates
+      .filter(t => S.cat === "todos" || (S.cat === "com rascunho" ? t.draft : t.unused))
+      .map(t => ({
+        name: t.name, slug: t.slug, version: t.version, desc: t.desc, uso: t.uso,
+        stateLabel: t.draft ? "rascunho pendente" : "em dia",
+        stateFg: t.draft ? "#8A5205" : "#8E88A6",
+        open: this.go("template")
+      }));
+
+    const geraisData = [
+      { t: "Regra", title: "Dado pessoal (e-mail, telefone, CPF, nome de lead) nunca entra em texto, tabela, registro ou template", slug: "dado-pessoal-nunca" },
+      { t: "Regra", title: "Entregue a análise executada, com números e conclusão; nunca o método", slug: "analise-executada-nao-metodo" },
+      { t: "Regra", title: "Meta existe só no nível global: nunca invente meta por canal, temperatura, público ou criativo", slug: "meta-so-global" },
+      { t: "Regra", title: "Média, total, variação % e mín/máx vêm da tabela ou do motor, nunca de cabeça", slug: "agregado-vem-da-tabela" },
+      { t: "Regra", title: "Taxa sobre menos de ~30 eventos no denominador é sem evidência, não resultado", slug: "base-pequena-sem-evidencia" },
+      { t: "Regra", title: "Taxa, custo e ROAS nunca se somam: o geral é ponderado (soma do numerador ÷ soma do denominador)", slug: "taxa-nao-soma" },
+      { t: "Regra", title: "Todo número vem com janela (ontem, 3 dias, 7 dias, lançamento) e a data do dado fechado", slug: "numero-com-janela" },
+      { t: "Definição", title: "ROAS é líquido: 0 empata, negativo é prejuízo, acima de 0 é lucro por real investido", slug: "roas-liquido" },
+      { t: "Definição", title: "CPA = CPL ÷ conversão: a variação do CPA se explica por CPL e por conversão", slug: "cpa-e-cpl-vezes-conversao" },
+      { t: "Recomendação", title: "Responda a pergunta em uma frase com o número decisivo antes de qualquer detalhe", slug: "resposta-primeiro" },
+      { t: "Recomendação", title: "Recomendação em FCA-R: Fato (número + janela), Causa, Ação, Resultado", slug: "recomendacao-em-fca-r" }
+    ];
+    const typeColor = { "Regra": "#7C3AED", "Definição": "#2F6B12", "Recomendação": "#8A5205" };
+    const typeLabel = { "Regra": "Regras · não pode descumprir", "Recomendação": "Recomendações · salvo motivo dito", "Definição": "Definições · como o termo é lido" };
+    const geraisGroups = ["Regra", "Recomendação", "Definição"].map(t => {
+      const items = geraisData.filter(d => d.t === t);
+      return {
+        label: typeLabel[t], fg: typeColor[t], count: items.length,
+        items: items.map(d => {
+          const on = S.gDoc === d.slug;
+          return { title: d.title, slug: d.slug,
+                   bar: on ? typeColor[t] : "transparent",
+                   bg: on ? "#EDE9FE" : "transparent",
+                   fg: on ? "#5B21B6" : "#1A1330",
+                   weight: on ? 600 : 400,
+                   go: () => this.setState({ gDoc: d.slug }) };
+        })
+      };
+    });
+
+    const kindColor = { "aprofundamento": ["#EDE9FE", "#7C3AED"], "geração": ["#F3F1F9", "#5C5675"], "edição": ["#F3F1F9", "#5C5675"] };
+    const verdictColor = { "exemplo": ["#E7F3DC", "#2F6B12"], "descartado": ["#F8E1DD", "#A4271A"] };
+    const activity = [
+      { kind: "aprofundamento", slug: "acompanhamento-diario", version: "v2", when: "2026-09-07 21:40", who: "consultor@witly.digital", client: "enxoval",
+        q: "Por que o CPL subiu nos últimos 3 dias?", a: "O CPM subiu 31% (R$ 8,3 para R$ 10,9) com CTR estável em 1,6%; a decomposição atribui 84% da alta ao leilão. Não é criativo.", score: "5", verdict: "exemplo" },
+      { kind: "aprofundamento", slug: "acompanhamento-diario", version: "v2", when: "2026-09-07 21:38", who: "consultor@witly.digital", client: "enxoval",
+        q: "Qual canal está pior?", a: "Facebook, meta de 300 leads — inventou meta por canal, violando meta-so-global.", score: "—", verdict: "descartado" },
+      { kind: "aprofundamento", slug: "criativos", version: "v1.0.2", when: "2026-09-07 09:12", who: "consultor@witly.digital", client: "enxoval",
+        q: "Vale escalar o criativo com CPL bom e CPMQL ruim?", a: "Sem veredito ainda. O agente respondeu comparando CPL e CPMQL, mas não citou a janela do dado.", score: "—", verdict: "" },
+      { kind: "geração", slug: "acompanhamento-diario", version: "v2", when: "2026-09-07 21:35", who: "projetos@witly.digital", client: "enxoval",
+        q: "Enxoval · acompanhamento do dia 07/09", a: "Relatório gerado com 4 páginas e 2 aprofundamentos. Dataset fechado em 06/09.", score: "—", verdict: "" },
+      { kind: "edição", slug: "criativos", version: "v1.0.2", when: "2026-09-06 18:12", who: "consultor@witly.digital", client: "—",
+        q: "Ajuste em regras.md", a: "Acrescentou: CPM só entra quando o objetivo da campanha é captação.", score: "—", verdict: "" }
+    ].filter(a => S.act === "tudo"
+        || (S.act === "sem veredito" && !a.verdict)
+        || (S.act === "exemplos" && a.verdict === "exemplo")
+        || (S.act === "descartados" && a.verdict === "descartado"))
+     .map(a => ({
+        kind: a.kind, slug: a.slug, version: a.version, when: a.when, who: a.who, client: a.client, q: a.q, a: a.a,
+        kindBg: kindColor[a.kind][0], kindFg: kindColor[a.kind][1],
+        verdict: a.verdict,
+        verdictBg: a.verdict ? verdictColor[a.verdict][0] : "transparent",
+        verdictFg: a.verdict ? verdictColor[a.verdict][1] : "transparent",
+        score: a.score, scoreFg: a.score === "—" ? "#8E88A6" : "#1A1330",
+        bar: a.verdict === "descartado" ? "#E3B6AF" : (a.verdict === "exemplo" ? "#B9D69A" : "#E0A63A"),
+        open: this.go("revisao"),
+        exemplo: () => this.flash("Virou exemplo aprovado em exemplos.md"),
+        regra: () => this.flash("Rascunho de regra criado em regras.md"),
+        descartar: () => this.flash("Descartado")
+      }));
+
+    const health = [
+      { slug: "acompanhamento-diario", version: "v1.0.2", ger: 1, apr: 2, pct: "50%", score: "4.0" },
+      { slug: "criativos", version: "v1.0.2", ger: 34, apr: 12, pct: "17%", score: "4.6" },
+      { slug: "debriefing", version: "v1.0.2", ger: 22, apr: 9, pct: "11%", score: "4.8" },
+      { slug: "conversao-perfil", version: "v1.0.2", ger: 11, apr: 4, pct: "0%", score: "5.0" },
+      { slug: "historico", version: "v1.0.2", ger: 0, apr: 0, pct: "0%", score: "—" }
+    ].map(h => ({
+      slug: h.slug, version: h.version, ger: h.ger, apr: h.apr, pct: h.pct, score: h.score,
+      barFg: parseInt(h.pct, 10) >= 40 ? "#A4271A" : (parseInt(h.pct, 10) >= 15 ? "#8A5205" : "#2F6B12"),
+      scoreFg: h.score === "—" ? "#8E88A6" : "#1A1330",
+      open: this.go("template")
+    }));
+
+    return {
+      views: views, tabs: tabs, panes: panes, kitGroups: kitGroups, versions: versions,
+      templates: templates, geraisGroups: geraisGroups, activity: activity, health: health,
+      isSpec: S.view === "spec",
+      isCatalog: S.view === "catalog",
+      isTemplate: S.view === "template",
+      isPessoais: S.view === "pessoais",
+      isGerais: S.view === "gerais",
+      isPlataforma: S.view === "plataforma",
+      isAtividade: S.view === "atividade",
+      isRevisao: S.view === "revisao",
+      isSaude: S.view === "saude",
+      isUsuarios: S.view === "usuarios",
+      paneKit: S.pane === "kit", paneInfo: S.pane === "info", paneVersions: S.pane === "versoes",
+      goCatalog: this.go("catalog"), goAtividade: this.go("atividade"), goSaude: this.go("saude"), goTemplate: this.go("template"),
+      catFilters: this.seg(["todos", "com rascunho", "sem uso"], S.cat, "cat"),
+      catCount: templates.length + " de 6 templates",
+      actFilters: this.seg(["sem veredito", "tudo", "exemplos", "descartados"], S.act, "act"),
+      docTitle: cur.title, docFile: cur.file, docSize: cur.size, docHint: cur.hint, docBody: cur.body,
+      docState: cur.state === "ok" ? "igual à publicada" : (cur.state === "alterado" ? "alterado no rascunho" : "vazio"),
+      docStateBg: stateBg[cur.state], docStateFg: stateColor[cur.state],
+      hasDiff: S.cmp !== null, noDiff: S.cmp === null,
+      diffTitle: S.cmp === null ? "diff" : "nº " + S.cmp + " → rascunho",
+      diffStat: S.cmp === null ? "" : "+3 −2",
+      checks: [
+        { mark: "ok", fg: "#2F6B12", label: "Todo número tem janela declarada (últimos 3 dias)." },
+        { mark: "ok", fg: "#2F6B12", label: "Números vêm do motor, via bind na tabela de decomposição." },
+        { mark: "ok", fg: "#2F6B12", label: "Responde em uma frase antes do detalhe." },
+        { mark: "?", fg: "#8A5205", label: "Não cita a data do dado fechado — vale virar regra." }
+      ],
+      scores: [1, 2, 3, 4, 5].map(n => ({
+        n: n,
+        bg: S.score === n ? "#EDE9FE" : "#FFFFFF",
+        bd: S.score === n ? "#7C3AED" : "#E4E0EE",
+        fg: S.score === n ? "#5B21B6" : "#1A1330",
+        go: () => this.setState({ score: n })
+      })),
+      nextItem: () => { this.flash("Veredito salvo · próximo item"); this.setState({ view: "atividade" }); },
+      pessoais: [{
+        name: "Recorte Quente por dia", slug: "recorte-quente", version: "v1.0.0", ger: 0, apr: 0,
+        owner: "consultor@witly.digital",
+        verdict: "Salvo há 12 dias e nunca usado. Sem evidência para promover — confirme com o dono antes de remover.",
+        promote: () => this.flash("Copiado para a biblioteca como v0.1.0 em rascunho")
+      }],
+      allSlugs: ["acompanhamento-diario", "criativos", "analise-livre", "conversao-perfil", "debriefing", "historico", "recorte-quente"],
+      gaps: [
+        { slug: "acompanhamento-diario", times: 3, q: "Por que o CPL subiu nos últimos 3 dias?", note: "Já é exemplo aprovado, mas o relatório não traz decomposição de CPL como seção fixa.", go: this.go("template") },
+        { slug: "acompanhamento-diario", times: 2, q: "Qual canal está pior?", note: "Descartado 2 vezes: o agente inventa meta por canal. Falta regra explícita no kit.", go: this.go("template") },
+        { slug: "criativos", times: 4, q: "Vale escalar o criativo com CPL bom e CPMQL ruim?", note: "Recorrente e sem seção: precisa comparar captação e qualidade no mesmo lugar.", go: this.go("template") }
+      ],
+      users: [
+        { email: "projetos@witly.digital", name: "projetos", status: "ativo", role: "editor", roleAlt: "leitor", isMe: true, canEdit: false, action: "", actionFg: "#1A1330" },
+        { email: "consultor@witly.digital", name: "Consultor", status: "ativo", role: "leitor", roleAlt: "editor", isMe: false, canEdit: true, action: "Desativar", actionFg: "#1A1330" },
+        { email: "parceiro@exemplo.com", name: "convite pendente", status: "desativado", role: "leitor", roleAlt: "editor", isMe: false, canEdit: true, action: "Reativar", actionFg: "#5B21B6" }
+      ].map(u => ({
+        email: u.email, name: u.name, status: u.status, role: u.role, roleAlt: u.roleAlt, isMe: u.isMe, canEdit: u.canEdit,
+        action: u.action, actionFg: u.actionFg,
+        bg: u.status === "desativado" ? "#FBFAFE" : "#FFFFFF",
+        pillBg: u.status === "ativo" ? "#E7F3DC" : "#F8E1DD",
+        pillFg: u.status === "ativo" ? "#2F6B12" : "#A4271A"
+      })),
+      menuOpen: S.menuOpen, modalOpen: S.modalOpen, toast: S.toast,
+      toggleMenu: () => this.setState(s => ({ menuOpen: !s.menuOpen })),
+      openModal: () => this.setState({ modalOpen: true }),
+      closeModal: () => this.setState({ modalOpen: false }),
+      publish: () => { this.setState({ modalOpen: false }); this.flash("Publicado v1.0.3 · o agente já recebe"); },
+      publishNow: () => this.flash("Publicado para os 7 kits"),
+      showKit: () => this.flash("Kit: 9 documentos · 34 kB"),
+      showDiff: () => this.setState({ pane: "versoes", cmp: 14 }),
+      copyTokens: () => this.copy("snip-tokens", "Tokens"),
+      copyCard: () => this.copy("snip-card", "Card"),
+      copyPill: () => this.copy("snip-pill", "Pill"),
+      swatches: [
+        { name: "--bg", hex: "#F7F6FB" }, { name: "--surface", hex: "#FFFFFF" },
+        { name: "--wash", hex: "#F3F1F9" }, { name: "--line", hex: "#E4E0EE" },
+        { name: "--ink", hex: "#1A1330" }, { name: "--ink-soft", hex: "#5C5675" },
+        { name: "--plum", hex: "#2E084B" }, { name: "--plum-2", hex: "#48226B" },
+        { name: "--purple", hex: "#7C3AED" }, { name: "--purple-wash", hex: "#EDE9FE" },
+        { name: "--green", hex: "#2F6B12" }, { name: "--amber", hex: "#8A5205" },
+        { name: "--red", hex: "#A4271A" }, { name: "--ink-faint", hex: "#8E88A6" }
+      ],
+      menuItems: [
+        { label: "Geração", count: 18 },
+        { label: "Aprofundamento", count: 24 },
+        { label: "Edição", count: 6 }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

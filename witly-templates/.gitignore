@@ -1,0 +1,30 @@
+node_modules/
+.wrangler/
+dist/
+# gerado por scripts/build-viewer.mjs a partir do client do app
+public/viewer/
+# gerado por `wrangler types`
+worker-configuration.d.ts
+.dev.vars
+*.log
+__pycache__/
+# saída de testes/paridade do Python do kit
+seed/**/python/tests/out/
+# copiados de app/pysrc por scripts/kit-assemble.mjs (fonte única = o app)
+seed/*/python/calc.py
+seed/*/python/build_report.py
+seed/*/python/query_api.py
+seed/*/python/render_view.py
+seed/*/python/common/
+seed/*/exemplo.html
+seed/*/viewer/
+# copia de docs/arquitetura.html feita pelo build
+
+public/docs/
+
+seed/*/python/perguntas/
+seed/*/perguntas.md
+seed/*/design-system.md
+seed/*/python/gerar.py
+seed/*/python/aprofundar.py
+seed/*/python/conv_calc.py

@@ -1,0 +1,197 @@
+{
+  "slug": "acompanhamento-diario",
+  "name": "Acompanhamento diário de campanha",
+  "objective": "Acompanhar diariamente um lançamento em andamento: a cada dia, saber se está no ritmo da meta, o que melhorou ou piorou nos últimos 3 dias e onde está o maior gargalo para agir ainda dentro da campanha.",
+  "when_to_use": "Durante a captação de um lançamento (clássico ou pago), com o dump diário da view de inscrições. Não serve para comparar lançamentos (use o histórico) nem para o pós-campanha (use o debriefing).",
+  "audience": "Consultor Witly e o gestor de tráfego do cliente. O HTML gerado vai direto para o cliente.",
+  "params": [
+    {
+      "id": "field_conversion",
+      "label": "Lançamento",
+      "type": "string",
+      "required": true,
+      "task_id": "lancamento",
+      "desc": "Identificador do lançamento na base (coluna field_conversion / conversion_traf)."
+    },
+    {
+      "id": "tipo_funil",
+      "label": "Tipo de funil",
+      "type": "enum",
+      "enum": [
+        "lancamento-padrao",
+        "lancamento-pago"
+      ],
+      "required": true,
+      "task_id": "tipo_funil",
+      "desc": "lancamento-padrao = o lead entra de graça (CPL/CPMQL mandam); lancamento-pago = o lead compra o ingresso (exposição de caixa, ROAS, CAC)."
+    }
+  ],
+  "queries": [
+    {
+      "id": "dump",
+      "file": "queries/dump.sql",
+      "title": "Métricas diárias (funil clássico)",
+      "when": {
+        "tipo_funil": "lancamento-padrao"
+      },
+      "saida": "dump.csv",
+      "desc": "Uma linha por utm_source × campanha × conteúdo × anúncio × dia, da view VW_V2_inscricoes_res_METRICAS."
+    },
+    {
+      "id": "dump_pago",
+      "file": "queries/dump_pago.sql",
+      "title": "Métricas diárias (lançamento pago)",
+      "when": {
+        "tipo_funil": "lancamento-pago"
+      },
+      "saida": "dump.csv",
+      "desc": "SELECT * da view VW_V2_inscricoes_pago_res (receita de ingresso e order bump). O filtro usa COALESCE(conversion_traf, field_conversion)."
+    },
+    {
+      "id": "goals",
+      "file": "queries/goals.sql",
+      "title": "Metas do lançamento (launch goals)",
+      "optional": true,
+      "saida": "goals.csv",
+      "desc": "1 linha por utm_source × dia em wtl_launch_goals. Se existir, substitui as metas manuais."
+    },
+    {
+      "id": "dict",
+      "file": "queries/dict.sql",
+      "title": "Dicionário de links dos criativos",
+      "optional": true,
+      "saida": "dict.csv",
+      "desc": "field_ad_name → URL do post. Liga cada criativo ao anúncio real."
+    }
+  ],
+  "tarefas_contexto": [
+    {
+      "id": "lancamento",
+      "objetivo": "Identificar o lançamento (field_conversion) e o cliente",
+      "saida": "config.field_conversion, config.client, config.client_name, config.nome_campanha",
+      "confirmar": true
+    },
+    {
+      "id": "tipo_funil",
+      "objetivo": "Decidir se o lançamento é clássico ou pago",
+      "saida": "config.tipo_funil",
+      "confirmar": true
+    },
+    {
+      "id": "data_corte",
+      "objetivo": "Perguntar ao consultor a data de corte (último dia com dado completo) e a data do report, propondo ontem/hoje como padrão",
+      "saida": "config.data_corte, config.data_report",
+      "confirmar": true
+    },
+    {
+      "id": "temperatura",
+      "objetivo": "Classificar cada campanha em Quente / Morno / Frio (e Advantage) pelo nome",
+      "saida": "config.temp_rules, config.temp_overwrite",
+      "confirmar": true
+    },
+    {
+      "id": "metas",
+      "objetivo": "Levantar as metas do lançamento (leads, CPL, CPMQL, taxa de resposta e qualidade) ou usar a tabela de launch goals",
+      "saida": "config.metas ou goals.csv",
+      "confirmar": true
+    },
+    {
+      "id": "dicionario",
+      "objetivo": "Ligar cada criativo ao link do anúncio (opcional)",
+      "saida": "dict.csv",
+      "confirmar": false
+    }
+  ],
+  "config": {
+    "descricao": "config.json que o gerar.py recebe. Só as chaves abaixo; número nasce no calc.py.",
+    "exemplo": {
+      "type": "acompanhamento-lancamento",
+      "client": "cliente-slug",
+      "client_name": "Nome do Cliente",
+      "title": "Nome do Cliente · Acompanhamento de Campanha",
+      "nome_campanha": "Lançamento X — set/2026",
+      "field_conversion": "lcto-x-2026",
+      "tipo_funil": "lancamento-padrao",
+      "data_corte": "2026-09-06",
+      "data_report": "2026-09-07",
+      "metas": {
+        "cpl": 9,
+        "cpmql": 25,
+        "taxa_resp": 40,
+        "taxa_qual": 40,
+        "_leads_total": 3000,
+        "_leads_td": 2400
+      },
+      "temp_rules": [
+        {
+          "contains": [
+            "hot-",
+            "quente-",
+            "hot",
+            "rmkt",
+            "remarketing"
+          ],
+          "label": "Quente"
+        },
+        {
+          "contains": [
+            "warm-",
+            "morno-",
+            "warm",
+            "lal",
+            "lookalike"
+          ],
+          "label": "Morno"
+        },
+        {
+          "contains": [
+            "cold-",
+            "frio-",
+            "cold",
+            "interesse",
+            "aberto"
+          ],
+          "label": "Frio"
+        },
+        {
+          "contains": [
+            "adv-",
+            "adv",
+            "advantage"
+          ],
+          "label": "Advantage"
+        }
+      ],
+      "temp_overwrite": true
+    }
+  },
+  "como_gerar": [
+    "1. Execute as tarefas (tarefas/*.md) com o consultor e monte config.json.",
+    "2. Rode as queries no Delfos (montar_query já devolve o SQL preenchido) e salve dump.csv (+ goals.csv / dict.csv se houver).",
+    "3. python python/gerar.py --config config.json --csv dump.csv --out saida/ [--goals goals.csv] [--dict dict.csv]",
+    "4. Abra saida/relatorio.html (filtros de origem/canal/público/campanha/anúncio em cascata e combináveis, pré-calculados; --sem-filtros para um HTML menor). Os números estão em saida/numeros.json; as 4 camadas (dataset/data/layout/sXX) também ficam em saida/.",
+    "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
+    "5. Para recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (fn: tabela, series, trend, ranking, cruzar_dia, decomposicao, onde_concentra…).",
+    "6. Aprofundamento aceito: consulte design-system.md, calcule a tabela com query_api.py, escreva det-<id>.json e rode python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+  ],
+  "arquivos": {
+    "python/gerar.py": "CLI que gera as 4 camadas + numeros.json + relatorio.html",
+    "python/calc.py": "os números (stdlib)",
+    "python/build_report.py": "monta as seções/widgets a partir do calc",
+    "python/query_api.py": "consultas sob demanda sobre o dump (modo fundo)",
+    "python/common/": "layout, formatação, temperatura, builders",
+    "python/tests/": "fixture sintética + testes (python -m unittest)",
+    "viewer/": "viewer offline (viewer.js, viewer.css, shell.html) que o gerar.py embute no HTML",
+    "documento.md": "estrutura do relatório e onde cada número aparece",
+    "guia.md": "como ler: mecânica, definições, benchmarks, como ler",
+    "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
+    "exemplo.html": "um relatório gerado a partir da fixture sintética",
+    "python/aprofundar.py": "coloca um aprofundamento no relatório (design system) e regera o HTML",
+    "python/perguntas/": "banco + cálculo de relevância das perguntas norteadoras (perguntas.json)",
+    "perguntas.md": "banco de perguntas norteadoras legível (o que vale aprofundar e como)",
+    "design-system.md": "contrato dos widgets/binds/layout para aprofundamentos (documento da PLATAFORMA; entra em todo kit)"
+  },
+  "engine": "acompanhamento-lancamento",
+  "perguntas_bank": "acompanhamento_lancamento",
+  "required_files": []
+}

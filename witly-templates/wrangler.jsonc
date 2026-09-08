@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "witly-templates",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none",
+    // .html servido como está (o viewer é lido pelo binding ASSETS por nome de arquivo)
+    "html_handling": "none",
+    // Tudo que é dinâmico passa pelo Worker; o resto (UI estática, viewer) sai dos assets.
+    "run_worker_first": [
+      "/mcp", "/mcp/*",
+      "/authorize", "/token", "/register", "/callback", "/.well-known/*",
+      "/api/*", "/dl/*", "/ui/*"
+    ]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "MCP_OBJECT", "class_name": "TemplatesMcp" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TemplatesMcp"] }],
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "56d2dbf13d144e118250682ba46140b3" }],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "witly-templates",
+    "database_id": "8e433fb8-45f5-4182-81d0-27f62b9e4a6b",
+    "migrations_dir": "migrations"
+  }],
+  "vars": {
+    // Conta Google deste domínio entra como leitor (spec FR-008).
+    "ALLOWED_DOMAIN": "witly.digital",
+    // E-mail promovido a editor no primeiro login.
+    "EDITOR_SEED": "projetos@witly.digital",
+    "ORG_ID": "witly",
+    // URL pública do Worker (base das URLs assinadas de download). Ajustar no deploy.
+    "PUBLIC_URL": "https://witly-templates.projetos-145.workers.dev"
+  },
+  "observability": { "enabled": true },
+  "dev": { "port": 8788 }
+}

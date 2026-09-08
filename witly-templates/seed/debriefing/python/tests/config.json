@@ -1,0 +1,15 @@
+{
+  "type": "debriefing-lancamento",
+  "client": "fixture", "client_name": "Cliente Fixture", "title": "Cliente Fixture · Debriefing de Lançamento",
+  "nome_campanha": "Lançamento Fixture Ago/26", "campaign_label": "LF ago/26",
+  "field_conversion": "lcto-fixture-ago26",
+  "paid_sources": ["facebook", "meta", "google", "fb"],
+  "cpt_pattern": ["cadastro-", "google-search-", "-cpt]"],
+  "vnd_pattern": ["venda-", "vendas-", "-vnd]"],
+  "temp_rules": [
+    { "contains": ["advantage", "[advantage]", "adv"], "label": "advantage" },
+    { "contains": ["quente", "hot", "warm"], "label": "quente" },
+    { "contains": ["frio", "cold"], "label": "frio" },
+    { "contains": ["rmkt", "remarketing"], "label": "remarketing" }
+  ]
+}

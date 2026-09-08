@@ -1,0 +1,28 @@
+{
+  "q-cpl-canal": {
+    "dims": [
+      "canal"
+    ],
+    "filters": [],
+    "rows": [
+      {
+        "canal": "facebook",
+        "leads": 120,
+        "invest": 900.0,
+        "cpl": 7.5
+      },
+      {
+        "canal": "instagram",
+        "leads": 80,
+        "invest": 400.0,
+        "cpl": 5.0
+      },
+      {
+        "canal": "Geral",
+        "leads": 200,
+        "invest": 1300.0,
+        "cpl": 6.5
+      }
+    ]
+  }
+}

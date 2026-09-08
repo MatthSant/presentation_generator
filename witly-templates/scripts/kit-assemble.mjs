@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+/* kit-assemble — copia o motor Python do app (fonte única) para dentro de cada kit em seed/:
+ *   app/pysrc/<pysrcDir>/{calc,build_report,query_api,render_view}.py → seed/<slug>/python/
+ *   app/pysrc/common/*.py                                            → seed/<slug>/python/common/
+ *   app/pysrc/perguntas/perguntas_calc.py + banks/<bank>.py          → seed/<slug>/python/perguntas/
+ *     (com um banks/__init__.py LOCAL que registra só o banco do kit)
+ * O mapeamento vem de seed/<slug>/manifest.json (`engine`, `perguntas_bank`) ou dos defaults.
+ * Copia também o viewer offline (public/viewer/ → seed/<slug>/viewer/), que o gerar.py
+ * embute no relatorio.html; rode `npm run build` antes, se ele ainda não existir.
+ * As cópias são gitignored; rode antes de `test:py`, `seed` e `parity`. */
+
+import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(here, '..');
+const PYSRC = path.resolve(ROOT, '..', 'app', 'pysrc');
+const SEED = path.join(ROOT, 'seed');
+
+const DEFAULT_ENGINE = { 'acompanhamento-diario': 'acompanhamento-lancamento' };
+const DEFAULT_BANK = { 'acompanhamento-diario': 'acompanhamento_lancamento' };
+const ENGINE_FILES = ['calc.py', 'conv_calc.py', 'build_report.py', 'query_api.py', 'render_view.py'];
+const SHARED = path.join(SEED, '_shared');
+const VIEWER = path.join(ROOT, 'public', 'viewer');
+
+export async function assembleKit(slug) {
+  const dir = path.join(SEED, slug);
+  const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
+  const engine = manifest.engine || DEFAULT_ENGINE[slug] || null;
+  if (!engine && !manifest.livre) throw new Error(`kit ${slug}: sem 'engine' no manifest (ou marque "livre": true)`);
+  const bank = manifest.perguntas_bank || DEFAULT_BANK[slug] || null;
+  const py = path.join(dir, 'python');
+  await mkdir(path.join(py, 'common'), { recursive: true });
+  let n = 0;
+  for (const f of engine ? ENGINE_FILES : []) {
+    try { await copyFile(path.join(PYSRC, engine, f), path.join(py, f)); n++; } catch { /* opcional */ }
+  }
+  // Scripts compartilhados por todos os kits (gerar.py, aprofundar.py).
+  for (const f of await readdir(SHARED)) {
+    if (f.endsWith('.py')) { await copyFile(path.join(SHARED, f), path.join(py, f)); n++; }
+  }
+  for (const f of await readdir(path.join(PYSRC, 'common'))) {
+    if (f.endsWith('.py')) { await copyFile(path.join(PYSRC, 'common', f), path.join(py, 'common', f)); n++; }
+  }
+  if (bank) {
+    const pq = path.join(py, 'perguntas');
+    await mkdir(path.join(pq, 'banks'), { recursive: true });
+    await copyFile(path.join(PYSRC, 'perguntas', 'perguntas_calc.py'), path.join(pq, 'perguntas_calc.py'));
+    await copyFile(path.join(PYSRC, 'perguntas', 'banks', `${bank}.py`), path.join(pq, 'banks', `${bank}.py`));
+    await writeFile(path.join(pq, '__init__.py'), '');
+    await writeFile(path.join(pq, 'banks', '__init__.py'), `"""Registry LOCAL do kit: só o banco deste template (gerado pelo kit-assemble)."""
+from . import ${bank}
+
+BANKS = [${bank}]
+
+
+def pick_bank(dataset):
+    for b in BANKS:
+        try:
+            if b.detect(dataset):
+                return b
+        except Exception:
+            continue
+    return None
+`);
+    n += 4;
+  }
+  // viewer offline: sem ele o gerar.py grava só as camadas, sem relatorio.html
+  try {
+    const vd = path.join(dir, 'viewer');
+    await mkdir(vd, { recursive: true });
+    for (const f of await readdir(VIEWER)) { await copyFile(path.join(VIEWER, f), path.join(vd, f)); n++; }
+  } catch { throw new Error(`kit ${slug}: public/viewer/ não existe — rode 'npm run build' antes`); }
+  return { slug, engine: engine || 'livre', bank, files: n };
+}
+
+export async function kits() {
+  const out = [];
+  for (const d of await readdir(SEED, { withFileTypes: true })) {
+    if (d.isDirectory() && !d.name.startsWith('_') && d.name !== 'general-contexts') out.push(d.name);
+  }
+  return out;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  for (const slug of await kits()) {
+    const r = await assembleKit(slug);
+    console.log(`kit ${r.slug}: motor ${r.engine}${r.bank ? `, perguntas ${r.bank}` : ''} (${r.files} arquivos)`);
+  }
+}

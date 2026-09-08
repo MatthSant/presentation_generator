@@ -1,0 +1,146 @@
+{
+  "slug": "conversao-perfil",
+  "name": "Conversão por perfil",
+  "objective": "Descobrir quais perfis de lead convertem melhor (e pior) ao longo de vários lançamentos, para que mídia e copy priorizem a captação e a qualificação dos públicos certos e o custo por venda caia sem aumentar o investimento. Inclui relevância × codependência entre critérios (qualificador × qualificante).",
+  "when_to_use": "Quando o cliente tem pesquisa de perfil respondida em vários lançamentos (3 ou mais) e quer apertar a segmentação com dado histórico: 'quem compra de forma consistente?', 'quem nunca converte apesar do volume?', 'quem compra mais no longo prazo?'. Não serve para um lançamento só nem para métricas de mídia.",
+  "audience": "Consultor Witly e o time de marketing do cliente. Panorama e páginas por critério vão para o cliente.",
+  "engine": "conversao-perfil",
+  "perguntas_bank": "conversao_perfil",
+  "required_files": [],
+  "params": [
+    {
+      "id": "dias_lancamento",
+      "label": "Janela do lançamento (dias)",
+      "type": "number",
+      "required": true,
+      "default": 60,
+      "task_id": "janela",
+      "desc": "Dias após a 1ª captação em que a compra conta como conversão do lançamento (vendas_lancamento)."
+    },
+    {
+      "id": "pago_like",
+      "label": "Termo que marca tráfego pago no utm_source",
+      "type": "string",
+      "required": true,
+      "default": "ads",
+      "task_id": "canal",
+      "desc": "utm_source que contém este termo vira Pago; o resto é Orgânico. Para mais de um termo, edite o CASE da query."
+    }
+  ],
+  "queries": [
+    {
+      "id": "dump",
+      "file": "queries/dump.sql",
+      "title": "Dump multidimensional de pesquisa (uma linha por dimensões × lançamento × canal)",
+      "saida": "dump.csv",
+      "desc": "Inscrições (1 por e-mail × lançamento) ⨝ transações aprovadas → flags de venda por janela → agregação por dimensões. A lista de dimensões (renda, idade, gênero, tempo, custom_field_N) precisa ser espelhada no SELECT e no GROUP BY: edite conforme a tarefa 'dimensoes'. O CSV final não tem e-mail nem linha individual."
+    }
+  ],
+  "tarefas_contexto": [
+    {
+      "id": "cliente-lancamentos",
+      "objetivo": "Identificar o cliente e confirmar quais lançamentos entram (mínimo 3, cronológicos)",
+      "saida": "config.client, config.client_name, config.title, config.campaign_label",
+      "confirmar": true
+    },
+    {
+      "id": "canal",
+      "objetivo": "Confirmar como distinguir Pago × Orgânico pelo utm_source",
+      "saida": "param pago_like (ou CASE editado)",
+      "confirmar": true
+    },
+    {
+      "id": "janela",
+      "objetivo": "Definir a janela do lançamento (padrão 60 dias) e a janela longa (6m ou 12m)",
+      "saida": "param dias_lancamento; config.window, config.long_window",
+      "confirmar": true
+    },
+    {
+      "id": "dimensoes",
+      "objetivo": "Escolher os critérios de perfil (colunas de pesquisa e custom_field_N com o significado de cada um) e o rótulo curto",
+      "saida": "SELECT/GROUP BY da query; config.criterios[].{id,col,label,tab,abbr}",
+      "confirmar": true
+    },
+    {
+      "id": "grupos",
+      "objetivo": "Para cada critério, definir a ordem canônica dos grupos, aliases (normalização) e rótulos curtos",
+      "saida": "config.criterios[].{order,aliases,short_labels,ordinal,cores}",
+      "confirmar": true
+    }
+  ],
+  "config": {
+    "descricao": "config.json que o gerar.py recebe. Cada critério vira uma página; order/aliases normalizam os grupos.",
+    "exemplo": {
+      "type": "conversao-perfil",
+      "client": "cliente-slug",
+      "client_name": "Nome do Cliente",
+      "title": "Nome do Cliente · Conversão por Perfil",
+      "campaign_label": "2024–2026",
+      "channels": [
+        "Geral",
+        "Pago",
+        "Orgânico"
+      ],
+      "window": "lcto",
+      "long_window": "12m",
+      "criterios": [
+        {
+          "id": "renda",
+          "col": "renda_mensal",
+          "label": "Renda mensal",
+          "tab": "Renda",
+          "abbr": "Renda",
+          "ordinal": true,
+          "order": [
+            "Até R$ 3.000",
+            "R$ 3.000 a R$ 10.000",
+            "Acima de R$ 10.000",
+            "Prefiro não informar"
+          ],
+          "aliases": {
+            "ate 3 mil": "Até R$ 3.000",
+            "3 a 10 mil": "R$ 3.000 a R$ 10.000"
+          },
+          "short_labels": {
+            "Até R$ 3.000": "<3k",
+            "R$ 3.000 a R$ 10.000": "3–10k",
+            "Acima de R$ 10.000": ">10k"
+          },
+          "cores": [
+            "#4C1D95",
+            "#7C3AED",
+            "#3B82F6",
+            "#0EA5E9",
+            "#0D9488",
+            "#10B981"
+          ]
+        }
+      ]
+    }
+  },
+  "como_gerar": [
+    "1. Execute as tarefas (tarefas/*.md) com o consultor e monte config.json (criterios com order/aliases).",
+    "2. montar_query('conversao-perfil', {dias_lancamento, pago_like}) → espelhe as dimensões escolhidas no SELECT/GROUP BY → rode no Delfos → dump.csv (agregado: sem e-mail, sem linha individual).",
+    "3. python python/gerar.py --config config.json --csv dump.csv --out saida/",
+    "4. Abra saida/relatorio.html (Panorama, Insights, Codependência, uma página por critério; o toggle Geral/Pago/Orgânico é do próprio HTML). Os números estão em saida/numeros.json.",
+    "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
+    "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (meta, cut_by_criterion, trend, crosstab, association).",
+    "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+  ],
+  "arquivos": {
+    "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + perguntas.json + relatorio.html",
+    "python/conv_calc.py": "os números (benchmark = respondentes; conversões em %; ordem cronológica; normalização; relevância e codependência)",
+    "python/build_report.py": "monta Panorama, Insights, Codependência e as páginas por critério",
+    "python/query_api.py": "consultas sob demanda (cut_by_criterion, trend, crosstab, association)",
+    "python/common/": "layout, formatação, builders",
+    "python/perguntas/": "banco + relevância das 10 perguntas norteadoras",
+    "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
+    "python/tests/": "fixture sintética (3 critérios × 4 lançamentos × 2 canais) e testes",
+    "viewer/": "viewer offline",
+    "documento.md": "as páginas e seus blocos",
+    "guia.md": "regras de cálculo (benchmark, %, ordem, normalização), classificação, relevância × codependência, como ler",
+    "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
+    "perguntas.md": "banco de perguntas norteadoras legível",
+    "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
+  }
+}

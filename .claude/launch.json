@@ -2,32 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "analytics-app",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["dist/server/index.js"],
-      "cwd": "app",
-      "port": 3131
+      "name": "viewer-test",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8791", "--bind", "127.0.0.1", "--directory", "C:/Users/Matheus/AppData/Local/Temp/claude/C--Users-Matheus-Documents-GitHub-presentation-generator/dadb2454-1804-49dd-9b29-9c6ced93a544/scratchpad/viewer-test"],
+      "port": 8791
     },
     {
-      "name": "dev-authoff",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["_dev_authoff.mjs"],
-      "cwd": "app",
-      "port": 3132
-    },
-    {
-      "name": "dev-mock",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["_dev_mock.mjs"],
-      "cwd": "app",
-      "port": 3133
-    },
-    {
-      "name": "verify-authoff",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Users/Matheus/AppData/Local/Temp/_verify_launch.mjs"],
-      "cwd": "app",
-      "port": 3141
+      "name": "witly-templates",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "dev", "--port", "8788"],
+      "cwd": "witly-templates",
+      "port": 8788
     }
   ]
 }
