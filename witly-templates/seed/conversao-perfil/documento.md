@@ -26,8 +26,8 @@ Três zonas (✓ conclusões, ↗ aprofundar, ! atenção) em `find-block` tipo 
 - Nota: benchmark = respondentes da pesquisa daquele critério.
 
 ## O que o agente escreve no chat (não no HTML)
-- As 3–5 perguntas norteadoras mais relevantes (`perguntas.json` × `numeros.json`).
+- As 3–5 perguntas norteadoras mais relevantes (leia `numeros.json`; as perguntas vêm no kit em `perguntas.md`).
 - As premissas: lançamentos incluídos, regra de canal, janelas, critérios e mapeamento de grupos (com as anomalias de normalização), custom fields e seus significados.
 
 ## Aprofundamentos
-Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números do `query_api.py` (`cut_by_criterion`, `trend`, `crosstab`, `association`, `meta`).
+Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números calculados em Python a partir do `calc.py` (mesmas definições do relatório).

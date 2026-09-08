@@ -1,7 +1,7 @@
 /* activity — tools `registrar` e `avaliar` (spec 002 US1/US3). Puras: validam a forma,
  * passam pelo gate de PII, gravam. O McpAgent só chama. */
 
-import { canSee, getPublishedKit, getTemplate, insertActivity, insertRating, type Activity } from '../db/index.js';
+import { canSee, CONTEXTO_TIPOS, getPublishedKit, getTemplate, insertActivity, insertRating, type Activity, type ContextoTipo } from '../db/index.js';
 import { checkPii, piiMessage } from './pii.js';
 import { ToolError, type ToolEnv, type ToolUser } from './tools.js';
 
@@ -42,7 +42,7 @@ async function visibleSlug(env: ToolEnv, user: ToolUser, slug: string): Promise<
 
 export async function registrar(env: ToolEnv, user: ToolUser, input: RegistrarInput): Promise<string> {
   const evento = input.evento;
-  if (!['geracao', 'aprofundamento', 'edicao'].includes(evento)) throw new ToolError('evento deve ser geracao | aprofundamento | edicao');
+  if (!['geracao', 'aprofundamento'].includes(evento)) throw new ToolError('evento deve ser geracao | aprofundamento (sugestão de regra: sugerir_regra)');
   if (!input.slug) throw new ToolError('slug obrigatório');
   const { version } = await visibleSlug(env, user, input.slug);
 
@@ -90,4 +90,22 @@ export async function avaliar(env: ToolEnv, user: ToolUser, slug: string, nota: 
   }
   await insertRating(env.DB, { org_id: env.ORG_ID, slug, version_number: version, email: user.email, nota: n, comentario: c });
   return `avaliação registrada: ${slug} v${version ?? '?'} — nota ${n}${c ? ` ("${c.slice(0, 80)}")` : ''}`;
+}
+
+// ── sugerir_regra ────────────────────────────────────────────────────────────
+
+export interface SugerirInput { slug: string; tipo: ContextoTipo; titulo: string; corpo?: string | null; motivo?: string | null }
+
+/** O agente propõe uma entrada; cai na triagem do editor (evento 'sugestao', sem veredito). */
+export async function sugerir(env: ToolEnv, user: ToolUser, input: SugerirInput): Promise<string> {
+  if (!input.slug) throw new ToolError('slug obrigatório');
+  if (!CONTEXTO_TIPOS.includes(input.tipo)) throw new ToolError(`tipo deve ser ${CONTEXTO_TIPOS.join(' | ')}`);
+  const titulo = str(input.titulo, 300);
+  if (!titulo) throw new ToolError('titulo obrigatório: a regra/pergunta em uma frase');
+  const { version } = await visibleSlug(env, user, input.slug);
+  const dados = { tipo: input.tipo, titulo, corpo: str(input.corpo, 4000) ?? '', motivo: str(input.motivo, 2000) ?? '' };
+  const pii = checkPii(dados, [user.email]);
+  if (!pii.ok) throw new ToolError(piiMessage(pii));
+  const id = await insertActivity(env.DB, { org_id: env.ORG_ID, email: user.email, evento: 'sugestao', slug: input.slug, version_number: version, dados, motivo: dados.motivo || null, origem: 'mcp' });
+  return `sugestão registrada (${input.tipo}: "${titulo}") id=${id} — um editor decide na triagem; o kit não muda até lá.`;
 }

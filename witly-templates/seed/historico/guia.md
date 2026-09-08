@@ -9,16 +9,6 @@ Cada lançamento encerrado é um ponto de uma série cronológica. O relatório 
 | Panorama | KPIs principais (Conversão, ROAS, ROI, Retorno) com sparkline e Δ vs anterior; cards de volume (investimento, leads, vendas, reembolsos, recapturados, qualificação, conv. MQL, split pago/orgânico); bloco "Evolução" com o indicador escolhido quebrado em geral, pago × orgânico, plataforma, temperatura e perfil MQL (gráfico + tabela + linha de média) |
 | Investimentos | mídia paga: CPM, CTR, CPC, CPL, conversão paga, CPA e ROAS pago por lançamento e por temperatura, com variação vs anterior; outliers (Tukey/IQR) removidos das séries onde existem |
 
-## Definições
-- **Investimento** = `invest_total` + `paidmedia_tax` · **Faturamento líquido** = faturamento − reembolsado · **Retorno** = fat. líquido − investimento − `sales_tax` − `broker_fee`.
-- **ROAS** = fat. líquido ÷ investimento · **ROI** = retorno ÷ investimento.
-- **Conversão** = vendas ÷ leads · **Qualificação** = MQLs ÷ respostas · **Taxa de qualidade** = MQLs ÷ leads · **Conv. MQL** = `vendas_mql` ÷ MQLs.
-- **Reembolso** = valor reembolsado ÷ faturamento (referência: até 5 %).
-- **Recapturados** = `leads_antigos` (leads já existentes reengajados).
-- **Mídia (pago)**: CPM = invest × 1000 ÷ impressões · CTR = cliques ÷ impressões · CPC · CPL = invest ÷ leads pagos · Conv. paga = vendas pagas ÷ leads pagos · CPA = invest ÷ vendas pagas · **CPA = CPL ÷ conv. paga** (a decomposição do `query_api`).
-- **Produto principal** = `vendas_sale` se houver; senão `vendas`. Em lançamento pago, prefira `vendas_sale` para não somar ingresso + produto.
-- **Média** das quebras = média simples dos grupos do lançamento (linha "Média"); entre lançamentos, compare cada ponto ao anterior, não à média.
-
 ## Classificação (a fonte dos erros)
 Tudo vem pronto no CSV pela query: tipo de evento (prefixo do `field_conversion`), pago × orgânico (`ads` no `utm_source`), plataforma (prefixos `meta_like` / `google_like`) e temperatura (CASE por nome de campanha, rótulos fixos Hot/Warm/Cold/Advantage). **Inspecione `utm_source` e os nomes de campanha antes de rodar** (tarefas classificação e temperatura). Volume alto de `N/C` ou `UTM Quebrado` é problema de dado.
 

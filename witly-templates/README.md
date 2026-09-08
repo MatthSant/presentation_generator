@@ -21,7 +21,7 @@ da Witly" → `obter_template` → o agente segue as tarefas de contexto, monta 
 `montar_query`, roda no Delfos, baixa o kit (`curl`) e gera com `python gerar.py`.
 
 Depois de gerar, o agente propõe no chat as perguntas norteadoras mais relevantes
-(`saida/perguntas.json`), constrói aprofundamentos no design system (`design-system.md` +
+(as perguntas vêm no kit como entradas; a relevância ele lê em `numeros.json`), constrói aprofundamentos no design system (`design-system.md` +
 `python/aprofundar.py`), registra o que fez (`registrar`, `avaliar`) e pode guardar um padrão
 próprio como template pessoal (`salvar_template`).
 
@@ -68,9 +68,11 @@ fonte de verdade é o D1, editado na UI e versionado (rascunho → publicado).
 ```
 seed/<slug>/            (acompanhamento-diario · debriefing · criativos · historico · conversao-perfil)
 ├── manifest.json      params das queries, queries (com `when`), índice das tarefas de contexto, como_gerar
-├── contexto/*.md      uma página por tarefa de contexto (definição, regra padrão, query de apoio, exemplos, ambíguos, saída)
+├── tarefas/*.md       uma página por tarefa (o que o agente levanta com o consultor antes de gerar)
+├── regras/*.md        uma entrada por regra/recomendação/definição (`Tipo:` no corpo; o título já é a regra)
+├── perguntas/*.md     uma entrada por pergunta norteadora (o título é a pergunta; o corpo, como aprofundar)
 ├── queries/*.sql      SQL do Delfos com {{param}}
 ├── documento.md       estrutura do relatório e placeholders de numeros.json
-├── guia.md            mecânica, definições, benchmarks, o que NÃO concluir
-└── python/            tests/ (fixture sintética + test_kit.py); gerar.py/aprofundar.py vêm de seed/_shared e calc/build_report/query_api/common do app/pysrc, copiados pelo kit-assemble
+├── guia.md            mecânica e como ler cada bloco (regras e definições são entradas, não texto solto)
+└── python/            tests/ (fixture sintética + test_kit.py); gerar.py/aprofundar.py vêm de seed/_shared e calc/build_report/render_view/common do app/pysrc, copiados pelo kit-assemble
 ```

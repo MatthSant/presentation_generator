@@ -15,8 +15,10 @@ const KIT = {
   objective: 'CPL por dia só do Quente',
   when_to_use: 'quando o consultor pede temperatura no tempo',
   manifest: { params: [{ id: 'field_conversion', type: 'string', required: true }], queries: [{ id: 'dump', file: 'queries/dump.sql' }] },
-  arquivos: { 'queries/dump.sql': 'SELECT 1 WHERE fc = {{field_conversion}}', 'guia.md': '# Guia\nleia', 'perguntas.md': '# Perguntas\n- q1: CPL subiu?' },
+  arquivos: { 'queries/dump.sql': 'SELECT 1 WHERE fc = {{field_conversion}}', 'guia.md': '# Guia\nleia' },
   contexto: { lancamento: { title: 'Lançamento', body_md: 'ache o field_conversion' } },
+  // spec 005: perguntas e regras são entradas (o título é a pergunta/regra)
+  regras: { q1: { tipo: 'pergunta' as const, title: 'CPL subiu?', body_md: 'olhe CPM e CTR' }, 'nao-somar': { title: 'Não somar taxas' } },
 };
 
 describe('templates pessoais (spec 002 US6)', () => {
@@ -28,8 +30,9 @@ describe('templates pessoais (spec 002 US6)', () => {
     expect(await listarTemplates(env, b)).not.toContain(slug);
     expect(await obterTemplate(env, a, slug)).toContain('— PESSOAL');
     await expect(obterTemplate(env, b, slug)).rejects.toThrow(/não existe/);
-    expect(await perguntas(env, a, slug)).toContain('q1: CPL subiu?');
-    expect(await resourceText(env, `template://${slug}/perguntas`, a.email)).toContain('q1');
+    expect(await perguntas(env, a, slug)).toContain('### CPL subiu?');
+    expect(await obterTemplate(env, a, slug)).toContain('[REGRA] Não somar taxas');
+    expect(await resourceText(env, `template://${slug}/perguntas`, a.email)).toContain('CPL subiu?');
     expect(await resourceText(env, `template://${slug}/perguntas`, b.email)).toBeNull();
 
     const out2 = await salvarTemplate(env, a, { slug, ...KIT, arquivos: { ...KIT.arquivos, 'guia.md': '# Guia v2' }, changelog: 'guia' });

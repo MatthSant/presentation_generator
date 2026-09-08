@@ -16,8 +16,8 @@ Só tráfego pago.
 - **Nota de método**: métricas somam os brutos e calculam sobre o total; orgânico fica fora.
 
 ## O que o agente escreve no chat (não no HTML)
-- As 3–5 perguntas norteadoras mais relevantes (`perguntas.json` × `numeros.json`).
+- As 3–5 perguntas norteadoras mais relevantes (leia `numeros.json`; as perguntas vêm no kit em `perguntas.md`).
 - As premissas: eventos incluídos/excluídos e por quê, regras de plataforma e temperatura usadas, quebras de série (mudança de mecânica), lançamentos com venda ainda aberta.
 
 ## Aprofundamentos
-Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números do `query_api.py` (`trend`, `variacao`, `decomposicao` do CPA, `por_dimensao`, `correlacao`, `tabela`).
+Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números calculados em Python a partir do `calc.py` (mesmas definições do relatório).

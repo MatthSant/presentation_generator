@@ -27,12 +27,27 @@ const TIPO_LABEL: Record<string, string> = { regra: 'REGRA', recomendacao: 'RECO
 /** Regras DESTA análise (entradas versionadas): o título é a regra; o corpo, curto.
  *  Mesmo texto no MCP (obter_template/guia) e no `regras.md` do zip. */
 export function rulesBlock(rules: Array<{ tipo: string; title: string; body_md: string }>): string {
+  rules = rules.filter((r) => r.tipo !== 'pergunta');
   if (!rules.length) return '';
   const out = ['', '## Regras desta análise (o título já é a regra)', '',
     'REGRA = não descumpra. RECOMENDAÇÃO = siga, salvo motivo dito. DEFINIÇÃO = é assim que o termo é entendido aqui.'];
   for (const r of rules) {
     out.push('', `### [${TIPO_LABEL[r.tipo] ?? 'REGRA'}] ${r.title}`);
     if (r.body_md.trim()) out.push('', r.body_md.trim());
+  }
+  return out.join('\n');
+}
+
+/** Perguntas norteadoras (entradas tipo 'pergunta'): o título é a pergunta; o corpo, como aprofundar.
+ *  Mesmo texto no MCP (obter_template/perguntas), no resource e no `perguntas.md` do zip. */
+export function questionsBlock(rules: Array<{ tipo: string; title: string; body_md: string }>): string {
+  const qs = rules.filter((r) => r.tipo === 'pergunta');
+  if (!qs.length) return '';
+  const out = ['', '## Perguntas norteadoras (o que vale aprofundar)', '',
+    'Depois de gerar, leia `saida/numeros.json` e proponha ao consultor NO CHAT as 3–5 perguntas mais relevantes para este caso, com a justificativa nos números. Elas NÃO entram no HTML. Se ele aceitar uma, calcule a tabela em Python (importe `python/calc.py`: mesmas definições do relatório), monte a seção no design system (`design-system.md` + `python/aprofundar.py`) e registre com o `pergunta_id`.'];
+  for (const q of qs) {
+    out.push('', `### ${q.title}`);
+    if (q.body_md.trim()) out.push('', q.body_md.trim());
   }
   return out.join('\n');
 }
@@ -64,7 +79,7 @@ export function renderExampleHtml(kit: Kit, viewer: ViewerFile[]): string | null
     .replace('{{VIEWER_JS}}', () => noClose(dec.decode(js.bytes)));
 }
 
-/** Zip com a pasta `<slug>/` na raiz: manifest.json, tarefas/<tarefa>.md, regras.md, os arquivos da versão, viewer/ e exemplo/relatorio.html. */
+/** Zip com a pasta `<slug>/` na raiz: manifest.json, tarefas/<tarefa>.md, regras.md, perguntas.md, os arquivos da versão, viewer/ e exemplo/relatorio.html. */
 export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ path: string; content: string }> = []): Uint8Array {
   const root = kit.template.slug;
   const entries: Record<string, Uint8Array> = {};
@@ -79,6 +94,8 @@ export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ pa
   for (const t of kit.tasks) entries[`${root}/tarefas/${t.task_id}.md`] = strToU8(`# ${t.title}\n\n${t.body_md}\n`);
   if (kit.rules.length) entries[`${root}/regras.md`] = strToU8(`# Regras: ${kit.template.name}\n${rulesBlock(kit.rules)}\n`);
   for (const f of kit.files) entries[`${root}/${f.path}`] = strToU8(f.content);
+  const qmd = questionsBlock(kit.rules);
+  if (qmd) entries[`${root}/perguntas.md`] = strToU8(`# Perguntas norteadoras: ${kit.template.name}\n${qmd}\n`);
   for (const v of viewer) entries[`${root}/${v.path}`] = v.bytes;
   const example = renderExampleHtml(kit, viewer);
   if (example) entries[`${root}/exemplo/relatorio.html`] = strToU8(example);

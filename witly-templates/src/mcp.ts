@@ -8,7 +8,7 @@ import { isStillActive } from './auth/access.js';
 import type { Props } from './auth/google.js';
 import { listTemplates, listGeneralContexts } from './db/index.js';
 import { guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
-import { avaliar, registrar } from './kit/activity.js';
+import { avaliar, registrar, sugerir } from './kit/activity.js';
 import { removerTemplate, salvarTemplate } from './kit/personal.js';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
@@ -61,14 +61,14 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
     }, async ({ slug }) => this.run((u) => guia(this.env, u, slug)));
 
     this.server.registerTool('perguntas', {
-      description: 'Banco de perguntas norteadoras de um template: o que vale aprofundar em cada caso e como. A relevância para UMA campanha sai em saida/perguntas.json depois do gerar.py; apresente as mais relevantes ao consultor no chat (não no HTML).',
+      description: 'Perguntas norteadoras de um template (entradas: o título é a pergunta; o corpo, como aprofundar). Depois do gerar.py, leia numeros.json, escolha as 3–5 mais relevantes para o caso e proponha ao consultor no chat (não no HTML).',
       inputSchema: { slug: z.string() },
     }, async ({ slug }) => this.run((u) => perguntas(this.env, u, slug)));
 
     this.server.registerTool('registrar', {
-      description: 'Registra o que você fez para o editor do template ver e melhorar o template: geracao (ao terminar o documento), aprofundamento (cada pergunta respondida, com a resposta em prosa + tabelas agregadas e, se houver, a avaliação/descarte do consultor) ou edicao. NUNCA inclua e-mail, telefone, CPF ou nome de lead — o registro é recusado.',
+      description: 'Registra o que você fez para o editor do template ver e melhorar o template: geracao (ao terminar o documento), aprofundamento (cada pergunta respondida, com a resposta em prosa + tabelas agregadas e, se houver, a avaliação/descarte do consultor). NUNCA inclua e-mail, telefone, CPF ou nome de lead — o registro é recusado.',
       inputSchema: {
-        evento: z.enum(['geracao', 'aprofundamento', 'edicao']),
+        evento: z.enum(['geracao', 'aprofundamento']),
         slug: z.string(),
         versao: z.number().int().optional(),
         cliente: z.string().optional().describe('slug do cliente (não nome de pessoa)'),
@@ -77,11 +77,10 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
         pergunta: z.string().optional(),
         pergunta_id: z.string().optional().describe('id no banco de perguntas, se veio de lá'),
         resposta: z.string().optional(),
-        consultas: z.array(z.unknown()).optional().describe('consultas do query_api usadas'),
+        consultas: z.array(z.unknown()).optional().describe('tabelas/cortes usados: {name, dims, filters}'),
         avaliacao: z.number().int().min(1).max(5).optional(),
         descartado: z.boolean().optional(),
         motivo: z.string().optional(),
-        mudanca: z.string().optional().describe('edicao: o que mudou e por quê'),
       },
     }, async (input) => this.run((u) => registrar(this.env, u, input)));
 
@@ -91,12 +90,13 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
     }, async ({ slug, nota, comentario }) => this.run((u) => avaliar(this.env, u, slug, nota, comentario)));
 
     this.server.registerTool('salvar_template', {
-      description: 'Salva um template PESSOAL (só você vê e usa) no mesmo formato dos oficiais: manifesto, arquivos (queries/*.sql, python/*.py, guia.md, documento.md…) e tarefas de contexto. Slug seu já existente = versão nova. Um editor pode promover para todos na UI. Sem dado pessoal.',
+      description: 'Salva um template PESSOAL (só você vê e usa) no mesmo formato dos oficiais: manifesto, arquivos (queries/*.sql, python/*.py, guia.md, documento.md…), tarefas de contexto e regras (regra, recomendação, definição, pergunta). Slug seu já existente = versão nova. Um editor pode promover para todos na UI. Sem dado pessoal.',
       inputSchema: {
         slug: z.string(), name: z.string(), objective: z.string().optional(), when_to_use: z.string().optional(),
         manifest: z.record(z.string(), z.unknown()).optional(),
         arquivos: z.record(z.string(), z.string()).optional().describe('caminho → conteúdo'),
         contexto: z.record(z.string(), z.object({ title: z.string().optional(), body_md: z.string().optional() })).optional().describe('tarefa → página'),
+        regras: z.record(z.string(), z.object({ tipo: z.enum(['regra', 'recomendacao', 'definicao', 'pergunta']).optional(), title: z.string(), body_md: z.string().optional() })).optional().describe('id → entrada (o título é a regra/pergunta)'),
         notas: z.string().optional(), changelog: z.string().optional(),
       },
     }, async (input) => this.run((u) => salvarTemplate(this.env, u, input)));
@@ -105,6 +105,17 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
       description: 'Remove um template pessoal seu. A atividade dele fica no histórico.',
       inputSchema: { slug: z.string() },
     }, async ({ slug }) => this.run((u) => removerTemplate(this.env, u, slug)));
+
+    this.server.registerTool('sugerir_regra', {
+      description: 'Sugere uma entrada para um template: regra, recomendação, definição ou pergunta norteadora que faltou. Vai para a triagem do editor (não muda o kit sozinho); se aceita, vira entrada no rascunho. O título já deve dizer a regra. Sem dado pessoal.',
+      inputSchema: {
+        slug: z.string(),
+        tipo: z.enum(['regra', 'recomendacao', 'definicao', 'pergunta']),
+        titulo: z.string().describe('a regra/pergunta em uma frase'),
+        corpo: z.string().optional().describe('por quê + como aplicar (curto)'),
+        motivo: z.string().optional().describe('o que aconteceu na análise que mostrou a falta'),
+      },
+    }, async (input) => this.run((u) => sugerir(this.env, u, input)));
 
     this.server.registerTool('quem_sou', {
       description: 'Identidade do usuário logado neste MCP (diagnóstico).',

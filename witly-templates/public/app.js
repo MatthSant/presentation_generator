@@ -173,12 +173,12 @@
       info: !!(t.objective || '').trim() && !!(t.when_to_use || '').trim(),
       manifesto: ((m.como_gerar || []).length > 0),
       tarefas: !!(kit && kit.tasks.length),
-      regras: !!(kit && (kit.rules || []).length),
+      regras: !!(kit && (kit.rules || []).some((r) => r.tipo !== 'pergunta')),
       queries: temPrefixo('queries/'),
       python: temPrefixo('python/'),
       documento: cheio('documento.md'),
       guia: cheio('guia.md'),
-      perguntas: cheio('perguntas.md') || !!m.perguntas_bank,
+      perguntas: !!(kit && (kit.rules || []).some((r) => r.tipo === 'pergunta')),
       exemplo: cheio('exemplo.html'),
     };
   }
@@ -250,7 +250,7 @@
     const pb = $('#publish'); if (pb) pb.onclick = () => publicarModal(t, v);
     if (!kit) { $('#pane').innerHTML = '<div class="empty">Este template ainda não tem conteúdo.</div>'; return; }
     const ctx = { slug, kit, canEdit, state, sub };
-    ({ info: paneInfo, manifesto: paneManifest, tarefas: paneTarefas, contexto: paneTarefas, regras: paneRegras, queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: paneSingle('perguntas.md'), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
+    ({ info: paneInfo, manifesto: paneManifest, tarefas: paneTarefas, contexto: paneTarefas, regras: (c, e) => paneRegras({ ...c, tipos: ['regra', 'recomendacao', 'definicao'] }, e), queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: (c, e) => paneRegras({ ...c, tipos: ['pergunta'] }, e), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
   }
 
   function saveFile(slug, path, content) {
@@ -310,26 +310,33 @@
     draw();
   }
 
-  const TIPO_REGRA = { regra: 'regra', recomendacao: 'recomendação', definicao: 'definição' };
+  const TIPO_REGRA = { regra: 'regra', recomendacao: 'recomendação', definicao: 'definição', pergunta: 'pergunta' };
+  const PILL_TIPO = { regra: 'pub', recomendacao: 'draft', definicao: 'leitor', pergunta: 'editor' };
 
-  /** Regras DESTA análise: uma entrada por regra (o título é a regra), como os contextos gerais. */
-  function paneRegras({ slug, kit, canEdit, sub }, el) {
-    const rules = [...(kit.rules || [])].sort((a, b) => a.sort - b.sort);
+  /** Entradas DESTA análise (o título é a regra/pergunta), como os contextos gerais.
+   *  `tipos` escolhe a aba: Regras (regra/recomendação/definição) ou Perguntas (pergunta). */
+  function paneRegras({ slug, kit, canEdit, sub, tipos }, el) {
+    const soPergunta = tipos.length === 1 && tipos[0] === 'pergunta';
+    const aba = soPergunta ? 'perguntas' : 'regras';
+    const nome = soPergunta ? 'pergunta' : 'regra';
+    const rules = (kit.rules || []).filter((r) => tipos.includes(r.tipo || 'regra')).sort((a, b) => a.sort - b.sort);
     let cur = rules.some((r) => r.rule_id === sub) ? sub : (rules[0] ? rules[0].rule_id : null);
     const draw = () => {
       const r = rules.find((x) => x.rule_id === cur);
-      el.innerHTML = `<p class="muted sm">O <b>título é a regra</b>: o agente lê pelos títulos, aqui e no <code>regras.md</code> do kit. Corpo curto: por quê + como aplicar.</p>
-        <div class="split"><div class="card"><div class="list">${rules.map((x) => `<button data-id="${esc(x.rule_id)}" class="${x.rule_id === cur ? 'on' : ''}"><span class="pill ${x.tipo === 'regra' ? 'pub' : x.tipo === 'definicao' ? 'leitor' : 'draft'}">${esc(TIPO_REGRA[x.tipo] || x.tipo || 'regra')}</span> ${esc(x.title)}<br><code>${esc(x.rule_id)}</code></button>`).join('') || '<div class="muted sm">Nenhuma regra ainda.</div>'}</div>
-          ${canEdit ? '<div class="actions"><button class="btn" id="newrule">+ Regra</button></div>' : ''}</div>
-        <div class="card">${r ? `<label>Tipo</label><select id="r-tipo" ${canEdit ? '' : 'disabled'}><option value="regra" ${r.tipo === 'regra' || !r.tipo ? 'selected' : ''}>Regra — o agente não pode descumprir</option><option value="recomendacao" ${r.tipo === 'recomendacao' ? 'selected' : ''}>Recomendação — siga, salvo motivo dito</option><option value="definicao" ${r.tipo === 'definicao' ? 'selected' : ''}>Definição — como o termo é entendido nesta análise</option></select>
-          <label>Título (a regra em uma frase: o que fazer / não fazer)</label><input id="r-title" value="${esc(r.title)}" ${canEdit ? '' : 'readonly'}>
+      el.innerHTML = `<p class="muted sm">${soPergunta
+        ? 'O <b>título é a pergunta</b>: o agente lê pelos títulos, escolhe as 3–5 mais relevantes pelo <code>numeros.json</code> e propõe no chat. Corpo: como aprofundar e que decisão alimenta.'
+        : 'O <b>título é a regra</b>: o agente lê pelos títulos, aqui e no <code>regras.md</code> do kit. Corpo curto: por quê + como aplicar.'}</p>
+        <div class="split"><div class="card"><div class="list">${rules.map((x) => `<button data-id="${esc(x.rule_id)}" class="${x.rule_id === cur ? 'on' : ''}">${soPergunta ? '' : `<span class="pill ${PILL_TIPO[x.tipo] || 'pub'}">${esc(TIPO_REGRA[x.tipo] || x.tipo || 'regra')}</span> `}${esc(x.title)}<br><code>${esc(x.rule_id)}</code></button>`).join('') || `<div class="muted sm">Nenhuma ${nome} ainda.</div>`}</div>
+          ${canEdit ? `<div class="actions"><button class="btn" id="newrule">+ ${soPergunta ? 'Pergunta' : 'Regra'}</button></div>` : ''}</div>
+        <div class="card">${r ? `${soPergunta ? '' : `<label>Tipo</label><select id="r-tipo" ${canEdit ? '' : 'disabled'}><option value="regra" ${r.tipo === 'regra' || !r.tipo ? 'selected' : ''}>Regra — o agente não pode descumprir</option><option value="recomendacao" ${r.tipo === 'recomendacao' ? 'selected' : ''}>Recomendação — siga, salvo motivo dito</option><option value="definicao" ${r.tipo === 'definicao' ? 'selected' : ''}>Definição — como o termo é entendido nesta análise</option></select>`}
+          <label>${soPergunta ? 'Pergunta (uma frase, como o consultor faria)' : 'Título (a regra em uma frase: o que fazer / não fazer)'}</label><input id="r-title" value="${esc(r.title)}" ${canEdit ? '' : 'readonly'}>
           <label>Ordem</label><input id="r-sort" type="number" value="${r.sort}" style="width:120px" ${canEdit ? '' : 'readonly'}>
-          <label>Corpo (por quê + como aplicar)</label>${editorBlock('r-body', r.body_md, '', canEdit)}
-          ${canEdit ? '<div class="actions"><button class="btn btn-ghost btn-danger" id="delrule">Excluir</button><button class="btn btn-p" id="save">Salvar no rascunho</button></div>' : ''}` : '<div class="empty">Sem regras. As regras chegam ao agente junto com o kit.</div>'}</div></div>`;
-      for (const b of el.querySelectorAll('.list button')) b.onclick = () => { location.hash = `#/t/${slug}/regras/${encodeURIComponent(b.dataset.id)}`; };
-      const nr = $('#newrule'); if (nr) nr.onclick = () => { const id = prompt('id da regra (a-z, 0-9, _ -), ex.: meta-por-canal-existe'); if (!id) return; rules.push({ rule_id: id, tipo: 'regra', title: id, body_md: '', sort: rules.length }); cur = id; draw(); };
-      const dr = $('#delrule'); if (dr) dr.onclick = async () => { if (!confirm(`Excluir a regra "${cur}" do rascunho?`)) return; try { await api(`/api/templates/${encodeURIComponent(slug)}/draft/regras/${encodeURIComponent(cur)}`, { method: 'DELETE' }); toast('Regra removida do rascunho'); route(); } catch (e) { toast(e.message, true); } };
-      if (r) wireSave(() => api(`/api/templates/${encodeURIComponent(slug)}/draft/regras/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#r-title').value, body_md: $('#r-body').value, tipo: $('#r-tipo').value, sort: Number($('#r-sort').value) || 0 } }));
+          <label>${soPergunta ? 'Como aprofundar (o que olhar, que decisão alimenta)' : 'Corpo (por quê + como aplicar)'}</label>${editorBlock('r-body', r.body_md, '', canEdit)}
+          ${canEdit ? '<div class="actions"><button class="btn btn-ghost btn-danger" id="delrule">Excluir</button><button class="btn btn-p" id="save">Salvar no rascunho</button></div>' : ''}` : `<div class="empty">Sem ${nome}s. As entradas chegam ao agente junto com o kit.</div>`}</div></div>`;
+      for (const b of el.querySelectorAll('.list button')) b.onclick = () => { location.hash = `#/t/${slug}/${aba}/${encodeURIComponent(b.dataset.id)}`; };
+      const nr = $('#newrule'); if (nr) nr.onclick = () => { const id = prompt(`id da ${nome} (a-z, 0-9, _ -), ex.: ${soPergunta ? 'cpl-subiu-por-que' : 'meta-por-canal-existe'}`); if (!id) return; rules.push({ rule_id: id, tipo: soPergunta ? 'pergunta' : 'regra', title: id, body_md: '', sort: rules.length }); cur = id; draw(); };
+      const dr = $('#delrule'); if (dr) dr.onclick = async () => { if (!confirm(`Excluir a ${nome} "${cur}" do rascunho?`)) return; try { await api(`/api/templates/${encodeURIComponent(slug)}/draft/regras/${encodeURIComponent(cur)}`, { method: 'DELETE' }); toast(`${soPergunta ? 'Pergunta' : 'Regra'} removida do rascunho`); route(); } catch (e) { toast(e.message, true); } };
+      if (r) wireSave(() => api(`/api/templates/${encodeURIComponent(slug)}/draft/regras/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#r-title').value, body_md: $('#r-body').value, tipo: soPergunta ? 'pergunta' : $('#r-tipo').value, sort: Number($('#r-sort').value) || 0 } }));
     };
     draw();
   }
@@ -412,11 +419,11 @@
   }
 
   // ── Fase 2: atividade ──────────────────────────────────────────────────
-  const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição' };
+  const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição', sugestao: 'Sugestão' };
   const VEREDITO_LABEL = { exemplo: 'exemplo', regra: 'virou regra', descarte: 'descartado', ok: 'revisado' };
   const VEREDITO_PILL = { exemplo: 'pub', regra: 'editor', descarte: 'off', ok: 'leitor' };
   const TRIAGEM = [
-    ['sem', 'sem veredito', { evento: 'aprofundamento', veredito: 'sem' }],
+    ['sem', 'sem veredito', { evento: 'aprofundamento,sugestao', veredito: 'sem' }],
     ['tudo', 'tudo', {}],
     ['exemplos', 'exemplos', { veredito: 'exemplo' }],
     ['descartados', 'descartados', { descartado: '1' }],
@@ -476,7 +483,7 @@
     bs.onkeydown = (e) => { if (e.key === 'Enter') ir({ busca: bs.value.trim() }); };
     bs.onblur = () => { if ((bs.value.trim() || '') !== (p.get('busca') || '')) ir({ busca: bs.value.trim() }); };
     const fl = $('#fila'); if (fl) fl.onclick = async () => {
-      const fila = await api('/api/atividade?evento=aprofundamento&veredito=sem&limit=100');
+      const fila = await api('/api/atividade?evento=aprofundamento,sugestao&veredito=sem&limit=100');
       if (!fila.length) { toast('Nada para revisar'); return; }
       location.hash = `#/atividade/${fila[fila.length - 1].id}?fila=1`;
     };
@@ -485,8 +492,9 @@
 
   /** Um item da triagem: o que foi perguntado, o que o agente respondeu e o que fazer com isso. */
   function cardAtividade(r) {
-    const pend = r.evento === 'aprofundamento' && !r.veredito;
-    const titulo = r.resumo.pergunta || (r.resumo.resultado && r.resumo.resultado.titulo) || EVENTO_LABEL[r.evento] || r.evento;
+    const triavel = r.evento === 'aprofundamento' || r.evento === 'sugestao';
+    const pend = triavel && !r.veredito;
+    const titulo = r.resumo.pergunta || (r.evento === 'sugestao' ? `[${TIPO_REGRA[r.resumo.tipo] || r.resumo.tipo || 'regra'}] ${r.resumo.titulo || ''}` : '') || (r.resumo.resultado && r.resumo.resultado.titulo) || EVENTO_LABEL[r.evento] || r.evento;
     return `<div class="acard ${pend ? 'pend' : r.veredito ? 'done' : ''}">
       <div class="meta"><span class="pill ${r.evento === 'aprofundamento' ? 'editor' : 'leitor'}">${esc(EVENTO_LABEL[r.evento] || r.evento)}</span>
         <span>${esc(r.slug)} v${r.version_number ?? '?'}</span><span>· ${esc(fmtAt(r.at))} · ${esc(r.email)}${r.cliente ? ` · cliente ${esc(r.cliente)}` : ''}</span>
@@ -494,11 +502,12 @@
         ${r.descartado && r.veredito !== 'descarte' ? '<span class="pill off">descartado</span>' : ''}
         <span style="margin-left:auto;font-size:13px;color:${r.avaliacao >= 4 ? 'var(--green)' : r.avaliacao ? 'var(--amber)' : 'var(--ink-faint)'}">${r.avaliacao ?? '—'}</span></div>
       <p class="q">${esc(titulo)}</p>
-      <p class="a">${esc(r.resumo.resposta || r.resumo.mudanca || (r.motivo ? `motivo: ${r.motivo}` : '') || '—')}</p>
-      <div class="foot"><a href="#/atividade/${esc(r.id)}">${r.evento === 'aprofundamento' ? 'Abrir revisão' : 'Ver detalhe'}</a>
-        ${isEditor() && r.evento === 'aprofundamento' ? `<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+      <p class="a">${esc(r.resumo.resposta || r.resumo.corpo || r.resumo.mudanca || (r.motivo ? `motivo: ${r.motivo}` : '') || '—')}</p>
+      <div class="foot"><a href="#/atividade/${esc(r.id)}">${triavel ? 'Abrir revisão' : 'Ver detalhe'}</a>
+        ${isEditor() && triavel ? `<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+          ${r.evento === 'sugestao' ? (r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="aceitar" data-id="${esc(r.id)}">Aceitar como entrada</button>`) : `
           ${r.virou_exemplo ? '' : `<button class="btn btn-ok" data-acao="exemplo" data-id="${esc(r.id)}">Virar exemplo</button>`}
-          ${r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="regra" data-id="${esc(r.id)}">Virar regra</button>`}
+          ${r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="regra" data-id="${esc(r.id)}">Virar regra</button>`}`}
           ${r.descartado ? '' : `<button class="btn btn-drop" data-acao="descarte" data-id="${esc(r.id)}">Descartar</button>`}</span>` : ''}</div></div>`;
   }
 
@@ -506,6 +515,7 @@
   async function acaoTriagem(acao, id) {
     try {
       if (acao === 'exemplo') { const r = await api(`/api/atividade/${id}/virar-exemplo`, { method: 'POST' }); toast('Exemplo no guia do rascunho'); return r; }
+      if (acao === 'aceitar') { const r = await api(`/api/atividade/${id}/virar-regra`, { method: 'POST', body: {} }); toast('Entrada criada no rascunho'); return r; }
       if (acao === 'regra') {
         const texto = prompt('A regra em uma frase (vira uma entrada na aba Regras):');
         if (texto === null || !texto.trim()) return null;
@@ -527,7 +537,7 @@
     const d = a.dados || {};
     const naFila = params().get('fila') === '1';
     let fila = [];
-    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento&veredito=sem&limit=100'); } catch { fila = []; } }
+    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento,sugestao&veredito=sem&limit=100'); } catch { fila = []; } }
     const ordem = [...fila].reverse();                       // mais antigo primeiro: a fila anda para frente no tempo
     const i = ordem.findIndex((x) => x.id === a.id);
     const vizinho = (passo) => (i >= 0 && ordem[i + passo] ? ordem[i + passo].id : null);
@@ -536,14 +546,17 @@
     const consultas = Array.isArray(d.consultas) && d.consultas.length
       ? `<div class="card" style="padding:0;overflow:hidden"><div style="padding:11px 14px;border-bottom:1px solid var(--line);background:var(--zebra)" class="kicker">Consultas usadas</div>
          <pre style="padding:14px;margin:0;overflow:auto;color:var(--ink-soft)">${esc(JSON.stringify(d.consultas, null, 2))}</pre></div>` : '';
-    const corpo = a.evento === 'aprofundamento'
+    const corpo = a.evento === 'sugestao'
+      ? `<div class="card"><div class="kicker">Sugestão do agente</div><p class="sm"><span class="pill ${PILL_TIPO[d.tipo] || 'pub'}">${esc(TIPO_REGRA[d.tipo] || d.tipo || 'regra')}</span></p><p style="margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(d.corpo || '—')}</p>${d.motivo ? `<p class="muted sm" style="margin-top:10px">Motivo: ${esc(d.motivo)}</p>` : ''}</div>`
+      : a.evento === 'aprofundamento'
       ? `<div class="card"><div class="kicker">Resposta entregue ao consultor</div><p style="margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap;text-wrap:pretty">${esc(d.resposta || '—')}</p></div>${consultas}`
       : `<div class="card"><div class="kicker">Registro</div><pre style="white-space:pre-wrap;color:var(--ink-soft)">${esc(JSON.stringify(d, null, 2))}</pre></div>`;
 
-    const decisao = isEditor() && a.evento === 'aprofundamento' ? `<div class="card"><div class="kicker">Seu veredito</div>
+    const sugestao = a.evento === 'sugestao';
+    const decisao = isEditor() && (a.evento === 'aprofundamento' || sugestao) ? `<div class="card"><div class="kicker">Seu veredito</div>
       ${a.veredito ? `<p class="sm"><span class="pill ${VEREDITO_PILL[a.veredito]}">${esc(VEREDITO_LABEL[a.veredito])}</span> por ${esc(a.veredito_por || '—')} em ${esc(fmtAt(a.veredito_em))}</p>` : ''}
-      ${a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
-      ${a.virou_regra ? '' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>'}
+      ${sugestao || a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
+      ${a.virou_regra ? '' : (sugestao ? '<button class="choice rule" data-acao="aceitar"><b>Aceitar como entrada</b><span>Vira entrada no rascunho com o tipo e o título sugeridos</span></button>' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>')}
       ${a.descartado ? '' : '<button class="choice drop" data-acao="descarte"><b>Descartar</b><span>Sai do kit e conta na taxa de descarte</span></button>'}
       <label>Sua nota e o motivo</label>
       <div class="scores">${[1, 2, 3, 4, 5].map((n) => `<button data-nota="${n}" class="${a.editor_nota === n ? 'on' : ''}">${n}</button>`).join('')}</div>
@@ -553,7 +566,7 @@
     app.innerHTML = `<div class="row sm" style="margin-bottom:14px"><a href="#/atividade"><code>← atividade</code></a>
       ${naFila && i >= 0 ? `<code class="muted">item ${i + 1} de ${ordem.length} sem veredito</code>
         <span style="margin-left:auto;display:flex;gap:6px"><button class="btn" id="ant" ${vizinho(-1) ? '' : 'disabled'}>anterior</button><button class="btn" id="prox" ${vizinho(1) ? '' : 'disabled'}>próximo →</button></span>` : ''}</div>
-      <h1 style="max-width:34ch">${esc(d.pergunta || EVENTO_LABEL[a.evento] || a.evento)}</h1>
+      <h1 style="max-width:34ch">${esc(d.pergunta || d.titulo || EVENTO_LABEL[a.evento] || a.evento)}</h1>
       <div class="row sm" style="margin-bottom:22px"><span class="pill ${a.evento === 'aprofundamento' ? 'editor' : 'leitor'}">${esc(EVENTO_LABEL[a.evento] || a.evento)}</span>
         <code>${esc(a.slug)} v${a.version_number ?? '?'}</code><code class="muted">· ${esc(a.email)} · ${esc(fmtAt(a.at))}${a.cliente ? ` · cliente ${esc(a.cliente)}` : ''}</code>
         ${a.avaliacao ? `<span class="pill pub">nota da pessoa ${a.avaliacao}</span>` : ''}${a.descartado ? `<span class="pill off">descartado</span> <span class="muted">${esc(a.motivo || '')}</span>` : ''}</div>

@@ -15,22 +15,14 @@ O que decide a leitura: **atingimento** (leads, vendas, faturamento vs meta), **
 | Análise 360° | até 13 perguntas estratégicas (Q1–Q13) com veredito e gráficos; Q10/Q11 são a leitura temporal (semana a semana por **data de inscrição**) |
 | One Pager | resumo executivo de uma tela, alavancas e gargalos automáticos |
 
-## Definições
-- **invest_cpt** = investimento só das campanhas de captação. Campanhas de vendas saem de CPL/ROAS/CPMQL/CPM/CTR (o faturamento de vendas fica).
-- **CPL** = invest_cpt ÷ leads de tráfego · **CPMQL** = CPL ÷ qualificação paga · **CAC** = invest_cpt ÷ vendas do pago.
-- **Qualificação** = MQLs ÷ **respostas** (não ÷ leads) · **Conversão** = vendas ÷ leads do segmento.
-- **ROAS** = (faturamento pago − invest_cpt) ÷ invest_cpt · **ROI** = (faturamento − investimento total) ÷ investimento total.
-- **Metas**: soma para volume/receita; média das linhas > 0 para CPL/CPMQL/conversão/qualificação.
-- **Δ vs meta / vs histórico**: dentro de ±10% é "na meta"; custo subir é pior.
-
 ## Classificação (a fonte dos erros)
 Pago = `utm_source` contém um `paid_sources`; captação/vendas = `field_campaign_name` contém `cpt_pattern`/`vnd_pattern`; temperatura pelas `temp_rules`. **Inspecione `utm_source` e `field_campaign_name` antes de gerar** (tarefa de contexto "classificação").
 
 ## Como ler cada bloco
 - **Atingimento**: primeiro leads e vendas vs meta; depois, qual segmento explica a diferença (canal ou temperatura), sem inventar meta por segmento.
-- **Mídia**: CPL fora da meta → decomponha (CPM = leilão, CTR = criativo, conv. de página = oferta/página) com `query_api.py decomposicao`; CPMQL fora → CPL ou qualificação.
+- **Mídia**: CPL fora da meta → decomponha (CPM = leilão, CTR = criativo, conv. de página = oferta/página); CPMQL fora → CPL ou qualificação.
 - **Canais**: a soma de vendas por canal pode não fechar com o total (vendas sem atribuição); reconheça, não force.
-- **Métricas no tempo** (pickers em Panorama/Tráfego/Orgânico) e Q10/Q11: procure a semana de inflexão; a cauda pós-lançamento (sem mídia) distorce séries de custo — use `so_midia` no `query_api`.
+- **Métricas no tempo** (pickers em Panorama/Tráfego/Orgânico) e Q10/Q11: procure a semana de inflexão; a cauda pós-lançamento (sem mídia) distorce séries de custo — corte os dias sem investimento antes de ler custo.
 - **360°**: cada Q tem veredito; use como pauta da reunião, não como lista de tarefas.
 
 ## Regras desta análise

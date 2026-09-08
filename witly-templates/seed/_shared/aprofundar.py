@@ -7,7 +7,7 @@ uso:
   det.json    seção no contrato do app: {"id":"det-<slug>", "header":{"badge","title","sub"}, "widgets":[...]}
               (id opcional: derivado da pergunta). Números só via `bind` a uma tabela do dataset.
   q.json      tabela para o dataset: {"name":"q-<id>", "dims":[...], "filters":[], "rows":[{...}]}
-              (saída do query_api.py já vem nesse shape em `table`; passe o `name`).
+              (o shape que o seu script de corte grava; `name` é o nome da tabela).
   --layout    itens {id,x,y,w,h} da seção; sem ele, um empacotamento padrão por tipo.
 
 faz: valida (tipos de widget, binds para tabelas/colunas existentes, prosa sem número solto
@@ -117,7 +117,7 @@ def validate(section, dataset, new_tables):
             known = _table_numbers(all_tables)
             bad = [x for x in loose if x not in known and x.rstrip('0').rstrip('.') not in known]
             if bad:
-                errs.append(f'widget {wid} ({t}): número na prosa que não está em nenhuma tabela do dataset: {", ".join(sorted(bad))} — traga pelo query_api e cite a tabela')
+                errs.append(f'widget {wid} ({t}): número na prosa que não está em nenhuma tabela do dataset: {", ".join(sorted(bad))} — calcule em Python, grave como tabela e cite-a')
     return errs
 
 
@@ -187,7 +187,7 @@ def main(argv=None):
     for p in a.tabela:
         with open(p, encoding='utf-8') as f:
             t = json.load(f)
-        # aceita a saída crua do query_api ({status, table:{dims,rows}, summary}) com o nome no arquivo
+        # aceita também o envelope {status, table:{dims,rows}, summary} com o nome no arquivo
         if 'table' in t and 'rows' not in t:
             t = {'name': t.get('name') or os.path.splitext(os.path.basename(p))[0], **t['table']}
         if 'name' not in t:

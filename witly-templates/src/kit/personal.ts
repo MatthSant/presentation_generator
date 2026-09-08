@@ -2,13 +2,14 @@
  * salvar_template: cria (ou publica versão nova de) um template do PRÓPRIO usuário, já
  * publicado (não há revisor num pessoal). remover_template: só o dono. */
 
-import { createTemplate, deleteTemplate, getTemplate, isOwner, publishNewVersion, updateTemplateMeta } from '../db/index.js';
+import { CONTEXTO_TIPOS, createTemplate, deleteTemplate, getTemplate, isOwner, publishNewVersion, updateTemplateMeta, type ContextoTipo } from '../db/index.js';
 import { checkPii, piiMessage } from './pii.js';
 import { ToolError, type ToolEnv, type ToolUser } from './tools.js';
 
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const PATH_RE = /^(?!\.)(?!.*\.\.)[A-Za-z0-9_./-]{1,200}$/;
 const TASK_RE = /^[a-z0-9_-]{1,64}$/;
+const RULE_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 export const MAX_FILE_BYTES = 1024 * 1024;
 
 export interface SalvarTemplateInput {
@@ -21,6 +22,8 @@ export interface SalvarTemplateInput {
   arquivos?: Record<string, string>;
   /** tarefa → { title, body_md } */
   contexto?: Record<string, { title?: string; body_md?: string }>;
+  /** id → entrada (regra, recomendação, definição ou pergunta) */
+  regras?: Record<string, { tipo?: string; title?: string; body_md?: string }>;
   notas?: string;
   changelog?: string;
 }
@@ -45,9 +48,18 @@ export async function salvarTemplate(env: ToolEnv, user: ToolUser, input: Salvar
     if (!TASK_RE.test(task_id)) throw new ToolError(`id de tarefa inválido: ${task_id}`);
     tasks.push({ task_id, title: String(t?.title || task_id).trim(), body_md: String(t?.body_md || ''), sort: i++ });
   }
+  const rules: Array<{ rule_id: string; tipo: ContextoTipo; title: string; body_md: string; sort: number }> = [];
+  let j = 0;
+  for (const [rule_id, r] of Object.entries(input.regras || {})) {
+    if (!RULE_RE.test(rule_id)) throw new ToolError(`id de regra inválido: ${rule_id}`);
+    const title = String(r?.title || '').trim();
+    if (!title) throw new ToolError(`regra ${rule_id}: title obrigatório (a regra em uma frase)`);
+    const tipo = CONTEXTO_TIPOS.find((x) => x === r?.tipo) ?? 'regra';
+    rules.push({ rule_id, tipo, title, body_md: String(r?.body_md || ''), sort: j++ });
+  }
   const manifest = input.manifest && typeof input.manifest === 'object' ? input.manifest : { params: [], queries: [], tarefas_contexto: [] };
 
-  const pii = checkPii({ name, objective: input.objective, when_to_use: input.when_to_use, manifest, files, tasks, notas: input.notas }, [user.email]);
+  const pii = checkPii({ name, objective: input.objective, when_to_use: input.when_to_use, manifest, files, tasks, rules, notas: input.notas }, [user.email]);
   if (!pii.ok) throw new ToolError(piiMessage(pii));
 
   const existing = await getTemplate(env.DB, slug);
@@ -57,12 +69,12 @@ export async function salvarTemplate(env: ToolEnv, user: ToolUser, input: Salvar
   if (!existing) {
     const v = await createTemplate(env.DB, {
       slug, org_id: env.ORG_ID, name, objective: input.objective ?? '', when_to_use: input.when_to_use ?? '',
-      manifest, files, tasks, author_email: user.email, owner_email: user.email, notas: input.notas ?? '', publish: true,
+      manifest, files, tasks, rules, author_email: user.email, owner_email: user.email, notas: input.notas ?? '', publish: true,
     });
     return `template pessoal criado: ${slug} v${v.semver ?? v.number} (só você vê; um editor pode promover para todos na UI)`;
   }
   await updateTemplateMeta(env.DB, slug, { name, objective: input.objective ?? existing.objective, when_to_use: input.when_to_use ?? existing.when_to_use });
-  const v = await publishNewVersion(env.DB, slug, { manifest, files, tasks, author_email: user.email, changelog: input.changelog ?? 'salvo pelo agente' });
+  const v = await publishNewVersion(env.DB, slug, { manifest, files, tasks, rules, author_email: user.email, changelog: input.changelog ?? 'salvo pelo agente' });
   return `template pessoal atualizado: ${slug} v${v.semver ?? v.number}`;
 }
 

@@ -5,7 +5,7 @@ import { versionLabel } from '../db/semver.js';
 import { canSee, getPlatformDoc, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
-import { rulesBlock } from './zip.js';
+import { questionsBlock, rulesBlock } from './zip.js';
 
 export interface ToolEnv extends Pick<Env, 'DB' | 'ORG_ID' | 'COOKIE_ENCRYPTION_KEY' | 'DOWNLOAD_SIGNING_KEY' | 'PUBLIC_URL'> {}
 export interface ToolUser { email: string; name: string }
@@ -147,14 +147,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('');
   out.push(text('guia.md').trim());
   out.push(rulesBlock(kit.rules));
-  if (files.has('perguntas.md')) {
-    out.push('');
-    out.push('## Perguntas norteadoras (o que vale aprofundar)');
-    out.push('');
-    out.push('Depois de gerar, leia `saida/perguntas.json` (relevância calculada sobre os números) e o `numeros.json`, e proponha ao consultor NO CHAT as 3–5 perguntas mais relevantes com a justificativa. Elas NÃO entram no HTML. Se ele aceitar uma, construa o aprofundamento no design system (`design-system.md` + `python/aprofundar.py`) e registre com `pergunta_id`.');
-    out.push('');
-    out.push(text('perguntas.md').trim());
-  }
+  out.push(questionsBlock(kit.rules));
   if (await getPlatformDoc(env.DB, 'design-system')) {
     out.push('');
     out.push('## Design system dos aprofundamentos (da plataforma, igual para todo template)');
@@ -167,6 +160,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('- Gerou o documento: `registrar({evento:"geracao", slug, versao, cliente, contexto:{tarefas resolvidas}, resultado:{titulo, secoes, problemas}})`.');
   out.push('- Cada aprofundamento: `registrar({evento:"aprofundamento", slug, pergunta, pergunta_id?, resposta, consultas, avaliacao?, descartado?, motivo?})` — resposta = prosa + tabelas agregadas; nunca e-mail, telefone ou CPF.');
   out.push('- Se o consultor der uma nota ao template: `avaliar(slug, nota, comentario)`.');
+  out.push('- Faltou regra, definição ou pergunta no template? `sugerir_regra({slug, tipo, titulo, corpo, motivo})` — vai para a triagem do editor; não muda o kit sozinho.');
   out.push(generalBlock(await listGeneralContexts(env.DB, env.ORG_ID)));
   return out.join('\n');
 }
@@ -176,9 +170,9 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
 export async function perguntas(env: ToolEnv, user: ToolUser, slug: string): Promise<string> {
   const kit = await kitOrThrow(env, user, slug);
   await logUsage(env.DB, { email: user.email, tool: 'perguntas', slug, version_number: kit.version.number });
-  const p = kit.files.find((f) => f.path === 'perguntas.md')?.content;
-  if (!p) throw new ToolError(`o template "${slug}" não tem banco de perguntas norteadoras`);
-  return p.trim() + '\n\nA relevância de cada pergunta para UMA campanha sai em `saida/perguntas.json` após o `gerar.py`. Apresente as mais relevantes ao consultor no chat, não no HTML.';
+  const qb = questionsBlock(kit.rules);
+  if (!qb) throw new ToolError(`o template "${slug}" não tem perguntas norteadoras`);
+  return qb.trim();
 }
 
 // ── montar_query ─────────────────────────────────────────────────────────────
@@ -247,7 +241,7 @@ export async function resourceText(env: ToolEnv, uri: string, viewer?: string): 
   if (parts[0] === 'guia') return file('guia.md');
   if (parts[0] === 'documento') return file('documento.md');
   if (parts[0] === 'exemplo') return file('exemplo/numeros.json');
-  if (parts[0] === 'perguntas') return file('perguntas.md');
+  if (parts[0] === 'perguntas') return questionsBlock(kit.rules).trim() || null;
   if (parts[0] === 'contexto' && parts[1]) {
     const t = kit.tasks.find((x) => x.task_id === parts[1]);
     return t ? `# ${t.title}\n\n${t.body_md}` : null;

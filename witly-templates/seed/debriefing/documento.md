@@ -34,8 +34,8 @@ Até treze `qa-card` (Q1–Q13; as que dependem de público/adset só aparecem c
 Uma tela: KPIs de resultado e de volume (os mesmos do Panorama), alavancas e gargalos gerados automaticamente (o que puxou e o que segurou) e as recomendações. É o que vai para o cliente que não abre as outras páginas.
 
 ## O que o agente escreve no chat (não no HTML)
-- As 3–5 perguntas norteadoras mais relevantes (`perguntas.json` × `numeros.json`).
+- As 3–5 perguntas norteadoras mais relevantes (leia `numeros.json`; as perguntas vêm no kit em `perguntas.md`).
 - As premissas: classificação (pago/captação/vendas), temperatura, histórico usado ou não, recorte.
 
 ## Aprofundamentos
-Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números do `query_api.py` (atingimento, decomposição, onde_concentra, impacto_receita, variacao_hist, cruzar_dia…).
+Perguntas aceitas viram seções `det-<id>` via `aprofundar.py`, dentro do `design-system.md`, com números calculados em Python a partir do `calc.py` (mesmas definições do relatório).

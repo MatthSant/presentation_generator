@@ -27,7 +27,7 @@ async function embedFonts(fontsCss) {
     let m;
     while ((m = re.exec(gcss))) {
       const [, subset, face] = m;
-      if (subset !== 'latin' && subset !== 'latin-ext') continue;
+      if (subset !== 'latin') continue;   // o português cabe no latin; latin-ext dobrava o CSS
       const um = face.match(/url\(([^)]+)\)/);
       if (!um) continue;
       const url = um[1].replace(/['"]/g, '');

@@ -114,8 +114,8 @@
         <li>O agente chama <code>listar_templates</code> e <code>obter_template</code>: recebe manifesto, <b>tarefas de contexto</b>, queries, documento, guia e contextos gerais como texto, e uma URL assinada do zip.</li>
         <li>Executa as tarefas de contexto com o consultor (lançamento, tipo de funil, temperatura, metas, recorte…) e monta o <code>config.json</code>. Cinco templates: acompanhamento diário, debriefing, criativos, histórico, conversão por perfil.</li>
         <li><code>montar_query</code> devolve o SQL preenchido; roda no Delfos; salva <code>dump.csv</code> local.</li>
-        <li><code>python gerar.py</code> → 4 camadas + <code>numeros.json</code> + <code>perguntas.json</code> + <code>relatorio.html</code> (o mesmo relatório do app, offline).</li>
-        <li>O agente propõe no chat as perguntas norteadoras mais relevantes; aceita uma, calcula com <code>query_api.py</code>, monta a seção no design system e roda <code>aprofundar.py</code>.</li>
+        <li><code>python gerar.py</code> → 4 camadas + <code>numeros.json</code> + <code>relatorio.html</code> (o mesmo relatório do app, offline).</li>
+        <li>O agente propõe no chat as perguntas norteadoras mais relevantes; aceita uma, calcula o corte em Python (importando <code>calc.py</code>), monta a seção no design system e roda <code>aprofundar.py</code>.</li>
         <li>Ao terminar, <code>registrar</code> (geração/aprofundamento) e, se houver nota, <code>avaliar</code>. Um padrão próprio vira template pessoal com <code>salvar_template</code>.</li>
       </ol>
     </div>
@@ -144,7 +144,7 @@
       <tr><td>Estáticos</td><td>Workers Assets (<code>public/</code>)</td><td>UI e o <b>viewer</b> (client do app empacotado com esbuild)</td></tr>
       <tr><td>Documentos da plataforma</td><td>D1 <code>platform_docs</code></td><td>design system dos aprofundamentos: um para todos, editável na UI, em todo zip e como <code>contrato://widgets</code></td></tr>
       <tr><td>Kit</td><td>zip montado na hora (<code>fflate</code>)</td><td><b>autossuficiente, sem git</b>: python/ (cópia literal do <code>app/pysrc</code> + perguntas/), viewer/, exemplo/, design-system.md, textos</td></tr>
-      <tr><td>Máquina da pessoa</td><td>Python 3.8+ (stdlib) · curl</td><td>gerar as camadas e o HTML; consultas com <code>query_api.py</code></td></tr>
+      <tr><td>Máquina da pessoa</td><td>Python 3.8+ (stdlib) · curl</td><td>gerar as camadas e o HTML; cortes em Python sobre o <code>calc.py</code></td></tr>
       <tr><td>Testes</td><td>Vitest (pool de Workers) · <code>unittest</code> · script de paridade</td><td>31 testes no Worker, 7 no Python, kit == app</td></tr>
     </table>
   </div>

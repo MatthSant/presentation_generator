@@ -174,7 +174,7 @@ api.put('/api/templates/:slug/draft/regras/:id', async (c) => {
   if (!SLUG.test(rule_id)) return c.json({ error: 'id da regra inválido' }, 400);
   const b = await c.req.json<{ title?: string; body_md?: string; tipo?: string; sort?: number }>();
   if (!b.title?.trim()) return c.json({ error: 'title obrigatório (a regra em uma frase)' }, 400);
-  const tipo = (['regra', 'recomendacao', 'definicao'] as const).find((t) => t === b.tipo) ?? 'regra';
+  const tipo = db.CONTEXTO_TIPOS.find((t) => t === b.tipo) ?? 'regra';
   const d = await db.ensureDraft(c.env.DB, c.req.param('slug'), u.email);
   await db.saveTemplateRule(c.env.DB, d.id, { rule_id, tipo, title: b.title.trim(), body_md: b.body_md ?? '', sort: b.sort ?? 0 });
   return c.json({ ok: true, version: d.number });
@@ -236,7 +236,8 @@ api.get('/api/atividade', async (c) => {
     let d: Record<string, unknown> = {};
     try { d = JSON.parse(r.dados_json) as Record<string, unknown>; } catch { /* ignora */ }
     const resposta = typeof d.resposta === 'string' ? d.resposta : '';
-    return { ...r, dados_json: undefined, resumo: { pergunta: d.pergunta ?? null, resposta: resposta.slice(0, 240), mudanca: d.mudanca ?? null, resultado: d.resultado ?? null } };
+    return { ...r, dados_json: undefined, resumo: { pergunta: d.pergunta ?? null, resposta: resposta.slice(0, 240), mudanca: d.mudanca ?? null, resultado: d.resultado ?? null,
+      titulo: d.titulo ?? null, tipo: d.tipo ?? null, corpo: typeof d.corpo === 'string' ? d.corpo.slice(0, 240) : null } };
   }));
 });
 /** Cabeçalho da triagem e paginação: quantos o filtro pega e quantos ainda esperam veredito. */
@@ -253,7 +254,7 @@ api.get('/api/atividade/resumo', async (c) => {
   };
   const [doFiltro, daFila] = await Promise.all([
     db.countActivity(c.env.DB, c.env.ORG_ID, f),
-    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento', veredito: 'sem' }),
+    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento,sugestao', veredito: 'sem' }),
   ]);
   return c.json({ total: doFiltro.total, sem_veredito: daFila.total, desde: daFila.mais_antiga_sem_veredito });
 });
