@@ -1,6 +1,7 @@
 /* tools — a lógica das tools do MCP, pura (db + env + usuário → texto). O McpAgent só
  * registra e chama. Testável sem transporte MCP. */
 
+import { versionLabel } from '../db/semver.js';
 import { canSee, getPlatformDoc, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
@@ -41,9 +42,16 @@ async function kitOrThrow(env: ToolEnv, user: ToolUser, slug: string): Promise<K
   throw new ToolError(`template "${slug}" não existe. Disponíveis: ${known.join(', ') || '(nenhum)'}`);
 }
 
+const TIPO_LABEL: Record<string, string> = { regra: 'REGRA', recomendacao: 'RECOMENDAÇÃO', definicao: 'DEFINIÇÃO' };
+
+/** Contextos gerais: o TÍTULO já é a regra; o corpo é curto (porquê + como aplicar).
+ *  REGRA não se descumpre; RECOMENDAÇÃO pode ser relaxada com motivo; DEFINIÇÃO fixa um termo. */
 function generalBlock(gc: GeneralContext[]): string {
   if (!gc.length) return '';
-  return `\n\n---\n\n## Contextos gerais (valem para TODA análise)\n\n` + gc.map((g) => `### ${g.title}\n\n${g.body_md.trim()}`).join('\n\n');
+  const out = ['', '', '---', '', '## Contextos gerais (valem para TODA análise)', '',
+    'Leia pelos títulos: cada um já diz o que fazer ou não fazer. REGRA = não descumpra. RECOMENDAÇÃO = siga, salvo motivo dito. DEFINIÇÃO = é assim que o termo é entendido aqui.'];
+  for (const g of gc) out.push('', `### [${TIPO_LABEL[g.tipo] ?? 'REGRA'}] ${g.title}`, '', g.body_md.trim());
+  return out.join('\n');
 }
 
 // ── listar_templates ─────────────────────────────────────────────────────────
@@ -57,7 +65,7 @@ export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<str
   for (const t of pub) {
     const kit = await getPublishedKit(env.DB, t.slug);
     const m = kit ? manifestOf(kit) : {};
-    out.push(`## ${t.name}  \`${t.slug}\`  (v${t.published_number})${t.owner_email ? '  — PESSOAL (só você vê)' : ''}`);
+    out.push(`## ${t.name}  \`${t.slug}\`  (${versionLabel({ semver: t.published_semver, number: t.published_number })})${t.owner_email ? '  — PESSOAL (só você vê)' : ''}`);
     if (t.objective) out.push(`**Objetivo:** ${t.objective}`);
     if (t.when_to_use) out.push(`**Quando usar:** ${t.when_to_use}`);
     if (m.tarefas_contexto?.length) out.push(`**Tarefas de contexto:** ${m.tarefas_contexto.map((x) => `${x.id} (${x.objetivo})`).join(' · ')}`);
@@ -65,6 +73,7 @@ export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<str
     out.push('');
   }
   out.push('Use `obter_template(slug)` para o kit completo e `montar_query(slug, params)` para o SQL pronto.');
+  out.push('Pergunta que não cabe em template? `obter_template("analise-livre")` traz o design system com exemplos, as regras de contexto e o `montar.py` que valida e gera o HTML.');
   out.push('Fez uma análise específica que vale guardar? `salvar_template({...})` cria um template pessoal (só seu) no mesmo formato; um editor pode promovê-lo para todos.');
   return out.join('\n');
 }
@@ -86,7 +95,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   const text = (p: string) => files.get(p) ?? '';
 
   const out: string[] = [];
-  out.push(`# Kit: ${kit.template.name}  \`${slug}\`  v${n}${kit.template.owner_email ? '  — PESSOAL' : ''}`);
+  out.push(`# Kit: ${kit.template.name}  \`${slug}\`  ${versionLabel(kit.version)}${kit.template.owner_email ? '  — PESSOAL' : ''}`);
   out.push('');
   out.push(`**Objetivo:** ${kit.template.objective}`);
   out.push(`**Quando usar:** ${kit.template.when_to_use}`);
@@ -99,7 +108,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('');
   out.push('## Manifesto');
   out.push('');
-  out.push(fence('json', JSON.stringify({ ...m, slug, name: kit.template.name, version: n }, null, 2)));
+  out.push(fence('json', JSON.stringify({ ...m, slug, name: kit.template.name, version: kit.version.semver ?? String(n), version_number: n }, null, 2)));
   out.push('');
   const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
   out.push('## Tarefas de contexto (execute ANTES de gerar; as marcadas PERGUNTE ao consultor, não decida sozinho)');
@@ -231,7 +240,7 @@ export async function resourceText(env: ToolEnv, uri: string, viewer?: string): 
   const kit = await getPublishedKit(env.DB, slug);
   if (!kit) return null;
   const file = (p: string) => kit.files.find((f) => f.path === p)?.content ?? null;
-  if (!parts.length) return JSON.stringify({ ...manifestOf(kit), slug, name: kit.template.name, version: kit.version.number }, null, 2);
+  if (!parts.length) return JSON.stringify({ ...manifestOf(kit), slug, name: kit.template.name, version: kit.version.semver ?? String(kit.version.number), version_number: kit.version.number }, null, 2);
   if (parts[0] === 'guia') return file('guia.md');
   if (parts[0] === 'documento') return file('documento.md');
   if (parts[0] === 'exemplo') return file('exemplo/numeros.json');

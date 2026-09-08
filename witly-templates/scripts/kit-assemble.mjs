@@ -24,13 +24,13 @@ const SHARED = path.join(SEED, '_shared');
 export async function assembleKit(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
-  const engine = manifest.engine || DEFAULT_ENGINE[slug];
-  if (!engine) throw new Error(`kit ${slug}: sem 'engine' no manifest`);
+  const engine = manifest.engine || DEFAULT_ENGINE[slug] || null;
+  if (!engine && !manifest.livre) throw new Error(`kit ${slug}: sem 'engine' no manifest (ou marque "livre": true)`);
   const bank = manifest.perguntas_bank || DEFAULT_BANK[slug] || null;
   const py = path.join(dir, 'python');
   await mkdir(path.join(py, 'common'), { recursive: true });
   let n = 0;
-  for (const f of ENGINE_FILES) {
+  for (const f of engine ? ENGINE_FILES : []) {
     try { await copyFile(path.join(PYSRC, engine, f), path.join(py, f)); n++; } catch { /* opcional */ }
   }
   // Scripts compartilhados por todos os kits (gerar.py, aprofundar.py).
@@ -63,7 +63,7 @@ def pick_bank(dataset):
 `);
     n += 4;
   }
-  return { slug, engine, bank, files: n };
+  return { slug, engine: engine || 'livre', bank, files: n };
 }
 
 export async function kits() {

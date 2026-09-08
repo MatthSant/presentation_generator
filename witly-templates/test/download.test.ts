@@ -38,7 +38,8 @@ describe('/dl/:slug/:n (T010)', () => {
     ]);
     expect(strFromU8(files['acomp/design-system.md'])).toBe('# DS');
     const manifest = JSON.parse(strFromU8(files['acomp/manifest.json']));
-    expect(manifest.version).toBe(1);
+    expect(manifest.version).toBe('1.0.0');
+    expect(manifest.version_number).toBe(1);
     expect(manifest.params).toHaveLength(4);
     expect(strFromU8(files['acomp/contexto/lancamento.md'])).toContain('# Identificar o lançamento');
   });

@@ -1,6 +1,8 @@
 /* db — acesso tipado ao D1. Uma função por operação; nada de ORM.
  * Modelo: specs/001-fase1-mcp-templates/plan.md §D3. */
 
+import { nextSemver, type Bump } from './semver.js';
+
 export type Role = 'editor' | 'leitor';
 
 export interface User { email: string; name: string | null; org_id: string; role: Role; active: number; created_at: string }
@@ -13,7 +15,9 @@ export interface Template {
 }
 
 export interface Version {
-  id: string; slug: string; number: number; state: 'draft' | 'published';
+  id: string; slug: string; number: number;
+  /** Versão semântica visível (v1.0.2); NULL em rascunho até publicar. */
+  semver: string | null; state: 'draft' | 'published';
   author_email: string | null; created_at: string; updated_at: string; published_at: string | null;
   manifest_json: string; changelog: string;
 }
@@ -30,7 +34,8 @@ export interface Rating { id: string; org_id: string; slug: string; version_numb
 
 export interface TemplateFile { version_id: string; path: string; content: string }
 export interface ContextTask { version_id: string; task_id: string; title: string; body_md: string; sort: number }
-export interface GeneralContext { slug: string; org_id: string; title: string; body_md: string; author_email: string | null; updated_at: string }
+export type ContextoTipo = 'regra' | 'recomendacao' | 'definicao';
+export interface GeneralContext { slug: string; org_id: string; title: string; body_md: string; tipo: ContextoTipo; author_email: string | null; updated_at: string }
 
 /** Kit completo de uma versão: o que o MCP entrega e a UI edita. */
 export interface Kit { template: Template; version: Version; files: TemplateFile[]; tasks: ContextTask[] }
@@ -66,13 +71,13 @@ export async function listUsers(db: D1Database, org_id: string): Promise<User[]>
 
 // ── templates & versões ─────────────────────────────────────────────────────
 
-export type TemplateRow = Template & { published_number: number | null; draft_number: number | null };
+export type TemplateRow = Template & { published_number: number | null; draft_number: number | null; published_semver: string | null };
 
 /** Templates visíveis: os da organização + os pessoais do `viewer`. `viewer='*'` = todos (editor na UI). */
 export async function listTemplates(db: D1Database, org_id: string, viewer: string | '*' = '*'): Promise<TemplateRow[]> {
   const where = viewer === '*' ? '' : ' AND (t.owner_email IS NULL OR t.owner_email = ?)';
   const stmt = db.prepare(
-    `SELECT t.*, p.number AS published_number, d.number AS draft_number
+    `SELECT t.*, p.number AS published_number, d.number AS draft_number, p.semver AS published_semver
        FROM templates t
        LEFT JOIN template_versions p ON p.id = t.published_version_id
        LEFT JOIN template_versions d ON d.id = t.draft_version_id
@@ -85,7 +90,7 @@ export async function listTemplates(db: D1Database, org_id: string, viewer: stri
 export async function listPersonal(db: D1Database, org_id: string, viewer: string | '*'): Promise<Array<TemplateRow & { geracoes: number; aprofundamentos: number }>> {
   const where = viewer === '*' ? '' : ' AND t.owner_email = ?';
   const stmt = db.prepare(
-    `SELECT t.*, p.number AS published_number, d.number AS draft_number,
+    `SELECT t.*, p.number AS published_number, d.number AS draft_number, p.semver AS published_semver,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos
        FROM templates t
@@ -159,8 +164,8 @@ export async function createTemplate(db: D1Database, input: NewTemplateInput): P
   const stmts = [
     db.prepare('INSERT INTO templates (slug, org_id, name, objective, when_to_use, draft_version_id, published_version_id, owner_email, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(input.slug, input.org_id, input.name, input.objective ?? '', input.when_to_use ?? '', pub ? null : vid, pub ? vid : null, input.owner_email?.toLowerCase() ?? null, input.notas ?? ''),
-    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at) VALUES (?, ?, 1, ?, ?, ?, ?)')
-      .bind(vid, input.slug, pub ? 'published' : 'draft', input.author_email ?? null, JSON.stringify(input.manifest), pub ? now() : null),
+    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, semver) VALUES (?, ?, 1, ?, ?, ?, ?, ?)')
+      .bind(vid, input.slug, pub ? 'published' : 'draft', input.author_email ?? null, JSON.stringify(input.manifest), pub ? now() : null, pub ? '1.0.0' : null),
     ...input.files.map((f) => db.prepare('INSERT INTO template_files (version_id, path, content) VALUES (?, ?, ?)').bind(vid, f.path, f.content)),
     ...input.tasks.map((t, i) => db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (?, ?, ?, ?, ?)').bind(vid, t.task_id, t.title, t.body_md, t.sort ?? i)),
   ];
@@ -221,24 +226,27 @@ export async function updateTemplateMeta(db: D1Database, slug: string, m: { name
 }
 
 /** Publica o rascunho: vira a versão publicada; o draft_version_id é limpo. */
-export async function publishDraft(db: D1Database, slug: string, changelog = ''): Promise<Version> {
+export async function publishDraft(db: D1Database, slug: string, changelog = '', bump: Bump = 'patch'): Promise<Version> {
   const t = await getTemplate(db, slug);
   if (!t?.draft_version_id) throw new Error(`sem rascunho para publicar: ${slug}`);
   const ts = now();
+  const cur = t.published_version_id ? (await getVersion(db, t.published_version_id))?.semver : null;
   await db.batch([
-    db.prepare('UPDATE template_versions SET state = ?, published_at = ?, changelog = ? WHERE id = ?').bind('published', ts, changelog, t.draft_version_id),
+    db.prepare('UPDATE template_versions SET state = ?, published_at = ?, changelog = ?, semver = ? WHERE id = ?').bind('published', ts, changelog, nextSemver(cur, bump), t.draft_version_id),
     db.prepare('UPDATE templates SET published_version_id = ?, draft_version_id = NULL WHERE slug = ?').bind(t.draft_version_id, slug),
   ]);
   return (await getVersion(db, t.draft_version_id))!;
 }
 
 /** Publica uma versão NOVA já pronta (pessoal salvo pelo MCP): número max+1, publicada na hora. */
-export async function publishNewVersion(db: D1Database, slug: string, v: { manifest: unknown; files: Array<{ path: string; content: string }>; tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>; author_email: string | null; changelog?: string }): Promise<Version> {
+export async function publishNewVersion(db: D1Database, slug: string, v: { manifest: unknown; files: Array<{ path: string; content: string }>; tasks: Array<{ task_id: string; title: string; body_md: string; sort?: number }>; author_email: string | null; changelog?: string; bump?: Bump }): Promise<Version> {
   const vid = crypto.randomUUID();
   const ts = now();
+  const t = await getTemplate(db, slug);
+  const cur = t?.published_version_id ? (await getVersion(db, t.published_version_id))?.semver : null;
   await db.batch([
-    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, changelog) VALUES (?, ?, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ?), 0) + 1, ?, ?, ?, ?, ?)')
-      .bind(vid, slug, slug, 'published', v.author_email, JSON.stringify(v.manifest), ts, v.changelog ?? ''),
+    db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, changelog, semver) VALUES (?, ?, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ?), 0) + 1, ?, ?, ?, ?, ?, ?)')
+      .bind(vid, slug, slug, 'published', v.author_email, JSON.stringify(v.manifest), ts, v.changelog ?? '', nextSemver(cur, v.bump ?? 'patch')),
     ...v.files.map((f) => db.prepare('INSERT INTO template_files (version_id, path, content) VALUES (?, ?, ?)').bind(vid, f.path, f.content)),
     ...v.tasks.map((t, i) => db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (?, ?, ?, ?, ?)').bind(vid, t.task_id, t.title, t.body_md, t.sort ?? i)),
     db.prepare('UPDATE templates SET published_version_id = ? WHERE slug = ?').bind(vid, slug),
@@ -265,7 +273,7 @@ export async function restoreVersion(db: D1Database, slug: string, number: numbe
   if (t.draft_version_id) stmts.push(db.prepare('DELETE FROM template_versions WHERE id = ?').bind(t.draft_version_id));
   stmts.push(
     db.prepare('INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, changelog) VALUES (?, ?, (SELECT MAX(number) FROM template_versions WHERE slug = ?) + 1, ?, ?, ?, ?)')
-      .bind(vid, slug, slug, 'draft', author_email, src.manifest_json, `restaurada da v${number}`),
+      .bind(vid, slug, slug, 'draft', author_email, src.manifest_json, `restaurada da v${src.semver ?? number}`),
     db.prepare('INSERT INTO template_files (version_id, path, content) SELECT ?, path, content FROM template_files WHERE version_id = ?').bind(vid, src.id),
     db.prepare('INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) SELECT ?, task_id, title, body_md, sort FROM context_tasks WHERE version_id = ?').bind(vid, src.id),
     db.prepare('UPDATE templates SET draft_version_id = ? WHERE slug = ?').bind(vid, slug),
@@ -424,14 +432,14 @@ export async function platformKitFiles(db: D1Database, org_id: string): Promise<
 // ── contextos gerais ────────────────────────────────────────────────────────
 
 export async function listGeneralContexts(db: D1Database, org_id: string): Promise<GeneralContext[]> {
-  return (await db.prepare('SELECT * FROM general_contexts WHERE org_id = ? ORDER BY title').bind(org_id).all<GeneralContext>()).results;
+  return (await db.prepare("SELECT * FROM general_contexts WHERE org_id = ? ORDER BY CASE tipo WHEN 'regra' THEN 0 WHEN 'definicao' THEN 1 ELSE 2 END, title").bind(org_id).all<GeneralContext>()).results;
 }
 
-export async function upsertGeneralContext(db: D1Database, g: { slug: string; org_id: string; title: string; body_md: string; author_email?: string | null }): Promise<void> {
+export async function upsertGeneralContext(db: D1Database, g: { slug: string; org_id: string; title: string; body_md: string; tipo?: ContextoTipo; author_email?: string | null }): Promise<void> {
   await db.prepare(
-    `INSERT INTO general_contexts (slug, org_id, title, body_md, author_email, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, author_email = excluded.author_email, updated_at = excluded.updated_at`,
-  ).bind(g.slug, g.org_id, g.title, g.body_md, g.author_email ?? null, now()).run();
+    `INSERT INTO general_contexts (slug, org_id, title, body_md, tipo, author_email, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, tipo = excluded.tipo, author_email = excluded.author_email, updated_at = excluded.updated_at`,
+  ).bind(g.slug, g.org_id, g.title, g.body_md, g.tipo ?? 'regra', g.author_email ?? null, now()).run();
 }
 
 export async function deleteGeneralContext(db: D1Database, slug: string): Promise<void> {

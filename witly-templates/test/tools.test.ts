@@ -70,13 +70,13 @@ describe('tools (T011)', () => {
     await db.upsertGeneralContext(env.DB, { slug: 'g1', org_id: ORG, title: 'G1', body_md: 'corpo g1' });
     const out = await guia(env, user, slug);
     expect(out.startsWith('# Guia')).toBe(true);
-    expect(out).toContain('### G1');
+    expect(out).toContain('### [REGRA] G1');
   });
 
   it('resources: manifesto, guia, contexto/<tarefa>, contexto geral', async () => {
     await seedPublished('acomp');
     await db.upsertGeneralContext(env.DB, { slug: 'g1', org_id: ORG, title: 'G1', body_md: 'corpo g1' });
-    expect(JSON.parse((await resourceText(env, 'template://acomp'))!)).toMatchObject({ slug: 'acomp', version: 1, params: SAMPLE_MANIFEST.params });
+    expect(JSON.parse((await resourceText(env, 'template://acomp'))!)).toMatchObject({ slug: 'acomp', version: '1.0.0', version_number: 1, params: SAMPLE_MANIFEST.params });
     expect(await resourceText(env, 'template://acomp/guia')).toBe('# Guia\nLeia com cuidado.');
     expect(await resourceText(env, 'template://acomp/contexto/lancamento')).toContain('# Identificar o lançamento');
     expect(await resourceText(env, 'contexto://geral/g1')).toBe('# G1\n\ncorpo g1');

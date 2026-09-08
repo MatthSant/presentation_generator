@@ -1,6 +1,7 @@
 /* api — rotas da UI (/api/*). Sessão por cookie (session.ts); escrita exige `editor`.
  * Regras: rascunho ≠ publicada (o MCP só vê a publicada); contexto geral publica ao salvar. */
 
+import { parseBump } from './db/semver.js';
 import { Hono, type Context } from 'hono';
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider';
 import * as db from './db/index.js';
@@ -158,8 +159,8 @@ api.put('/api/templates/:slug/draft/tasks/:task', async (c) => {
 
 api.post('/api/templates/:slug/publish', async (c) => {
   const u = await requireWriter(c, c.req.param('slug')); if (isResp(u)) return u;
-  const b = await c.req.json<{ changelog?: string }>().catch(() => ({} as { changelog?: string }));
-  try { return c.json({ ok: true, version: await db.publishDraft(c.env.DB, c.req.param('slug'), String(b.changelog || '').slice(0, 500)) }); }
+  const b = await c.req.json<{ changelog?: string; bump?: string }>().catch(() => ({} as { changelog?: string; bump?: string }));
+  try { return c.json({ ok: true, version: await db.publishDraft(c.env.DB, c.req.param('slug'), String(b.changelog || '').slice(0, 500), parseBump(b.bump)) }); }
   catch (e) { return c.json({ error: (e as Error).message }, 409); }
 });
 
@@ -283,9 +284,10 @@ api.put('/api/general-contexts/:slug', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
   const slug = c.req.param('slug');
   if (!SLUG.test(slug)) return c.json({ error: 'slug inválido' }, 400);
-  const b = await c.req.json<{ title?: string; body_md?: string }>();
+  const b = await c.req.json<{ title?: string; body_md?: string; tipo?: string }>();
   if (!b.title?.trim() || typeof b.body_md !== 'string') return c.json({ error: 'title e body_md obrigatórios' }, 400);
-  await db.upsertGeneralContext(c.env.DB, { slug, org_id: c.env.ORG_ID, title: b.title.trim(), body_md: b.body_md, author_email: u.email });
+  const tipo = (['regra', 'recomendacao', 'definicao'] as const).find((t) => t === b.tipo) ?? 'regra';
+  await db.upsertGeneralContext(c.env.DB, { slug, org_id: c.env.ORG_ID, title: b.title.trim(), body_md: b.body_md, tipo, author_email: u.email });
   return c.json({ ok: true });
 });
 api.delete('/api/general-contexts/:slug', async (c) => {

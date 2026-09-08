@@ -30,7 +30,7 @@ app.get('/dl/:slug/:n', async (c) => {
   return new Response(zip as unknown as BodyInit, {
     headers: {
       'content-type': 'application/zip',
-      'content-disposition': `attachment; filename="${slug}-v${n}.zip"`,
+      'content-disposition': `attachment; filename="${slug}-v${kit.version.semver ?? n}.zip"`,
       'cache-control': 'private, no-store',
     },
   });

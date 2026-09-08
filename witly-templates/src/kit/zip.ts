@@ -59,7 +59,7 @@ export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ pa
   entries[`${root}/manifest.json`] = strToU8(JSON.stringify({
     ...manifest,
     slug: kit.template.slug, name: kit.template.name, objective: kit.template.objective, when_to_use: kit.template.when_to_use,
-    version: kit.version.number, published_at: kit.version.published_at,
+    version: kit.version.semver ?? String(kit.version.number), version_number: kit.version.number, published_at: kit.version.published_at,
   }, null, 2));
   for (const t of kit.tasks) entries[`${root}/contexto/${t.task_id}.md`] = strToU8(`# ${t.title}\n\n${t.body_md}\n`);
   for (const f of kit.files) entries[`${root}/${f.path}`] = strToU8(f.content);

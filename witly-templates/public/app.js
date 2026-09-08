@@ -70,7 +70,7 @@
       ${isEditor() ? '<button class="btn btn-p" id="new">+ Novo template</button>' : ''}</div>
       <div class="grid">${rows.map((t) => `<a class="card tcard" href="#/t/${esc(t.slug)}">
         <div class="row" style="justify-content:space-between"><span class="t">${esc(t.name)}</span>
-          <span>${t.published_number ? `<span class="pill pub">v${t.published_number}</span>` : '<span class="pill off">sem publicada</span>'} ${t.draft_number ? `<span class="pill draft">rascunho v${t.draft_number}</span>` : ''}</span></div>
+          <span>${t.published_number ? `<span class="pill pub">v${t.published_semver || t.published_number}</span>` : '<span class="pill off">sem publicada</span>'} ${t.draft_number ? '<span class="pill draft">rascunho</span>' : ''}</span></div>
         <div class="muted sm" style="margin:6px 0"><code>${esc(t.slug)}</code></div>
         <div class="sm">${esc(t.objective)}</div></a>`).join('') || '<div class="empty">Nenhum template ainda.</div>'}</div>`;
     const b = $('#new'); if (b) b.onclick = newTemplate;
@@ -103,7 +103,7 @@
     const canEdit = isEditor() || (t.owner_email && t.owner_email === me.email);
     app.innerHTML = `<div class="head">
       <div><a class="muted sm" href="#/">← Templates</a><h1>${esc(t.name)} <code>${esc(t.slug)}</code>${t.owner_email ? ` <span class="pill">pessoal · ${esc(t.owner_email)}</span>` : ''}</h1>
-        <div class="row sm"><span class="muted">${kit ? (state === 'draft' ? `Editando o <b>rascunho v${v.number}</b>` : `Vendo a <b>publicada v${v.number}</b>`) : 'Sem versão'}</span>
+        <div class="row sm"><span class="muted">${kit ? (state === 'draft' ? `Editando o <b>rascunho</b> (nº ${v.number})` : `Vendo a <b>publicada v${v.semver || v.number}</b>`) : 'Sem versão'}</span>
         ${t.published_version_id ? '<span class="pill pub">publicada</span>' : '<span class="pill off">sem publicada</span>'}${t.draft_version_id ? '<span class="pill draft">rascunho</span>' : ''}</div></div>
       <div class="row">${canEdit && !t.draft_version_id && t.published_version_id ? '<button class="btn" id="mkdraft">Criar rascunho</button>' : ''}
         ${canEdit && t.draft_version_id ? '<button class="btn btn-p" id="publish">Publicar rascunho</button>' : ''}</div></div>
@@ -111,10 +111,25 @@
       <div id="pane"></div>`;
     for (const b of app.querySelectorAll('.tab')) b.onclick = () => { location.hash = `#/t/${slug}/${b.dataset.tab}`; };
     const mk = $('#mkdraft'); if (mk) mk.onclick = async () => { try { await api(`/api/templates/${slug}/draft`, { method: 'POST' }); toast('Rascunho criado'); route(); } catch (e) { toast(e.message, true); } };
-    const pb = $('#publish'); if (pb) pb.onclick = async () => {
-      const changelog = prompt('Publicar o rascunho? O MCP passa a entregar esta versão. Nota de mudança (opcional):', '');
-      if (changelog === null) return;
-      try { await api(`/api/templates/${slug}/publish`, { method: 'POST', body: { changelog } }); toast('Publicado'); route(); } catch (e) { toast(e.message, true); }
+    const pb = $('#publish'); if (pb) pb.onclick = () => {
+      const cur = t.published_version_id ? 'a publicada' : 'a primeira versão';
+      const box = document.createElement('div'); box.className = 'card'; box.style.margin = '12px 0';
+      box.innerHTML = `<b>Publicar o rascunho</b> <span class="muted sm">(o MCP passa a entregar esta versão)</span>
+        <div class="row" style="margin-top:8px;gap:14px;flex-wrap:wrap">
+          <label><input type="radio" name="bump" value="patch" checked> ajuste <span class="muted sm">v1.0.<b>x</b> · texto, guia, correção</span></label>
+          <label><input type="radio" name="bump" value="minor"> melhoria <span class="muted sm">v1.<b>x</b>.0 · tarefa, query ou bloco novo</span></label>
+          <label><input type="radio" name="bump" value="major"> mudança grande <span class="muted sm">v<b>x</b>.0.0 · estrutura, motor, parâmetros</span></label>
+        </div>
+        <div class="row" style="margin-top:8px"><input id="pub-log" placeholder="Nota de mudança (opcional)" style="flex:1"><button class="btn btn-p" id="pub-go">Publicar</button><button class="btn btn-ghost" id="pub-cancel">Cancelar</button></div>
+        <div class="muted sm" style="margin-top:6px">Substitui ${cur}.</div>`;
+      pb.parentElement.parentElement.insertAdjacentElement('afterend', box);
+      pb.disabled = true;
+      box.querySelector('#pub-cancel').onclick = () => { box.remove(); pb.disabled = false; };
+      box.querySelector('#pub-go').onclick = async () => {
+        const bump = box.querySelector('input[name=bump]:checked').value;
+        const changelog = box.querySelector('#pub-log').value;
+        try { const r = await api(`/api/templates/${slug}/publish`, { method: 'POST', body: { changelog, bump } }); toast(`Publicado v${r.version.semver || r.version.number}`); route(); } catch (e) { toast(e.message, true); }
+      };
     };
     if (!kit) { $('#pane').innerHTML = '<div class="empty">Este template ainda não tem conteúdo.</div>'; return; }
     const ctx = { slug, kit, canEdit, state, sub };
@@ -212,6 +227,7 @@
   }
 
   // ── contextos gerais ───────────────────────────────────────────────────
+  const TIPO_CTX = { regra: 'regra', recomendacao: 'recomendação', definicao: 'definição' };
   async function renderGerais() {
     const list = await api('/api/general-contexts');
     const canEdit = isEditor();
@@ -219,16 +235,17 @@
     const draw = () => {
       const g = list.find((x) => x.slug === cur);
       app.innerHTML = `<div class="head"><div><h1>Contextos gerais</h1><p class="muted sm">Poucos e curados: valem para <b>todo</b> template e vão junto com qualquer kit. Salvar publica na hora.</p></div></div>
-        <div class="split"><div class="card"><div class="list">${list.map((x) => `<button data-s="${esc(x.slug)}" class="${x.slug === cur ? 'on' : ''}">${esc(x.title)}<br><code>${esc(x.slug)}</code></button>`).join('') || '<div class="muted sm">Nenhum.</div>'}</div>
+        <div class="split"><div class="card"><p class="muted sm">O <b>título é a regra</b>: o agente lê pelos títulos. Corpo curto: por quê + como aplicar.</p><div class="list">${list.map((x) => `<button data-s="${esc(x.slug)}" class="${x.slug === cur ? 'on' : ''}"><span class="pill ${x.tipo === 'regra' ? 'pub' : x.tipo === 'definicao' ? 'leitor' : 'draft'}">${esc(TIPO_CTX[x.tipo] || x.tipo || 'regra')}</span> ${esc(x.title)}<br><code>${esc(x.slug)}</code></button>`).join('') || '<div class="muted sm">Nenhum.</div>'}</div>
           ${canEdit ? '<div class="actions"><button class="btn" id="newg">+ Contexto geral</button></div>' : ''}</div>
-        <div class="card">${g ? `<label>Título</label><input id="g-title" value="${esc(g.title)}" ${canEdit ? '' : 'readonly'}>
+        <div class="card">${g ? `<label>Tipo</label><select id="g-tipo" ${canEdit ? '' : 'disabled'}><option value="regra" ${g.tipo === 'regra' || !g.tipo ? 'selected' : ''}>Regra — o agente não pode descumprir</option><option value="recomendacao" ${g.tipo === 'recomendacao' ? 'selected' : ''}>Recomendação — siga, salvo motivo dito</option><option value="definicao" ${g.tipo === 'definicao' ? 'selected' : ''}>Definição — como o termo é entendido</option></select>
+          <label>Título (a regra em uma frase: o que fazer / não fazer)</label><input id="g-title" value="${esc(g.title)}" ${canEdit ? '' : 'readonly'}>
           <label>Conteúdo (Markdown)</label>${editorBlock('g-body', g.body_md, '', canEdit)}
           <p class="muted sm">Atualizado ${esc((g.updated_at || '').slice(0, 16).replace('T', ' '))} por ${esc(g.author_email || '—')}</p>
           ${canEdit ? '<div class="actions"><button class="btn btn-ghost btn-danger" id="delg">Excluir</button><button class="btn btn-p" id="save">Salvar e publicar</button></div>' : ''}` : '<div class="empty">Selecione um contexto.</div>'}</div></div>`;
       for (const b of app.querySelectorAll('.list button')) b.onclick = () => { cur = b.dataset.s; draw(); };
       const ng = $('#newg'); if (ng) ng.onclick = () => { const s = prompt('slug (a-z, 0-9, hífen), ex.: taxa-nunca-soma'); if (!s) return; list.push({ slug: s, title: s, body_md: '' }); cur = s; draw(); };
       const dg = $('#delg'); if (dg) dg.onclick = async () => { if (!confirm(`Excluir "${cur}"?`)) return; try { await api(`/api/general-contexts/${encodeURIComponent(cur)}`, { method: 'DELETE' }); toast('Excluído'); renderGerais(); } catch (e) { toast(e.message, true); } };
-      if (g) wireSave(async () => { await api(`/api/general-contexts/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#g-title').value, body_md: $('#g-body').value } }); return false; });
+      if (g) wireSave(async () => { await api(`/api/general-contexts/${encodeURIComponent(cur)}`, { method: 'PUT', body: { title: $('#g-title').value, body_md: $('#g-body').value, tipo: $('#g-tipo').value } }); return false; });
     };
     draw();
   }
@@ -239,7 +256,7 @@
     const rows = await api('/api/pessoais');
     app.innerHTML = `<div class="head"><div><h1>Templates pessoais</h1><p class="muted sm">Salvos pelo agente com <code>salvar_template</code>. Só o dono usa no MCP. ${isEditor() ? 'Promova o que merece virar padrão de todos; remova o que ninguém usa.' : 'Editores podem promover o seu para todos.'}</p></div></div>
       <div class="card"><table><thead><tr><th>Template</th><th>Dono</th><th>Versão</th><th>Gerações</th><th>Aprofund.</th><th></th></tr></thead><tbody>
-      ${rows.map((t) => `<tr data-s="${esc(t.slug)}"><td><a href="#/t/${esc(t.slug)}"><b>${esc(t.name)}</b></a><br><code>${esc(t.slug)}</code></td><td>${esc(t.owner_email)}</td><td>${t.published_number ? `v${t.published_number}` : '—'}</td><td>${t.geracoes}</td><td>${t.aprofundamentos}</td>
+      ${rows.map((t) => `<tr data-s="${esc(t.slug)}"><td><a href="#/t/${esc(t.slug)}"><b>${esc(t.name)}</b></a><br><code>${esc(t.slug)}</code></td><td>${esc(t.owner_email)}</td><td>${t.published_number ? `v${t.published_semver || t.published_number}` : '—'}</td><td>${t.geracoes}</td><td>${t.aprofundamentos}</td>
         <td class="row" style="justify-content:flex-end">${isEditor() ? '<button class="btn btn-p" data-promote>Promover para todos</button>' : ''}${isEditor() || t.owner_email === me.email ? '<button class="btn btn-ghost btn-danger" data-del>Remover</button>' : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Nenhum template pessoal.</td></tr>'}
       </tbody></table></div>`;
     for (const tr of app.querySelectorAll('tr[data-s]')) {
@@ -318,7 +335,7 @@
     (async () => {
       const vs = await api(`/api/templates/${encodeURIComponent(slug)}/versoes`);
       el.innerHTML = `<div class="split"><div class="card"><table><thead><tr><th>v</th><th>Estado</th><th>Autor</th><th>Quando</th><th>Nota de mudança</th><th></th></tr></thead><tbody>
-        ${vs.map((v) => `<tr><td><b>v${v.number}</b></td><td>${v.state === 'published' ? '<span class="pill pub">publicada</span>' : '<span class="pill draft">rascunho</span>'}</td><td class="sm">${esc(v.author_email || '—')}</td><td class="sm muted">${esc((v.published_at || v.created_at).slice(0, 16).replace('T', ' '))}</td><td class="sm">${esc(v.changelog || '')}</td>
+        ${vs.map((v) => `<tr><td><b>${v.semver ? `v${v.semver}` : 'rascunho'}</b> <span class="muted sm">nº ${v.number}</span></td><td>${v.state === 'published' ? '<span class="pill pub">publicada</span>' : '<span class="pill draft">rascunho</span>'}</td><td class="sm">${esc(v.author_email || '—')}</td><td class="sm muted">${esc((v.published_at || v.created_at).slice(0, 16).replace('T', ' '))}</td><td class="sm">${esc(v.changelog || '')}</td>
           <td class="row" style="justify-content:flex-end"><button class="btn btn-ghost" data-cmp="${v.number}">comparar com…</button>${canEdit && v.state === 'published' ? `<button class="btn" data-restore="${v.number}">Restaurar</button>` : ''}</td></tr>`).join('')}
         </tbody></table></div><div class="card" id="diff"><div class="empty">Escolha "comparar com…" numa versão.</div></div></div>`;
       el.querySelector('.split').style.gridTemplateColumns = '1fr 1fr';

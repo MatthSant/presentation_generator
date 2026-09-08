@@ -33,7 +33,7 @@ describe('templates pessoais (spec 002 US6)', () => {
     expect(await resourceText(env, `template://${slug}/perguntas`, b.email)).toBeNull();
 
     const out2 = await salvarTemplate(env, a, { slug, ...KIT, arquivos: { ...KIT.arquivos, 'guia.md': '# Guia v2' }, changelog: 'guia' });
-    expect(out2).toContain(`v2`);
+    expect(out2).toContain('v1.0.1');   // semver: salvar de novo = ajuste
     const kit = await db.getPublishedKit(env.DB, slug);
     expect(kit!.version.number).toBe(2);
     expect(kit!.files.find((f) => f.path === 'guia.md')!.content).toBe('# Guia v2');

@@ -3,6 +3,7 @@
  *
  *   node scripts/seed.mjs --local        (D1 local do wrangler dev)
  *   node scripts/seed.mjs --remote       (D1 de produção)
+ *   --bump patch|minor|major             (semver da versão nova; padrão patch = ajuste)
  *   node scripts/seed.mjs --sql out.sql  (só gera o SQL)
  *
  * Passos: kit-assemble (copia o motor do app) → fixture → gerar.py → exemplo/*.json →
@@ -27,6 +28,7 @@ const ORG = 'witly';
 const AUTHOR = 'seed';
 
 const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
+const BUMP = (() => { const i = process.argv.indexOf('--bump'); const v = i >= 0 ? process.argv[i + 1] : 'patch'; return ['patch', 'minor', 'major'].includes(v) ? v : 'patch'; })();
 const id = () => crypto.randomUUID();
 
 async function walk(dir, base = '') {
@@ -47,7 +49,7 @@ async function buildExample(slug) {
   try {
     const fixture = path.join(tmp, 'fixture.csv');
     execFileSync(PY, [path.join(py, 'tests', 'make_fixture.py')], { stdio: 'ignore' });
-    await cp(path.join(py, 'tests', 'fixture.csv'), fixture);
+    if (existsSync(path.join(py, 'tests', 'fixture.csv'))) await cp(path.join(py, 'tests', 'fixture.csv'), fixture);
     const out = path.join(tmp, 'out');
     // sem viewer aqui de propósito: só as camadas (o HTML do exemplo é sintetizado no Worker)
     // auxiliares da fixture (goals/hist/dict), quando o kit os tem — o debriefing exige goals
@@ -56,7 +58,11 @@ async function buildExample(slug) {
       const f = path.join(py, 'tests', `${k}.csv`);
       if (existsSync(f)) aux.push(`--${k}`, f);
     }
-    execFileSync(PY, [path.join(py, 'gerar.py'), '--config', path.join(py, 'tests', 'config.json'), '--csv', fixture, '--out', out, ...aux], { stdio: ['ignore', 'ignore', 'inherit'] });
+    if (existsSync(path.join(py, 'montar.py')) && !existsSync(path.join(py, 'tests', 'config.json'))) {
+      execFileSync(PY, [path.join(py, 'montar.py'), '--relatorio', path.join(kit, 'relatorio-exemplo'), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+    } else {
+      execFileSync(PY, [path.join(py, 'gerar.py'), '--config', path.join(py, 'tests', 'config.json'), '--csv', fixture, '--out', out, ...aux], { stdio: ['ignore', 'ignore', 'inherit'] });
+    }
     const files = [];
     // variantes.json (filtros pré-calculados) fica fora do exemplo: pesa ~1 MB por versão e o kit gera de novo
     for (const f of await readdir(out)) if (f.endsWith('.json') && f !== 'variantes.json') files.push({ path: `exemplo/${f}`, content: await readFile(path.join(out, f), 'utf8') });
@@ -93,15 +99,56 @@ async function buildDesignSystemMd() {
   return `${contrato.trimEnd()}\n\n${cat.trim()}\n\n${regras.trim()}\n`;
 }
 
+/** Um exemplo REAL (JSON) de cada tipo de widget, colhido das seções geradas pelos kits
+ *  (tests/out) — o contrato em prosa não basta: o agente copia daqui a forma certa. */
+async function widgetExamplesMd() {
+  const seen = new Map();
+  const pick = (w) => {
+    const c = JSON.parse(JSON.stringify(w));
+    const trim = (o) => {
+      if (Array.isArray(o)) return o.slice(0, 3).map(trim);
+      if (o && typeof o === 'object') { for (const k of Object.keys(o)) o[k] = trim(o[k]); return o; }
+      if (typeof o === 'string' && o.length > 160) return o.slice(0, 157) + '…';
+      return o;
+    };
+    return trim(c);
+  };
+  for (const slug of await kits()) {
+    const out = path.join(SEED, slug, 'python', 'tests', 'out');
+    if (!existsSync(out)) continue;
+    for (const f of (await readdir(out)).filter((x) => /^s\d+\.json$/.test(x) || /^det-/.test(x))) {
+      let sec; try { sec = JSON.parse(await readFile(path.join(out, f), 'utf8')); } catch { continue; }
+      for (const w of sec.widgets || []) {
+        if (!w || !w.type || seen.has(w.type)) continue;
+        seen.set(w.type, { slug, json: JSON.stringify(pick(w), null, 1) });
+      }
+    }
+  }
+  if (!seen.size) return '';
+  const types = [...seen.keys()].sort();
+  const parts = ['', '## Exemplos reais por widget (copie a forma; troque dados e binds)', '',
+    `${types.length} tipos, colhidos dos relatórios gerados pelos templates. Campos com listas longas foram cortados em 3 itens. Todo número que aparece aqui é da fixture sintética.`];
+  for (const t of types) {
+    const { slug, json } = seen.get(t);
+    parts.push('', `### \`${t}\`  (de ${slug})`, '', '```json', json, '```');
+  }
+  return parts.join('\n');
+}
+
 async function platformSql() {
-  const ds = await buildDesignSystemMd();
+  const ds = (await buildDesignSystemMd()) + (await widgetExamplesMd());
   return [`INSERT INTO platform_docs (slug, org_id, title, body_md, kit_file, author_email) VALUES ('design-system', ${q(ORG)}, 'Design system dos aprofundamentos', ${q(ds)}, 'design-system.md', ${q(AUTHOR)})
     ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, kit_file = excluded.kit_file, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`];
 }
 
 function splitMd(md) {
   const m = md.match(/^#\s+(.+?)\s*\n([\s\S]*)$/);
-  return m ? { title: m[1].trim(), body: m[2].trim() } : { title: '', body: md.trim() };
+  let title = m ? m[1].trim() : '', body = (m ? m[2] : md).trim();
+  // contextos gerais: linha `Tipo: regra|recomendacao|definicao` logo abaixo do título
+  let tipo = 'regra';
+  const t = body.match(/^Tipo:\s*(regra|recomendacao|definicao)\s*\n?/i);
+  if (t) { tipo = t[1].toLowerCase(); body = body.slice(t[0].length).trim(); }
+  return { title, body, tipo };
 }
 
 /** D1 limita cada statement a 100 KB: arquivos grandes entram em pedaços
@@ -115,6 +162,19 @@ function fileSql(vid, f) {
     `INSERT INTO template_files (version_id, path, content) VALUES (${q(vid)}, ${q(f.path)}, ${q(first ?? '')});`,
     ...rest.map((c) => `UPDATE template_files SET content = content || ${q(c)} WHERE version_id = ${q(vid)} AND path = ${q(f.path)};`),
   ];
+}
+
+/** Próximo semver em SQL, a partir da publicada atual do template (NULL/0.x → 1.0.0).
+ *  BUMP vem de --bump patch|minor|major (padrão patch): re-seed é ajuste. */
+function semverSql(slug) {
+  const cur = `(SELECT v.semver FROM templates t JOIN template_versions v ON v.id = t.published_version_id WHERE t.slug = ${q(slug)})`;
+  const a = `CAST(substr(${cur}, 1, instr(${cur}, '.') - 1) AS INTEGER)`;
+  const rest = `substr(${cur}, instr(${cur}, '.') + 1)`;
+  const b = `CAST(substr(${rest}, 1, instr(${rest}, '.') - 1) AS INTEGER)`;
+  const c = `CAST(substr(${rest}, instr(${rest}, '.') + 1) AS INTEGER)`;
+  const next = BUMP === 'major' ? `(${a} + 1) || '.0.0'` : BUMP === 'minor' ? `${a} || '.' || (${b} + 1) || '.0'` : `${a} || '.' || ${b} || '.' || (${c} + 1)`;
+  // entre parênteses: um CASE…END solto dentro do VALUES confunde o divisor de statements do wrangler
+  return `(CASE WHEN ${cur} IS NULL OR ${cur} LIKE '0.%' THEN '1.0.0' ELSE ${next} END)`;
 }
 
 async function kitSql(slug) {
@@ -141,8 +201,9 @@ async function kitSql(slug) {
   const sql = [
     `INSERT INTO templates (slug, org_id, name, objective, when_to_use) VALUES (${q(slug)}, ${q(ORG)}, ${q(name)}, ${q(objective || '')}, ${q(when_to_use || '')})
        ON CONFLICT(slug) DO UPDATE SET name = excluded.name, objective = excluded.objective, when_to_use = excluded.when_to_use;`,
-    `INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at)
-       VALUES (${q(vid)}, ${q(slug)}, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ${q(slug)}), 0) + 1, 'published', ${q(AUTHOR)}, ${q(JSON.stringify(rest))}, strftime('%Y-%m-%dT%H:%M:%fZ','now'));`,
+    `INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, semver)
+       VALUES (${q(vid)}, ${q(slug)}, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ${q(slug)}), 0) + 1, 'published', ${q(AUTHOR)}, ${q(JSON.stringify(rest))}, strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+               ${semverSql(slug)});`,
     ...files.flatMap((f) => fileSql(vid, f)),
     ...tasks.map((t) => `INSERT INTO context_tasks (version_id, task_id, title, body_md, sort) VALUES (${q(vid)}, ${q(t.task_id)}, ${q(t.title)}, ${q(t.body)}, ${t.sort});`),
     `UPDATE templates SET published_version_id = ${q(vid)} WHERE slug = ${q(slug)};`,
@@ -155,9 +216,9 @@ async function generalSql() {
   const sql = [];
   for (const f of (await readdir(dir)).filter((x) => x.endsWith('.md'))) {
     const slug = f.replace(/\.md$/, '');
-    const { title, body } = splitMd(await readFile(path.join(dir, f), 'utf8'));
-    sql.push(`INSERT INTO general_contexts (slug, org_id, title, body_md, author_email) VALUES (${q(slug)}, ${q(ORG)}, ${q(title || slug)}, ${q(body)}, ${q(AUTHOR)})
-      ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`);
+    const { title, body, tipo } = splitMd(await readFile(path.join(dir, f), 'utf8'));
+    sql.push(`INSERT INTO general_contexts (slug, org_id, title, body_md, tipo, author_email) VALUES (${q(slug)}, ${q(ORG)}, ${q(title || slug)}, ${q(body)}, ${q(tipo)}, ${q(AUTHOR)})
+      ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, tipo = excluded.tipo, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`);
   }
   return sql;
 }

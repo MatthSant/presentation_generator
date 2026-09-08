@@ -29,7 +29,7 @@ for (const slug of await kits()) {
   try {
     execFileSync(PY, ['-m', 'unittest', 'discover', '-s', path.join(py, 'tests'), '-t', py], { stdio: 'inherit', cwd: py });
   } catch { failed++; console.error(`✗ unittest falhou: ${slug}`); continue; }
-  if (!noParity) {
+  if (!noParity && manifest.engine) {
     try {
       execFileSync(process.execPath, [path.join(here, 'parity.mjs'), slug, manifest.engine], { stdio: 'inherit', cwd: ROOT });
     } catch { failed++; console.error(`✗ paridade falhou: ${slug}`); }

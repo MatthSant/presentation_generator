@@ -65,7 +65,7 @@ describe('db — versões: changelog, restaurar (US4)', () => {
     const r = await db.restoreVersion(env.DB, s, 1, 'e@witly.digital');
     expect(r.number).toBe(3);
     expect(r.state).toBe('draft');
-    expect(r.changelog).toBe('restaurada da v1');
+    expect(r.changelog).toBe('restaurada da v1.0.0');
     const draft = await db.getDraftKit(env.DB, s);
     expect(draft!.files.find((f) => f.path === 'guia.md')!.content).toBe('# Guia\nLeia com cuidado.');
     expect((await db.getPublishedKit(env.DB, s))!.version.number).toBe(2);

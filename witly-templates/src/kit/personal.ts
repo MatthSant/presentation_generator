@@ -59,11 +59,11 @@ export async function salvarTemplate(env: ToolEnv, user: ToolUser, input: Salvar
       slug, org_id: env.ORG_ID, name, objective: input.objective ?? '', when_to_use: input.when_to_use ?? '',
       manifest, files, tasks, author_email: user.email, owner_email: user.email, notas: input.notas ?? '', publish: true,
     });
-    return `template pessoal criado: ${slug} v${v.number} (só você vê; um editor pode promover para todos na UI)`;
+    return `template pessoal criado: ${slug} v${v.semver ?? v.number} (só você vê; um editor pode promover para todos na UI)`;
   }
   await updateTemplateMeta(env.DB, slug, { name, objective: input.objective ?? existing.objective, when_to_use: input.when_to_use ?? existing.when_to_use });
   const v = await publishNewVersion(env.DB, slug, { manifest, files, tasks, author_email: user.email, changelog: input.changelog ?? 'salvo pelo agente' });
-  return `template pessoal atualizado: ${slug} v${v.number}`;
+  return `template pessoal atualizado: ${slug} v${v.semver ?? v.number}`;
 }
 
 export async function removerTemplate(env: ToolEnv, user: ToolUser, slug: string): Promise<string> {
