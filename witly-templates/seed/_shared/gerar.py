@@ -234,6 +234,110 @@ def _gravar_variantes(out_dir, out):
     return {k: len(v['items']) for k, v in out.items()}
 
 
+MAX_SNAPSHOTS = 300
+
+
+def _dim_accessors(calc, rv, keys, rows, config):
+    """key → função(linha) → valor, exatamente como o render_view._filter compara.
+    Acompanhamento expõe DIMS; debriefing usa classify() + helpers do calc."""
+    acc = {}
+    dims = getattr(rv, 'DIMS', None)
+    if isinstance(dims, dict):
+        for k in keys:
+            if k in dims:
+                acc[k] = dims[k]
+    faltam = [k for k in keys if k not in acc]
+    if faltam and hasattr(calc, 'classify'):
+        calc.classify(rows, config)
+        deb = {
+            'tipo': lambda r: r.get('_tipo'),
+            'canal': lambda r: calc.norm_source(r.get('utm_source')),
+            'temp': lambda r: (r.get('_temp') or ''),
+            'campanha': lambda r: (r.get('field_campaign_name') or ''),
+            'publico': lambda r: calc.adset_name(r),
+            'criativo': lambda r: calc.ad_name(r),
+        }
+        for k in faltam:
+            if k in deb:
+                acc[k] = deb[k]
+    return acc
+
+
+def _variantes_cascata(calc, build_report, rows, config, content, out_dir, opts, filtros, flt, rv):
+    """Filtros em cascata e combináveis, offline. As dimensões formam uma hierarquia na
+    ordem em que o relatório as declara (ex.: origem → canal → público → campanha → criativo).
+    Pré-calcula um snapshot para cada valor isolado e para cada caminho de prefixo que
+    existe nos dados; o viewer resolve qualquer seleção pelo CONJUNTO de tuplas que ela
+    casa (duas seleções com o mesmo conjunto usam o mesmo snapshot) e desabilita o que
+    não tem snapshot. `tuples` são combinações de utm/campanha (agregadas), não linhas."""
+    import inspect
+    keys = [f['key'] for f in filtros]
+    acc = _dim_accessors(calc, rv, keys, rows, config)
+    keys = [k for k in keys if k in acc]
+    if not keys:
+        return None
+    labels = {f['key']: (f.get('label') or f['key']) for f in filtros}
+    vlabels = {f['key']: {str(v.get('id') if isinstance(v, dict) else v): (v.get('label') if isinstance(v, dict) else str(v))
+                          for v in (f.get('values') or [])} for f in filtros}
+    n = len(inspect.signature(flt).parameters)
+    base = _rows_como_render_view(calc, rows)
+    tup_index, tuples = {}, []
+    for r in base:
+        t = tuple('' if acc[k](r) is None else str(acc[k](r)) for k in keys)
+        if t not in tup_index:
+            tup_index[t] = len(tuples); tuples.append(t)
+    todos = set(range(len(tuples)))
+    pos = {k: i for i, k in enumerate(keys)}
+
+    def casa(sel):
+        return {i for i, t in enumerate(tuples) if all(t[pos[k]] == v for k, v in sel.items())}
+
+    candidatos = []
+    for k in keys:
+        vals = sorted({t[pos[k]] for t in tuples})[:MAX_VALORES_FILTRO]
+        candidatos += [{k: v} for v in vals]
+    for depth in range(2, len(keys) + 1):
+        vistos = set()
+        for t in tuples:
+            pref = t[:depth]
+            if pref in vistos:
+                continue
+            vistos.add(pref); candidatos.append(dict(zip(keys[:depth], pref)))
+
+    snaps, por_conjunto = [], {}
+    for sel in candidatos:
+        m = casa(sel)
+        if not m or m == todos:
+            continue
+        chave = ','.join(map(str, sorted(m)))
+        if chave in por_conjunto:
+            por_conjunto[chave]['sels'].append(sel); continue
+        if len(snaps) >= MAX_SNAPSHOTS:
+            break
+        f = {k: [v] for k, v in sel.items()}
+        sub = flt(base, f, config) if n >= 3 else flt(base, f)
+        if not sub:
+            continue
+        o = dict(opts or {}); o['filters'] = f
+        try:
+            r = build_report.assemble(sub, dict(config), content, o)
+        except Exception as e:
+            sys.stderr.write(f'aviso: recorte {sel} ignorado ({e})\n')
+            continue
+        snap = {'sels': [sel], 'tuples': sorted(m), **_snapshot(r)}
+        por_conjunto[chave] = snap; snaps.append(snap)
+    if not snaps:
+        return None
+    out = {'kind': 'cascade',
+           'dims': [{'key': k, 'label': labels.get(k, k)} for k in keys],
+           'tuples': [list(t) for t in tuples],
+           'labels': {k: vlabels.get(k, {}) for k in keys},
+           'snaps': snaps}
+    with open(os.path.join(out_dir, 'variantes.json'), 'w', encoding='utf-8') as fh:
+        json.dump(out, fh, ensure_ascii=False)
+    return {'snapshots': len(snaps), 'dims': keys, 'combinacoes': len(tuples)}
+
+
 def _variantes_por_opts(calc, build_report, rows, config, content, out_dir, opts, ctr):
     """Motores cujo controle do app é um recompute por `opts` (não por filtro de linhas):
     criativos (mode / temp / min_invest) e histórico (metric / launches). Um snapshot por
@@ -288,31 +392,7 @@ def variantes(calc, build_report, rows, config, content, out_dir, opts=None):
     out = {}
     if not filtros or not flt:
         return _variantes_por_opts(calc, build_report, rows, config, content, out_dir, opts, ctr)
-    import inspect
-    n = len(inspect.signature(flt).parameters)
-    base = _rows_como_render_view(calc, rows)
-    for f in filtros:
-        key = f['key']
-        items = {}
-        for v in (f['values'] or [])[:MAX_VALORES_FILTRO]:
-            vid = v.get('id') if isinstance(v, dict) else v
-            sel = {key: [vid]}
-            sub = flt(base, sel, config) if n >= 3 else flt(base, sel)
-            if not sub:
-                continue
-            o = dict(opts or {}); o['filters'] = sel
-            try:
-                r = build_report.assemble(sub, dict(config), content, o)
-            except Exception as e:  # um valor que quebra não derruba o relatório
-                sys.stderr.write(f'aviso: filtro {key}={vid} ignorado ({e})\n')
-                continue
-            items[str(vid)] = _snapshot(r)
-        if items:
-            out[key] = {'label': f.get('label') or key,
-                        'values': [{'id': str(v.get('id') if isinstance(v, dict) else v), 'label': (v.get('label') if isinstance(v, dict) else str(v))}
-                                   for v in (f['values'] or [])[:MAX_VALORES_FILTRO] if str(v.get('id') if isinstance(v, dict) else v) in items],
-                        'items': items}
-    return _gravar_variantes(out_dir, out)
+    return _variantes_cascata(calc, build_report, rows, config, content, out_dir, opts, filtros, flt, rv)
 
 
 def render_html(out_dir, title):
@@ -337,8 +417,15 @@ def render_html(out_dir, title):
         if isinstance(sec, dict) and sec.get('id') and 'widgets' in sec:
             sections[sec['id']] = sec
     report = {'data': rj('data.json'), 'dataset': rj('dataset.json'), 'sections': sections, 'layout': rj('layout.json')}
-    if os.path.exists(os.path.join(out_dir, 'variantes.json')):
-        report['variants'] = rj('variantes.json')
+    vpath = os.path.join(out_dir, 'variantes.json')
+    if os.path.exists(vpath):
+        with open(vpath, encoding='utf-8') as f:
+            raw = f.read()
+        if len(raw) > 300_000:
+            import gzip, base64
+            report['variants_gz'] = base64.b64encode(gzip.compress(raw.encode('utf-8'), 9)).decode('ascii')
+        else:
+            report['variants'] = json.loads(raw)
     safe = lambda s: s.replace('</script', '<\\/script')   # noqa: E731
     html = (rd('shell.html')
             .replace('{{TITLE}}', title.replace('<', '&lt;'))

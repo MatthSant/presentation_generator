@@ -58,6 +58,7 @@ async function main() {
   const css = `${fonts}\n${style}\n` + [
     'body{margin:0}',
     '#layout-edit-btn,#tn-edit-actions,#update-btn,#export-html-btn{display:none!important}',
+    '.flt-opt.is-off{opacity:.35;cursor:not-allowed}',
   ].join('\n');
   await writeFile(path.join(OUT, 'viewer.css'), css);
 

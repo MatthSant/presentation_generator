@@ -59,7 +59,7 @@
     "1. Execute as tarefas de contexto (contexto/*.md) com o consultor e monte config.json.",
     "2. Rode as queries no Delfos (montar_query devolve o SQL preenchido): dump.csv e goals.csv (obrigatório); hist.csv se houver lançamento anterior.",
     "3. python python/gerar.py --config config.json --csv dump.csv --goals goals.csv [--hist hist.csv] --out saida/ [--opts '{\"filters\":{\"canal\":[\"facebook\"]}}']",
-    "4. Abra saida/relatorio.html (6 páginas, a última é o One Pager; filtros tipo/canal/temperatura/campanha/público/criativo pré-calculados, um por vez). Os números estão em saida/numeros.json.",
+    "4. Abra saida/relatorio.html (6 páginas, a última é o One Pager; filtros tipo/canal/temperatura/campanha/público/criativo em cascata e combináveis, pré-calculados). Os números estão em saida/numeros.json.",
     "4b. Leia saida/perguntas.json + numeros.json e proponha NO CHAT as 3–5 perguntas mais relevantes (não vão para o HTML).",
     "5. Recortes que o relatório não mostra: python python/query_api.py config.json dump.csv <fn> '<args json>' (tabela, atingimento, decomposicao, onde_concentra, impacto_receita, variacao_hist, cruzar_dia…).",
     "6. Aprofundamento aceito: design-system.md → query_api.py → det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."

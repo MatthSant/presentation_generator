@@ -16,13 +16,19 @@ import { el, mountShell, setBadge, type FabShell } from './controls-utils.js';
 interface Variant { dataset: DataMap; sections: Record<string, Section>; layout: Layout; pages?: ReportData['pages'] }
 interface VariantDim { label: string; values: Array<{ id: string; label: string }>; items: Record<string, Variant> }
 
+/** Cascata: dimensões hierárquicas + tuplas de utm (agregadas) + snapshots por seleção efetiva. */
+interface CascadeSnap extends Variant { sels: Array<Record<string, string>>; tuples: number[] }
+interface Cascade { kind: 'cascade'; dims: Array<{ key: string; label: string }>; tuples: string[][]; labels: Record<string, Record<string, string>>; snaps: CascadeSnap[] }
+
 export interface EmbeddedReport {
   data: ReportData;
   dataset: DataMap;
   sections: Record<string, Section>;
   layout: Layout;
-  /** Filtros do relatório (meta.controls.filters) já recalculados por valor; um por vez. */
-  variants?: Record<string, VariantDim>;
+  /** Filtros do relatório já recalculados: por opção (criativos/histórico) ou em cascata (acompanhamento/debriefing). */
+  variants?: Record<string, VariantDim> | Cascade;
+  /** O mesmo, comprimido (gzip + base64) quando é grande; o viewer descomprime no boot. */
+  variants_gz?: string;
   /** Logo (data: URI) p/ a sidebar; opcional. */
   logo?: string;
 }
@@ -42,6 +48,9 @@ class StandaloneApp {
   /** FAB de filtros (#filter-*): o mesmo chrome do app; offline as opções são snapshots. */
   private shell: FabShell | null = null;
   private openKey: string | null = null;
+  /** Cascata: seleção atual (dim → valor) e índice snapshot por conjunto de tuplas. */
+  private sel: Record<string, string> = {};
+  private snapIndex = new Map<string, CascadeSnap>();
 
   constructor(private report: EmbeddedReport) {
     // Páginas interativas (board de perguntas) não existem offline.
@@ -71,7 +80,10 @@ class StandaloneApp {
 
     this.buildNav();
 
-    this.mountFilters();
+    if (this.report.variants_gz && !this.report.variants) {
+      void inflate(this.report.variants_gz).then((v) => { this.report.variants = v as EmbeddedReport['variants']; this.mountFilters(); })
+        .catch((e) => console.warn('filtros offline indisponíveis (gzip):', e));
+    } else this.mountFilters();
     const first = this.store.pages[0];
     const sec = first?.sections[0];
     // Uma página com uma seção: a barra de seções não acrescenta nada.
@@ -114,11 +126,34 @@ class StandaloneApp {
     return wrap;
   }
 
-  /** Troca as 4 camadas pelo snapshot de um filtro (ou volta ao completo). */
-  private applyVariant(dim: string | null, value: string | null): void {
-    const v = dim && value ? this.report.variants?.[dim]?.items?.[value] : null;
+  private cascade(): Cascade | null {
+    const v = this.report.variants as Cascade | undefined;
+    return v && v.kind === 'cascade' ? v : null;
+  }
+  private optVariants(): Record<string, VariantDim> {
+    return this.cascade() ? {} : ((this.report.variants as Record<string, VariantDim>) || {});
+  }
+  /** Índices das tuplas que casam com uma seleção (AND entre dimensões). */
+  private matchTuples(sel: Record<string, string>): number[] {
+    const c = this.cascade(); if (!c) return [];
+    const pos = new Map(c.dims.map((d, i) => [d.key, i]));
+    const out: number[] = [];
+    c.tuples.forEach((t, i) => { if (Object.entries(sel).every(([k, v]) => t[pos.get(k)!] === v)) out.push(i); });
+    return out;
+  }
+  /** Snapshot que representa a seleção: `null` = relatório completo; `undefined` = não pré-calculado. */
+  private snapFor(sel: Record<string, string>): CascadeSnap | null | undefined {
+    const c = this.cascade(); if (!c) return undefined;
+    if (!Object.keys(sel).length) return null;
+    const m = this.matchTuples(sel);
+    if (!m.length) return undefined;
+    if (m.length === c.tuples.length) return null;
+    return this.snapIndex.get(m.join(','));
+  }
+
+  /** Troca as 4 camadas por um snapshot (ou volta ao completo). */
+  private applySnapshot(v: Variant | null): void {
     const src = v ?? this.report;
-    this.active = v ? { dim: dim!, value: value! } : null;
     this.store.datasets = src.dataset;
     this.store.layout = src.layout || { sections: {} };
     for (const sec of Object.values(src.sections)) this.store.putSection(sec);
@@ -129,13 +164,21 @@ class StandaloneApp {
     this.buildNav();
   }
 
-  private variantDims(): string[] { return Object.keys(this.report.variants || {}); }
+  private applyVariant(dim: string | null, value: string | null): void {
+    const v = dim && value ? this.optVariants()[dim]?.items?.[value] : null;
+    this.active = v ? { dim: dim!, value: value! } : null;
+    this.applySnapshot(v ?? null);
+  }
+
+  private variantDims(): string[] { return Object.keys(this.optVariants()); }
 
   /** Liga o FAB (#filter-fab / #filter-modal) quando há filtros de dataset (`meta.filters`)
    *  ou snapshots pré-calculados (`variants`). Sem nenhum dos dois o botão fica oculto. */
   private mountFilters(): void {
-    const has = this.store.filterDefs.length > 0 || this.variantDims().length > 0;
-    if (!has || !document.getElementById('filter-fab')) return;
+    const c = this.cascade();
+    if (c) { this.snapIndex.clear(); for (const sn of c.snaps) this.snapIndex.set(sn.tuples.join(','), sn); }
+    const has = this.store.filterDefs.length > 0 || this.variantDims().length > 0 || !!c;
+    if (!has || !document.getElementById('filter-fab') || this.shell) { if (this.shell) { this.renderFilterBody(); this.updateBadge(); } return; }
     try {
       this.shell = mountShell('offline-filters', () => this.clearFilters());
     } catch { this.shell = null; return; }
@@ -149,6 +192,7 @@ class StandaloneApp {
       const v = def.default ?? def.allValue ?? def.options[0];
       if (v != null) this.store.active[def.id] = v; else delete this.store.active[def.id];
     }
+    this.sel = {};
     this.applyVariant(null, null);
     this.afterFilterChange();
   }
@@ -168,7 +212,7 @@ class StandaloneApp {
 
   private updateBadge(): void {
     if (!this.shell) return;
-    let n = this.active ? 1 : 0;
+    let n = (this.active ? 1 : 0) + Object.keys(this.sel).length;
     for (const def of this.store.filterDefs) {
       const base = def.default ?? def.allValue ?? def.options[0];
       const v = this.store.active[def.id];
@@ -195,8 +239,49 @@ class StandaloneApp {
       }
       g.appendChild(seg); body.appendChild(g);
     }
-    // Snapshots pré-calculados: um dropdown-accordion por dimensão (seleção única; um filtro por vez).
-    const variants = this.report.variants || {};
+    // Cascata (acompanhamento/debriefing): cada dimensão só oferece os valores que coexistem com o
+    // que já está selecionado; opção sem snapshot fica desabilitada (gere com --opts).
+    const c = this.cascade();
+    if (c) {
+      for (const d of c.dims) {
+        const open = this.openKey === d.key;
+        const cur = this.sel[d.key];
+        const dd = el('div', 'flt-dd' + (open ? ' is-open' : ''));
+        const head = el('button', 'flt-dd-head') as HTMLButtonElement; head.type = 'button';
+        const lbl = el('span', 'flt-dd-lbl'); lbl.textContent = d.label;
+        const sum = el('span', 'flt-dd-sum'); sum.textContent = cur != null ? (c.labels[d.key]?.[cur] || cur || '(vazio)') : 'Todos';
+        const chev = el('span', 'flt-dd-chev'); chev.textContent = '⌄';
+        head.append(lbl, sum, chev);
+        head.addEventListener('click', () => { this.openKey = open ? null : d.key; this.renderFilterBody(); });
+        dd.appendChild(head);
+        if (open) {
+          const others: Record<string, string> = { ...this.sel }; delete others[d.key];
+          const pos = c.dims.findIndex((x) => x.key === d.key);
+          const present = new Set(this.matchTuples(others).map((i) => c.tuples[i][pos]));
+          const panel = el('div', 'flt-dd-panel');
+          const seg = el('div', 'flt-seg');
+          const mk = (id: string | null, label: string): void => {
+            const trial: Record<string, string> = { ...this.sel };
+            if (id == null) delete trial[d.key]; else trial[d.key] = id;
+            const snap = this.snapFor(trial);
+            const ok = snap !== undefined;
+            const isCur = id == null ? cur == null : cur === id;
+            const b = el('button', 'flt-opt' + (isCur ? ' flt-active' : '') + (ok ? '' : ' is-off')) as HTMLButtonElement;
+            b.type = 'button'; b.textContent = label;
+            if (!ok) { b.disabled = true; b.title = 'Combinação não pré-calculada: gere com --opts'; }
+            else b.addEventListener('click', () => { if (id == null) delete this.sel[d.key]; else this.sel[d.key] = id; this.applySnapshot(snap); this.afterFilterChange(); });
+            seg.appendChild(b);
+          };
+          mk(null, 'Todos');
+          for (const v of [...present].sort()) mk(v, c.labels[d.key]?.[v] || v || '(vazio)');
+          panel.appendChild(seg);
+          dd.appendChild(panel);
+        }
+        body.appendChild(dd);
+      }
+    }
+    // Snapshots por opção (criativos/histórico): um dropdown-accordion por dimensão, um filtro por vez.
+    const variants = this.optVariants();
     for (const dim of this.variantDims()) {
       const vd = variants[dim];
       const open = this.openKey === dim;
@@ -249,6 +334,17 @@ class StandaloneApp {
       outlierToggle: false,
     });
   }
+}
+
+/** Descomprime `variants_gz` (gzip + base64) com o DecompressionStream do navegador. */
+async function inflate(b64: string): Promise<unknown> {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const DS = (window as unknown as { DecompressionStream?: new (f: string) => GenericTransformStream }).DecompressionStream;
+  if (!DS) throw new Error('DecompressionStream indisponível');
+  const stream = new Blob([bytes]).stream().pipeThrough(new DS('gzip'));
+  return JSON.parse(await new Response(stream).text());
 }
 
 function start(): void {

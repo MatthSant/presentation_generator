@@ -96,14 +96,21 @@ class Gerar(unittest.TestCase):
         m = re.search(r'window\.__REPORT=(\{.*?\});window\.__REPORT\.logo', html, re.S)
         self.assertIsNotNone(m)
         rep = json.loads(m.group(1))
-        self.assertEqual(set(rep), {'data', 'dataset', 'sections', 'layout', 'variants'})
+        self.assertTrue({'data', 'dataset', 'sections', 'layout'} <= set(rep))
+        self.assertTrue('variants' in rep or 'variants_gz' in rep)
         self.assertIn('s01', rep['sections'])
-        # filtros offline: um snapshot por valor de cada dimensão (sem o intervalo de datas)
-        self.assertNotIn('dia', rep['variants'])
-        self.assertEqual(set(rep['variants']['utm_source']['items']), {'facebook', 'instagram'})
-        fb = rep['variants']['utm_source']['items']['facebook']
-        self.assertTrue({'dataset', 'sections', 'layout'} <= set(fb))
-        self.assertIn('s01', fb['sections'])
+        # filtros offline em cascata: dimensões do FAB (sem o intervalo de datas), tuplas de
+        # utm e um snapshot por seleção efetiva (valor isolado + caminhos da hierarquia)
+        v = json.load(open(os.path.join(self.out, 'variantes.json'), encoding='utf-8'))
+        self.assertEqual(v['kind'], 'cascade')
+        keys = [d['key'] for d in v['dims']]
+        self.assertNotIn('dia', keys)
+        self.assertEqual(keys[:2], ['origem', 'utm_source'])
+        fb = next(sn for sn in v['snaps'] if {'utm_source': 'facebook'} in sn['sels'])
+        self.assertTrue({'dataset', 'sections', 'layout', 'tuples'} <= set(fb))
+        self.assertTrue(all(v['tuples'][i][keys.index('utm_source')] == 'facebook' for i in fb['tuples']))
+        # caminho de prefixo (origem + canal + público) existe quando restringe de verdade
+        self.assertTrue(any(len(x) >= 3 for sn in v['snaps'] for x in sn['sels']))   # caminho da hierarquia mapeado
 
     def test_placeholders_do_documento_existem(self):
         with open(os.path.join(KIT, 'documento.md'), encoding='utf-8') as f:
