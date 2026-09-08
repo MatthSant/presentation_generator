@@ -27,8 +27,13 @@ export interface Activity {
   slug: string; version_number: number | null; cliente: string | null; pergunta_id: string | null;
   dados_json: string; avaliacao: number | null; descartado: number; motivo: string | null;
   editor_nota: number | null; editor_comentario: string | null; virou_exemplo: number; virou_regra: number;
+  veredito: Veredito | null; veredito_por: string | null; veredito_em: string | null;
   origem: 'mcp' | 'app'; at: string;
 }
+
+/** O que o editor decidiu sobre um aprofundamento; NULL = ainda na fila de revisão. */
+export type Veredito = 'exemplo' | 'regra' | 'descarte' | 'ok';
+export const VEREDITOS: Veredito[] = ['exemplo', 'regra', 'descarte', 'ok'];
 
 export interface Rating { id: string; org_id: string; slug: string; version_number: number | null; email: string; nota: number; comentario: string | null; at: string }
 
@@ -73,13 +78,17 @@ export async function listUsers(db: D1Database, org_id: string): Promise<User[]>
 
 // ── templates & versões ─────────────────────────────────────────────────────
 
-export type TemplateRow = Template & { published_number: number | null; draft_number: number | null; published_semver: string | null };
+export type TemplateRow = Template & { published_number: number | null; draft_number: number | null; published_semver: string | null; publicada_em: string | null; geracoes: number; aprofundamentos: number; ultimo_uso: string | null };
 
 /** Templates visíveis: os da organização + os pessoais do `viewer`. `viewer='*'` = todos (editor na UI). */
 export async function listTemplates(db: D1Database, org_id: string, viewer: string | '*' = '*'): Promise<TemplateRow[]> {
   const where = viewer === '*' ? '' : ' AND (t.owner_email IS NULL OR t.owner_email = ?)';
   const stmt = db.prepare(
-    `SELECT t.*, p.number AS published_number, d.number AS draft_number, p.semver AS published_semver
+    `SELECT t.*, p.number AS published_number, d.number AS draft_number, p.semver AS published_semver,
+            p.published_at AS publicada_em,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos,
+            (SELECT MAX(a.at) FROM activity a WHERE a.slug = t.slug) AS ultimo_uso
        FROM templates t
        LEFT JOIN template_versions p ON p.id = t.published_version_id
        LEFT JOIN template_versions d ON d.id = t.draft_version_id
@@ -356,9 +365,17 @@ export async function insertActivity(db: D1Database, a: NewActivity): Promise<st
   return id;
 }
 
-export interface ActivityFilter { email?: string; slug?: string; cliente?: string; evento?: string; desde?: string; ate?: string; avaliacao?: number; descartado?: boolean; limit?: number; offset?: number }
+export interface ActivityFilter {
+  email?: string; slug?: string; cliente?: string; evento?: string; desde?: string; ate?: string;
+  avaliacao?: number; descartado?: boolean; limit?: number; offset?: number;
+  /** 'sem' = ainda na fila de revisão; um veredito = só os assim decididos. */
+  veredito?: 'sem' | Veredito;
+  /** busca livre em pergunta/resposta (dados_json), cliente e e-mail */
+  busca?: string;
+}
 
-export async function listActivity(db: D1Database, org_id: string, f: ActivityFilter = {}): Promise<Activity[]> {
+/** WHERE compartilhado por listActivity e countActivity. */
+function activityWhere(org_id: string, f: ActivityFilter): { sql: string; bind: unknown[] } {
   const w: string[] = ['org_id = ?']; const b: unknown[] = [org_id];
   if (f.email) { w.push('email = ?'); b.push(f.email.toLowerCase()); }
   if (f.slug) { w.push('slug = ?'); b.push(f.slug); }
@@ -368,8 +385,41 @@ export async function listActivity(db: D1Database, org_id: string, f: ActivityFi
   if (f.ate) { w.push('at <= ?'); b.push(f.ate); }
   if (f.avaliacao != null) { w.push('avaliacao = ?'); b.push(f.avaliacao); }
   if (f.descartado != null) { w.push('descartado = ?'); b.push(f.descartado ? 1 : 0); }
-  b.push(Math.min(f.limit ?? 100, 500), f.offset ?? 0);
-  return (await db.prepare(`SELECT * FROM activity WHERE ${w.join(' AND ')} ORDER BY at DESC LIMIT ? OFFSET ?`).bind(...b).all<Activity>()).results;
+  if (f.veredito === 'sem') { w.push('veredito IS NULL'); }
+  else if (f.veredito) { w.push('veredito = ?'); b.push(f.veredito); }
+  if (f.busca) { w.push('(dados_json LIKE ? OR cliente LIKE ? OR email LIKE ?)'); const q = `%${f.busca}%`; b.push(q, q, q); }
+  return { sql: w.join(' AND '), bind: b };
+}
+
+export async function listActivity(db: D1Database, org_id: string, f: ActivityFilter = {}): Promise<Activity[]> {
+  const { sql, bind } = activityWhere(org_id, f);
+  bind.push(Math.min(f.limit ?? 100, 500), f.offset ?? 0);
+  return (await db.prepare(`SELECT * FROM activity WHERE ${sql} ORDER BY at DESC LIMIT ? OFFSET ?`).bind(...bind).all<Activity>()).results;
+}
+
+/** Quantas entradas o filtro pega (paginação) e quantas ainda esperam veredito. */
+export async function countActivity(db: D1Database, org_id: string, f: ActivityFilter = {}): Promise<{ total: number; sem_veredito: number; mais_antiga_sem_veredito: string | null }> {
+  const { sql, bind } = activityWhere(org_id, f);
+  const r = await db.prepare(
+    `SELECT COUNT(*) AS total,
+            SUM(evento = 'aprofundamento' AND veredito IS NULL) AS sem_veredito,
+            MIN(CASE WHEN evento = 'aprofundamento' AND veredito IS NULL THEN at END) AS mais_antiga_sem_veredito
+       FROM activity WHERE ${sql}`,
+  ).bind(...bind).first<{ total: number; sem_veredito: number | null; mais_antiga_sem_veredito: string | null }>();
+  return { total: r?.total ?? 0, sem_veredito: r?.sem_veredito ?? 0, mais_antiga_sem_veredito: r?.mais_antiga_sem_veredito ?? null };
+}
+
+/** Descarte feito na triagem (o consultor descarta pelo MCP; o editor, aqui). */
+export async function descartarActivity(db: D1Database, id: string, motivo: string | null): Promise<void> {
+  await db.prepare('UPDATE activity SET descartado = 1, motivo = ? WHERE id = ?').bind(motivo, id).run();
+}
+
+/** O veredito do editor sobre um aprofundamento (o que fecha a triagem). */
+export async function setActivityVeredito(db: D1Database, id: string, veredito: Veredito | null, por: string): Promise<void> {
+  if (!(await getActivity(db, id))) throw new Error('atividade não existe');
+  const agora = veredito ? new Date().toISOString() : null;
+  await db.prepare('UPDATE activity SET veredito = ?, veredito_por = ?, veredito_em = ? WHERE id = ?')
+    .bind(veredito, veredito ? por.toLowerCase() : null, agora, id).run();
 }
 
 export async function getActivity(db: D1Database, id: string): Promise<Activity | null> {
@@ -389,6 +439,39 @@ export async function insertRating(db: D1Database, r: { org_id: string; slug: st
   await db.prepare('INSERT INTO template_ratings (id, org_id, slug, version_number, email, nota, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .bind(id, r.org_id, r.slug, r.version_number, r.email.toLowerCase(), r.nota, r.comentario ?? null).run();
   return id;
+}
+
+export interface CatalogStats { publicados: number; rascunhos: number; ultima_publicacao: string | null; sem_uso_30d: number }
+
+/** Os quatro números do topo do catálogo: o que o MCP entrega hoje e o que está parado. */
+export async function catalogStats(db: D1Database, org_id: string, desde30: string): Promise<CatalogStats> {
+  const r = await db.prepare(
+    `SELECT SUM(t.published_version_id IS NOT NULL) AS publicados,
+            SUM(t.draft_version_id IS NOT NULL) AS rascunhos,
+            (SELECT MAX(v.published_at) FROM template_versions v JOIN templates x ON x.slug = v.slug
+              WHERE x.org_id = ? AND v.state = 'published') AS ultima_publicacao,
+            SUM(t.published_version_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM activity a WHERE a.slug = t.slug AND a.at >= ?)) AS sem_uso_30d
+       FROM templates t WHERE t.org_id = ?`,
+  ).bind(org_id, desde30, org_id).first<CatalogStats>();
+  return { publicados: r?.publicados ?? 0, rascunhos: r?.rascunhos ?? 0, ultima_publicacao: r?.ultima_publicacao ?? null, sem_uso_30d: r?.sem_uso_30d ?? 0 };
+}
+
+export interface HealthRow { slug: string; name: string; published_semver: string | null; published_number: number | null; geracoes: number; aprofundamentos: number; descartados: number; sem_veredito: number; nota_media: number | null }
+
+/** Saúde por template: descarte alto e pergunta repetida são o mesmo sintoma. */
+export async function healthStats(db: D1Database, org_id: string): Promise<HealthRow[]> {
+  return (await db.prepare(
+    `SELECT t.slug, t.name, p.semver AS published_semver, p.number AS published_number,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento' AND a.descartado = 1) AS descartados,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento' AND a.veredito IS NULL) AS sem_veredito,
+            (SELECT AVG(r.nota) FROM template_ratings r WHERE r.slug = t.slug AND r.org_id = t.org_id) AS nota_media
+       FROM templates t LEFT JOIN template_versions p ON p.id = t.published_version_id
+      WHERE t.org_id = ? AND t.owner_email IS NULL
+      ORDER BY descartados * 1.0 / MAX(aprofundamentos, 1) DESC, aprofundamentos DESC, t.name`,
+  ).bind(org_id).all<HealthRow>()).results;
 }
 
 export interface UsageRow { slug: string; version_number: number | null; geracoes: number; aprofundamentos: number; descartados: number; nota_media: number | null; avaliacoes: number }

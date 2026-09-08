@@ -24,6 +24,33 @@
     return data;
   }
   const isEditor = () => me && me.role === 'editor';
+  const fmtAt = (v) => String(v || '').slice(0, 16).replace('T', ' ');
+  const params = () => new URLSearchParams(location.hash.split('?')[1] || '');
+  /** Troca a query da rota sem disparar o roteador (busca e filtro locais). */
+  function setQuery(base, p) { const q = p.toString(); history.replaceState(null, '', `#/${base}${q ? '?' + q : ''}`); }
+
+  const skelLines = (n) => Array.from({ length: n }, (_, i) => `<div class="skel line ${i % 3 === 2 ? 'w40' : i % 2 ? 'w60' : ''}"></div>`).join('');
+  /** Esqueleto enquanto a rota carrega: a página não pisca em branco. */
+  function skeleton(kind) {
+    const head = '<div class="skel line w25" style="height:20px;margin-bottom:10px"></div><div class="skel line w60"></div>';
+    if (kind === 'cards') app.innerHTML = `${head}<div class="grid" style="margin-top:22px">${'<div class="skel card"></div>'.repeat(6)}</div>`;
+    else if (kind === 'rows') app.innerHTML = `${head}<div class="list-cards" style="margin-top:22px">${'<div class="skel card" style="height:104px"></div>'.repeat(4)}</div>`;
+    else app.innerHTML = `${head}<div class="card" style="margin-top:22px">${skelLines(8)}</div>`;
+  }
+
+  /** Modal: título, corpo e um primário. Devolve o elemento para preencher depois. */
+  function modal(title, body, okLabel, onOk) {
+    const ov = document.createElement('div'); ov.className = 'overlay';
+    ov.innerHTML = `<div class="modal"><h3>${esc(title)}</h3><div id="m-body">${body}</div>
+      <div class="actions"><button class="btn btn-ghost" id="m-no">Cancelar</button>${okLabel ? `<button class="btn btn-p" id="m-ok">${esc(okLabel)}</button>` : ''}</div></div>`;
+    const fechar = () => ov.remove();
+    ov.onclick = (e) => { if (e.target === ov) fechar(); };
+    document.body.appendChild(ov);
+    $('#m-no', ov).onclick = fechar;
+    const ok = $('#m-ok', ov); if (ok) ok.onclick = () => onOk(fechar, ov);
+    document.addEventListener('keydown', function fecharEsc(e) { if (e.key === 'Escape') { fechar(); document.removeEventListener('keydown', fecharEsc); } });
+    return ov;
+  }
 
   // ── shell ──────────────────────────────────────────────────────────────
   async function boot() {
@@ -47,6 +74,7 @@
     if (seg === 'atividade' && slug) { setNav('atividade'); return renderAtividadeDetalhe(slug); }
     if (seg === 'atividade') { setNav('atividade'); return renderAtividade(); }
     if (seg === 'uso') { setNav('atividade'); return renderUso(); }
+    if (seg === 'saude') { setNav('atividade'); return renderSaude(); }
     if (seg === 'pessoais') { setNav('pessoais'); return renderPessoais(); }
     if (seg === 'plataforma') { setNav('plataforma'); return renderPlataforma(); }
     if (seg === 't' && slug) { setNav('templates'); return renderTemplate(slug, tab, rest.length ? decodeURIComponent(rest.join('/')) : null); }
@@ -64,17 +92,56 @@
   }
 
   // ── catálogo ───────────────────────────────────────────────────────────
+  const CAT_FILTROS = [['todos', 'todos'], ['mcp', 'no MCP'], ['rascunho', 'com rascunho'], ['parado', 'sem uso 30d']];
+
   async function renderCatalog() {
-    const rows = await api('/api/templates');
-    app.innerHTML = `<div class="head"><div><h1>Templates</h1><p class="muted sm">O MCP entrega ao agente só a versão <b>publicada</b>. Edições ficam num rascunho até você publicar.</p></div>
-      ${isEditor() ? '<button class="btn btn-p" id="new">+ Novo template</button>' : ''}</div>
-      <div class="grid">${rows.map((t) => `<a class="card tcard" href="#/t/${esc(t.slug)}">
-        <div class="row" style="justify-content:space-between"><span class="t">${esc(t.name)}</span>
-          <span>${t.published_number ? `<span class="pill pub">v${t.published_semver || t.published_number}</span>` : '<span class="pill off">sem publicada</span>'} ${t.draft_number ? '<span class="pill draft">rascunho</span>' : ''}</span></div>
-        <div class="muted sm" style="margin:6px 0"><code>${esc(t.slug)}</code></div>
-        <div class="sm">${esc(t.objective)}</div></a>`).join('') || '<div class="empty">Nenhum template ainda.</div>'}</div>`;
-    const b = $('#new'); if (b) b.onclick = newTemplate;
+    skeleton('cards');
+    const { stats, templates, desde30 } = await api('/api/catalogo');
+    const p = params();
+    let q = p.get('q') || '';
+    let f = CAT_FILTROS.some(([k]) => k === p.get('f')) ? p.get('f') : 'todos';
+    const parado = (t) => t.published_number && !(t.ultimo_uso && t.ultimo_uso >= desde30);
+    const sync = () => { const p2 = new URLSearchParams(); if (q.trim()) p2.set('q', q.trim()); if (f !== 'todos') p2.set('f', f); setQuery('', p2); };
+
+    const draw = () => {
+      const busca = q.trim().toLowerCase();
+      const rows = templates.filter((t) => {
+        if (busca && !`${t.name} ${t.slug} ${t.objective}`.toLowerCase().includes(busca)) return false;
+        if (f === 'mcp') return !!t.published_number;
+        if (f === 'rascunho') return !!t.draft_number;
+        if (f === 'parado') return parado(t);
+        return true;
+      });
+      app.innerHTML = `<div class="head"><div><h1>Templates</h1><p class="muted sm">O MCP entrega ao agente só a versão <b>publicada</b>. Edições ficam num rascunho até você publicar.</p></div>
+        ${isEditor() ? '<button class="btn btn-p" id="new">+ Novo template</button>' : ''}</div>
+        <div class="stats">
+          <div class="stat"><div class="stat-k">No MCP agora</div><div class="stat-v">${stats.publicados} <small>publicados</small></div></div>
+          <div class="stat ${stats.rascunhos ? 'warn-k' : ''}"><div class="stat-k">Esperando publicação</div><div class="stat-v">${stats.rascunhos} <small>${stats.rascunhos === 1 ? 'rascunho' : 'rascunhos'}</small></div></div>
+          <div class="stat"><div class="stat-k">Última publicação</div><div class="stat-v mono">${stats.ultima_publicacao ? esc(fmtAt(stats.ultima_publicacao)) : '—'}</div></div>
+          <div class="stat"><div class="stat-k">Sem uso em 30d</div><div class="stat-v">${stats.sem_uso_30d} <small>${stats.sem_uso_30d === 1 ? 'template' : 'templates'}</small></div></div>
+        </div>
+        <div class="filters">
+          <span class="search"><input id="c-q" placeholder="buscar nome ou slug" value="${esc(q)}"></span>
+          <span class="seg">${CAT_FILTROS.map(([k, l]) => `<button data-f="${k}" class="${k === f ? 'on' : ''}">${l}</button>`).join('')}</span>
+          <span class="count">${rows.length} de ${templates.length}</span>
+        </div>
+        <div class="grid">${rows.map((t) => `<a class="card tcard" href="#/t/${esc(t.slug)}" style="display:flex;flex-direction:column">
+          <div class="row" style="justify-content:space-between;align-items:flex-start"><span class="t">${esc(t.name)}</span>
+            ${t.published_number ? `<span class="pill pub">v${esc(t.published_semver || t.published_number)}</span>` : '<span class="pill off">sem publicada</span>'}</div>
+          <div class="muted sm" style="margin:6px 0"><code>${esc(t.slug)}</code>${t.owner_email ? ' <span class="pill">pessoal</span>' : ''}</div>
+          <div class="sm" style="margin-bottom:12px">${esc(t.objective)}</div>
+          <div style="margin-top:auto;padding-top:11px;border-top:1px solid var(--line-soft);display:flex;gap:10px;align-items:center">
+            <code class="sm">${t.geracoes} ger · ${t.aprofundamentos} aprof</code>
+            <span class="sm" style="margin-left:auto;font-weight:600;color:${t.draft_number ? 'var(--amber)' : parado(t) ? 'var(--ink-faint)' : t.published_number ? 'var(--green)' : 'var(--red)'}">${t.draft_number ? 'rascunho aberto' : parado(t) ? 'sem uso em 30d' : t.published_number ? 'no MCP' : 'não publicado'}</span>
+          </div></a>`).join('') || `<div class="empty">${busca || f !== 'todos' ? 'Nenhum template com esse filtro.' : 'Nenhum template ainda.'}</div>`}</div>`;
+      const bn = $('#new'); if (bn) bn.onclick = newTemplate;
+      for (const b of app.querySelectorAll('.seg [data-f]')) b.onclick = () => { f = b.dataset.f; sync(); draw(); };
+      const inp = $('#c-q');
+      inp.oninput = () => { q = inp.value; sync(); const at = inp.selectionStart; draw(); const el = $('#c-q'); el.focus(); el.setSelectionRange(at, at); };
+    };
+    draw();
   }
+
   async function newTemplate() {
     const slug = prompt('slug (a-z, 0-9, hífen), ex.: debriefing');
     if (!slug) return;
@@ -94,6 +161,69 @@
     return { ...p, state: 'published' };
   }
 
+  /** O kit está completo? Uma marca por parte — as vazias ganham ponto na aba. */
+  function kitCheck(t, kit) {
+    const files = new Map((kit ? kit.files : []).map((f) => [f.path, f.content]));
+    const cheio = (path) => (files.get(path) || '').trim().length > 0;
+    const temPrefixo = (pre) => [...files.keys()].some((k) => k.startsWith(pre));
+    const m = (kit && kit.manifest) || {};
+    return {
+      info: !!(t.objective || '').trim() && !!(t.when_to_use || '').trim(),
+      manifesto: ((m.como_gerar || []).length > 0),
+      tarefas: !!(kit && kit.tasks.length),
+      regras: !!(kit && (kit.rules || []).length),
+      queries: temPrefixo('queries/'),
+      python: temPrefixo('python/'),
+      documento: cheio('documento.md'),
+      guia: cheio('guia.md'),
+      perguntas: cheio('perguntas.md') || !!m.perguntas_bank,
+      exemplo: cheio('exemplo.html'),
+    };
+  }
+
+  const BUMPS = [
+    ['patch', 'ajuste', 'v1.0.<b>x</b> · texto, guia, correção'],
+    ['minor', 'melhoria', 'v1.<b>x</b>.0 · tarefa, query ou bloco novo'],
+    ['major', 'mudança grande', 'v<b>x</b>.0.0 · estrutura, motor, parâmetros'],
+  ];
+
+  /** Publicar: escolhe o tamanho da mudança e mostra o que muda em relação à publicada. */
+  function publicarModal(t, draft) {
+    const slug = t.slug;
+    const corpo = `<p class="muted sm">O agente passa a receber esta versão na próxima chamada do MCP${t.published_version_id ? ', no lugar da publicada de hoje' : ''}.</p>
+      <label>Tamanho da mudança</label>
+      <div style="display:flex;flex-direction:column;gap:6px">${BUMPS.map(([k, l, h], i) => `<label><input type="radio" name="bump" value="${k}" ${i === 0 ? 'checked' : ''}> ${l} <span class="muted sm">${h}</span></label>`).join('')}</div>
+      <label>Nota de mudança (opcional)</label><input id="pub-log" placeholder="o que muda para quem usa">
+      <div id="pub-diff" class="muted sm" style="margin-top:12px">Comparando com a publicada…</div>`;
+    const ov = modal('Publicar o rascunho', corpo, 'Publicar', async (fechar) => {
+      const bump = ov.querySelector('input[name=bump]:checked').value;
+      const changelog = $('#pub-log', ov).value;
+      try { const r = await api(`/api/templates/${encodeURIComponent(slug)}/publish`, { method: 'POST', body: { changelog, bump } }); fechar(); toast(`Publicado v${r.version.semver || r.version.number}`); route(); }
+      catch (e) { toast(e.message, true); }
+    });
+    if (t.published_version_id && draft) {
+      api(`/api/templates/${encodeURIComponent(slug)}/versoes`)
+        .then((vs) => {
+          const pub = vs.find((v) => v.state === 'published' && v.id === t.published_version_id) || vs.find((v) => v.state === 'published');
+          if (!pub) throw new Error('sem publicada');
+          return api(`/api/templates/${encodeURIComponent(slug)}/versoes/diff?de=${pub.number}&para=${draft.number}`);
+        })
+        .then((d) => {
+          const partes = [
+            [d.manifest ? 1 : 0, 'manifesto'],
+            [d.tasks.length, d.tasks.length === 1 ? 'tarefa' : 'tarefas'],
+            [d.rules.length, d.rules.length === 1 ? 'regra' : 'regras'],
+            [d.files.length, d.files.length === 1 ? 'arquivo' : 'arquivos'],
+          ].filter(([n]) => n).map(([n, l]) => `${n} ${l}`);
+          const lista = [...d.tasks.map((x) => `tarefas/${x.path}`), ...d.rules.map((x) => `regras/${x.path}`), ...d.files.map((x) => x.path)];
+          $('#pub-diff', ov).innerHTML = partes.length
+            ? `Muda ${partes.join(' · ')}: ${lista.slice(0, 6).map((x) => `<code>${esc(x)}</code>`).join(', ')}${lista.length > 6 ? ` e mais ${lista.length - 6}` : ''}.`
+            : 'O rascunho está igual à publicada.';
+        })
+        .catch(() => { $('#pub-diff', ov).textContent = ''; });
+    } else { $('#pub-diff', ov).textContent = 'Primeira versão publicada deste template.'; }
+  }
+
   async function renderTemplate(slug, tab, sub) {
     tab = TABS.some(([k]) => k === tab) ? tab : 'info';
     let data;
@@ -101,36 +231,21 @@
     const { template: t, kit, state } = data;
     const v = kit ? kit.version : null;
     const canEdit = isEditor() || (t.owner_email && t.owner_email === me.email);
+    const kc = kitCheck(t, kit);
+    const feitos = Object.values(kc).filter(Boolean).length;
+    const total = Object.keys(kc).length;
     app.innerHTML = `<div class="head">
       <div><a class="muted sm" href="#/">← Templates</a><h1>${esc(t.name)} <code>${esc(t.slug)}</code>${t.owner_email ? ` <span class="pill">pessoal · ${esc(t.owner_email)}</span>` : ''}</h1>
         <div class="row sm"><span class="muted">${kit ? (state === 'draft' ? `Editando o <b>rascunho</b> (nº ${v.number})` : `Vendo a <b>publicada v${v.semver || v.number}</b>`) : 'Sem versão'}</span>
-        ${t.published_version_id ? '<span class="pill pub">publicada</span>' : '<span class="pill off">sem publicada</span>'}${t.draft_version_id ? '<span class="pill draft">rascunho</span>' : ''}</div></div>
+        ${t.published_version_id ? '<span class="pill pub">publicada</span>' : '<span class="pill off">sem publicada</span>'}${t.draft_version_id ? '<span class="pill draft">rascunho</span>' : ''}
+        <span class="kitbar" title="Partes do kit já preenchidas">kit ${feitos}/${total} <span class="bar ${feitos === total ? '' : feitos * 2 >= total ? 'mid' : 'bad'}"><span style="width:${Math.round(100 * feitos / total)}%"></span></span></span></div></div>
       <div class="row">${canEdit && !t.draft_version_id && t.published_version_id ? '<button class="btn" id="mkdraft">Criar rascunho</button>' : ''}
         ${canEdit && t.draft_version_id ? '<button class="btn btn-p" id="publish">Publicar rascunho</button>' : ''}</div></div>
-      <div class="tabs">${TABS.map(([k, l]) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+      <div class="tabs">${TABS.map(([k, l]) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}">${l}${k in kc && !kc[k] ? '<span class="dot" title="vazio"></span>' : ''}</button>`).join('')}</div>
       <div id="pane"></div>`;
     for (const b of app.querySelectorAll('.tab')) b.onclick = () => { location.hash = `#/t/${slug}/${b.dataset.tab}`; };
     const mk = $('#mkdraft'); if (mk) mk.onclick = async () => { try { await api(`/api/templates/${slug}/draft`, { method: 'POST' }); toast('Rascunho criado'); route(); } catch (e) { toast(e.message, true); } };
-    const pb = $('#publish'); if (pb) pb.onclick = () => {
-      const cur = t.published_version_id ? 'a publicada' : 'a primeira versão';
-      const box = document.createElement('div'); box.className = 'card'; box.style.margin = '12px 0';
-      box.innerHTML = `<b>Publicar o rascunho</b> <span class="muted sm">(o MCP passa a entregar esta versão)</span>
-        <div class="row" style="margin-top:8px;gap:14px;flex-wrap:wrap">
-          <label><input type="radio" name="bump" value="patch" checked> ajuste <span class="muted sm">v1.0.<b>x</b> · texto, guia, correção</span></label>
-          <label><input type="radio" name="bump" value="minor"> melhoria <span class="muted sm">v1.<b>x</b>.0 · tarefa, query ou bloco novo</span></label>
-          <label><input type="radio" name="bump" value="major"> mudança grande <span class="muted sm">v<b>x</b>.0.0 · estrutura, motor, parâmetros</span></label>
-        </div>
-        <div class="row" style="margin-top:8px"><input id="pub-log" placeholder="Nota de mudança (opcional)" style="flex:1"><button class="btn btn-p" id="pub-go">Publicar</button><button class="btn btn-ghost" id="pub-cancel">Cancelar</button></div>
-        <div class="muted sm" style="margin-top:6px">Substitui ${cur}.</div>`;
-      pb.parentElement.parentElement.insertAdjacentElement('afterend', box);
-      pb.disabled = true;
-      box.querySelector('#pub-cancel').onclick = () => { box.remove(); pb.disabled = false; };
-      box.querySelector('#pub-go').onclick = async () => {
-        const bump = box.querySelector('input[name=bump]:checked').value;
-        const changelog = box.querySelector('#pub-log').value;
-        try { const r = await api(`/api/templates/${slug}/publish`, { method: 'POST', body: { changelog, bump } }); toast(`Publicado v${r.version.semver || r.version.number}`); route(); } catch (e) { toast(e.message, true); }
-      };
-    };
+    const pb = $('#publish'); if (pb) pb.onclick = () => publicarModal(t, v);
     if (!kit) { $('#pane').innerHTML = '<div class="empty">Este template ainda não tem conteúdo.</div>'; return; }
     const ctx = { slug, kit, canEdit, state, sub };
     ({ info: paneInfo, manifesto: paneManifest, tarefas: paneTarefas, contexto: paneTarefas, regras: paneRegras, queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: paneSingle('perguntas.md'), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
@@ -296,49 +411,190 @@
 
   // ── Fase 2: atividade ──────────────────────────────────────────────────
   const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição' };
+  const VEREDITO_LABEL = { exemplo: 'exemplo', regra: 'virou regra', descarte: 'descartado', ok: 'revisado' };
+  const VEREDITO_PILL = { exemplo: 'pub', regra: 'editor', descarte: 'off', ok: 'leitor' };
+  const TRIAGEM = [
+    ['sem', 'sem veredito', { evento: 'aprofundamento', veredito: 'sem' }],
+    ['tudo', 'tudo', {}],
+    ['exemplos', 'exemplos', { veredito: 'exemplo' }],
+    ['descartados', 'descartados', { descartado: '1' }],
+  ];
+  const POR_PAGINA = 20;
+
+  /** Filtros da atividade: o segmento manda; busca, template e cliente refinam. */
+  function filtroAtividade(p) {
+    const seg = TRIAGEM.some(([k]) => k === p.get('seg')) ? p.get('seg') : 'sem';
+    const q = new URLSearchParams(TRIAGEM.find(([k]) => k === seg)[2]);
+    for (const k of ['slug', 'cliente', 'email', 'busca']) if (p.get(k)) q.set(k, p.get(k));
+    return { seg, q };
+  }
+
   async function renderAtividade() {
-    const q = new URLSearchParams(location.hash.split('?')[1] || '');
-    const rows = await api('/api/atividade?' + q.toString());
-    const templates = await api('/api/templates');
-    const f = (k) => q.get(k) || '';
-    app.innerHTML = `<div class="head"><div><h1>Atividade</h1><p class="muted sm">O que os agentes registraram: gerações, aprofundamentos (pergunta, resposta, veredito) e edições. ${isEditor() ? 'Vire exemplo, vire regra, ajuste o template.' : 'Você vê só as suas entradas.'}</p></div>
-      ${isEditor() ? '<a class="btn" href="#/uso">Uso por template →</a>' : ''}</div>
-      <div class="card row" style="margin-bottom:14px">
-        <select id="f-slug" style="width:220px"><option value="">todos os templates</option>${templates.map((t) => `<option value="${esc(t.slug)}" ${f('slug') === t.slug ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
-        <select id="f-evento" style="width:170px"><option value="">todos os eventos</option>${Object.entries(EVENTO_LABEL).map(([k, l]) => `<option value="${k}" ${f('evento') === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        ${isEditor() ? `<input id="f-email" placeholder="e-mail" style="width:200px" value="${esc(f('email'))}">` : ''}
-        <input id="f-cliente" placeholder="cliente" style="width:140px" value="${esc(f('cliente'))}">
-        <select id="f-aval" style="width:130px"><option value="">qualquer nota</option>${[5, 4, 3, 2, 1].map((n) => `<option ${f('avaliacao') === String(n) ? 'selected' : ''}>${n}</option>`).join('')}</select>
-        <label style="margin:0;display:flex;align-items:center;gap:6px;text-transform:none"><input type="checkbox" id="f-desc" style="width:auto" ${f('descartado') === '1' ? 'checked' : ''}> só descartados</label>
-        <button class="btn" id="f-go">Filtrar</button></div>
-      <div class="card"><table><thead><tr><th>Quando</th><th>Quem</th><th>Evento</th><th>Template</th><th>Resumo</th><th>Nota</th><th></th></tr></thead><tbody>
-      ${rows.map((r) => `<tr><td class="sm muted">${esc(r.at.slice(0, 16).replace('T', ' '))}</td><td class="sm">${esc(r.email)}${r.origem === 'app' ? ' <span class="pill leitor">app</span>' : ''}</td><td>${EVENTO_LABEL[r.evento] || r.evento}</td><td><code>${esc(r.slug)}</code> v${r.version_number ?? '?'}${r.cliente ? `<br><span class="sm muted">${esc(r.cliente)}</span>` : ''}</td>
-        <td class="sm">${r.resumo.pergunta ? `<b>${esc(r.resumo.pergunta)}</b><br>` : ''}${esc(r.resumo.resposta || r.resumo.mudanca || (r.resumo.resultado && r.resumo.resultado.titulo) || '')}${r.descartado ? `<br><span class="pill off">descartado</span> <span class="muted">${esc(r.motivo || '')}</span>` : ''}${r.virou_exemplo ? ' <span class="pill pub">exemplo</span>' : ''}${r.virou_regra ? ' <span class="pill draft">regra</span>' : ''}</td>
-        <td>${r.avaliacao ?? '—'}${r.editor_nota ? ` <span class="muted sm">(editor ${r.editor_nota})</span>` : ''}</td>
-        <td><a class="btn btn-ghost" href="#/atividade/${esc(r.id)}">ver mais</a></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nada registrado ainda.</td></tr>'}
-      </tbody></table></div>`;
-    $('#f-go').onclick = () => {
-      const p = new URLSearchParams();
-      for (const [id, k] of [['#f-slug', 'slug'], ['#f-evento', 'evento'], ['#f-email', 'email'], ['#f-cliente', 'cliente'], ['#f-aval', 'avaliacao']]) { const el = $(id); if (el && el.value) p.set(k, el.value); }
-      if ($('#f-desc').checked) p.set('descartado', '1');
-      location.hash = '#/atividade?' + p.toString();
+    skeleton('rows');
+    const p = params();
+    const { seg, q } = filtroAtividade(p);
+    const pag = Math.max(1, Number(p.get('pag') || 1));
+    const qRows = new URLSearchParams(q); qRows.set('limit', String(POR_PAGINA)); qRows.set('offset', String((pag - 1) * POR_PAGINA));
+    const [rows, resumo, templates] = await Promise.all([
+      api('/api/atividade?' + qRows.toString()),
+      api('/api/atividade/resumo?' + q.toString()),
+      api('/api/templates'),
+    ]);
+    const ir = (mudanca) => {
+      const p2 = new URLSearchParams(p);
+      for (const [k, v] of Object.entries(mudanca)) { if (v) p2.set(k, v); else p2.delete(k); }
+      if (!('pag' in mudanca)) p2.delete('pag');
+      location.hash = '#/atividade?' + p2.toString();
     };
+    const paginas = Math.max(1, Math.ceil(resumo.total / POR_PAGINA));
+
+    app.innerHTML = `<div class="head"><div><h1>Atividade</h1><p class="muted sm">O que os agentes registraram. Cada item vira exemplo aprovado, regra nova ou descarte — é aqui que o template aprende.${isEditor() ? '' : ' Você vê só as suas entradas.'}</p></div>
+      ${isEditor() ? '<a class="btn" href="#/saude">Saúde dos templates →</a>' : ''}</div>
+      ${isEditor() && resumo.sem_veredito ? `<div class="card row" style="margin-bottom:8px"><span class="dot"></span><b class="sm" style="color:var(--amber)">${resumo.sem_veredito} ${resumo.sem_veredito === 1 ? 'item sem veredito' : 'itens sem veredito'}</b>
+        <span class="muted sm">triagem pendente desde ${esc(fmtAt(resumo.desde))}</span>
+        <button class="btn" id="fila" style="margin-left:auto">Revisar em sequência</button></div>` : ''}
+      <div class="filters">
+        <span class="search"><input id="f-busca" placeholder="buscar pergunta, cliente, e-mail" value="${esc(p.get('busca') || '')}"></span>
+        <span class="seg">${TRIAGEM.map(([k, l]) => `<button data-seg="${k}" class="${k === seg ? 'on' : ''}">${l}</button>`).join('')}</span>
+        <select id="f-slug" style="width:200px"><option value="">todos os templates</option>${templates.map((t) => `<option value="${esc(t.slug)}" ${p.get('slug') === t.slug ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
+        ${isEditor() ? `<input id="f-email" placeholder="e-mail" style="width:170px" value="${esc(p.get('email') || '')}">` : ''}
+        <span class="count">${resumo.total} ${resumo.total === 1 ? 'entrada' : 'entradas'}</span>
+      </div>
+      <div class="list-cards">${rows.map((r) => cardAtividade(r)).join('') || '<div class="empty">Nada com esse filtro.</div>'}</div>
+      ${paginas > 1 ? `<div class="pager"><span class="muted sm">${(pag - 1) * POR_PAGINA + 1}–${Math.min(pag * POR_PAGINA, resumo.total)} de ${resumo.total}</span>
+        <span class="pages"><button data-pag="${pag - 1}" ${pag === 1 ? 'disabled' : ''}>←</button>
+        ${Array.from({ length: paginas }, (_, i) => i + 1).filter((n) => n === 1 || n === paginas || Math.abs(n - pag) <= 1).map((n) => `<button data-pag="${n}" class="${n === pag ? 'on' : ''}">${n}</button>`).join('')}
+        <button data-pag="${pag + 1}" ${pag === paginas ? 'disabled' : ''}>→</button></span></div>` : ''}`;
+
+    for (const b of app.querySelectorAll('[data-seg]')) b.onclick = () => ir({ seg: b.dataset.seg });
+    for (const b of app.querySelectorAll('[data-pag]')) if (!b.disabled) b.onclick = () => ir({ pag: b.dataset.pag });
+    $('#f-slug').onchange = () => ir({ slug: $('#f-slug').value });
+    const em = $('#f-email'); if (em) em.onchange = () => ir({ email: em.value.trim() });
+    const bs = $('#f-busca');
+    bs.onkeydown = (e) => { if (e.key === 'Enter') ir({ busca: bs.value.trim() }); };
+    bs.onblur = () => { if ((bs.value.trim() || '') !== (p.get('busca') || '')) ir({ busca: bs.value.trim() }); };
+    const fl = $('#fila'); if (fl) fl.onclick = async () => {
+      const fila = await api('/api/atividade?evento=aprofundamento&veredito=sem&limit=100');
+      if (!fila.length) { toast('Nada para revisar'); return; }
+      location.hash = `#/atividade/${fila[fila.length - 1].id}?fila=1`;
+    };
+    for (const el of app.querySelectorAll('[data-acao]')) el.onclick = (e) => { e.preventDefault(); acaoTriagem(el.dataset.acao, el.dataset.id); };
+  }
+
+  /** Um item da triagem: o que foi perguntado, o que o agente respondeu e o que fazer com isso. */
+  function cardAtividade(r) {
+    const pend = r.evento === 'aprofundamento' && !r.veredito;
+    const titulo = r.resumo.pergunta || (r.resumo.resultado && r.resumo.resultado.titulo) || EVENTO_LABEL[r.evento] || r.evento;
+    return `<div class="acard ${pend ? 'pend' : r.veredito ? 'done' : ''}">
+      <div class="meta"><span class="pill ${r.evento === 'aprofundamento' ? 'editor' : 'leitor'}">${esc(EVENTO_LABEL[r.evento] || r.evento)}</span>
+        <span>${esc(r.slug)} v${r.version_number ?? '?'}</span><span>· ${esc(fmtAt(r.at))} · ${esc(r.email)}${r.cliente ? ` · cliente ${esc(r.cliente)}` : ''}</span>
+        ${r.veredito ? `<span class="pill ${VEREDITO_PILL[r.veredito]}">${esc(VEREDITO_LABEL[r.veredito])}</span>` : ''}
+        ${r.descartado && r.veredito !== 'descarte' ? '<span class="pill off">descartado</span>' : ''}
+        <span style="margin-left:auto;font-size:13px;color:${r.avaliacao >= 4 ? 'var(--green)' : r.avaliacao ? 'var(--amber)' : 'var(--ink-faint)'}">${r.avaliacao ?? '—'}</span></div>
+      <p class="q">${esc(titulo)}</p>
+      <p class="a">${esc(r.resumo.resposta || r.resumo.mudanca || (r.motivo ? `motivo: ${r.motivo}` : '') || '—')}</p>
+      <div class="foot"><a href="#/atividade/${esc(r.id)}">${r.evento === 'aprofundamento' ? 'Abrir revisão' : 'Ver detalhe'}</a>
+        ${isEditor() && r.evento === 'aprofundamento' ? `<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+          ${r.virou_exemplo ? '' : `<button class="btn btn-ok" data-acao="exemplo" data-id="${esc(r.id)}">Virar exemplo</button>`}
+          ${r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="regra" data-id="${esc(r.id)}">Virar regra</button>`}
+          ${r.descartado ? '' : `<button class="btn btn-drop" data-acao="descarte" data-id="${esc(r.id)}">Descartar</button>`}</span>` : ''}</div></div>`;
+  }
+
+  /** As três decisões da triagem, iguais no card e na tela de revisão. */
+  async function acaoTriagem(acao, id) {
+    try {
+      if (acao === 'exemplo') { const r = await api(`/api/atividade/${id}/virar-exemplo`, { method: 'POST' }); toast('Exemplo no guia do rascunho'); return r; }
+      if (acao === 'regra') {
+        const texto = prompt('A regra em uma frase (vira uma entrada na aba Regras):');
+        if (texto === null || !texto.trim()) return null;
+        const r = await api(`/api/atividade/${id}/virar-regra`, { method: 'POST', body: { texto } }); toast('Regra criada no rascunho'); return r;
+      }
+      if (acao === 'descarte') {
+        const motivo = prompt('Por que descartar? (entra na taxa de descarte do template)');
+        if (motivo === null) return null;
+        const r = await api(`/api/atividade/${id}/descartar`, { method: 'POST', body: { motivo } }); toast('Descartado'); return r;
+      }
+      if (acao === 'ok') { await api(`/api/atividade/${id}`, { method: 'PATCH', body: { veredito: 'ok' } }); toast('Marcado como revisado'); return { ok: true }; }
+    } catch (e) { toast(e.message, true); return null; }
+    return null;
   }
 
   async function renderAtividadeDetalhe(id) {
+    skeleton('doc');
     let a; try { a = await api(`/api/atividade/${encodeURIComponent(id)}`); } catch (e) { app.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
     const d = a.dados || {};
-    const body = a.evento === 'aprofundamento'
-      ? `<h3>Pergunta</h3><p>${esc(d.pergunta)}${a.pergunta_id ? ` <code>${esc(a.pergunta_id)}</code>` : ''}</p><h3>Resposta</h3><pre style="white-space:pre-wrap;background:#F9FAFB;color:inherit;border:1px solid var(--line)">${esc(d.resposta || '')}</pre>${d.consultas && d.consultas.length ? `<h3>Consultas usadas</h3><pre style="background:#F9FAFB;color:inherit;border:1px solid var(--line)">${esc(JSON.stringify(d.consultas, null, 2))}</pre>` : ''}`
-      : `<pre style="white-space:pre-wrap;background:#F9FAFB;color:inherit;border:1px solid var(--line)">${esc(JSON.stringify(d, null, 2))}</pre>`;
-    app.innerHTML = `<div class="head"><div><a class="muted sm" href="#/atividade">← Atividade</a><h1>${EVENTO_LABEL[a.evento] || a.evento} · <code>${esc(a.slug)}</code> v${a.version_number ?? '?'}</h1>
-      <div class="sm muted">${esc(a.email)} · ${esc(a.at.slice(0, 16).replace('T', ' '))}${a.cliente ? ` · cliente ${esc(a.cliente)}` : ''} · nota da pessoa: <b>${a.avaliacao ?? '—'}</b>${a.descartado ? ` · <span class="pill off">descartado</span> ${esc(a.motivo || '')}` : ''}</div></div>
-      ${isEditor() ? `<div class="row">${a.evento === 'aprofundamento' && !a.virou_exemplo ? '<button class="btn" id="ex">Virar exemplo</button>' : ''}${!a.virou_regra ? '<button class="btn" id="rg">Virar regra</button>' : ''}<a class="btn btn-p" href="#/t/${esc(a.slug)}/guia">Ajustar template</a></div>` : ''}</div>
-      <div class="card">${body}</div>
-      ${isEditor() ? `<div class="card" style="margin-top:14px"><h3>Sua avaliação (editor)</h3><div class="row"><select id="en" style="width:120px"><option value="">— nota</option>${[5, 4, 3, 2, 1].map((n) => `<option ${a.editor_nota === n ? 'selected' : ''}>${n}</option>`).join('')}</select><input id="ec" placeholder="comentário" value="${esc(a.editor_comentario || '')}" style="flex:1"><button class="btn btn-p" id="es">Salvar</button></div></div>` : ''}`;
-    const ex = $('#ex'); if (ex) ex.onclick = async () => { try { const r = await api(`/api/atividade/${id}/virar-exemplo`, { method: 'POST' }); toast('Exemplo adicionado ao guia do rascunho'); location.hash = `#/t/${r.slug}/regras`; } catch (e) { toast(e.message, true); } };
-    const rg = $('#rg'); if (rg) rg.onclick = async () => { const texto = prompt('A regra em uma frase (vira uma entrada na aba Regras):', a.motivo || ''); if (texto === null) return; try { const r = await api(`/api/atividade/${id}/virar-regra`, { method: 'POST', body: { texto } }); toast('Regra criada no rascunho'); location.hash = `#/t/${r.slug}/regras`; } catch (e) { toast(e.message, true); } };
-    const es = $('#es'); if (es) es.onclick = async () => { try { await api(`/api/atividade/${id}`, { method: 'PATCH', body: { editor_nota: $('#en').value ? Number($('#en').value) : null, editor_comentario: $('#ec').value } }); toast('Salvo'); } catch (e) { toast(e.message, true); } };
+    const naFila = params().get('fila') === '1';
+    let fila = [];
+    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento&veredito=sem&limit=100'); } catch { fila = []; } }
+    const ordem = [...fila].reverse();                       // mais antigo primeiro: a fila anda para frente no tempo
+    const i = ordem.findIndex((x) => x.id === a.id);
+    const vizinho = (passo) => (i >= 0 && ordem[i + passo] ? ordem[i + passo].id : null);
+    const vaiPara = (aid) => { location.hash = aid ? `#/atividade/${aid}?fila=1` : '#/atividade'; };
+
+    const consultas = Array.isArray(d.consultas) && d.consultas.length
+      ? `<div class="card" style="padding:0;overflow:hidden"><div style="padding:11px 14px;border-bottom:1px solid var(--line);background:var(--zebra)" class="kicker">Consultas usadas</div>
+         <pre style="padding:14px;margin:0;overflow:auto;color:var(--ink-soft)">${esc(JSON.stringify(d.consultas, null, 2))}</pre></div>` : '';
+    const corpo = a.evento === 'aprofundamento'
+      ? `<div class="card"><div class="kicker">Resposta entregue ao consultor</div><p style="margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap;text-wrap:pretty">${esc(d.resposta || '—')}</p></div>${consultas}`
+      : `<div class="card"><div class="kicker">Registro</div><pre style="white-space:pre-wrap;color:var(--ink-soft)">${esc(JSON.stringify(d, null, 2))}</pre></div>`;
+
+    const decisao = isEditor() && a.evento === 'aprofundamento' ? `<div class="card"><div class="kicker">Seu veredito</div>
+      ${a.veredito ? `<p class="sm"><span class="pill ${VEREDITO_PILL[a.veredito]}">${esc(VEREDITO_LABEL[a.veredito])}</span> por ${esc(a.veredito_por || '—')} em ${esc(fmtAt(a.veredito_em))}</p>` : ''}
+      ${a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
+      ${a.virou_regra ? '' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>'}
+      ${a.descartado ? '' : '<button class="choice drop" data-acao="descarte"><b>Descartar</b><span>Sai do kit e conta na taxa de descarte</span></button>'}
+      <label>Sua nota e o motivo</label>
+      <div class="scores">${[1, 2, 3, 4, 5].map((n) => `<button data-nota="${n}" class="${a.editor_nota === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <textarea id="ec" placeholder="o que faltou ou o que acertou" style="min-height:70px">${esc(a.editor_comentario || '')}</textarea>
+      <button class="btn btn-p" id="salvar" style="width:100%;margin-top:10px;justify-content:center">${naFila && vizinho(1) ? 'Salvar e ir ao próximo' : 'Salvar veredito'}</button></div>` : '';
+
+    app.innerHTML = `<div class="row sm" style="margin-bottom:14px"><a href="#/atividade"><code>← atividade</code></a>
+      ${naFila && i >= 0 ? `<code class="muted">item ${i + 1} de ${ordem.length} sem veredito</code>
+        <span style="margin-left:auto;display:flex;gap:6px"><button class="btn" id="ant" ${vizinho(-1) ? '' : 'disabled'}>anterior</button><button class="btn" id="prox" ${vizinho(1) ? '' : 'disabled'}>próximo →</button></span>` : ''}</div>
+      <h1 style="max-width:34ch">${esc(d.pergunta || EVENTO_LABEL[a.evento] || a.evento)}</h1>
+      <div class="row sm" style="margin-bottom:22px"><span class="pill ${a.evento === 'aprofundamento' ? 'editor' : 'leitor'}">${esc(EVENTO_LABEL[a.evento] || a.evento)}</span>
+        <code>${esc(a.slug)} v${a.version_number ?? '?'}</code><code class="muted">· ${esc(a.email)} · ${esc(fmtAt(a.at))}${a.cliente ? ` · cliente ${esc(a.cliente)}` : ''}</code>
+        ${a.avaliacao ? `<span class="pill pub">nota da pessoa ${a.avaliacao}</span>` : ''}${a.descartado ? `<span class="pill off">descartado</span> <span class="muted">${esc(a.motivo || '')}</span>` : ''}</div>
+      <div class="two"><div style="display:flex;flex-direction:column;gap:12px;min-width:0">${corpo}</div>
+        <div class="side-col">${decisao}
+          <div class="card"><div class="kicker">Contexto do template</div>
+            <p class="sm muted" style="margin-bottom:10px">O kit que respondeu isso é o <code>${esc(a.slug)}</code> v${a.version_number ?? '?'}.</p>
+            <a class="sm" href="#/t/${esc(a.slug)}/regras" style="font-weight:600">Ajustar ${esc(a.slug)} →</a></div></div></div>`;
+
+    for (const el of app.querySelectorAll('[data-acao]')) el.onclick = async () => { const r = await acaoTriagem(el.dataset.acao, a.id); if (r) { if (naFila && vizinho(1)) vaiPara(vizinho(1)); else route(); } };
+    let nota = a.editor_nota;
+    for (const b of app.querySelectorAll('[data-nota]')) b.onclick = () => { nota = Number(b.dataset.nota); for (const x of app.querySelectorAll('[data-nota]')) x.classList.toggle('on', x === b); };
+    const sv = $('#salvar'); if (sv) sv.onclick = async () => {
+      try {
+        await api(`/api/atividade/${a.id}`, { method: 'PATCH', body: { editor_nota: nota ?? null, editor_comentario: $('#ec').value, veredito: a.veredito || 'ok' } });
+        toast('Veredito salvo');
+        if (naFila && vizinho(1)) vaiPara(vizinho(1)); else route();
+      } catch (e) { toast(e.message, true); }
+    };
+    const an = $('#ant'); if (an && !an.disabled) an.onclick = () => vaiPara(vizinho(-1));
+    const px = $('#prox'); if (px && !px.disabled) px.onclick = () => vaiPara(vizinho(1));
+  }
+
+  /** Saúde: descarte alto e pergunta repetida são o mesmo sintoma — o template não entrega algo. */
+  async function renderSaude() {
+    if (!isEditor()) { app.innerHTML = '<div class="empty">Só editores.</div>'; return; }
+    skeleton('doc');
+    const { templates, lacunas } = await api('/api/saude');
+    const pct = (t) => (t.aprofundamentos ? Math.round(100 * t.descartados / t.aprofundamentos) : 0);
+    app.innerHTML = `<div class="row sm" style="margin-bottom:14px"><a href="#/atividade"><code>← atividade</code></a></div>
+      <div class="head"><div><h1>Saúde dos templates</h1></div><a class="btn" href="#/uso">Uso por versão →</a></div><p class="muted sm" style="max-width:66ch;margin:-14px 0 22px">Descarte alto e pergunta repetida são o mesmo sintoma: o template não entrega algo que o consultor precisa. Comece pelo topo da lista.</p>
+      <div class="card"><table><thead><tr><th>Template</th><th>Ger.</th><th>Aprof.</th><th>Descarte</th><th>Sem veredito</th><th>Nota</th></tr></thead><tbody>
+      ${templates.map((t) => `<tr><td><a href="#/t/${esc(t.slug)}"><code>${esc(t.slug)}</code></a><br><span class="sm muted">${t.published_semver ? `v${esc(t.published_semver)}` : 'sem publicada'}</span></td>
+        <td><code>${t.geracoes}</code></td><td><code>${t.aprofundamentos}</code></td>
+        <td><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="bar ${pct(t) >= 50 ? 'bad' : pct(t) >= 25 ? 'mid' : ''}"><span style="width:${pct(t)}%"></span></span><code class="sm">${t.aprofundamentos ? pct(t) + '%' : '—'}</code></span></td>
+        <td>${t.sem_veredito ? `<a href="#/atividade?seg=sem&slug=${esc(t.slug)}"><code>${t.sem_veredito}</code></a>` : '<code class="muted">0</code>'}</td>
+        <td><code>${t.nota_media != null ? t.nota_media.toFixed(1) : '—'}</code></td></tr>`).join('') || '<tr><td colspan="6" class="empty">Sem uso registrado.</td></tr>'}
+      </tbody></table></div>
+      <h2>Lacunas · perguntas que o template não responde sozinho</h2>
+      <div class="grid">${lacunas.map((l) => `<div class="card"><div class="row sm"><code class="muted">${esc(l.slug)}</code><code class="muted" style="margin-left:auto">${l.n}× perguntada</code></div>
+        <p style="font-weight:600;margin:8px 0 6px;text-wrap:pretty">${esc(l.pergunta)}</p>
+        <p class="muted sm">Repetida em aprofundamentos: vale virar bloco fixo do relatório ou regra do kit.</p>
+        <a class="btn" href="#/t/${esc(l.slug)}/documento">Criar seção no template</a></div>`).join('') || '<div class="empty">Nenhuma pergunta repetiu até agora.</div>'}</div>`;
   }
 
   async function renderUso() {

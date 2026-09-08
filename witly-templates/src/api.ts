@@ -60,6 +60,17 @@ api.get('/api/templates', async (c) => {
   return c.json(await db.listTemplates(c.env.DB, c.env.ORG_ID, u.role === 'editor' ? '*' : u.email));
 });
 
+/** Catálogo com os quatro números do topo (o que o MCP entrega hoje e o que está parado). */
+api.get('/api/catalogo', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const desde30 = new Date(Date.now() - 30 * 864e5).toISOString();
+  const [templates, stats] = await Promise.all([
+    db.listTemplates(c.env.DB, c.env.ORG_ID, u.role === 'editor' ? '*' : u.email),
+    db.catalogStats(c.env.DB, c.env.ORG_ID, desde30),
+  ]);
+  return c.json({ stats, templates, desde30 });
+});
+
 api.post('/api/templates', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
   const b = await c.req.json<{ slug?: string; name?: string; objective?: string; when_to_use?: string }>();
@@ -214,6 +225,8 @@ api.get('/api/atividade', async (c) => {
     desde: q.desde || undefined, ate: q.ate || undefined,
     avaliacao: q.avaliacao ? Number(q.avaliacao) : undefined,
     descartado: q.descartado === '1' ? true : q.descartado === '0' ? false : undefined,
+    veredito: q.veredito === 'sem' ? 'sem' : (db.VEREDITOS as string[]).includes(q.veredito || '') ? q.veredito as db.Veredito : undefined,
+    busca: q.busca || undefined,
     limit: q.limit ? Number(q.limit) : undefined, offset: q.offset ? Number(q.offset) : undefined,
     email: u.role === 'editor' ? (q.email || undefined) : u.email,   // leitor: só as suas
   };
@@ -226,6 +239,25 @@ api.get('/api/atividade', async (c) => {
     return { ...r, dados_json: undefined, resumo: { pergunta: d.pergunta ?? null, resposta: resposta.slice(0, 240), mudanca: d.mudanca ?? null, resultado: d.resultado ?? null } };
   }));
 });
+/** Cabeçalho da triagem e paginação: quantos o filtro pega e quantos ainda esperam veredito. */
+api.get('/api/atividade/resumo', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const q = c.req.query();
+  const f: db.ActivityFilter = {
+    slug: q.slug || undefined, cliente: q.cliente || undefined, evento: q.evento || undefined,
+    avaliacao: q.avaliacao ? Number(q.avaliacao) : undefined,
+    descartado: q.descartado === '1' ? true : q.descartado === '0' ? false : undefined,
+    veredito: q.veredito === 'sem' ? 'sem' : (db.VEREDITOS as string[]).includes(q.veredito || '') ? q.veredito as db.Veredito : undefined,
+    busca: q.busca || undefined,
+    email: u.role === 'editor' ? (q.email || undefined) : u.email,
+  };
+  const [doFiltro, daFila] = await Promise.all([
+    db.countActivity(c.env.DB, c.env.ORG_ID, f),
+    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento', veredito: 'sem' }),
+  ]);
+  return c.json({ total: doFiltro.total, sem_veredito: daFila.total, desde: daFila.mais_antiga_sem_veredito });
+});
+
 api.get('/api/atividade/:id', async (c) => {
   const u = await requireUser(c); if (isResp(u)) return u;
   const a = await db.getActivity(c.env.DB, c.req.param('id'));
@@ -234,11 +266,25 @@ api.get('/api/atividade/:id', async (c) => {
 });
 api.patch('/api/atividade/:id', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
-  const b = await c.req.json<{ editor_nota?: number | null; editor_comentario?: string | null }>();
+  const b = await c.req.json<{ editor_nota?: number | null; editor_comentario?: string | null; veredito?: db.Veredito | null }>();
   if (b.editor_nota != null && !(Number.isInteger(b.editor_nota) && b.editor_nota >= 1 && b.editor_nota <= 5)) return c.json({ error: 'editor_nota 1–5' }, 400);
-  try { await db.updateActivityEditor(c.env.DB, c.req.param('id'), { editor_nota: b.editor_nota, editor_comentario: b.editor_comentario }); }
-  catch (e) { return c.json({ error: (e as Error).message }, 404); }
+  if (b.veredito != null && !(db.VEREDITOS as string[]).includes(b.veredito)) return c.json({ error: `veredito: ${db.VEREDITOS.join(', ')}` }, 400);
+  try {
+    await db.updateActivityEditor(c.env.DB, c.req.param('id'), { editor_nota: b.editor_nota, editor_comentario: b.editor_comentario });
+    if (b.veredito !== undefined) await db.setActivityVeredito(c.env.DB, c.req.param('id'), b.veredito, u.email);
+  } catch (e) { return c.json({ error: (e as Error).message }, 404); }
   return c.json({ ok: true });
+});
+
+/** Descartar na triagem: sai do kit e conta na taxa de descarte do template. */
+api.post('/api/atividade/:id/descartar', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ motivo?: string }>().catch(() => ({} as { motivo?: string }));
+  const a = await db.getActivity(c.env.DB, c.req.param('id'));
+  if (!a) return c.json({ error: 'não existe' }, 404);
+  await db.descartarActivity(c.env.DB, a.id, b.motivo ?? a.motivo ?? null);
+  await db.setActivityVeredito(c.env.DB, a.id, 'descarte', u.email);
+  return c.json({ ok: true, slug: a.slug });
 });
 api.post('/api/atividade/:id/virar-exemplo', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
@@ -257,6 +303,16 @@ api.get('/api/uso', async (c) => {
   const slug = c.req.query('slug') || undefined;
   const [stats, top] = await Promise.all([db.usageStats(c.env.DB, c.env.ORG_ID), db.topQuestions(c.env.DB, c.env.ORG_ID, slug, 10)]);
   return c.json({ stats: slug ? stats.filter((s) => s.slug === slug) : stats, top_perguntas: top });
+});
+
+/** Saúde dos templates: descarte, fila de triagem e as perguntas que o template não responde sozinho. */
+api.get('/api/saude', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const [templates, lacunas] = await Promise.all([
+    db.healthStats(c.env.DB, c.env.ORG_ID),
+    db.topQuestions(c.env.DB, c.env.ORG_ID, c.req.query('slug') || undefined, 12),
+  ]);
+  return c.json({ templates, lacunas: lacunas.filter((l) => l.n > 1) });
 });
 
 api.get('/api/templates/:slug/versoes', async (c) => {

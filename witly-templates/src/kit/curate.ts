@@ -1,7 +1,7 @@
 /* curate — atividade → guia do template (spec 002 US2). "Virar exemplo" e "virar regra"
  * editam o guia.md do RASCUNHO (nunca a publicada) e marcam a entrada. Idempotentes. */
 
-import { ensureDraft, getActivity, getTemplateRules, getVersionFiles, saveFile, saveTemplateRule, updateActivityEditor } from '../db/index.js';
+import { ensureDraft, getActivity, getTemplateRules, getVersionFiles, saveFile, saveTemplateRule, setActivityVeredito, updateActivityEditor } from '../db/index.js';
 
 const SEC_EXEMPLOS = '## Exemplos de aprofundamento';
 
@@ -39,6 +39,7 @@ export async function virarExemplo(db: D1Database, activityId: string, editorEma
   const block = `### ${dados.pergunta.trim()}\n\n${(dados.resposta || '').trim() || '_(sem resposta registrada)_'}\n\n<!-- atividade:${a.id} -->`;
   await saveFile(db, vid, 'guia.md', appendUnderSection(guia, SEC_EXEMPLOS, block));
   await updateActivityEditor(db, a.id, { virou_exemplo: true });
+  await setActivityVeredito(db, a.id, 'exemplo', editorEmail);
   return { ok: true, slug: a.slug };
 }
 
@@ -55,5 +56,6 @@ export async function virarRegra(db: D1Database, activityId: string, editorEmail
   if (existentes.some((r) => r.rule_id === id)) id = `${id}-${existentes.length + 1}`.slice(0, 48);
   await saveTemplateRule(db, d.id, { rule_id: id, tipo: 'regra', title: regra, body_md: `Veio de um aprofundamento descartado pelo editor. <!-- atividade:${a.id} -->`, sort: existentes.length });
   await updateActivityEditor(db, a.id, { virou_regra: true });
+  await setActivityVeredito(db, a.id, 'regra', editorEmail);
   return { ok: true, slug: a.slug };
 }
