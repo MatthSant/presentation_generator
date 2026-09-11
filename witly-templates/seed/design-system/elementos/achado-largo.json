@@ -1,0 +1,30 @@
+{
+ "id": "achado-largo",
+ "grupo": "narrativa",
+ "title": "Alavanca / gargalo (largo)",
+ "desc": "Dois achados 6×4 no One Pager: o que puxou e o que segurou.",
+ "call": "s.achado('Segurou', 'bad', 'Frio caro e pouco convertido', 'O frio custa R$ 9,40 por lead e converte 4.5%: é onde a verba rende menos hoje.', w=6, h=4)",
+ "widgets": [
+  {
+   "id": "el-achado-largo-fb1",
+   "type": "find-block",
+   "card": true,
+   "tag": "Segurou",
+   "tagColor": "r",
+   "title": "Frio caro e pouco convertido",
+   "detail": "O frio custa R$ 9,40 por lead e converte 4.5%: é onde a verba rende menos hoje."
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-achado-largo-fb1",
+   "type": "find-block",
+   "x": 0,
+   "y": 0,
+   "w": 6,
+   "h": 4
+  }
+ ],
+ "dataset": {},
+ "sort": 21
+}

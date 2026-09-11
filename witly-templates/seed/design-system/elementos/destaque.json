@@ -1,0 +1,28 @@
+{
+ "id": "destaque",
+ "grupo": "narrativa",
+ "title": "Destaque (resposta)",
+ "desc": "A resposta em uma frase, com o número decisivo — o primeiro bloco da página da pergunta.",
+ "call": "s.destaque('Instagram captou a R$ 6,60 por lead contra R$ 8,88 do Facebook; o geral fechou em R$ 7,97.')",
+ "widgets": [
+  {
+   "id": "el-destaque-hl1",
+   "type": "highlight",
+   "text": "Instagram captou a R$ 6,60 por lead contra R$ 8,88 do Facebook; o geral fechou em R$ 7,97.",
+   "label": "Resposta",
+   "color": "p"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-destaque-hl1",
+   "type": "highlight",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 1
+  }
+ ],
+ "dataset": {},
+ "sort": 18
+}

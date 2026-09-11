@@ -1,0 +1,287 @@
+{
+ "id": "evolucao",
+ "grupo": "graficos",
+ "title": "Métricas no tempo",
+ "desc": "Seletor de métrica (barras) × segunda métrica (linha), por dia.",
+ "call": "s.evolucao('Métricas no tempo', 'q-dia', 'dia', [('leads', 'Leads', 'int'), ('invest', 'Investimento', 'money'), ('cpl', 'CPL', 'money'), ('vendas', 'Vendas', 'int')], current='leads', current2='cpl')",
+ "widgets": [
+  {
+   "id": "el-evolucao-ev1",
+   "type": "evolution-picker",
+   "title": "Métricas no tempo",
+   "height": 330,
+   "metrics": [
+    {
+     "id": "leads",
+     "label": "Leads",
+     "fmt": "int"
+    },
+    {
+     "id": "invest",
+     "label": "Investimento",
+     "fmt": "money"
+    },
+    {
+     "id": "cpl",
+     "label": "CPL",
+     "fmt": "money"
+    },
+    {
+     "id": "vendas",
+     "label": "Vendas",
+     "fmt": "int"
+    }
+   ],
+   "points": [
+    {
+     "name": "01/08",
+     "vals": {
+      "leads": 169,
+      "invest": 1360.0,
+      "cpl": 8.15,
+      "vendas": 9
+     }
+    },
+    {
+     "name": "02/08",
+     "vals": {
+      "leads": 178,
+      "invest": 1420.0,
+      "cpl": 8.2,
+      "vendas": 10
+     }
+    },
+    {
+     "name": "03/08",
+     "vals": {
+      "leads": 187,
+      "invest": 1480.0,
+      "cpl": 8.25,
+      "vendas": 10
+     }
+    },
+    {
+     "name": "04/08",
+     "vals": {
+      "leads": 196,
+      "invest": 1540.0,
+      "cpl": 8.3,
+      "vendas": 11
+     }
+    },
+    {
+     "name": "05/08",
+     "vals": {
+      "leads": 205,
+      "invest": 1600.0,
+      "cpl": 8.35,
+      "vendas": 11
+     }
+    },
+    {
+     "name": "06/08",
+     "vals": {
+      "leads": 214,
+      "invest": 1660.0,
+      "cpl": 8.4,
+      "vendas": 12
+     }
+    },
+    {
+     "name": "07/08",
+     "vals": {
+      "leads": 223,
+      "invest": 1720.0,
+      "cpl": 8.45,
+      "vendas": 12
+     }
+    },
+    {
+     "name": "08/08",
+     "vals": {
+      "leads": 232,
+      "invest": 1780.0,
+      "cpl": 8.5,
+      "vendas": 13
+     }
+    },
+    {
+     "name": "09/08",
+     "vals": {
+      "leads": 241,
+      "invest": 1840.0,
+      "cpl": 8.55,
+      "vendas": 13
+     }
+    },
+    {
+     "name": "10/08",
+     "vals": {
+      "leads": 250,
+      "invest": 1900.0,
+      "cpl": 8.6,
+      "vendas": 14
+     }
+    },
+    {
+     "name": "11/08",
+     "vals": {
+      "leads": 259,
+      "invest": 1960.0,
+      "cpl": 8.65,
+      "vendas": 14
+     }
+    },
+    {
+     "name": "12/08",
+     "vals": {
+      "leads": 268,
+      "invest": 2020.0,
+      "cpl": 8.7,
+      "vendas": 15
+     }
+    },
+    {
+     "name": "13/08",
+     "vals": {
+      "leads": 277,
+      "invest": 2080.0,
+      "cpl": 8.75,
+      "vendas": 15
+     }
+    },
+    {
+     "name": "14/08",
+     "vals": {
+      "leads": 286,
+      "invest": 2140.0,
+      "cpl": 8.8,
+      "vendas": 16
+     }
+    }
+   ],
+   "current": "leads",
+   "current2": "cpl",
+   "combo": true
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-evolucao-ev1",
+   "type": "evolution-picker",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 6
+  }
+ ],
+ "dataset": {
+  "q-dia": {
+   "dims": [
+    "dia"
+   ],
+   "filters": [],
+   "rows": [
+    {
+     "dia": "01/08",
+     "leads": 169,
+     "invest": 1360.0,
+     "cpl": 8.15,
+     "vendas": 9
+    },
+    {
+     "dia": "02/08",
+     "leads": 178,
+     "invest": 1420.0,
+     "cpl": 8.2,
+     "vendas": 10
+    },
+    {
+     "dia": "03/08",
+     "leads": 187,
+     "invest": 1480.0,
+     "cpl": 8.25,
+     "vendas": 10
+    },
+    {
+     "dia": "04/08",
+     "leads": 196,
+     "invest": 1540.0,
+     "cpl": 8.3,
+     "vendas": 11
+    },
+    {
+     "dia": "05/08",
+     "leads": 205,
+     "invest": 1600.0,
+     "cpl": 8.35,
+     "vendas": 11
+    },
+    {
+     "dia": "06/08",
+     "leads": 214,
+     "invest": 1660.0,
+     "cpl": 8.4,
+     "vendas": 12
+    },
+    {
+     "dia": "07/08",
+     "leads": 223,
+     "invest": 1720.0,
+     "cpl": 8.45,
+     "vendas": 12
+    },
+    {
+     "dia": "08/08",
+     "leads": 232,
+     "invest": 1780.0,
+     "cpl": 8.5,
+     "vendas": 13
+    },
+    {
+     "dia": "09/08",
+     "leads": 241,
+     "invest": 1840.0,
+     "cpl": 8.55,
+     "vendas": 13
+    },
+    {
+     "dia": "10/08",
+     "leads": 250,
+     "invest": 1900.0,
+     "cpl": 8.6,
+     "vendas": 14
+    },
+    {
+     "dia": "11/08",
+     "leads": 259,
+     "invest": 1960.0,
+     "cpl": 8.65,
+     "vendas": 14
+    },
+    {
+     "dia": "12/08",
+     "leads": 268,
+     "invest": 2020.0,
+     "cpl": 8.7,
+     "vendas": 15
+    },
+    {
+     "dia": "13/08",
+     "leads": 277,
+     "invest": 2080.0,
+     "cpl": 8.75,
+     "vendas": 15
+    },
+    {
+     "dia": "14/08",
+     "leads": 286,
+     "invest": 2140.0,
+     "cpl": 8.8,
+     "vendas": 16
+    }
+   ]
+  }
+ },
+ "sort": 13
+}

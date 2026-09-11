@@ -1,0 +1,41 @@
+{
+ "id": "kpi-meta",
+ "grupo": "numeros",
+ "title": "KPI com meta",
+ "desc": "Com `meta=` o card ganha o rodapé \"Meta X · ±% ✓\" (semáforo: ok ≤ 1%, atenção ≤ 10%, ruim > 10%).",
+ "call": "s.kpi('Vendas', 162, 'int', sub='no período', meta=130)",
+ "widgets": [
+  {
+   "id": "el-kpi-meta-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "Vendas",
+   "value": "162",
+   "sub": "no período",
+   "goalCmp": {
+    "meta": {
+     "label": "Meta 130",
+     "delta": "+25%",
+     "status": "ok"
+    },
+    "hist": {
+     "label": "Hist —",
+     "delta": "",
+     "status": "neutral"
+    }
+   }
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-meta-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 1
+}

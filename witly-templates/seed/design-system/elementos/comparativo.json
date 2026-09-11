@@ -1,0 +1,75 @@
+{
+ "id": "comparativo",
+ "grupo": "numeros",
+ "title": "Comparativo realizado × meta",
+ "desc": "Barras de atingimento por indicador (meta-bars), na ordem do funil.",
+ "call": "s.comparativo([{'label': 'Leads', 'real': 2832, 'meta': 1900}, {'label': 'CPL', 'real': 7.97, 'meta': 6.5, 'fmt': 'money', 'invert': True}, {'label': 'Vendas', 'real': 162, 'meta': 130}, {'label': 'Faturamento', 'real': 80514.0, 'meta': 64000.0, 'fmt': 'money'}])",
+ "widgets": [
+  {
+   "id": "el-comparativo-mb1",
+   "type": "meta-bars",
+   "rows": [
+    {
+     "label": "Leads",
+     "real": "2.832",
+     "meta": "1.900",
+     "hist": null,
+     "pct": 100.0,
+     "pctLabel": "149%",
+     "delta": {
+      "value": "+49%",
+      "tone": "pos"
+     }
+    },
+    {
+     "label": "CPL",
+     "real": "R$ 7,97",
+     "meta": "R$ 6,50",
+     "hist": null,
+     "pct": 100.0,
+     "pctLabel": "123%",
+     "delta": {
+      "value": "+23%",
+      "tone": "neg"
+     }
+    },
+    {
+     "label": "Vendas",
+     "real": "162",
+     "meta": "130",
+     "hist": null,
+     "pct": 100.0,
+     "pctLabel": "125%",
+     "delta": {
+      "value": "+25%",
+      "tone": "pos"
+     }
+    },
+    {
+     "label": "Faturamento",
+     "real": "R$ 81k",
+     "meta": "R$ 64k",
+     "hist": null,
+     "pct": 100.0,
+     "pctLabel": "126%",
+     "delta": {
+      "value": "+26%",
+      "tone": "pos"
+     }
+    }
+   ]
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-comparativo-mb1",
+   "type": "meta-bars",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 5
+  }
+ ],
+ "dataset": {},
+ "sort": 7
+}

@@ -4,7 +4,9 @@
 import { Hono } from 'hono';
 import { google } from './auth/google.js';
 import { api } from './api.js';
-import { getPublishedKit, platformKitFiles } from './db/index.js';
+import { getDesignKit, getPublishedKit, platformKitFiles } from './db/index.js';
+import { sessionUser } from './auth/session.js';
+import { designReport, parseElemento, renderReportHtml } from './kit/design.js';
 import { signingKey, verifyDownload } from './kit/sign.js';
 import { buildKitZip, loadViewer, renderExampleHtml } from './kit/zip.js';
 
@@ -17,6 +19,28 @@ app.get('/api/health', (c) => c.json({ ok: true, service: 'witly-templates' }));
 
 // Com html_handling: none os assets não mapeiam "/" → index.html; a UI é servida daqui.
 app.get('/', (c) => c.env.ASSETS.fetch(new Request(new URL('/index.html', c.req.url).href, { headers: c.req.raw.headers })));
+
+/** Galeria do design system (spec 006): o viewer renderiza os elementos da versão. `el` traz um
+ *  elemento para a frente; o POST renderiza um elemento editado sem salvar (pré-visualização). */
+app.get('/design/preview', async (c) => {
+  if (!(await sessionUser(c))) return c.text('sem sessão', 401);
+  const state = c.req.query('state') === 'draft' ? 'draft' : 'published';
+  const kit = (await getDesignKit(c.env.DB, state)) ?? (await getDesignKit(c.env.DB, 'published'));
+  if (!kit) return c.text('design system sem versão', 404);
+  const html = renderReportHtml(designReport(kit, c.req.query('el')), await loadViewer(c.env.ASSETS), 'Design system');
+  return html ? c.html(html) : c.text('viewer indisponível (rode npm run build)', 503);
+});
+app.post('/design/preview', async (c) => {
+  if (!(await sessionUser(c))) return c.text('sem sessão', 401);
+  const b = await c.req.json<{ state?: string; el?: string; elemento?: unknown }>().catch(() => ({} as { state?: string; el?: string; elemento?: unknown }));
+  let elemento;
+  try { elemento = parseElemento(b.elemento); } catch (e) { return c.text((e as Error).message, 400); }
+  const state = b.state === 'draft' ? 'draft' : 'published';
+  const kit = (await getDesignKit(c.env.DB, state)) ?? (await getDesignKit(c.env.DB, 'published'));
+  if (!kit) return c.text('design system sem versão', 404);
+  const html = renderReportHtml(designReport(kit, elemento.id, elemento), await loadViewer(c.env.ASSETS), 'Design system');
+  return html ? c.html(html) : c.text('viewer indisponível (rode npm run build)', 503);
+});
 
 /** Download do kit publicado. Autorização = assinatura na URL (emitida por obter_template). */
 app.get('/dl/:slug/:n', async (c) => {

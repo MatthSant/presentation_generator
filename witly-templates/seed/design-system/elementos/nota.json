@@ -1,0 +1,26 @@
+{
+ "id": "nota",
+ "grupo": "narrativa",
+ "title": "Nota",
+ "desc": "Nota de rodapé: janela, fonte, ressalva.",
+ "call": "s.nota('Janela: 14 dias até 14/08; dado fechado no dia seguinte. Base sem pageviews: conversão de página = leads ÷ cliques.')",
+ "widgets": [
+  {
+   "id": "el-nota-nt1",
+   "type": "find-note",
+   "text": "Janela: 14 dias até 14/08; dado fechado no dia seguinte. Base sem pageviews: conversão de página = leads ÷ cliques."
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-nota-nt1",
+   "type": "find-note",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 1
+  }
+ ],
+ "dataset": {},
+ "sort": 23
+}

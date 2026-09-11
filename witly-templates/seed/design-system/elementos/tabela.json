@@ -1,0 +1,84 @@
+{
+ "id": "tabela",
+ "grupo": "graficos",
+ "title": "Tabela",
+ "desc": "Tabela por `bind` com as colunas escolhidas; `sub` explica a linha Geral.",
+ "call": "s.tabela('Resultado por canal', 'q-canal', ['canal', 'leads', 'invest', 'cpl', 'qualif', 'conv', 'vendas'], sub='linha Geral = soma; taxas e custos ponderados')",
+ "widgets": [
+  {
+   "id": "el-tabela-t1",
+   "type": "table",
+   "title": "Resultado por canal",
+   "cols": [
+    "canal",
+    "leads",
+    "invest",
+    "cpl",
+    "qualif",
+    "conv",
+    "vendas"
+   ],
+   "bind": {
+    "dataset": "q-canal",
+    "metrics": [
+     "canal",
+     "leads",
+     "invest",
+     "cpl",
+     "qualif",
+     "conv",
+     "vendas"
+    ]
+   },
+   "sub": "linha Geral = soma; taxas e custos ponderados"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-tabela-t1",
+   "type": "table",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 3
+  }
+ ],
+ "dataset": {
+  "q-canal": {
+   "dims": [
+    "canal"
+   ],
+   "filters": [],
+   "rows": [
+    {
+     "canal": "facebook",
+     "leads": 1704,
+     "invest": 15132.0,
+     "cpl": 8.88,
+     "qualif": 54.0,
+     "conv": 5.6,
+     "vendas": 95
+    },
+    {
+     "canal": "instagram",
+     "leads": 1128,
+     "invest": 7449.0,
+     "cpl": 6.6,
+     "qualif": 53.6,
+     "conv": 5.9,
+     "vendas": 67
+    },
+    {
+     "canal": "Geral",
+     "leads": 2832,
+     "invest": 22581.0,
+     "cpl": 7.97,
+     "qualif": 53.8,
+     "conv": 5.7,
+     "vendas": 162
+    }
+   ]
+  }
+ },
+ "sort": 12
+}

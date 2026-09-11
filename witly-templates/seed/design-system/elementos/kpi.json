@@ -1,0 +1,29 @@
+{
+ "id": "kpi",
+ "grupo": "numeros",
+ "title": "KPI",
+ "desc": "Card `feature`: rótulo, valor formatado pelo builder, sub. O número entra como número.",
+ "call": "s.kpi('Leads', 2832, 'int', sub='pago 60% · org 40%')",
+ "widgets": [
+  {
+   "id": "el-kpi-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "Leads",
+   "value": "2.832",
+   "sub": "pago 60% · org 40%"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 0
+}

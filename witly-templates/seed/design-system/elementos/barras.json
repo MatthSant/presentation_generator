@@ -1,0 +1,38 @@
+{
+ "id": "barras",
+ "grupo": "funil",
+ "title": "Lista de barras",
+ "desc": "Proporção entre itens de uma dimensão, com o valor ao lado.",
+ "call": "s.barras('Leads por canal', [('facebook', 1704), ('instagram', 1128)], w=4, h=4)",
+ "widgets": [
+  {
+   "id": "el-barras-bl1",
+   "type": "bar-list",
+   "title": "Leads por canal",
+   "rows": [
+    {
+     "label": "facebook",
+     "value": "1.704",
+     "bar": 100.0
+    },
+    {
+     "label": "instagram",
+     "value": "1.128",
+     "bar": 66.2
+    }
+   ]
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-barras-bl1",
+   "type": "bar-list",
+   "x": 0,
+   "y": 0,
+   "w": 4,
+   "h": 4
+  }
+ ],
+ "dataset": {},
+ "sort": 16
+}

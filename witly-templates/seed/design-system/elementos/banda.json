@@ -1,0 +1,32 @@
+{
+ "id": "banda",
+ "grupo": "numeros",
+ "title": "Banda de atingimento",
+ "desc": "\"realizado / meta\" com a pill de %. Para metas de volume e receita, no topo do Panorama.",
+ "call": "s.banda('Atingimento · Leads', real=2832, meta=1900)",
+ "widgets": [
+  {
+   "id": "el-banda-b1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "band": true,
+   "label": "Atingimento · Leads",
+   "value": "2.832 / 1.900",
+   "sub": "realizado vs meta",
+   "delta": "149%",
+   "deltaTone": "pos"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-banda-b1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 6,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 6
+}

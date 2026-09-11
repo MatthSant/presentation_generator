@@ -1,0 +1,141 @@
+{
+ "id": "grafico-linha",
+ "grupo": "graficos",
+ "title": "Linha no tempo",
+ "desc": "Série diária; `largo=True` ocupa a linha inteira (12×6).",
+ "call": "s.grafico('line', 'CPL por dia', 'q-dia', x='dia', y='cpl', fmt='money', largo=True)",
+ "widgets": [
+  {
+   "id": "el-grafico-linha-c1",
+   "type": "chart",
+   "chartType": "line",
+   "title": "CPL por dia",
+   "bind": {
+    "dataset": "q-dia",
+    "x": "dia",
+    "y": "cpl"
+   },
+   "valueFormat": "money",
+   "height": 420
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-grafico-linha-c1",
+   "type": "chart",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 6
+  }
+ ],
+ "dataset": {
+  "q-dia": {
+   "dims": [
+    "dia"
+   ],
+   "filters": [],
+   "rows": [
+    {
+     "dia": "01/08",
+     "leads": 169,
+     "invest": 1360.0,
+     "cpl": 8.15,
+     "vendas": 9
+    },
+    {
+     "dia": "02/08",
+     "leads": 178,
+     "invest": 1420.0,
+     "cpl": 8.2,
+     "vendas": 10
+    },
+    {
+     "dia": "03/08",
+     "leads": 187,
+     "invest": 1480.0,
+     "cpl": 8.25,
+     "vendas": 10
+    },
+    {
+     "dia": "04/08",
+     "leads": 196,
+     "invest": 1540.0,
+     "cpl": 8.3,
+     "vendas": 11
+    },
+    {
+     "dia": "05/08",
+     "leads": 205,
+     "invest": 1600.0,
+     "cpl": 8.35,
+     "vendas": 11
+    },
+    {
+     "dia": "06/08",
+     "leads": 214,
+     "invest": 1660.0,
+     "cpl": 8.4,
+     "vendas": 12
+    },
+    {
+     "dia": "07/08",
+     "leads": 223,
+     "invest": 1720.0,
+     "cpl": 8.45,
+     "vendas": 12
+    },
+    {
+     "dia": "08/08",
+     "leads": 232,
+     "invest": 1780.0,
+     "cpl": 8.5,
+     "vendas": 13
+    },
+    {
+     "dia": "09/08",
+     "leads": 241,
+     "invest": 1840.0,
+     "cpl": 8.55,
+     "vendas": 13
+    },
+    {
+     "dia": "10/08",
+     "leads": 250,
+     "invest": 1900.0,
+     "cpl": 8.6,
+     "vendas": 14
+    },
+    {
+     "dia": "11/08",
+     "leads": 259,
+     "invest": 1960.0,
+     "cpl": 8.65,
+     "vendas": 14
+    },
+    {
+     "dia": "12/08",
+     "leads": 268,
+     "invest": 2020.0,
+     "cpl": 8.7,
+     "vendas": 15
+    },
+    {
+     "dia": "13/08",
+     "leads": 277,
+     "invest": 2080.0,
+     "cpl": 8.75,
+     "vendas": 15
+    },
+    {
+     "dia": "14/08",
+     "leads": 286,
+     "invest": 2140.0,
+     "cpl": 8.8,
+     "vendas": 16
+    }
+   ]
+  }
+ },
+ "sort": 10
+}

@@ -78,7 +78,8 @@
     if (seg === 'uso') { setNav('atividade'); return renderUso(); }
     if (seg === 'saude') { setNav('atividade'); return renderSaude(); }
     if (seg === 'pessoais') { setNav('pessoais'); return renderPessoais(); }
-    if (seg === 'plataforma') { setNav('plataforma'); return renderPlataforma(); }
+    if (seg === 'plataforma') { setNav('design'); return renderPlataforma(); }
+    if (seg === 'design') { setNav('design'); return renderDesign(slug, tab); }
     if (seg === 't' && slug) { setNav('templates'); return renderTemplate(slug, tab, rest.length ? decodeURIComponent(rest.join('/')) : null); }
     if (seg === 'gerais') { setNav('gerais'); return renderGerais(); }
     if (seg === 'usuarios') { setNav('usuarios'); return renderUsuarios(); }
@@ -652,7 +653,90 @@
     })();
   }
 
-  // ── documentos da plataforma (design system) ───────────────────────────
+  // ── design system vivo (spec 006): galeria + regras + contrato + versões ──
+  const DS = 'design-system';
+  const DS_TABS = [['galeria', 'Galeria'], ['regras', 'Regras'], ['contrato', 'Contrato'], ['versoes', 'Versões']];
+  const GRUPOS_DS = { numeros: 'Números', graficos: 'Gráficos e tabelas', funil: 'Funil e listas', narrativa: 'Narrativa' };
+
+  async function renderDesign(tab, sub) {
+    tab = DS_TABS.some(([k]) => k === tab) ? tab : 'galeria';
+    skeleton('doc');
+    let data;
+    try { data = await loadKit(DS); } catch (e) { app.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    const { template: t, kit, state } = data;
+    const v = kit ? kit.version : null;
+    const canEdit = isEditor();
+    app.innerHTML = `<div class="head">
+      <div><h1>Design system</h1>
+        <div class="row sm"><span class="muted">${kit ? (state === 'draft' ? `Editando o <b>rascunho</b> (nº ${v.number})` : `Vendo a <b>publicada v${v.semver || v.number}</b>`) : 'Sem versão'}</span>
+        ${t.published_version_id ? '<span class="pill pub">publicada</span>' : '<span class="pill off">sem publicada</span>'}${t.draft_version_id ? '<span class="pill draft">rascunho</span>' : ''}
+        <span class="muted">· entra em todo kit como <code>design-system.md</code> e no MCP como <code>contrato://widgets</code></span></div></div>
+      <div class="row">${canEdit && !t.draft_version_id && t.published_version_id ? '<button class="btn" id="mkdraft">Criar rascunho</button>' : ''}
+        ${canEdit && t.draft_version_id ? '<button class="btn btn-p" id="publish">Publicar rascunho</button>' : ''}</div></div>
+      <div class="tabs">${DS_TABS.map(([k, l]) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+      <div id="pane"></div>`;
+    for (const b of app.querySelectorAll('.tab')) b.onclick = () => { location.hash = `#/design/${b.dataset.tab}`; };
+    const mk = $('#mkdraft'); if (mk) mk.onclick = async () => { try { await api(`/api/templates/${DS}/draft`, { method: 'POST' }); toast('Rascunho criado'); route(); } catch (e) { toast(e.message, true); } };
+    const pb = $('#publish'); if (pb) pb.onclick = () => publicarModal(t, v);
+    if (!kit) { $('#pane').innerHTML = '<div class="empty">O design system ainda não foi semeado (node scripts/seed.mjs).</div>'; return; }
+    const ctx = { slug: DS, kit, canEdit, state, sub };
+    ({ galeria: paneGaleria, regras: (c, e) => paneRegras({ ...c, tipos: ['regra', 'recomendacao', 'definicao'] }, e), contrato: paneSingle('contrato.md'), versoes: paneVersoes })[tab](ctx, $('#pane'));
+    // as abas de regras/versões montam links #/t/<slug>/…; aqui a rota é #/design/…
+    for (const b of app.querySelectorAll('#pane .list button')) b.onclick = () => { location.hash = `#/design/${tab}/${encodeURIComponent(b.dataset.id || b.dataset.s || '')}`; };
+  }
+
+  /** Galeria: o viewer renderiza os elementos (o que a UI mostra é o que o agente produz);
+   *  o editor lateral muda o JSON do elemento e pré-visualiza na hora, sem salvar. */
+  function paneGaleria({ kit, canEdit, state, sub }, el) {
+    const els = kit.files.filter((f) => f.path.startsWith('elementos/') && f.path.endsWith('.json')).map((f) => { try { return JSON.parse(f.content); } catch { return null; } }).filter(Boolean)
+      .sort((a, b) => (a.sort ?? 999) - (b.sort ?? 999) || String(a.id).localeCompare(String(b.id)));
+    let cur = els.some((e) => e.id === sub) ? sub : (els[0] ? els[0].id : null);
+    const draw = () => {
+      const e = els.find((x) => x.id === cur);
+      const grupos = [...new Set(els.map((x) => x.grupo))];
+      el.innerHTML = `<p class="muted sm">Cada elemento é uma <b>chamada do <code>relatorio.py</code></b> e o widget que ela produz. O que aparece aqui é renderizado pelo mesmo viewer dos relatórios. Edite o JSON e <b>pré-visualize</b> sem salvar; salve no rascunho quando estiver certo.</p>
+        <div class="split" style="grid-template-columns:230px 1fr">
+          <div class="card"><div class="list">${grupos.map((g) => `<div class="nav-lbl" style="color:var(--ink-faint);padding:8px 10px 4px">${esc(GRUPOS_DS[g] || g)}</div>${els.filter((x) => x.grupo === g).map((x) => `<button data-id="${esc(x.id)}" class="${x.id === cur ? 'on' : ''}">${esc(x.title)}<br><code>${esc(x.id)}</code></button>`).join('')}`).join('')}</div>
+            ${canEdit ? '<div class="actions"><button class="btn" id="newel">+ Elemento</button></div>' : ''}</div>
+          <div style="min-width:0">
+            <div class="card" style="padding:0;overflow:hidden;height:560px"><iframe id="gal" title="Galeria" src="/design/preview?state=${state}&el=${encodeURIComponent(cur || '')}" style="width:100%;height:100%;border:0"></iframe></div>
+            ${e ? `<div class="card" style="margin-top:12px">
+              <div class="row" style="justify-content:space-between"><b>${esc(e.title)}</b><code class="muted">${esc(e.grupo)} · ${esc(e.id)}</code></div>
+              ${e.desc ? `<p class="muted sm" style="margin:6px 0 0">${esc(e.desc)}</p>` : ''}
+              ${e.call ? `<label>Chamada (relatorio.py)</label><pre style="white-space:pre-wrap;background:var(--zebra);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:10px">${esc(e.call)}</pre>` : ''}
+              <label>Elemento (JSON: title, desc, call, widgets, layout, dataset)</label>${editorBlock('el-json', JSON.stringify(e, null, 1), 'code', true)}
+              <div class="actions"><button class="btn" id="el-prev">Pré-visualizar</button>${canEdit ? '<button class="btn btn-ghost btn-danger" id="el-del">Excluir</button><button class="btn btn-p" id="el-save">Salvar no rascunho</button>' : ''}</div></div>` : ''}
+          </div></div>`;
+      $('#el-json') && ($('#el-json').style.minHeight = '260px');
+      for (const b of el.querySelectorAll('.list button')) b.onclick = () => { location.hash = `#/design/galeria/${encodeURIComponent(b.dataset.id)}`; };
+      const lerJson = () => { try { const j = JSON.parse($('#el-json').value); if (!j.id) j.id = cur; return j; } catch (err) { toast('JSON inválido: ' + err.message, true); return null; } };
+      const pv = $('#el-prev'); if (pv) pv.onclick = async () => {
+        const j = lerJson(); if (!j) return;
+        const r = await fetch('/design/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state, el: j.id, elemento: j }) });
+        if (!r.ok) { toast(await r.text(), true); return; }
+        $('#gal').srcdoc = await r.text(); toast('Pré-visualização (não salvo)');
+      };
+      const sv = $('#el-save'); if (sv) sv.onclick = async () => {
+        const j = lerJson(); if (!j) return;
+        try { await api(`/api/templates/${DS}/draft/files/${encodeURIComponent('elementos/' + j.id + '.json')}`, { method: 'PUT', body: { content: JSON.stringify(j, null, 1) } }); toast('Elemento salvo no rascunho'); location.hash = `#/design/galeria/${encodeURIComponent(j.id)}`; route(); }
+        catch (err) { toast(err.message, true); }
+      };
+      const dl = $('#el-del'); if (dl) dl.onclick = async () => {
+        if (!confirm(`Excluir o elemento "${cur}" do rascunho?`)) return;
+        try { await api(`/api/templates/${DS}/draft/files/${encodeURIComponent('elementos/' + cur + '.json')}`, { method: 'DELETE' }); toast('Elemento removido do rascunho'); location.hash = '#/design/galeria'; route(); }
+        catch (err) { toast(err.message, true); }
+      };
+      const ne = $('#newel'); if (ne) ne.onclick = () => {
+        const id = prompt('id do elemento (a-z, 0-9, hífen), ex.: kpi-tendencia'); if (!id) return;
+        els.push({ id, grupo: 'narrativa', title: id, desc: '', call: '', sort: els.length,
+          widgets: [{ id: `el-${id}-1`, type: 'find-note', text: 'novo elemento' }], layout: [{ id: `el-${id}-1`, type: 'find-note', x: 0, y: 0, w: 12, h: 1 }] });
+        cur = id; draw();
+      };
+    };
+    draw();
+  }
+
+  // ── documentos da plataforma (outros) ───────────────────────────────────
   async function renderPlataforma() {
     const docs = await api('/api/platform-docs');
     const canEdit = isEditor();

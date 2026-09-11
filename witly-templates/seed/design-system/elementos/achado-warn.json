@@ -1,0 +1,30 @@
+{
+ "id": "achado-warn",
+ "grupo": "narrativa",
+ "title": "Achado de cuidado",
+ "desc": "Tom `warn` para o \"sim, mas\": o que a resposta não cobre.",
+ "call": "s.achado('Cuidado', 'warn', 'Custo não é tudo', 'Qualificação de 53.6% no Instagram contra 54.0% no Facebook: compare o CPMQL antes de mover verba.')",
+ "widgets": [
+  {
+   "id": "el-achado-warn-fb1",
+   "type": "find-block",
+   "card": true,
+   "tag": "Cuidado",
+   "tagColor": "a",
+   "title": "Custo não é tudo",
+   "detail": "Qualificação de 53.6% no Instagram contra 54.0% no Facebook: compare o CPMQL antes de mover verba."
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-achado-warn-fb1",
+   "type": "find-block",
+   "x": 0,
+   "y": 0,
+   "w": 4,
+   "h": 3
+  }
+ ],
+ "dataset": {},
+ "sort": 20
+}

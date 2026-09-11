@@ -1,0 +1,32 @@
+{
+ "id": "kpi-emph",
+ "grupo": "numeros",
+ "title": "KPI em destaque",
+ "desc": "`emph=True`: fundo roxo para a métrica-chave da zona (uma por zona).",
+ "call": "s.kpi('ROAS', 3.57, 'x', sub='faturamento ÷ investimento', icon='bolt', color='#EF9F27', emph=True)",
+ "widgets": [
+  {
+   "id": "el-kpi-emph-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "ROAS",
+   "value": "3.57×",
+   "sub": "faturamento ÷ investimento",
+   "icon": "bolt",
+   "iconColor": "#EF9F27",
+   "emph": true
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-emph-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 4
+}
