@@ -79,8 +79,10 @@ export function renderExampleHtml(kit: Kit, viewer: ViewerFile[]): string | null
     .replace('{{VIEWER_JS}}', () => noClose(dec.decode(js.bytes)));
 }
 
-/** Zip com a pasta `<slug>/` na raiz: manifest.json, tarefas/<tarefa>.md, regras.md, perguntas.md, os arquivos da versão, viewer/ e exemplo/relatorio.html. */
-export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ path: string; content: string }> = []): Uint8Array {
+/** Zip com a pasta `<slug>/` na raiz: manifest.json, tarefas/<tarefa>.md, regras.md, perguntas.md, os arquivos da versão, viewer/,
+ *  exemplo/relatorio.html e, quando o manifesto lista `exemplos_de`, os relatórios de exemplo desses templates em exemplos/<slug>.html
+ *  (o design system é o contrato; o HTML real é a referência que o agente abre). */
+export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ path: string; content: string }> = [], exemplos: Array<{ slug: string; html: string }> = []): Uint8Array {
   const root = kit.template.slug;
   const entries: Record<string, Uint8Array> = {};
   // Documentos da plataforma (design system…): iguais para todo template; o kit é autossuficiente sem git.
@@ -99,5 +101,6 @@ export function buildKitZip(kit: Kit, viewer: ViewerFile[], platform: Array<{ pa
   for (const v of viewer) entries[`${root}/${v.path}`] = v.bytes;
   const example = renderExampleHtml(kit, viewer);
   if (example) entries[`${root}/exemplo/relatorio.html`] = strToU8(example);
+  for (const e of exemplos) entries[`${root}/exemplos/${e.slug}.html`] = strToU8(e.html);
   return zipSync(entries, { level: 6 });
 }

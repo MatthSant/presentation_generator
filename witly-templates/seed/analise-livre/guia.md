@@ -6,10 +6,10 @@ Uma análise livre é uma pergunta de negócio respondida com os dados do client
 1. **Objetivo** (tarefa): a pergunta em uma frase e a decisão que ela alimenta. Sem decisão, não há análise: é curiosidade.
 2. **Dados** (tarefa): de onde vem (Delfos: `Credentials` → `Tables_Views_Docs` → `Witly_Query`; ou CSV do consultor). Cheque PII antes de salvar qualquer arquivo. Salve a query em `queries/`.
 3. **Estrutura** (tarefa): páginas e seções, e o que cada bloco responde. Combine com o consultor antes de calcular.
-4. **Cálculo**: `python/calc_livre.py` (só stdlib) lê o CSV e grava `relatorio/dataset.json`. Cada tabela tem `dims`, `rows` com colunas numéricas cruas (não formatadas) e, se fizer sentido, uma linha "Geral" calculada por soma (nunca por média de taxas).
-5. **Seções**: `relatorio/sNN.json` no contrato do `design-system.md`. Gráficos, tabelas e KPIs fazem `bind` às tabelas; a prosa cita só números que estão nelas.
-6. **Montar**: `python python/montar.py --relatorio relatorio/ --out saida/`. O validador recusa widget fora do contrato, bind para coluna inexistente e número solto na prosa.
-7. **Entregar**: resposta primeiro (highlight), comparação (tabela ou um gráfico), implicação, ação em FCA-R. Registre com `registrar`.
+4. **Cálculo**: `python/minha-analise/calc_livre.py` (só stdlib) lê o CSV e devolve as tabelas — cada uma com `dims`, `rows` de colunas numéricas cruas e, se fizer sentido, uma linha "Geral" calculada por soma (nunca por média de taxas). Copie de `python/exemplo/calc_livre.py`.
+5. **Composição**: `build.py` com `relatorio.py` — o mesmo esqueleto do debriefing e do acompanhamento: páginas com sidebar, eyebrows, grade de KPIs com meta, gráficos e tabelas por `bind`, série no tempo, funil, achados em card, ações. Copie de `python/exemplo/build.py`; abra `exemplo/relatorio.html` e `exemplos/debriefing.html` para ver o resultado esperado.
+6. **Gerar**: `python python/minha-analise/build.py --csv dump.csv --out saida/`. O builder recusa valor digitado como texto (o número entra como número e ele formata), bind para coluna inexistente e prosa com número que não está numa tabela nem num card.
+7. **Entregar**: Panorama (resposta em números), a página da pergunta (comparação + achados), One Pager (KPIs + funil + alavancas + ações em FCA-R). Registre com `registrar`.
 
 ## Regras que valem aqui (as gerais, resumidas)
 - Número nasce no seu script Python; o modelo não digita número, não faz média de cabeça e não soma taxas.

@@ -35,3 +35,17 @@
 ## Testes
 - Vitest: 15 arquivos, **78** testes (5 novos em `test/agente.test.ts`).
 - `test-kits`: 5 kits OK, paridade OK.
+
+## Emenda — análise livre no design system (2026-09-11)
+- Antes/depois no browser: o exemplo antigo era uma página `topnav` com 4 widgets; o novo tem
+  sidebar com Panorama (2 bandas, 4 KPIs globais, 8 de volume, comparativo meta-bars, série no
+  tempo), Canais (destaque, 4 gráficos, tabela, 3 achados) e One Pager (4 KPIs, 2 funis com
+  MAIOR FURO, barras, 2 achados largos, 3 ações) — o mesmo esqueleto do debriefing.
+- Zip da análise livre baixado do worker local (v6, 1,4 MB comprimido): `exemplo/relatorio.html`
+  (986 KB), `exemplos/debriefing.html` (1,09 MB), `exemplos/acompanhamento-diario.html` (984 KB),
+  `python/relatorio.py`, `python/exemplo/{calc_livre,build,make_fixture_csv}.py`.
+- `test_relatorio.py` (6): esqueleto do Panorama e do One Pager, `_numeros` citável, valor em
+  texto recusado, bind inexistente recusado, prosa com número solto não grava, "53.6%" aceito.
+  `test-kits` verde nos 6 kits (o `_norm_num` mudou o validador de todos).
+- `test/exemplos.test.ts` (2): `exemplos/<slug>.html` no zip e `/dl` resolvendo `exemplos_de`.
+

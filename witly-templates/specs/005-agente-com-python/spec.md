@@ -69,3 +69,22 @@ do app. Detectar nome de pessoa no gate de PII.
   entrada; `salvar_template` com regras; `edicao` recusado pela tool; hash no seed (função pura).
 - `unittest` dos 5 kits sem `perguntas.json`; paridade kit == app inalterada.
 - Manual no browser: aba Perguntas, card de sugestão na triagem, aceitar → aba Regras.
+
+## Emenda (2026-09-11): a análise livre no design system dos templates
+O exemplo da análise livre era uma página nua (destaque + 1 card + 1 gráfico), porque o
+"design system" que ela recebia era o contrato do **aprofundamento** (uma seção solta). Decisão
+do Matheus: **o design system é um contrato com instruções; os HTMLs reais vêm como arquivos no
+zip**. Então:
+- `seed/_shared/relatorio.py`: builder em Python com o mesmo esqueleto do debriefing e do
+  acompanhamento (páginas com sidebar, eyebrow, kpi `feature` com meta, banda, comparativo,
+  gráfico/tabela por bind, série no tempo, funil, barras, achado em card, ação). Número entra
+  como número (texto é recusado); a prosa só cita o que está numa tabela ou num card.
+- `seed/analise-livre/python/exemplo/` (`calc_livre.py` + `build.py` + fixture sintética): o
+  exemplo é um relatório de 3 páginas (Panorama · a pergunta · One Pager); o seed gera o exemplo
+  por ele. A pasta `relatorio/` em JSON (`montar.py`) fica como caminho alternativo.
+- Manifesto `exemplos_de`: o zip leva `exemplos/<slug>.html` dos templates listados (a análise
+  livre leva debriefing e acompanhamento), além do próprio `exemplo/relatorio.html`.
+- O contrato do design system (documento da plataforma) ganha a seção "Documento inteiro";
+  `documento.md`, `guia.md`, tarefas e regra da análise livre falam do `build.py`.
+- `aprofundar._numbers_in` passa a entender "53.6%" e "1.536" (ponto decimal × milhar).
+

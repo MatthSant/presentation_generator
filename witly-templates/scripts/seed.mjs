@@ -59,8 +59,9 @@ async function buildExample(slug) {
       const f = path.join(py, 'tests', `${k}.csv`);
       if (existsSync(f)) aux.push(`--${k}`, f);
     }
-    if (existsSync(path.join(py, 'montar.py')) && !existsSync(path.join(py, 'tests', 'config.json'))) {
-      execFileSync(PY, [path.join(py, 'montar.py'), '--relatorio', path.join(kit, 'relatorio-exemplo'), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+    if (existsSync(path.join(py, 'exemplo', 'build.py'))) {
+      // análise livre: o exemplo é um relatório inteiro montado em Python (relatorio.py) sobre dado sintético
+      execFileSync(PY, [path.join(py, 'exemplo', 'build.py'), '--fixture', '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
     } else {
       execFileSync(PY, [path.join(py, 'gerar.py'), '--config', path.join(py, 'tests', 'config.json'), '--csv', fixture, '--out', out, ...aux], { stdio: ['ignore', 'ignore', 'inherit'] });
     }

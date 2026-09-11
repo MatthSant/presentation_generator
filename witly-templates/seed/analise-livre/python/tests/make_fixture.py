@@ -13,7 +13,8 @@ KIT = os.path.dirname(os.path.dirname(HERE))
 
 
 def write(dir_=None):
-    rel = os.path.join(dir_, 'relatorio') if dir_ else os.path.join(KIT, 'relatorio-exemplo')
+    import tempfile
+    rel = os.path.join(dir_ or tempfile.mkdtemp(), 'relatorio')   # nunca dentro do kit: só fixture de teste
     os.makedirs(rel, exist_ok=True)
     def wj(name, obj):
         with open(os.path.join(rel, name), 'w', encoding='utf-8') as f:

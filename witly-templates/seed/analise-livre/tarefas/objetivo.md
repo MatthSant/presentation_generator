@@ -1,6 +1,6 @@
 # Objetivo: a pergunta, a decisão e o público
 
-**Saída:** `relatorio/meta.json` com `client`, `client_name`, `title`, `pergunta` (uma frase) e `decisao` (o que muda com a resposta). **Perguntar ao consultor.**
+**Saída:** o `Relatorio(client, client_name, title, campaign_label, pergunta, decisao)` do `build.py`: a pergunta em uma frase e a decisão (o que muda com a resposta); e as **metas**, se o consultor tiver. **Perguntar ao consultor.**
 
 ## Definição
 Análise livre começa pela pergunta de negócio e pela decisão que ela alimenta. "Como está o CPL por canal?" não é pergunta; "qual canal cortar para baixar o CPL sem perder volume?" é. O público (dono do negócio, gestor de tráfego, time interno) define a linguagem e o nível de detalhe.

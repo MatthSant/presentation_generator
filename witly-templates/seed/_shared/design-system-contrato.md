@@ -1,4 +1,39 @@
-# Design system dos aprofundamentos
+# Design system: o contrato
+
+Vale para duas coisas: um **aprofundamento** (uma seção nova dentro de um relatório gerado por
+template) e um **documento inteiro** (análise livre, montada em Python com `relatorio.py`). Nos
+dois casos: widgets do catálogo, número só via `bind` ou via builder (que formata NÚMERO), prosa
+que só cita o que está numa tabela. Os HTMLs de referência vêm no zip: `exemplo/relatorio.html`
+(o exemplo do próprio template) e, na análise livre, `exemplos/debriefing.html` e
+`exemplos/acompanhamento-diario.html`.
+
+## Documento inteiro (análise livre): `relatorio.py`
+
+```python
+from relatorio import Relatorio
+R = Relatorio(client='slug', client_name='Cliente', title='Cliente · Pergunta', campaign_label='set/26')
+R.tabela('q-canal', dims=['canal'], rows=T['q-canal']['rows'])       # números do calc_livre.py
+s = R.pagina('panorama', 'Panorama').secao('s01', 'Panorama', 'Título', 'sub')
+s.eyebrow('INDICADORES', 'caption')
+s.banda('Atingimento · Leads', real=2832, meta=1900)                 # "X / meta" + pill %
+s.kpi('CPL', 7.97, 'money', sub='…', meta=6.5, invert=True)           # card feature + rodapé Meta
+s.comparativo([{'label': 'Leads', 'real': 2832, 'meta': 1900}, ...])  # barras realizado × meta
+s.grafico('bar', 'CPL por canal', 'q-canal', x='canal', y='cpl', fmt='money')
+s.tabela('Por canal', 'q-canal', ['canal', 'leads', 'cpl'])
+s.evolucao('No tempo', 'q-dia', 'dia', [('leads', 'Leads', 'int'), ('cpl', 'CPL', 'money')], current='leads', current2='cpl')
+s.funil('Geral', [('Leads', 2832), ('Respostas', 1557), ('Vendas', 162)], bench=[50, 6.5], compact=True)
+s.achado('Resposta', 'ok', 'Título', 'detalhe (cite a tabela)')       # find-block em card
+s.acao(1, 'Título', 'por quê', 'acionável')                            # ni
+R.gravar('saida/')                                                     # valida → 4 camadas + relatorio.html
+```
+
+Esqueleto padrão (o do debriefing): **Panorama** (atingimento → indicadores globais → volume →
+comparativo → no tempo) · **a página da pergunta** (destaque com a resposta → gráficos e tabela →
+achados) · **One Pager** (KPIs → funil → alavancas e gargalos → ações). Grade de 12 colunas: eyebrow
+12×1 · kpi 3×2 (banda 6×2) · gráfico 6×4 · série 12×6 · funil 4×5 compacto · achado 4×3 ou 6×4 ·
+ação 4×3. `fmt`: `money | pct | x | int | num`. `invert=True` quando menor é melhor.
+
+## Aprofundamento (seção dentro de um relatório)
 
 Todo aprofundamento entra **dentro do relatório**, como uma seção nova na página
 "Aprofundamentos", usando os widgets do app. Nada de HTML solto. O agente escreve prosa
