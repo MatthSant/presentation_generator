@@ -1,0 +1,30 @@
+{
+ "id": "achado",
+ "grupo": "narrativa",
+ "title": "Achado em card",
+ "desc": "Tag + tom (ok/warn/bad/n) + título que afirma + detalhe que cita a tabela.",
+ "call": "s.achado('Resposta', 'ok', 'Instagram é o canal mais barato', 'CPL de R$ 6,60 com 1.128 leads: volume suficiente para receber verba (tabela Resultado por canal).')",
+ "widgets": [
+  {
+   "id": "el-achado-fb1",
+   "type": "find-block",
+   "card": true,
+   "tag": "Resposta",
+   "tagColor": "g",
+   "title": "Instagram é o canal mais barato",
+   "detail": "CPL de R$ 6,60 com 1.128 leads: volume suficiente para receber verba (tabela Resultado por canal)."
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-achado-fb1",
+   "type": "find-block",
+   "x": 0,
+   "y": 0,
+   "w": 4,
+   "h": 3
+  }
+ ],
+ "dataset": {},
+ "sort": 19
+}

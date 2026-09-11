@@ -1,0 +1,42 @@
+{
+ "id": "kpi-custo",
+ "grupo": "numeros",
+ "title": "KPI de custo (invertido)",
+ "desc": "Custo: menor é melhor → `invert=True`. Aqui o CPL está acima da meta: ruim.",
+ "call": "s.kpi('CPL', 7.97, 'money', meta=6.5, invert=True, info='investimento ÷ leads')",
+ "widgets": [
+  {
+   "id": "el-kpi-custo-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "CPL",
+   "value": "R$ 7,97",
+   "sub": "",
+   "goalCmp": {
+    "meta": {
+     "label": "Meta R$ 6,50",
+     "delta": "+23%",
+     "status": "bad"
+    },
+    "hist": {
+     "label": "Hist —",
+     "delta": "",
+     "status": "neutral"
+    }
+   },
+   "info": "investimento ÷ leads"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-custo-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 2
+}

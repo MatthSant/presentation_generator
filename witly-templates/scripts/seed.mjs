@@ -87,46 +87,8 @@ async function buildDesignSystemMd() {
   return `${contrato.trimEnd()}\n\n${cat.trim()}\n\n${regras.trim()}\n`;
 }
 
-/** Um exemplo REAL (JSON) de cada tipo de widget, colhido das seções geradas pelos kits
- *  (tests/out) — o contrato em prosa não basta: o agente copia daqui a forma certa. */
-async function widgetExamplesMd() {
-  const seen = new Map();
-  const pick = (w) => {
-    const c = JSON.parse(JSON.stringify(w));
-    const trim = (o) => {
-      if (Array.isArray(o)) return o.slice(0, 3).map(trim);
-      if (o && typeof o === 'object') { for (const k of Object.keys(o)) o[k] = trim(o[k]); return o; }
-      if (typeof o === 'string' && o.length > 160) return o.slice(0, 157) + '…';
-      return o;
-    };
-    return trim(c);
-  };
-  for (const slug of await kits()) {
-    const out = path.join(SEED, slug, 'python', 'tests', 'out');
-    if (!existsSync(out)) continue;
-    for (const f of (await readdir(out)).filter((x) => /^s\d+\.json$/.test(x) || /^det-/.test(x))) {
-      let sec; try { sec = JSON.parse(await readFile(path.join(out, f), 'utf8')); } catch { continue; }
-      for (const w of sec.widgets || []) {
-        if (!w || !w.type || seen.has(w.type)) continue;
-        seen.set(w.type, { slug, json: JSON.stringify(pick(w), null, 1) });
-      }
-    }
-  }
-  if (!seen.size) return '';
-  const types = [...seen.keys()].sort();
-  const parts = ['', '## Exemplos reais por widget (copie a forma; troque dados e binds)', '',
-    `${types.length} tipos, colhidos dos relatórios gerados pelos templates. Campos com listas longas foram cortados em 3 itens. Todo número que aparece aqui é da fixture sintética.`];
-  for (const t of types) {
-    const { slug, json } = seen.get(t);
-    parts.push('', `### \`${t}\`  (de ${slug})`, '', '```json', json, '```');
-  }
-  return parts.join('\n');
-}
-
 async function platformSql() {
-  const ds = (await buildDesignSystemMd()) + (await widgetExamplesMd());
-  return [`INSERT INTO platform_docs (slug, org_id, title, body_md, kit_file, author_email) VALUES ('design-system', ${q(ORG)}, 'Design system dos aprofundamentos', ${q(ds)}, 'design-system.md', ${q(AUTHOR)})
-    ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, kit_file = excluded.kit_file, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`];
+  return [`DELETE FROM platform_docs WHERE slug = 'design-system';`];
 }
 
 function splitMd(md) {
@@ -173,12 +135,19 @@ async function kitSql(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
   const files = [];
+  const design = manifest.kind === 'design';
+  if (design) {
+    // contrato.md nasce das fontes de hoje; os elementos, do galeria.py (relatorio.py sobre dado sintético)
+    files.push({ path: 'contrato.md', content: await buildDesignSystemMd() });
+    execFileSync(PY, [path.join(dir, 'galeria.py')], { stdio: ['ignore', 'ignore', 'inherit'] });
+  }
   for (const rel of await walk(dir)) {
+    if (design && !rel.startsWith('elementos/')) continue;
     if (rel === 'manifest.json' || rel.startsWith('tarefas/') || rel.startsWith('regras/') || rel.startsWith('perguntas/') || rel.startsWith('viewer/') || rel === 'exemplo.html' || rel === 'design-system.md' || rel === 'perguntas.md') continue;
     if (rel.startsWith('python/tests/out')) continue;
     files.push({ path: rel, content: await readFile(path.join(dir, rel), 'utf8') });
   }
-  files.push(...await buildExample(slug));
+  if (!design) files.push(...await buildExample(slug));
   const tasks = [];
   // regras da análise: uma entrada por arquivo em regras/ (título = a regra, `Tipo:` no corpo)
   const rules = [];
@@ -199,7 +168,7 @@ async function kitSql(slug) {
   }
   const ctxDir = path.join(dir, 'tarefas');
   const order = (manifest.tarefas_contexto || []).map((t) => t.id);
-  for (const f of (await readdir(ctxDir)).filter((x) => x.endsWith('.md'))) {
+  for (const f of (existsSync(ctxDir) ? await readdir(ctxDir) : []).filter((x) => x.endsWith('.md'))) {   // o design system não tem tarefas
     const task_id = f.replace(/\.md$/, '');
     const { title, body } = splitMd(await readFile(path.join(ctxDir, f), 'utf8'));
     tasks.push({ task_id, title: title || task_id, body, sort: order.indexOf(task_id) === -1 ? 99 : order.indexOf(task_id) });
@@ -214,8 +183,8 @@ async function kitSql(slug) {
   })).digest('hex');
   const vid = id();
   const sql = [
-    `INSERT INTO templates (slug, org_id, name, objective, when_to_use) VALUES (${q(slug)}, ${q(ORG)}, ${q(name)}, ${q(objective || '')}, ${q(when_to_use || '')})
-       ON CONFLICT(slug) DO UPDATE SET name = excluded.name, objective = excluded.objective, when_to_use = excluded.when_to_use;`,
+    `INSERT INTO templates (slug, org_id, name, objective, when_to_use, kind) VALUES (${q(slug)}, ${q(ORG)}, ${q(name)}, ${q(objective || '')}, ${q(when_to_use || '')}, ${q(manifest.kind || 'analise')})
+       ON CONFLICT(slug) DO UPDATE SET name = excluded.name, objective = excluded.objective, when_to_use = excluded.when_to_use, kind = excluded.kind;`,
     `INSERT INTO template_versions (id, slug, number, state, author_email, manifest_json, published_at, semver, content_hash)
        VALUES (${q(vid)}, ${q(slug)}, COALESCE((SELECT MAX(number) FROM template_versions WHERE slug = ${q(slug)}), 0) + 1, 'published', ${q(AUTHOR)}, ${q(JSON.stringify(rest))}, strftime('%Y-%m-%dT%H:%M:%fZ','now'),
                ${semverSql(slug)}, ${q(hash)});`,
@@ -252,8 +221,8 @@ async function main() {
   if (!sqlOut && !force) {
     try {
       const out = execFileSync(process.execPath, [wrangler, 'd1', 'execute', 'witly-templates', target, '--json',
-        '--command', 'SELECT t.slug, v.content_hash FROM templates t JOIN template_versions v ON v.id = t.published_version_id'], { encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] });
-      for (const r of JSON.parse(out)[0].results) atual.set(r.slug, r.content_hash);
+        '--command', 'SELECT t.slug, v.content_hash, v.author_email FROM templates t JOIN template_versions v ON v.id = t.published_version_id'], { encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] });
+      for (const r of JSON.parse(out)[0].results) atual.set(r.slug, { hash: r.content_hash, autor: r.author_email });
     } catch { /* banco vazio ou sem a coluna: publica tudo */ }
   }
   const lines = ['-- gerado por scripts/seed.mjs', 'INSERT OR IGNORE INTO orgs (id, name) VALUES (\'witly\', \'Witly\');'];
@@ -261,7 +230,10 @@ async function main() {
   for (const slug of await kits()) {
     const a = await assembleKit(slug);
     const k = await kitSql(slug);
-    if (atual.get(slug) === k.hash) { console.log(`kit ${slug}: igual à publicada (hash), pulado`); continue; }
+    const cur = atual.get(slug);
+    if (cur && cur.hash === k.hash) { console.log(`kit ${slug}: igual à publicada (hash), pulado`); continue; }
+    // a publicada foi editada por pessoa na UI: o seed não sobrescreve (--force para forçar)
+    if (cur && cur.autor && cur.autor !== AUTHOR && !force) { console.log(`kit ${slug}: publicada por ${cur.autor} (não pelo seed), pulado — use --force para sobrescrever`); continue; }
     lines.push(...k.sql);
     publicados++;
     console.log(`kit ${slug}: motor ${a.engine}, ${k.files} arquivos, ${k.tasks} tarefas, ${k.rules} regras/perguntas`);

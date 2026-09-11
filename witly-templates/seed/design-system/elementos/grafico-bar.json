@@ -1,0 +1,70 @@
+{
+ "id": "grafico-bar",
+ "grupo": "graficos",
+ "title": "Barras por dimensão",
+ "desc": "Gráfico por `bind`: x = dimensão, y = métrica. `fmt` formata eixo e tooltip.",
+ "call": "s.grafico('bar', 'CPL por canal', 'q-canal', x='canal', y='cpl', fmt='money')",
+ "widgets": [
+  {
+   "id": "el-grafico-bar-c1",
+   "type": "chart",
+   "chartType": "bar",
+   "title": "CPL por canal",
+   "bind": {
+    "dataset": "q-canal",
+    "x": "canal",
+    "y": "cpl"
+   },
+   "valueFormat": "money",
+   "height": 260
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-grafico-bar-c1",
+   "type": "chart",
+   "x": 0,
+   "y": 0,
+   "w": 6,
+   "h": 4
+  }
+ ],
+ "dataset": {
+  "q-canal": {
+   "dims": [
+    "canal"
+   ],
+   "filters": [],
+   "rows": [
+    {
+     "canal": "facebook",
+     "leads": 1704,
+     "invest": 15132.0,
+     "cpl": 8.88,
+     "qualif": 54.0,
+     "conv": 5.6,
+     "vendas": 95
+    },
+    {
+     "canal": "instagram",
+     "leads": 1128,
+     "invest": 7449.0,
+     "cpl": 6.6,
+     "qualif": 53.6,
+     "conv": 5.9,
+     "vendas": 67
+    },
+    {
+     "canal": "Geral",
+     "leads": 2832,
+     "invest": 22581.0,
+     "cpl": 7.97,
+     "qualif": 53.8,
+     "conv": 5.7,
+     "vendas": 162
+    }
+   ]
+  }
+ },
+ "sort": 8
+}

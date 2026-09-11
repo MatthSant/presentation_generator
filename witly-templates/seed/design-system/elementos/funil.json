@@ -1,0 +1,68 @@
+{
+ "id": "funil",
+ "grupo": "funil",
+ "title": "Funil",
+ "desc": "Etapas com taxa de passagem e perda; com `bench=` marca o MAIOR FURO relativo.",
+ "call": "s.funil('Geral', [('Leads', 2832), ('Respostas', 1529), ('MQLs', 824), ('Vendas', 162)], bench=[50.0, 55.0, 6.5])",
+ "widgets": [
+  {
+   "id": "el-funil-f1",
+   "type": "funnel",
+   "title": "Geral",
+   "steps": [
+    {
+     "label": "Leads",
+     "value": 2832,
+     "vlabel": "2.832"
+    },
+    {
+     "label": "Respostas",
+     "value": 1529,
+     "vlabel": "1.529"
+    },
+    {
+     "label": "MQLs",
+     "value": 824,
+     "vlabel": "824"
+    },
+    {
+     "label": "Vendas",
+     "value": 162,
+     "vlabel": "162"
+    }
+   ],
+   "transitions": [
+    {
+     "migrate": 54.0,
+     "loss": 46.0,
+     "bench": 50.0
+    },
+    {
+     "migrate": 53.9,
+     "loss": 46.1,
+     "bench": 55.0,
+     "gap": 1.1,
+     "worst": true
+    },
+    {
+     "migrate": 19.7,
+     "loss": 80.3,
+     "bench": 6.5
+    }
+   ],
+   "baseLabel": "meta"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-funil-f1",
+   "type": "funnel",
+   "x": 0,
+   "y": 0,
+   "w": 6,
+   "h": 8
+  }
+ ],
+ "dataset": {},
+ "sort": 14
+}

@@ -2,7 +2,7 @@
  * registra e chama. Testável sem transporte MCP. */
 
 import { versionLabel } from '../db/semver.js';
-import { canSee, getPlatformDoc, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
+import { canSee, designSystemText, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
 import { questionsBlock, rulesBlock } from './zip.js';
@@ -35,7 +35,8 @@ function fence(lang: string, body: string): string {
 }
 
 async function kitOrThrow(env: ToolEnv, user: ToolUser, slug: string): Promise<Kit> {
-  const t = await getTemplate(env.DB, slug);
+  const t0 = await getTemplate(env.DB, slug);
+  const t = t0 && t0.kind !== 'design' ? t0 : null;   // o design system não é um template de análise
   const kit = t && canSee(t, user.email) ? await getPublishedKit(env.DB, slug) : null;
   if (kit) return kit;
   const known = (await listTemplates(env.DB, env.ORG_ID, user.email)).map((x) => x.slug);
@@ -148,7 +149,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push(text('guia.md').trim());
   out.push(rulesBlock(kit.rules));
   out.push(questionsBlock(kit.rules));
-  if (await getPlatformDoc(env.DB, 'design-system')) {
+  if (await designSystemText(env.DB, env.ORG_ID)) {
     out.push('');
     out.push('## Design system dos aprofundamentos (da plataforma, igual para todo template)');
     out.push('');
@@ -220,7 +221,7 @@ export async function resourceText(env: ToolEnv, uri: string, viewer?: string): 
   const u = new URL(uri);
   if (u.protocol === 'contrato:') {
     // contrato://widgets — o design system dos aprofundamentos (documento da PLATAFORMA, igual para todo template)
-    if (u.hostname === 'widgets') return (await getPlatformDoc(env.DB, 'design-system'))?.body_md ?? null;
+    if (u.hostname === 'widgets') return designSystemText(env.DB, env.ORG_ID);
     return null;
   }
   if (u.protocol === 'contexto:') {
@@ -233,7 +234,7 @@ export async function resourceText(env: ToolEnv, uri: string, viewer?: string): 
   const slug = u.hostname || u.pathname.split('/')[1];
   const parts = u.pathname.replace(/^\/+/, '').split('/').filter(Boolean);
   const t = await getTemplate(env.DB, slug);
-  if (!t || (viewer && !canSee(t, viewer))) return null;
+  if (!t || t.kind === 'design' || (viewer && !canSee(t, viewer))) return null;
   const kit = await getPublishedKit(env.DB, slug);
   if (!kit) return null;
   const file = (p: string) => kit.files.find((f) => f.path === p)?.content ?? null;

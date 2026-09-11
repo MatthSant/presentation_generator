@@ -1,0 +1,55 @@
+{
+ "id": "funil-compacto",
+ "grupo": "funil",
+ "title": "Funil compacto",
+ "desc": "Metade da altura, taxa ao lado da barra: para caber ao lado de outro bloco.",
+ "call": "s.funil('Tráfego', [('Impressões', 1881000), ('Cliques', 37565), ('Leads', 2832)], compact=True, base_label='bench')",
+ "widgets": [
+  {
+   "id": "el-funil-compacto-f1",
+   "type": "funnel",
+   "title": "Tráfego",
+   "steps": [
+    {
+     "label": "Impressões",
+     "value": 1881000,
+     "vlabel": "1.881.000"
+    },
+    {
+     "label": "Cliques",
+     "value": 37565,
+     "vlabel": "37.565"
+    },
+    {
+     "label": "Leads",
+     "value": 2832,
+     "vlabel": "2.832"
+    }
+   ],
+   "transitions": [
+    {
+     "migrate": 2.0,
+     "loss": 98.0
+    },
+    {
+     "migrate": 7.5,
+     "loss": 92.5
+    }
+   ],
+   "baseLabel": "bench",
+   "compact": true
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-funil-compacto-f1",
+   "type": "funnel",
+   "x": 0,
+   "y": 0,
+   "w": 4,
+   "h": 5
+  }
+ ],
+ "dataset": {},
+ "sort": 15
+}

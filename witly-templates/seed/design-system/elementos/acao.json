@@ -1,0 +1,29 @@
+{
+ "id": "acao",
+ "grupo": "narrativa",
+ "title": "Ação (FCA-R)",
+ "desc": "Ação numerada: título = a ação, por quê = o fato, acionável = o passo com critério.",
+ "call": "s.acao(1, 'Mover verba para o Instagram', 'menor CPL com volume real', 'subir 20% da verba do Facebook por 3 dias e comparar CPL e CPMQL')",
+ "widgets": [
+  {
+   "id": "el-acao-ni1",
+   "type": "ni",
+   "n": 1,
+   "title": "Mover verba para o Instagram",
+   "why": "menor CPL com volume real",
+   "action": "subir 20% da verba do Facebook por 3 dias e comparar CPL e CPMQL"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-acao-ni1",
+   "type": "ni",
+   "x": 0,
+   "y": 0,
+   "w": 4,
+   "h": 3
+  }
+ ],
+ "dataset": {},
+ "sort": 22
+}

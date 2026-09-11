@@ -1,0 +1,41 @@
+{
+ "id": "kpi-hist",
+ "grupo": "numeros",
+ "title": "KPI com meta e histórico",
+ "desc": "Com `hist=` o rodapé alterna Meta ↔ Hist pelo controle de comparação do relatório.",
+ "call": "s.kpi('Qualificação', 53.8, 'pct', sub='MQLs ÷ respostas', meta=55.0, hist=49.2)",
+ "widgets": [
+  {
+   "id": "el-kpi-hist-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "Qualificação",
+   "value": "53.8%",
+   "sub": "MQLs ÷ respostas",
+   "goalCmp": {
+    "meta": {
+     "label": "Meta 55.0%",
+     "delta": "-2%",
+     "status": "warn"
+    },
+    "hist": {
+     "label": "Hist 49.2%",
+     "delta": "+9%",
+     "status": "ok"
+    }
+   }
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-hist-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 5
+}

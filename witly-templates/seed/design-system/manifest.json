@@ -1,0 +1,11 @@
+{
+  "slug": "design-system",
+  "name": "Design system",
+  "kind": "design",
+  "objective": "Como um relatório da Witly é composto: o contrato (indicações gerais e a grade), as regras do design (uma por entrada) e a galeria de elementos — a chamada Python e o widget que ela produz. Versionado: cada ajuste na UI vira uma versão que todo kit passa a receber.",
+  "when_to_use": "Não é um template de análise: é o documento da plataforma que entra em todo kit (design-system.md) e no resource contrato://widgets do MCP.",
+  "arquivos": {
+    "contrato.md": "indicações gerais, a grade de 12 colunas, o catálogo de widgets do app e as regras críticas de design",
+    "elementos/<id>.json": "um elemento da galeria: {grupo, title, desc, call, widgets, layout, dataset} — gerado pelo galeria.py no seed, editável na UI"
+  }
+}

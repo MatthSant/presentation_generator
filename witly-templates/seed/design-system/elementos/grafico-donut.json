@@ -1,0 +1,62 @@
+{
+ "id": "grafico-donut",
+ "grupo": "graficos",
+ "title": "Donut",
+ "desc": "Participação por dimensão; o total no centro.",
+ "call": "s.grafico('donut', 'Leads por temperatura', 'q-temp', x='temperatura', y='leads', fmt='int', donutTotal=True)",
+ "widgets": [
+  {
+   "id": "el-grafico-donut-c1",
+   "type": "chart",
+   "chartType": "donut",
+   "title": "Leads por temperatura",
+   "bind": {
+    "dataset": "q-temp",
+    "x": "temperatura",
+    "y": "leads"
+   },
+   "valueFormat": "int",
+   "donutTotal": true,
+   "height": 260
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-grafico-donut-c1",
+   "type": "chart",
+   "x": 0,
+   "y": 0,
+   "w": 6,
+   "h": 4
+  }
+ ],
+ "dataset": {
+  "q-temp": {
+   "dims": [
+    "temperatura"
+   ],
+   "filters": [],
+   "rows": [
+    {
+     "temperatura": "quente",
+     "leads": 1780,
+     "cpl": 7.1,
+     "conv": 8.0
+    },
+    {
+     "temperatura": "frio",
+     "leads": 1052,
+     "cpl": 9.4,
+     "conv": 4.5
+    },
+    {
+     "temperatura": "Geral",
+     "leads": 2832,
+     "cpl": 7.97,
+     "conv": 5.7
+    }
+   ]
+  }
+ },
+ "sort": 11
+}

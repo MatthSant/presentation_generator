@@ -1,0 +1,27 @@
+{
+ "id": "eyebrow",
+ "grupo": "narrativa",
+ "title": "Eyebrow",
+ "desc": "Abre uma zona: título em caixa alta + caption com o que a zona responde.",
+ "call": "s.eyebrow('INDICADORES GLOBAIS', 'resultado macro do período')",
+ "widgets": [
+  {
+   "id": "el-eyebrow-eb1",
+   "type": "eyebrow",
+   "title": "INDICADORES GLOBAIS",
+   "caption": "resultado macro do período"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-eyebrow-eb1",
+   "type": "eyebrow",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 1
+  }
+ ],
+ "dataset": {},
+ "sort": 17
+}

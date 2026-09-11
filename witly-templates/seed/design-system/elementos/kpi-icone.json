@@ -1,0 +1,43 @@
+{
+ "id": "kpi-icone",
+ "grupo": "numeros",
+ "title": "KPI com ícone e cor",
+ "desc": "Ícone e cor do token para os indicadores globais (coin, database, bolt, circle-check…).",
+ "call": "s.kpi('Faturamento', 80514.0, 'money', sub='162 vendas', icon='coin', color='#3B6D11', meta=64000.0)",
+ "widgets": [
+  {
+   "id": "el-kpi-icone-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "Faturamento",
+   "value": "R$ 81k",
+   "sub": "162 vendas",
+   "icon": "coin",
+   "iconColor": "#3B6D11",
+   "goalCmp": {
+    "meta": {
+     "label": "Meta R$ 64k",
+     "delta": "+26%",
+     "status": "ok"
+    },
+    "hist": {
+     "label": "Hist —",
+     "delta": "",
+     "status": "neutral"
+    }
+   }
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-icone-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "sort": 3
+}
