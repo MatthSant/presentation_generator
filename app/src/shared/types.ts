@@ -50,6 +50,9 @@ export interface Bind {
    *  (e.g. {mes:"Jan"}). Same mechanism as the active channel filter, but fixed
    *  per widget — lets a widget isolate one slice (a month, a category) honestly. */
   where?: Record<string, string | number>;
+  /** Static row EXCLUSION (ex.: {canal:"Geral"}): tira a linha de total antes de somar —
+   *  um card com bind sobre uma tabela que tem linha "Geral" somaria tudo em dobro. */
+  exclude?: Record<string, string | number>;
 }
 
 /** One resolved series, ApexCharts-compatible. */
@@ -88,7 +91,7 @@ export const WIDGET_TYPES = [
   'label-sec', 'request', 'xs',
   'def-step', 'mdef-block', 'grp-list',
   'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
-  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'pace', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter',
+  'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid', 'bar-list', 'cri-list', 'meta-bars', 'pace', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter', 'filter-seg',
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -156,6 +159,9 @@ export interface ChartWidget extends WidgetBase {
   dashLast?: boolean;
   /** Value formatting for axis/tooltip/labels: pct | money | x | int | num (pt-BR). */
   valueFormat?: string;
+  /** Line/area/mixed: curva reta ou suave. Sem isto: reta a partir de 50 pontos (a tensão
+   *  fixa do spline faceta série densa e cria barriga em série esparsa). */
+  curve?: 'straight' | 'smooth';
   /** When true, drop per-series outliers (Tukey IQR) before plotting. Toggled in UI. */
   outliers?: boolean;
   /** Mixed only: 0-based index (or indices) of the series to plot on a secondary
@@ -204,6 +210,13 @@ export interface TableWidget extends WidgetBase {
   /** Per-column heat coloring from the cell value: 'diff' (diverging vs. benchmark)
    *  or 'uplift' (long-term scale). Empty → no coloring. */
   colorScale?: Record<string, 'diff' | 'uplift' | 'amp' | 'surv'>;
+  /** Rótulo de cabeçalho por coluna ({conv: "Conversão"}); sem ele, o nome cru da coluna. */
+  labels?: Record<string, string>;
+  /** Escala de 5 degraus contra um ALVO por coluna, pintando o fundo (hmd-*):
+   *  ≥ +15% pos2 · ≥ +5% pos1 · ±5% neutro · ≥ −15% neg1 · abaixo neg2 (invertido com `menor`). */
+  escala?: Record<string, { alvo: number; menor?: boolean }>;
+  /** Ordena as linhas (bind) por uma coluna; "desc" para mais recente/maior primeiro. */
+  sort?: { col: string; dir?: 'asc' | 'desc' };
 }
 
 export interface HeatCell { value: string | number; cls?: string; title?: string }
@@ -343,6 +356,19 @@ export interface HighlightWidget extends WidgetBase {
   text: string;
   label?: string;
   color?: ColorToken;
+  /** VIVO: `text` com {chave}; cada chave em `vars` é uma soma de coluna ou uma razão
+   *  Σ num ÷ Σ den sobre as linhas filtradas do `bind.dataset`. */
+  bind?: Bind;
+  vars?: Record<string, { metric?: string; ratio?: [string, string]; mult?: number; fmt?: 'money' | 'brl' | 'pct' | 'x' | 'int' | 'num' }>;
+}
+
+/** Seletor de filtro INLINE (o mesmo filtro do FAB/modal), renderizado como `.seg` na
+ *  seção. A opção "todos" (allValue/default) volta ao estado inicial. */
+export interface FilterSegWidget extends WidgetBase {
+  type: 'filter-seg';
+  /** id do filtro em meta.filters */
+  filter: string;
+  label?: string;
 }
 
 export interface NiWidget extends WidgetBase {
@@ -495,6 +521,16 @@ export interface KpiCardWidget extends WidgetBase {
   };
   /** Trend sparkline series (feature tier); nulls = gaps. */
   spark?: (number | null)[];
+  /** VIVO: recalcula o valor no filtro. `metric` = soma da coluna (ou `agg` do bind);
+   *  `ratio` = Σ num ÷ Σ den (× mult) — custo/taxa nunca é soma de linhas. `fmt` formata;
+   *  `metaValue`/`invert` refazem o rodapé Meta × ±% com o valor filtrado. */
+  bind?: Bind;
+  metric?: string;
+  ratio?: [string, string];
+  mult?: number;
+  fmt?: 'money' | 'brl' | 'pct' | 'x' | 'int' | 'num';
+  metaValue?: number;
+  invert?: boolean;
   /** Proportion bar segments (volume tier); remainder fills as a muted track. */
   bar?: { pct: number; color: string }[];
 }
@@ -860,7 +896,7 @@ export type Widget =
   | FindBlockWidget | FindNoteWidget | HighlightWidget | NiWidget
   | LabelSecWidget | RequestWidget | XsWidget
   | DefStepWidget | MdefBlockWidget | GrpListWidget
-  | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget
+  | EyebrowWidget | KpiStripWidget | KpiCardWidget | MetricToggleWidget | FilterSegWidget
   | HeatmapToggleWidget | ChartToggleWidget | ChartTableWidget | EmbedWidget | LinkCardWidget | ScatterPickerWidget | EvolutionPickerWidget
   | QaCardWidget | FunnelWidget | StratGridWidget | BarListWidget | CriListWidget | MetaBarsWidget | PaceWidget | EscopoCardsWidget | ChannelTableWidget | BulletGroupsWidget | QuadrantScatterWidget;
 
@@ -926,6 +962,10 @@ export interface ReportMeta {
   theme?: 'light' | 'dark';
   created_at?: string;
   filters?: FilterDef[];
+  /** Chrome da sidebar (viewer/app): o que esconder no relatório entregue ao cliente.
+   *  marca (logo + "Witly Grimório"), cliente (switcher), trocar (chevron), busca, atalho (⌘K);
+   *  sidebar 'fechada' abre minimizada, sem ler localStorage. */
+  chrome?: { marca?: boolean; cliente?: boolean; trocar?: boolean; busca?: boolean; atalho?: boolean; sidebar?: 'aberta' | 'fechada' };
   /** Optional cover block shown once at the top of the report content. */
   cover?: { eyebrow?: string; title?: string; meta?: string[] };
   /** Feature flags do relatório. `outliers` controla o botão "Remover outliers"

@@ -394,6 +394,17 @@ def variantes(calc, build_report, rows, config, content, out_dir, opts=None):
     return _variantes_cascata(calc, build_report, rows, config, content, out_dir, opts, filtros, flt, rv)
 
 
+def _extras(out_dir):
+    """meta.extra {css, js} do data.json: o ponto de extensão do relatório (relatorio.py:
+    css_extra/js_extra). Fica no data.json para sobreviver ao aprofundar.py."""
+    try:
+        with open(os.path.join(out_dir, 'data.json'), encoding='utf-8') as f:
+            ex = (json.load(f).get('meta') or {}).get('extra') or {}
+    except Exception:
+        return '', ''
+    return ex.get('css') or '', ex.get('js') or ''
+
+
 def render_html(out_dir, title):
     vd = _viewer_dir()
     if not vd:
@@ -431,6 +442,11 @@ def render_html(out_dir, title):
             .replace('{{VIEWER_CSS}}', rd('viewer.css'))
             .replace('{{REPORT_JSON}}', safe(json.dumps(report, ensure_ascii=False)))
             .replace('{{VIEWER_JS}}', safe(rd('viewer.js'))))
+    css_x, js_x = _extras(out_dir)
+    if css_x:
+        html = html.replace('</head>', '<style id="extra-css">' + css_x + '</style>' + chr(10) + '</head>', 1)
+    if js_x:
+        html = html.replace('</body>', '<script id="extra-js">' + safe(js_x) + '</script>' + chr(10) + '</body>', 1)
     path = os.path.join(out_dir, 'relatorio.html')
     with open(path, 'w', encoding='utf-8') as f:
         f.write(html)

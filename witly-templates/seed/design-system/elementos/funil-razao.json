@@ -1,0 +1,64 @@
+{
+ "id": "funil-razao",
+ "grupo": "funil",
+ "title": "Funil com transição em razão",
+ "desc": "Nas pontas (custo → volume, volume → receita) a transição não é %: `transicao={0: 'msgs por R$', -1: 'R$ por comprador'}` mostra a razão.",
+ "call": "s.funil('Do custo à receita', [('Investimento', 22581), ('Mensagens', 2832), ('Compradores', 162), ('Receita', 80514)], transicao={0: 'msgs por R$', -1: 'R$ por comprador'})",
+ "widgets": [
+  {
+   "id": "el-funil-razao-f1",
+   "type": "funnel",
+   "title": "Do custo à receita",
+   "steps": [
+    {
+     "label": "Investimento",
+     "value": 22581,
+     "vlabel": "22.581"
+    },
+    {
+     "label": "Mensagens",
+     "value": 2832,
+     "vlabel": "2.832"
+    },
+    {
+     "label": "Compradores",
+     "value": 162,
+     "vlabel": "162"
+    },
+    {
+     "label": "Receita",
+     "value": 80514,
+     "vlabel": "80.514"
+    }
+   ],
+   "transitions": [
+    {
+     "note": "0,13 msgs por R$",
+     "noteTone": "neutral"
+    },
+    {
+     "migrate": 5.7,
+     "loss": 94.3
+    },
+    {
+     "note": "R$ 497,00 R$ por comprador",
+     "noteTone": "neutral"
+    }
+   ],
+   "baseLabel": "meta"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-funil-razao-f1",
+   "type": "funnel",
+   "x": 0,
+   "y": 0,
+   "w": 6,
+   "h": 8
+  }
+ ],
+ "dataset": {},
+ "filters": [],
+ "sort": 20
+}

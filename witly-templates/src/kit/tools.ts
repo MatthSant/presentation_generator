@@ -162,6 +162,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('- Cada aprofundamento: `registrar({evento:"aprofundamento", slug, pergunta, pergunta_id?, resposta, consultas, avaliacao?, descartado?, motivo?})` — resposta = prosa + tabelas agregadas; nunca e-mail, telefone ou CPF.');
   out.push('- Se o consultor der uma nota ao template: `avaliar(slug, nota, comentario)`.');
   out.push('- Faltou regra, definição ou pergunta no template? `sugerir_regra({slug, tipo, titulo, corpo, motivo})` — vai para a triagem do editor; não muda o kit sozinho.');
+  out.push('- **Ao fechar o trabalho com o consultor** (obrigatório): `registrar({evento:"feedback", slug, versao, cliente, resumo, segurou:[…], custou:[{item, prioridade, pedido, rodadas}], medida:{apresentacao, filtro, analise}, nota})` — o que segurou bem, cada ajuste que custou rodada (o `pedido` é o que mudar no kit, escrito como regra), quantas rodadas foram sobre apresentação × filtro × análise, e a nota de 1 a 5. É assim que o kit aprende; o editor triagem cada item.');
   out.push(generalBlock(await listGeneralContexts(env.DB, env.ORG_ID)));
   return out.join('\n');
 }

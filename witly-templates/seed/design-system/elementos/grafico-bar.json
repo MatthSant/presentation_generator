@@ -16,6 +16,16 @@
     "y": "cpl"
    },
    "valueFormat": "money",
+   "showLabels": true,
+   "options": {
+    "plotOptions": {
+     "bar": {
+      "dataLabels": {
+       "position": "center"
+      }
+     }
+    }
+   },
    "height": 260
   }
  ],
@@ -66,5 +76,6 @@
    ]
   }
  },
- "sort": 8
+ "filters": [],
+ "sort": 10
 }

@@ -42,10 +42,27 @@ achados embaixo. O viewer só mostra a sidebar com duas ou mais páginas.
 | `s.acao(n, title, porque, acionavel)` | ação numerada | 4×3 |
 | `R.gravar(saida)` | valida e grava | — |
 
-`fmt`: `money` (R$ 7,97 · R$ 23k) · `pct` (53.6%) · `x` (3.52×) · `int` (2.832) · `num`.
+`fmt`: `money` (R$ 7,97 · R$ 23k, abrevia) · `brl` (R$ 2.350,00, exato — custo unitário em gráfico) · `pct` (53.6%) · `x` (3.52×) · `int` (2.832) · `num`.
 `invert=True` quando menor é melhor (CPL, CPM, CPMQL, CAC). Ícones: `coin`, `database`, `bolt`,
 `circle-check`, `trending-up`, `arrow-back-up`. Cores: `#3B6D11` verde · `#534AB7` roxo ·
 `#EF9F27` âmbar · `#185FA5` azul · `#A32D2D` vermelho.
+
+## Filtro, valores vivos e acabamento (feedback de uso)
+| Chamada | O que faz |
+|---|---|
+| `R.filtro(id, label, opcoes=None, todos='Todos')` | declara o filtro do FAB; as tabelas que respondem declaram `R.tabela(..., filters=[id])`. O `gravar()` confere opções × valores reais em cada tabela e **falha na divergência** (rótulo diferente esvaziava gráfico em silêncio) |
+| `s.seletor(id, label)` | o mesmo filtro como toggle inline na seção; "todos" volta ao início |
+| `s.kpi(..., bind={'dataset','ratio': (num, den) \| 'metric', 'mult', 'exclude': {'canal': 'Geral'}})` | card **vivo**: recalcula valor e rodapé de meta nas linhas filtradas (razão de somas, nunca soma de linhas) |
+| `s.destaque(text, bind=..., vars={'cpl': {'ratio': (...), 'fmt': 'money'}})` | `{cpl}` no texto vira o valor filtrado |
+| `s.kpi(..., formato='exato')` | R$ 2.350,00 em vez de R$ 2k |
+| `s.tabela(..., colunas={...}, escala={'cpl': (alvo, True)}, ordem='desc')` | cabeçalho rotulado; fundo em 5 degraus contra o alvo (True = menor é melhor); mais recente/maior primeiro. Célula pode ser `{"value": 7.5, "cls": "hmd-pos1", "title": "…"}` nas linhas do dataset |
+| `s.grafico(..., curva='reta'\|'suave', eixo_x=, eixo_y=, rotulos=, comparar=True)` | curva (reta a partir de 50 pontos por padrão); nomes de eixo; rótulo branco dentro da barra (padrão em barras); `y=[a, b]` + `comparar` = barra + linha em eixos separados |
+| `s.funil(..., transicao={0: 'msgs por R$', -1: 'R$ por comprador'})` | transição em razão nas pontas (custo → volume → receita) |
+| `s.achado/nota/acao/destaque(..., autoria='consultor')` | texto humano: números declarados, sem exigir tabela |
+| `Relatorio(..., chrome={'marca': False, 'atalho': False, 'trocar': False, 'busca': False, 'sidebar': 'fechada'})` | o que esconder na sidebar do HTML entregue |
+| `R.css_extra(css)` / `R.js_extra(js)` | ponto de extensão: injetados no HTML e guardados no `data.json` (sobrevivem ao `aprofundar.py`) |
+
+**Página × seção.** `R.pagina(id, label)` cria uma página (entrada no menu); `p.secao(id, badge, title)` cria uma seção dentro dela (aba/zona com a própria grade). Blocos (kpi, gráfico, achado…) vão **dentro** da seção — nunca crie uma página para um bloco.
 
 ## O que o builder recusa
 - Valor de card como **texto** (`'R$ 7,00'`): o número entra como número e ele formata.

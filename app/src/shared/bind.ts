@@ -102,6 +102,10 @@ export function resolveBind(
   for (const col of Object.keys(bind.where ?? {})) requireCol(col, `where.${col}`);
 
   let rows = applyFilters(table.rows, table.filters ?? [], active);
+  if (bind.exclude) {
+    const conds = Object.entries(bind.exclude).map(([c, v]) => [resolveCol(c) ?? c, v] as const);
+    rows = rows.filter(r => !conds.some(([c, v]) => String(r[c] ?? '') === String(v)));
+  }
   if (bind.where) {
     const conds = Object.entries(bind.where);
     rows = rows.filter(r => conds.every(([c, v]) => String(r[c] ?? '') === String(v)));

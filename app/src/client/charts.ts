@@ -50,6 +50,16 @@ export interface ChartDef {
   highlightLast?: number;
   /** Linhas de meta tracejadas (referência horizontal). */
   goalLines?: { value: number; label?: string; color?: string }[];
+  /** Line/area/mixed: reta ou suave; sem isto, reta a partir de 50 pontos. */
+  curve?: 'straight' | 'smooth';
+}
+
+/** A tensão fixa do spline do Apex faceta série densa e cria barriga em série esparsa:
+ *  suave só até 50 pontos, salvo pedido explícito. */
+function curveOf(def: ChartDef): 'straight' | 'smooth' {
+  if (def.curve) return def.curve;
+  const n = def.categories?.length ?? (Array.isArray(def.series) ? Math.max(0, ...(def.series as Array<{ data?: unknown[] }>).map((x) => x.data?.length ?? 0)) : 0);
+  return n > 50 ? 'straight' : 'smooth';
 }
 
 type Theme = 'light' | 'dark';
@@ -171,6 +181,7 @@ export function valueFmt(kind?: string): (v: number) => string {
   switch (kind) {
     case 'pct': return (v) => `${autoBr(v)}%`;
     case 'money': return (v) => moneyBr(v);
+    case 'brl': return (v) => `R$ ${brNum(Number(v) || 0, 2)}`;   // exato, 2 casas: custo unitário (CPL R$ 8,88)
     case 'x': return (v) => `${autoBr(v)}×`;
     case 'int': return (v) => brNum(Math.round(Number(v) || 0), 0);
     default: return autoBr;
@@ -336,17 +347,17 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
   if (def.type === 'line') {
     const n = Array.isArray(series) ? series.length : 0;
     if (def.dashLast && n > 1) {
-      opts.stroke = { curve: 'smooth', width: Array.from({ length: n }, (_, i) => (i === n - 1 ? 2 : 3.5)),
+      opts.stroke = { curve: curveOf(def), width: Array.from({ length: n }, (_, i) => (i === n - 1 ? 2 : 3.5)),
         dashArray: Array.from({ length: n }, (_, i) => (i === n - 1 ? 5 : 0)) };
       opts.markers = { size: Array.from({ length: n }, (_, i) => (i === n - 1 ? 0 : 3)) };
     } else {
-      opts.stroke = { curve: 'smooth', width: 3.5 };
+      opts.stroke = { curve: curveOf(def), width: 3.5 };
       opts.markers = { size: 3 };
     }
     opts.yaxis = { ...b.yaxis, min: axisMin };
   }
   if (def.type === 'area') {
-    opts.stroke = { curve: 'smooth', width: 2 };
+    opts.stroke = { curve: curveOf(def), width: 2 };
     opts.fill = { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.2, opacityTo: 0 } };
     opts.yaxis = { ...b.yaxis, min: axisMin };
   }
@@ -384,7 +395,7 @@ export function buildOptions(def: ChartDef, theme: Theme = currentTheme()): Reco
       // pontos = marcadores (sem traço); a reta de tendência = traço SEM marcadores.
       const arr = Array.isArray(series) ? (series as { type?: string }[]) : [];
       opts.markers = discrete ? { size: 0, strokeWidth: 0, discrete } : { size: arr.map(s => (s.type === 'line' ? 0 : 6)), strokeWidth: 0 };
-      opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)), curve: 'smooth' };
+      opts.stroke = { width: arr.map(s => (s.type === 'line' ? 3 : 0)), curve: curveOf(def) };
     } else {
       opts.markers = discrete ? { size: 0, strokeWidth: 0, discrete } : { size: 5, strokeWidth: 0 };
     }

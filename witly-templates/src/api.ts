@@ -237,7 +237,8 @@ api.get('/api/atividade', async (c) => {
     try { d = JSON.parse(r.dados_json) as Record<string, unknown>; } catch { /* ignora */ }
     const resposta = typeof d.resposta === 'string' ? d.resposta : '';
     return { ...r, dados_json: undefined, resumo: { pergunta: d.pergunta ?? null, resposta: resposta.slice(0, 240), mudanca: d.mudanca ?? null, resultado: d.resultado ?? null,
-      titulo: d.titulo ?? null, tipo: d.tipo ?? null, corpo: typeof d.corpo === 'string' ? d.corpo.slice(0, 240) : null } };
+      titulo: d.titulo ?? null, tipo: d.tipo ?? null, corpo: typeof d.corpo === 'string' ? d.corpo.slice(0, 240) : null,
+      nota: d.nota ?? null, medida: d.medida ?? null, custou_n: Array.isArray(d.custou) ? d.custou.length : null, resumo_fb: typeof d.resumo === 'string' ? d.resumo.slice(0, 240) : null } };
   }));
 });
 /** Cabeçalho da triagem e paginação: quantos o filtro pega e quantos ainda esperam veredito. */
@@ -254,7 +255,7 @@ api.get('/api/atividade/resumo', async (c) => {
   };
   const [doFiltro, daFila] = await Promise.all([
     db.countActivity(c.env.DB, c.env.ORG_ID, f),
-    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento,sugestao', veredito: 'sem' }),
+    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento,sugestao,feedback', veredito: 'sem' }),
   ]);
   return c.json({ total: doFiltro.total, sem_veredito: daFila.total, desde: daFila.mais_antiga_sem_veredito });
 });
@@ -275,6 +276,24 @@ api.patch('/api/atividade/:id', async (c) => {
     if (b.veredito !== undefined) await db.setActivityVeredito(c.env.DB, c.req.param('id'), b.veredito, u.email);
   } catch (e) { return c.json({ error: (e as Error).message }, 404); }
   return c.json({ ok: true });
+});
+
+/** Um item do feedback de uso ("custou rodada") vira SUGESTÃO na fila: aceitar = entrada no rascunho. */
+api.post('/api/atividade/:id/sugerir', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ indice?: number; tipo?: string }>().catch(() => ({} as { indice?: number; tipo?: string }));
+  const a = await db.getActivity(c.env.DB, c.req.param('id'));
+  if (!a || a.evento !== 'feedback') return c.json({ error: 'só feedback de uso vira sugestão por item' }, 404);
+  let d: { custou?: Array<{ item?: string; pedido?: string; prioridade?: string }> } = {};
+  try { d = JSON.parse(a.dados_json) as typeof d; } catch { /* ignora */ }
+  const item = (d.custou || [])[Number(b.indice)];
+  if (!item) return c.json({ error: 'índice do item inválido' }, 400);
+  const tipo = db.CONTEXTO_TIPOS.find((x) => x === b.tipo) ?? 'regra';
+  const id = await db.insertActivity(c.env.DB, {
+    org_id: c.env.ORG_ID, email: u.email, evento: 'sugestao', slug: a.slug, version_number: a.version_number, cliente: a.cliente,
+    dados: { tipo, titulo: item.pedido || item.item, corpo: item.item || '', motivo: `feedback de uso (${item.prioridade || 'media'}) — atividade ${a.id}` }, origem: 'app',
+  });
+  return c.json({ ok: true, id });
 });
 
 /** Descartar na triagem: sai do kit e conta na taxa de descarte do template. */

@@ -2454,6 +2454,15 @@ td.td-metric { vertical-align: top; line-height: 1.25; white-space: nowrap; }
 .tr-over { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-size: 13px; color: var(--gray); font-weight: 600; cursor: pointer; }
 .tr-over input { width: 16px; height: 16px; accent-color: var(--purple); }
 
+/* ── feedback do kit (11/09): tabela com borda reta (o chip com raio + spacing parecia
+   mapa de calor); sub legível no card emph; seletor de filtro inline ─────────── */
+.tw table { border-collapse: collapse; border-spacing: 0; }
+.tw td { border-radius: 0; border-bottom: 1px solid var(--divider); }
+.tw tr:last-child td { border-bottom: none; }
+.kc--emph .kc-sub { color: rgba(255,255,255,.72); }
+.seg--filter { display: inline-flex; align-items: center; gap: 2px; margin: 2px 0 8px; }
+.seg--filter .seg-lbl { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 8px; }
+
 /* ── Toast de "copiado" (montadores de query) ── */
 .copy-toast {
   position: fixed; bottom: 26px; left: 50%; z-index: 9999;

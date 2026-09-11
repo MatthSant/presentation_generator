@@ -19,6 +19,16 @@
     ]
    },
    "valueFormat": "int",
+   "showLabels": true,
+   "options": {
+    "plotOptions": {
+     "bar": {
+      "dataLabels": {
+       "position": "center"
+      }
+     }
+    }
+   },
    "height": 260
   }
  ],
@@ -69,5 +79,6 @@
    ]
   }
  },
- "sort": 9
+ "filters": [],
+ "sort": 11
 }

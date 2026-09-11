@@ -1,0 +1,98 @@
+{
+ "id": "tabela-escala",
+ "grupo": "graficos",
+ "title": "Tabela com rótulos e escala vs alvo",
+ "desc": "`colunas` rotula o cabeçalho; `escala` pinta o fundo em 5 degraus contra o alvo (True = menor é melhor); `ordem='desc'` põe o maior primeiro.",
+ "call": "s.tabela('Por canal', 'q-canal', ['canal', 'leads', 'cpl', 'conv'], colunas={'canal': 'Canal', 'leads': 'Leads', 'cpl': 'CPL', 'conv': 'Conversão'}, escala={'cpl': (7.0, True), 'conv': (6.0, False)}, ordem='desc')",
+ "widgets": [
+  {
+   "id": "el-tabela-escala-t1",
+   "type": "table",
+   "title": "Por canal",
+   "cols": [
+    "canal",
+    "leads",
+    "cpl",
+    "conv"
+   ],
+   "bind": {
+    "dataset": "q-canal",
+    "metrics": [
+     "canal",
+     "leads",
+     "cpl",
+     "conv"
+    ]
+   },
+   "labels": {
+    "canal": "Canal",
+    "leads": "Leads",
+    "cpl": "CPL",
+    "conv": "Conversão"
+   },
+   "escala": {
+    "cpl": {
+     "alvo": 7.0,
+     "menor": true
+    },
+    "conv": {
+     "alvo": 6.0,
+     "menor": false
+    }
+   },
+   "sort": {
+    "col": "canal",
+    "dir": "desc"
+   }
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-tabela-escala-t1",
+   "type": "table",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 3
+  }
+ ],
+ "dataset": {
+  "q-canal": {
+   "dims": [
+    "canal"
+   ],
+   "filters": [],
+   "rows": [
+    {
+     "canal": "facebook",
+     "leads": 1704,
+     "invest": 15132.0,
+     "cpl": 8.88,
+     "qualif": 54.0,
+     "conv": 5.6,
+     "vendas": 95
+    },
+    {
+     "canal": "instagram",
+     "leads": 1128,
+     "invest": 7449.0,
+     "cpl": 6.6,
+     "qualif": 53.6,
+     "conv": 5.9,
+     "vendas": 67
+    },
+    {
+     "canal": "Geral",
+     "leads": 2832,
+     "invest": 22581.0,
+     "cpl": 7.97,
+     "qualif": 53.8,
+     "conv": 5.7,
+     "vendas": 162
+    }
+   ]
+  }
+ },
+ "filters": [],
+ "sort": 16
+}

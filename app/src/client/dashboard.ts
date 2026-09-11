@@ -16,7 +16,7 @@ const DEFAULT_W: Record<string, number> = {
   'heatmap': 8, 'find-block': 4, 'ni': 4, 'ni-vertical': 4,
   'kpi': 3,
 };
-const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap', 'rank-card']);
+const BOUND = new Set(['kpi', 'chart', 'table', 'heatmap', 'rank-card', 'kpi-card', 'highlight', 'filter-seg']);
 /** Tipos de gráfico onde "remover outliers" faz sentido: séries numéricas ao longo
  *  de categorias (uma cerca de Tukey/MAD por série). Pizza/donut (partes do todo),
  *  radial (gauge), treemap (hierarquia), scatter ({x,y}) e radar não se aplicam. */
@@ -57,6 +57,8 @@ interface TileRef { widget: Widget; tile: HTMLElement; chartElId?: string; }
 export interface DashboardOpts {
   datasets: DataMap;
   getActive: () => ActiveFilters;
+  /** Muda um filtro (seletor inline); null = volta ao padrão. */
+  setFilter?: (id: string, value: string | null) => void;
   /** Filter definitions (id/default), used to mark which tiles reflect a
    *  non-default filter — so the unmarked ones read as the general number. */
   getFilterDefs?: () => FilterDef[];
@@ -87,6 +89,7 @@ export class Dashboard {
   private resolveCtx(): RenderCtx {
     const charts: { elId: string; def: ChartDef }[] = [];
     const ctx: RenderCtx = {
+      filters: this.opts.getFilterDefs ? { defs: this.opts.getFilterDefs(), active: this.opts.getActive() as Record<string, string>, set: (id, v) => this.opts.setFilter?.(id, v) } : undefined,
       charts,
       resolve: (bind?: Bind): ResolvedBind | null =>
         bind ? resolveBind(bind, this.opts.datasets, this.opts.getActive()) : null,

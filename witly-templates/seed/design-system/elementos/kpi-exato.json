@@ -1,0 +1,30 @@
+{
+ "id": "kpi-exato",
+ "grupo": "numeros",
+ "title": "KPI em dinheiro exato",
+ "desc": "`formato='exato'`: R$ 2.350,00 em vez de R$ 2k — quando cards vizinhos diferem em centenas.",
+ "call": "s.kpi('Receita', 2350.0, 'money', formato='exato', sub='no período')",
+ "widgets": [
+  {
+   "id": "el-kpi-exato-k1",
+   "type": "kpi-card",
+   "tier": "feature",
+   "label": "Receita",
+   "value": "R$ 2.350,00",
+   "sub": "no período"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-kpi-exato-k1",
+   "type": "kpi-card",
+   "x": 0,
+   "y": 0,
+   "w": 3,
+   "h": 2
+  }
+ ],
+ "dataset": {},
+ "filters": [],
+ "sort": 6
+}

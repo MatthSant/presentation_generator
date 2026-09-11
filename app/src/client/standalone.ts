@@ -66,7 +66,8 @@ class StandaloneApp {
     // com `filters` entrariam com todos os recortes misturados.
     for (const def of this.store.filterDefs) {
       const v = def.default ?? def.allValue ?? def.options[0];
-      if (v != null) this.store.active[def.id] = v;
+      // allValue ("Todos") = sem recorte: NÃO entra em active (o bind filtraria canal == "Todos" e zeraria tudo)
+      if (v != null && v !== def.allValue) this.store.active[def.id] = v;
     }
     this.root = document.getElementById('export-root') as HTMLElement;
     this.nav = new Navigation(this.store, (p, s) => this.go(p, s));
@@ -190,7 +191,7 @@ class StandaloneApp {
   private clearFilters(): void {
     for (const def of this.store.filterDefs) {
       const v = def.default ?? def.allValue ?? def.options[0];
-      if (v != null) this.store.active[def.id] = v; else delete this.store.active[def.id];
+      if (v != null && v !== def.allValue) this.store.active[def.id] = v; else delete this.store.active[def.id];
     }
     this.sel = {};
     this.applyVariant(null, null);
@@ -234,7 +235,7 @@ class StandaloneApp {
       for (const o of def.options) {
         const b = el('button', 'flt-opt' + (o === cur ? ' flt-active' : '')) as HTMLButtonElement;
         b.type = 'button'; b.textContent = o;
-        b.addEventListener('click', () => { this.store.active[def.id] = o; this.afterFilterChange(); });
+        b.addEventListener('click', () => { if (o === def.allValue) delete this.store.active[def.id]; else this.store.active[def.id] = o; this.afterFilterChange(); });
         seg.appendChild(b);
       }
       g.appendChild(seg); body.appendChild(g);
@@ -329,6 +330,14 @@ class StandaloneApp {
     this.dashboard = new Dashboard(section, host, {
       datasets: this.store.datasets,
       getActive: () => this.store.active,
+      setFilter: (id, v) => {
+        const def = this.store.filterDefs.find((d) => d.id === id);
+        if (!def) return;
+        const base = def.default ?? def.allValue ?? def.options[0];
+        if (v == null || v === def.allValue) { if (base != null && base !== def.allValue) this.store.active[id] = base; else delete this.store.active[id]; }
+        else this.store.active[id] = v;
+        this.afterFilterChange();
+      },
       getFilterDefs: () => this.store.filterDefs,
       layout: this.store.layoutFor(section.id),
       outlierToggle: false,

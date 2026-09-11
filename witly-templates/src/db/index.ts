@@ -28,7 +28,7 @@ export interface Version {
 }
 
 export interface Activity {
-  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao' | 'sugestao';
+  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao' | 'sugestao' | 'feedback';
   slug: string; version_number: number | null; cliente: string | null; pergunta_id: string | null;
   dados_json: string; avaliacao: number | null; descartado: number; motivo: string | null;
   editor_nota: number | null; editor_comentario: string | null; virou_exemplo: number; virou_regra: number;
@@ -415,8 +415,8 @@ export async function countActivity(db: D1Database, org_id: string, f: ActivityF
   const { sql, bind } = activityWhere(org_id, f);
   const r = await db.prepare(
     `SELECT COUNT(*) AS total,
-            SUM(evento IN ('aprofundamento', 'sugestao') AND veredito IS NULL) AS sem_veredito,
-            MIN(CASE WHEN evento IN ('aprofundamento', 'sugestao') AND veredito IS NULL THEN at END) AS mais_antiga_sem_veredito
+            SUM(evento IN ('aprofundamento', 'sugestao', 'feedback') AND veredito IS NULL) AS sem_veredito,
+            MIN(CASE WHEN evento IN ('aprofundamento', 'sugestao', 'feedback') AND veredito IS NULL THEN at END) AS mais_antiga_sem_veredito
        FROM activity WHERE ${sql}`,
   ).bind(...bind).first<{ total: number; sem_veredito: number | null; mais_antiga_sem_veredito: string | null }>();
   return { total: r?.total ?? 0, sem_veredito: r?.sem_veredito ?? 0, mais_antiga_sem_veredito: r?.mais_antiga_sem_veredito ?? null };
@@ -471,7 +471,7 @@ export async function catalogStats(db: D1Database, org_id: string, desde30: stri
   return { publicados: r?.publicados ?? 0, rascunhos: r?.rascunhos ?? 0, ultima_publicacao: r?.ultima_publicacao ?? null, sem_uso_30d: r?.sem_uso_30d ?? 0 };
 }
 
-export interface HealthRow { slug: string; name: string; published_semver: string | null; published_number: number | null; geracoes: number; aprofundamentos: number; descartados: number; sem_veredito: number; nota_media: number | null }
+export interface HealthRow { slug: string; name: string; published_semver: string | null; published_number: number | null; geracoes: number; aprofundamentos: number; descartados: number; sem_veredito: number; nota_media: number | null; feedbacks: number; nota_feedback: number | null }
 
 /** Saúde por template: descarte alto e pergunta repetida são o mesmo sintoma. */
 export async function healthStats(db: D1Database, org_id: string): Promise<HealthRow[]> {
@@ -480,8 +480,10 @@ export async function healthStats(db: D1Database, org_id: string): Promise<Healt
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos,
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'aprofundamento' AND a.descartado = 1) AS descartados,
-            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento IN ('aprofundamento', 'sugestao') AND a.veredito IS NULL) AS sem_veredito,
-            (SELECT AVG(r.nota) FROM template_ratings r WHERE r.slug = t.slug AND r.org_id = t.org_id) AS nota_media
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento IN ('aprofundamento', 'sugestao', 'feedback') AND a.veredito IS NULL) AS sem_veredito,
+            (SELECT AVG(r.nota) FROM template_ratings r WHERE r.slug = t.slug AND r.org_id = t.org_id) AS nota_media,
+            (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'feedback') AS feedbacks,
+            (SELECT AVG(json_extract(a.dados_json, '$.nota')) FROM activity a WHERE a.slug = t.slug AND a.evento = 'feedback') AS nota_feedback
        FROM templates t LEFT JOIN template_versions p ON p.id = t.published_version_id
       WHERE t.org_id = ? AND t.owner_email IS NULL AND t.kind = 'analise'
       ORDER BY descartados * 1.0 / MAX(aprofundamentos, 1) DESC, aprofundamentos DESC, t.name`,

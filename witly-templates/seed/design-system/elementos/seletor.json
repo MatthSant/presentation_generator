@@ -1,0 +1,247 @@
+{
+ "id": "seletor",
+ "grupo": "narrativa",
+ "title": "Seletor de filtro inline",
+ "desc": "O mesmo filtro do FAB, como toggle na seção; \"Todos\" volta ao início. Declare o filtro com R.filtro(id, label, todos=...).",
+ "call": "s.seletor('canal', 'Canal')",
+ "widgets": [
+  {
+   "id": "el-seletor-sel1",
+   "type": "filter-seg",
+   "filter": "canal",
+   "label": "Canal"
+  }
+ ],
+ "layout": [
+  {
+   "id": "el-seletor-sel1",
+   "type": "filter-seg",
+   "x": 0,
+   "y": 0,
+   "w": 12,
+   "h": 1
+  }
+ ],
+ "dataset": {
+  "q-dia-canal": {
+   "dims": [
+    "dia",
+    "canal"
+   ],
+   "filters": [
+    "canal"
+   ],
+   "rows": [
+    {
+     "dia": "01/08",
+     "canal": "facebook",
+     "leads": 95,
+     "invest": 830.0,
+     "respostas": 53
+    },
+    {
+     "dia": "01/08",
+     "canal": "instagram",
+     "leads": 75,
+     "invest": 490.0,
+     "respostas": 43
+    },
+    {
+     "dia": "02/08",
+     "canal": "facebook",
+     "leads": 100,
+     "invest": 860.0,
+     "respostas": 56
+    },
+    {
+     "dia": "02/08",
+     "canal": "instagram",
+     "leads": 80,
+     "invest": 520.0,
+     "respostas": 46
+    },
+    {
+     "dia": "03/08",
+     "canal": "facebook",
+     "leads": 105,
+     "invest": 890.0,
+     "respostas": 59
+    },
+    {
+     "dia": "03/08",
+     "canal": "instagram",
+     "leads": 85,
+     "invest": 550.0,
+     "respostas": 49
+    },
+    {
+     "dia": "04/08",
+     "canal": "facebook",
+     "leads": 110,
+     "invest": 920.0,
+     "respostas": 62
+    },
+    {
+     "dia": "04/08",
+     "canal": "instagram",
+     "leads": 90,
+     "invest": 580.0,
+     "respostas": 52
+    },
+    {
+     "dia": "05/08",
+     "canal": "facebook",
+     "leads": 115,
+     "invest": 950.0,
+     "respostas": 65
+    },
+    {
+     "dia": "05/08",
+     "canal": "instagram",
+     "leads": 95,
+     "invest": 610.0,
+     "respostas": 55
+    },
+    {
+     "dia": "06/08",
+     "canal": "facebook",
+     "leads": 120,
+     "invest": 980.0,
+     "respostas": 68
+    },
+    {
+     "dia": "06/08",
+     "canal": "instagram",
+     "leads": 100,
+     "invest": 640.0,
+     "respostas": 58
+    },
+    {
+     "dia": "07/08",
+     "canal": "facebook",
+     "leads": 125,
+     "invest": 1010.0,
+     "respostas": 71
+    },
+    {
+     "dia": "07/08",
+     "canal": "instagram",
+     "leads": 105,
+     "invest": 670.0,
+     "respostas": 61
+    },
+    {
+     "dia": "08/08",
+     "canal": "facebook",
+     "leads": 130,
+     "invest": 1040.0,
+     "respostas": 74
+    },
+    {
+     "dia": "08/08",
+     "canal": "instagram",
+     "leads": 110,
+     "invest": 700.0,
+     "respostas": 64
+    },
+    {
+     "dia": "09/08",
+     "canal": "facebook",
+     "leads": 135,
+     "invest": 1070.0,
+     "respostas": 77
+    },
+    {
+     "dia": "09/08",
+     "canal": "instagram",
+     "leads": 115,
+     "invest": 730.0,
+     "respostas": 67
+    },
+    {
+     "dia": "10/08",
+     "canal": "facebook",
+     "leads": 140,
+     "invest": 1100.0,
+     "respostas": 80
+    },
+    {
+     "dia": "10/08",
+     "canal": "instagram",
+     "leads": 120,
+     "invest": 760.0,
+     "respostas": 70
+    },
+    {
+     "dia": "11/08",
+     "canal": "facebook",
+     "leads": 145,
+     "invest": 1130.0,
+     "respostas": 83
+    },
+    {
+     "dia": "11/08",
+     "canal": "instagram",
+     "leads": 125,
+     "invest": 790.0,
+     "respostas": 73
+    },
+    {
+     "dia": "12/08",
+     "canal": "facebook",
+     "leads": 150,
+     "invest": 1160.0,
+     "respostas": 86
+    },
+    {
+     "dia": "12/08",
+     "canal": "instagram",
+     "leads": 130,
+     "invest": 820.0,
+     "respostas": 76
+    },
+    {
+     "dia": "13/08",
+     "canal": "facebook",
+     "leads": 155,
+     "invest": 1190.0,
+     "respostas": 89
+    },
+    {
+     "dia": "13/08",
+     "canal": "instagram",
+     "leads": 135,
+     "invest": 850.0,
+     "respostas": 79
+    },
+    {
+     "dia": "14/08",
+     "canal": "facebook",
+     "leads": 160,
+     "invest": 1220.0,
+     "respostas": 92
+    },
+    {
+     "dia": "14/08",
+     "canal": "instagram",
+     "leads": 140,
+     "invest": 880.0,
+     "respostas": 82
+    }
+   ]
+  }
+ },
+ "filters": [
+  {
+   "id": "canal",
+   "label": "Canal",
+   "options": [
+    "facebook",
+    "instagram"
+   ],
+   "allValue": "Todos",
+   "default": "Todos"
+  }
+ ],
+ "sort": 15
+}

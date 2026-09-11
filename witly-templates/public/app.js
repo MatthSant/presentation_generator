@@ -420,11 +420,11 @@
   }
 
   // ── Fase 2: atividade ──────────────────────────────────────────────────
-  const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição', sugestao: 'Sugestão' };
+  const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição', sugestao: 'Sugestão', feedback: 'Feedback de uso' };
   const VEREDITO_LABEL = { exemplo: 'exemplo', regra: 'virou regra', descarte: 'descartado', ok: 'revisado' };
   const VEREDITO_PILL = { exemplo: 'pub', regra: 'editor', descarte: 'off', ok: 'leitor' };
   const TRIAGEM = [
-    ['sem', 'sem veredito', { evento: 'aprofundamento,sugestao', veredito: 'sem' }],
+    ['sem', 'sem veredito', { evento: 'aprofundamento,sugestao,feedback', veredito: 'sem' }],
     ['tudo', 'tudo', {}],
     ['exemplos', 'exemplos', { veredito: 'exemplo' }],
     ['descartados', 'descartados', { descartado: '1' }],
@@ -484,7 +484,7 @@
     bs.onkeydown = (e) => { if (e.key === 'Enter') ir({ busca: bs.value.trim() }); };
     bs.onblur = () => { if ((bs.value.trim() || '') !== (p.get('busca') || '')) ir({ busca: bs.value.trim() }); };
     const fl = $('#fila'); if (fl) fl.onclick = async () => {
-      const fila = await api('/api/atividade?evento=aprofundamento,sugestao&veredito=sem&limit=100');
+      const fila = await api('/api/atividade?evento=aprofundamento,sugestao,feedback&veredito=sem&limit=100');
       if (!fila.length) { toast('Nada para revisar'); return; }
       location.hash = `#/atividade/${fila[fila.length - 1].id}?fila=1`;
     };
@@ -493,9 +493,13 @@
 
   /** Um item da triagem: o que foi perguntado, o que o agente respondeu e o que fazer com isso. */
   function cardAtividade(r) {
-    const triavel = r.evento === 'aprofundamento' || r.evento === 'sugestao';
+    const triavel = r.evento === 'aprofundamento' || r.evento === 'sugestao' || r.evento === 'feedback';
     const pend = triavel && !r.veredito;
-    const titulo = r.resumo.pergunta || (r.evento === 'sugestao' ? `[${TIPO_REGRA[r.resumo.tipo] || r.resumo.tipo || 'regra'}] ${r.resumo.titulo || ''}` : '') || (r.resumo.resultado && r.resumo.resultado.titulo) || EVENTO_LABEL[r.evento] || r.evento;
+    const med = r.resumo.medida || null;
+    const titulo = r.resumo.pergunta || (r.evento === 'sugestao' ? `[${TIPO_REGRA[r.resumo.tipo] || r.resumo.tipo || 'regra'}] ${r.resumo.titulo || ''}` : '')
+      || (r.evento === 'feedback' ? `Feedback de uso · nota ${r.resumo.nota ?? '—'}/5${r.resumo.custou_n ? ` · ${r.resumo.custou_n} ${r.resumo.custou_n === 1 ? 'pedido' : 'pedidos'}` : ''}` : '')
+      || (r.resumo.resultado && r.resumo.resultado.titulo) || EVENTO_LABEL[r.evento] || r.evento;
+    const corpoFb = r.evento === 'feedback' && med ? `${r.resumo.resumo_fb ? esc(r.resumo.resumo_fb) + ' — ' : ''}rodadas: ${med.apresentacao ?? 0} apresentação · ${med.filtro ?? 0} filtro · ${med.analise ?? 0} análise` : '';
     return `<div class="acard ${pend ? 'pend' : r.veredito ? 'done' : ''}">
       <div class="meta"><span class="pill ${r.evento === 'aprofundamento' ? 'editor' : 'leitor'}">${esc(EVENTO_LABEL[r.evento] || r.evento)}</span>
         <span>${esc(r.slug)} v${r.version_number ?? '?'}</span><span>· ${esc(fmtAt(r.at))} · ${esc(r.email)}${r.cliente ? ` · cliente ${esc(r.cliente)}` : ''}</span>
@@ -503,10 +507,10 @@
         ${r.descartado && r.veredito !== 'descarte' ? '<span class="pill off">descartado</span>' : ''}
         <span style="margin-left:auto;font-size:13px;color:${r.avaliacao >= 4 ? 'var(--green)' : r.avaliacao ? 'var(--amber)' : 'var(--ink-faint)'}">${r.avaliacao ?? '—'}</span></div>
       <p class="q">${esc(titulo)}</p>
-      <p class="a">${esc(r.resumo.resposta || r.resumo.corpo || r.resumo.mudanca || (r.motivo ? `motivo: ${r.motivo}` : '') || '—')}</p>
+      <p class="a">${corpoFb || esc(r.resumo.resposta || r.resumo.corpo || r.resumo.mudanca || (r.motivo ? `motivo: ${r.motivo}` : '') || '—')}</p>
       <div class="foot"><a href="#/atividade/${esc(r.id)}">${triavel ? 'Abrir revisão' : 'Ver detalhe'}</a>
         ${isEditor() && triavel ? `<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-          ${r.evento === 'sugestao' ? (r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="aceitar" data-id="${esc(r.id)}">Aceitar como entrada</button>`) : `
+          ${r.evento === 'feedback' ? (r.veredito ? '' : `<button class="btn btn-ok" data-acao="ok" data-id="${esc(r.id)}">Marcar revisado</button>`) : r.evento === 'sugestao' ? (r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="aceitar" data-id="${esc(r.id)}">Aceitar como entrada</button>`) : `
           ${r.virou_exemplo ? '' : `<button class="btn btn-ok" data-acao="exemplo" data-id="${esc(r.id)}">Virar exemplo</button>`}
           ${r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="regra" data-id="${esc(r.id)}">Virar regra</button>`}`}
           ${r.descartado ? '' : `<button class="btn btn-drop" data-acao="descarte" data-id="${esc(r.id)}">Descartar</button>`}</span>` : ''}</div></div>`;
@@ -538,7 +542,7 @@
     const d = a.dados || {};
     const naFila = params().get('fila') === '1';
     let fila = [];
-    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento,sugestao&veredito=sem&limit=100'); } catch { fila = []; } }
+    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento,sugestao,feedback&veredito=sem&limit=100'); } catch { fila = []; } }
     const ordem = [...fila].reverse();                       // mais antigo primeiro: a fila anda para frente no tempo
     const i = ordem.findIndex((x) => x.id === a.id);
     const vizinho = (passo) => (i >= 0 && ordem[i + passo] ? ordem[i + passo].id : null);
@@ -547,17 +551,29 @@
     const consultas = Array.isArray(d.consultas) && d.consultas.length
       ? `<div class="card" style="padding:0;overflow:hidden"><div style="padding:11px 14px;border-bottom:1px solid var(--line);background:var(--zebra)" class="kicker">Consultas usadas</div>
          <pre style="padding:14px;margin:0;overflow:auto;color:var(--ink-soft)">${esc(JSON.stringify(d.consultas, null, 2))}</pre></div>` : '';
-    const corpo = a.evento === 'sugestao'
+    const PRIO_PILL = { alta: 'off', media: 'draft', baixa: 'leitor' };
+    const corpo = a.evento === 'feedback'
+      ? `<div class="card"><div class="kicker">Medida do uso</div><div class="row" style="gap:18px"><span><b style="font-size:20px">${esc(d.nota ?? '—')}</b><span class="muted sm">/5 nota</span></span>
+           ${d.medida ? `<code class="sm">${d.medida.apresentacao ?? 0} apresentação · ${d.medida.filtro ?? 0} filtro · ${d.medida.analise ?? 0} análise${d.medida.total ? ` · ${d.medida.total} rodadas` : ''}</code>` : ''}</div>
+           ${d.resumo ? `<p class="sm muted" style="margin-top:8px">${esc(d.resumo)}</p>` : ''}</div>
+         ${Array.isArray(d.segurou) && d.segurou.length ? `<div class="card"><div class="kicker">O que segurou bem (manter)</div><ul class="sm" style="margin:0;padding-left:18px">${d.segurou.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+         ${Array.isArray(d.custou) && d.custou.length ? `<div class="card" style="padding:0;overflow:hidden"><div class="kicker" style="padding:11px 14px;border-bottom:1px solid var(--line);background:var(--zebra);margin:0">O que custou rodada do consultor</div>
+           <table><thead><tr><th>Prioridade</th><th>O que custou</th><th>Pedido (o que mudar no kit)</th><th></th></tr></thead><tbody>
+           ${d.custou.map((c, i) => `<tr><td><span class="pill ${PRIO_PILL[c.prioridade] || 'draft'}">${esc(c.prioridade || 'media')}</span>${c.rodadas ? `<br><code class="sm muted">${c.rodadas} rodadas</code>` : ''}</td><td class="sm">${esc(c.item || '')}</td><td class="sm">${esc(c.pedido || '')}</td>
+             <td>${isEditor() ? `<button class="btn btn-rule" data-sugerir="${i}">Virar sugestão</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}`
+      : a.evento === 'sugestao'
       ? `<div class="card"><div class="kicker">Sugestão do agente</div><p class="sm"><span class="pill ${PILL_TIPO[d.tipo] || 'pub'}">${esc(TIPO_REGRA[d.tipo] || d.tipo || 'regra')}</span></p><p style="margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(d.corpo || '—')}</p>${d.motivo ? `<p class="muted sm" style="margin-top:10px">Motivo: ${esc(d.motivo)}</p>` : ''}</div>`
       : a.evento === 'aprofundamento'
       ? `<div class="card"><div class="kicker">Resposta entregue ao consultor</div><p style="margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap;text-wrap:pretty">${esc(d.resposta || '—')}</p></div>${consultas}`
       : `<div class="card"><div class="kicker">Registro</div><pre style="white-space:pre-wrap;color:var(--ink-soft)">${esc(JSON.stringify(d, null, 2))}</pre></div>`;
 
     const sugestao = a.evento === 'sugestao';
-    const decisao = isEditor() && (a.evento === 'aprofundamento' || sugestao) ? `<div class="card"><div class="kicker">Seu veredito</div>
+    const feedback = a.evento === 'feedback';
+    const decisao = isEditor() && (a.evento === 'aprofundamento' || sugestao || feedback) ? `<div class="card"><div class="kicker">Seu veredito</div>
       ${a.veredito ? `<p class="sm"><span class="pill ${VEREDITO_PILL[a.veredito]}">${esc(VEREDITO_LABEL[a.veredito])}</span> por ${esc(a.veredito_por || '—')} em ${esc(fmtAt(a.veredito_em))}</p>` : ''}
-      ${sugestao || a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
-      ${a.virou_regra ? '' : (sugestao ? '<button class="choice rule" data-acao="aceitar"><b>Aceitar como entrada</b><span>Vira entrada no rascunho com o tipo e o título sugeridos</span></button>' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>')}
+      ${feedback ? '<button class="choice ok" data-acao="ok"><b>Marcar revisado</b><span>Os itens que valem viram sugestão (botão na tabela) e seguem para o rascunho</span></button>' : ''}
+      ${sugestao || feedback || a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
+      ${a.virou_regra || feedback ? '' : (sugestao ? '<button class="choice rule" data-acao="aceitar"><b>Aceitar como entrada</b><span>Vira entrada no rascunho com o tipo e o título sugeridos</span></button>' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>')}
       ${a.descartado ? '' : '<button class="choice drop" data-acao="descarte"><b>Descartar</b><span>Sai do kit e conta na taxa de descarte</span></button>'}
       <label>Sua nota e o motivo</label>
       <div class="scores">${[1, 2, 3, 4, 5].map((n) => `<button data-nota="${n}" class="${a.editor_nota === n ? 'on' : ''}">${n}</button>`).join('')}</div>
@@ -567,7 +583,7 @@
     app.innerHTML = `<div class="row sm" style="margin-bottom:14px"><a href="#/atividade"><code>← atividade</code></a>
       ${naFila && i >= 0 ? `<code class="muted">item ${i + 1} de ${ordem.length} sem veredito</code>
         <span style="margin-left:auto;display:flex;gap:6px"><button class="btn" id="ant" ${vizinho(-1) ? '' : 'disabled'}>anterior</button><button class="btn" id="prox" ${vizinho(1) ? '' : 'disabled'}>próximo →</button></span>` : ''}</div>
-      <h1 style="max-width:34ch">${esc(d.pergunta || d.titulo || EVENTO_LABEL[a.evento] || a.evento)}</h1>
+      <h1 style="max-width:34ch">${esc(d.pergunta || d.titulo || (a.evento === 'feedback' ? `Feedback de uso · ${a.slug}` : '') || EVENTO_LABEL[a.evento] || a.evento)}</h1>
       <div class="row sm" style="margin-bottom:22px"><span class="pill ${a.evento === 'aprofundamento' ? 'editor' : 'leitor'}">${esc(EVENTO_LABEL[a.evento] || a.evento)}</span>
         <code>${esc(a.slug)} v${a.version_number ?? '?'}</code><code class="muted">· ${esc(a.email)} · ${esc(fmtAt(a.at))}${a.cliente ? ` · cliente ${esc(a.cliente)}` : ''}</code>
         ${a.avaliacao ? `<span class="pill pub">nota da pessoa ${a.avaliacao}</span>` : ''}${a.descartado ? `<span class="pill off">descartado</span> <span class="muted">${esc(a.motivo || '')}</span>` : ''}</div>
@@ -578,6 +594,10 @@
             <a class="sm" href="#/t/${esc(a.slug)}/regras" style="font-weight:600">Ajustar ${esc(a.slug)} →</a></div></div></div>`;
 
     for (const el of app.querySelectorAll('[data-acao]')) el.onclick = async () => { const r = await acaoTriagem(el.dataset.acao, a.id); if (r) { if (naFila && vizinho(1)) vaiPara(vizinho(1)); else route(); } };
+    for (const el of app.querySelectorAll('[data-sugerir]')) el.onclick = async () => {
+      try { await api(`/api/atividade/${a.id}/sugerir`, { method: 'POST', body: { indice: Number(el.dataset.sugerir) } }); toast('Virou sugestão: está na fila de triagem'); el.textContent = 'na fila'; el.disabled = true; }
+      catch (e) { toast(e.message, true); }
+    };
     let nota = a.editor_nota;
     for (const b of app.querySelectorAll('[data-nota]')) b.onclick = () => { nota = Number(b.dataset.nota); for (const x of app.querySelectorAll('[data-nota]')) x.classList.toggle('on', x === b); };
     const sv = $('#salvar'); if (sv) sv.onclick = async () => {
@@ -599,12 +619,13 @@
     const pct = (t) => (t.aprofundamentos ? Math.round(100 * t.descartados / t.aprofundamentos) : 0);
     app.innerHTML = `<div class="row sm" style="margin-bottom:14px"><a href="#/atividade"><code>← atividade</code></a></div>
       <div class="head"><div><h1>Saúde dos templates</h1></div><a class="btn" href="#/uso">Uso por versão →</a></div><p class="muted sm" style="max-width:66ch;margin:-14px 0 22px">Descarte alto e pergunta repetida são o mesmo sintoma: o template não entrega algo que o consultor precisa. Comece pelo topo da lista.</p>
-      <div class="card"><table><thead><tr><th>Template</th><th>Ger.</th><th>Aprof.</th><th>Descarte</th><th>Sem veredito</th><th>Nota</th></tr></thead><tbody>
+      <div class="card"><table><thead><tr><th>Template</th><th>Ger.</th><th>Aprof.</th><th>Descarte</th><th>Sem veredito</th><th>Nota</th><th>Feedback</th></tr></thead><tbody>
       ${templates.map((t) => `<tr><td><a href="#/t/${esc(t.slug)}"><code>${esc(t.slug)}</code></a><br><span class="sm muted">${t.published_semver ? `v${esc(t.published_semver)}` : 'sem publicada'}</span></td>
         <td><code>${t.geracoes}</code></td><td><code>${t.aprofundamentos}</code></td>
         <td><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="bar ${pct(t) >= 50 ? 'bad' : pct(t) >= 25 ? 'mid' : ''}"><span style="width:${pct(t)}%"></span></span><code class="sm">${t.aprofundamentos ? pct(t) + '%' : '—'}</code></span></td>
         <td>${t.sem_veredito ? `<a href="#/atividade?seg=sem&slug=${esc(t.slug)}"><code>${t.sem_veredito}</code></a>` : '<code class="muted">0</code>'}</td>
-        <td><code>${t.nota_media != null ? t.nota_media.toFixed(1) : '—'}</code></td></tr>`).join('') || '<tr><td colspan="6" class="empty">Sem uso registrado.</td></tr>'}
+        <td><code>${t.nota_media != null ? t.nota_media.toFixed(1) : '—'}</code></td>
+        <td>${t.feedbacks ? `<a href="#/atividade?seg=tudo&slug=${esc(t.slug)}"><code>${t.feedbacks}× · ${t.nota_feedback != null ? Number(t.nota_feedback).toFixed(1) : '—'}</code></a>` : '<code class="muted">—</code>'}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Sem uso registrado.</td></tr>'}
       </tbody></table></div>
       <h2>Lacunas · perguntas que o template não responde sozinho</h2>
       <div class="grid">${lacunas.map((l) => `<div class="card"><div class="row sm"><code class="muted">${esc(l.slug)}</code><code class="muted" style="margin-left:auto">${l.n}× perguntada</code></div>

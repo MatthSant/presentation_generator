@@ -2,8 +2,8 @@
  "id": "grafico-linha",
  "grupo": "graficos",
  "title": "Linha no tempo",
- "desc": "Série diária; `largo=True` ocupa a linha inteira (12×6).",
- "call": "s.grafico('line', 'CPL por dia', 'q-dia', x='dia', y='cpl', fmt='money', largo=True)",
+ "desc": "Série diária; `largo=True` ocupa a linha inteira (12×6). `curva='reta'|'suave'` (sem isto: reta a partir de 50 pontos); `eixo_x`/`eixo_y` nomeiam os eixos.",
+ "call": "s.grafico('line', 'CPL por dia', 'q-dia', x='dia', y='cpl', fmt='money', largo=True, curva='reta', eixo_x='Dia', eixo_y='CPL (R$)')",
  "widgets": [
   {
    "id": "el-grafico-linha-c1",
@@ -16,6 +16,19 @@
     "y": "cpl"
    },
    "valueFormat": "money",
+   "curve": "straight",
+   "options": {
+    "xaxis": {
+     "title": {
+      "text": "Dia"
+     }
+    },
+    "yaxis": {
+     "title": {
+      "text": "CPL (R$)"
+     }
+    }
+   },
    "height": 420
   }
  ],
@@ -137,5 +150,6 @@
    ]
   }
  },
- "sort": 10
+ "filters": [],
+ "sort": 12
 }

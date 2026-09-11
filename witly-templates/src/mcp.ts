@@ -66,9 +66,9 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
     }, async ({ slug }) => this.run((u) => perguntas(this.env, u, slug)));
 
     this.server.registerTool('registrar', {
-      description: 'Registra o que você fez para o editor do template ver e melhorar o template: geracao (ao terminar o documento), aprofundamento (cada pergunta respondida, com a resposta em prosa + tabelas agregadas e, se houver, a avaliação/descarte do consultor). NUNCA inclua e-mail, telefone, CPF ou nome de lead — o registro é recusado.',
+      description: 'Registra o que você fez para o editor do template ver e melhorar o template: geracao (ao terminar o documento), aprofundamento (cada pergunta respondida, com a resposta em prosa + tabelas agregadas e, se houver, a avaliação/descarte do consultor) e feedback (AO FECHAR o trabalho com o consultor: o que segurou, o que custou rodada com prioridade e pedido, a medida de rodadas por tipo e a nota 1–5 — é assim que o kit aprende). NUNCA inclua e-mail, telefone, CPF ou nome de lead — o registro é recusado.',
       inputSchema: {
-        evento: z.enum(['geracao', 'aprofundamento']),
+        evento: z.enum(['geracao', 'aprofundamento', 'feedback']),
         slug: z.string(),
         versao: z.number().int().optional(),
         cliente: z.string().optional().describe('slug do cliente (não nome de pessoa)'),
@@ -81,6 +81,11 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
         avaliacao: z.number().int().min(1).max(5).optional(),
         descartado: z.boolean().optional(),
         motivo: z.string().optional(),
+        segurou: z.array(z.string()).optional().describe('feedback: o que funcionou e deve ficar'),
+        custou: z.array(z.object({ item: z.string().describe('o que custou rodada do consultor'), prioridade: z.enum(['alta', 'media', 'baixa']).optional(), pedido: z.string().describe('o que mudar no kit, escrito como regra'), rodadas: z.number().int().optional() })).optional().describe('feedback: cada ajuste que custou rodada'),
+        medida: z.object({ apresentacao: z.number().int().optional(), filtro: z.number().int().optional(), analise: z.number().int().optional(), total: z.number().int().optional() }).optional().describe('feedback: rodadas por tipo — a régua "bom de dado, caro de aparência"'),
+        nota: z.number().int().min(1).max(5).optional().describe('feedback: nota do kit neste uso'),
+        resumo: z.string().optional().describe('feedback: uma linha (o que era, quantas páginas, quantas rodadas)'),
       },
     }, async (input) => this.run((u) => registrar(this.env, u, input)));
 
