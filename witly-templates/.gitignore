@@ -27,4 +27,5 @@ seed/*/perguntas.md
 seed/*/design-system.md
 seed/*/python/gerar.py
 seed/*/python/aprofundar.py
+seed/*/python/relatorio.py
 seed/*/python/conv_calc.py

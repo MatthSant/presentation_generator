@@ -1,14 +1,14 @@
 # Estrutura: páginas, seções e o que cada bloco responde
 
-**Saída:** `relatorio/paginas.json` e o esqueleto das seções (títulos e blocos) combinados **antes** de calcular. **Confirmar com o consultor.**
+**Saída:** o esqueleto do `build.py` — páginas, seções e o que cada bloco responde — combinado **antes** de calcular. **Confirmar com o consultor.**
 
 ## Definição
-O documento segue o padrão dos templates: resposta primeiro, comparação, implicação, ação. Uma seção por sub-pergunta; uma página quando cabe numa tela, várias quando há sub-perguntas independentes. O esqueleto define quais tabelas o `calc_livre.py` precisa gerar.
+O documento tem a cara do debriefing/acompanhamento (abra `exemplos/debriefing.html`): **Panorama** (metas, indicadores, no tempo) → **a página da pergunta** (resposta, comparação, achados) → **One Pager** (KPIs, funil, alavancas, ações). Uma página só quando a pergunta cabe numa tela. O esqueleto define quais tabelas o `calc_livre.py` precisa gerar.
 
 ## Como executar
-1. Liste as sub-perguntas (2 a 5). Cada uma vira uma seção `sNN` com título em forma de pergunta ou de afirmação.
-2. Para cada seção, decida os blocos: highlight (resposta) → KPIs (2 a 4) → um gráfico ou uma tabela → implicação → ações (só se pedido).
-3. Derive as tabelas: cada gráfico/tabela/KPI aponta uma tabela do `dataset.json` (nome, dimensões, colunas). Essa lista é o contrato do `calc_livre.py`.
+1. Liste as sub-perguntas (2 a 5). Cada uma vira uma seção (`p.secao(...)`) com título em forma de pergunta ou de afirmação; a principal ganha a própria página.
+2. Para cada seção, decida as zonas com os builders: `eyebrow` → `kpi`/`banda` (com meta se o consultor deu) → `grafico`/`tabela` → `evolucao`/`funil` → `achado` → `acao` (só se pedido).
+3. Derive as tabelas: cada `grafico`, `tabela` e `kpi` aponta uma tabela (nome, dimensões, colunas). Essa lista é o contrato do `calc_livre.py`.
 4. Mostre o esqueleto ao consultor (títulos + blocos + tabelas) e ajuste antes de calcular.
 
 ## Casos ambíguos

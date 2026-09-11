@@ -25,92 +25,44 @@
     {
       "id": "estrutura",
       "objetivo": "Combinar páginas/seções do documento e o que cada bloco responde, antes de calcular",
-      "saida": "relatorio/paginas.json + esqueleto das seções",
+      "saida": "esqueleto do build.py: páginas e seções (Panorama + a pergunta + One Pager) e o que cada bloco responde",
       "confirmar": true
     }
   ],
   "config": {
-    "descricao": "Não há config.json de motor. O relatório é a pasta relatorio/ que você monta: meta.json, dataset.json (tabelas com os números), sNN.json (seções) e paginas.json.",
+    "descricao": "Não há config.json de motor. A análise é dois scripts Python: calc_livre.py (o número nasce aqui, em tabelas) e build.py (compõe o relatório com relatorio.py no design system dos templates). Copie python/exemplo/ e troque a pergunta.",
     "exemplo": {
-      "meta.json": {
-        "client": "cliente-slug",
-        "client_name": "Nome do Cliente",
-        "title": "Nome do Cliente · Pergunta X",
-        "pergunta": "…",
-        "decisao": "…"
-      },
-      "paginas.json": [
-        {
-          "id": "panorama",
-          "label": "Panorama",
-          "sections": [
-            {
-              "id": "s01",
-              "label": "Resposta"
-            }
-          ]
-        }
-      ],
-      "dataset.json": {
-        "q-cpl-canal": {
-          "dims": [
-            "canal"
-          ],
-          "filters": [],
-          "rows": [
-            {
-              "canal": "facebook",
-              "leads": 120,
-              "invest": 900,
-              "cpl": 7.5
-            }
-          ]
-        }
-      },
-      "s01.json": {
-        "id": "s01",
-        "header": {
-          "badge": "Panorama",
-          "title": "…"
-        },
-        "widgets": [
-          {
-            "id": "hl",
-            "type": "highlight",
-            "text": "…"
-          },
-          {
-            "id": "c1",
-            "type": "chart",
-            "chartType": "bar",
-            "title": "CPL por canal",
-            "bind": {
-              "dataset": "q-cpl-canal",
-              "x": "canal",
-              "y": "cpl"
-            }
-          }
-        ]
-      }
+      "python/exemplo/calc_livre.py": "lê o CSV agregado → tabelas {dims, rows}",
+      "python/exemplo/build.py": "páginas → seções → eyebrow/kpi/grafico/tabela/funil/achado/acao → R.gravar(saida/)"
     }
   },
   "como_gerar": [
-    "1. Execute as tarefas (objetivo, dados, estrutura) com o consultor. Leia design-system.md e os contextos gerais ANTES de calcular.",
-    "2. Escreva python/calc_livre.py (só stdlib) que lê o CSV e grava relatorio/dataset.json: toda tabela com os números que o documento vai mostrar. O modelo não digita número: número nasce nesse script.",
-    "3. Escreva relatorio/meta.json, relatorio/paginas.json e as seções relatorio/sNN.json no contrato do design system (widgets com bind para as tabelas; prosa só com números que estão nas tabelas).",
-    "4. python python/montar.py --relatorio relatorio/ --out saida/  → valida (tipos de widget, binds, número solto na prosa) e gera saida/relatorio.html. Erro = corrija e rode de novo; nada é gravado com erro.",
+    "1. Execute as tarefas (objetivo, dados, estrutura) com o consultor. Abra exemplo/relatorio.html e exemplos/debriefing.html: é ASSIM que o relatório tem de ficar.",
+    "2. Copie python/exemplo/ para python/minha-analise/. Reescreva calc_livre.py (só stdlib): lê o CSV agregado e devolve as TABELAS com os números (colunas numéricas cruas; linha Geral por soma). O modelo não digita número.",
+    "3. Reescreva build.py com relatorio.py: R = Relatorio(...); R.tabela(...) para cada tabela; R.pagina(...).secao(...) e, dentro, eyebrow → kpi/banda (com meta se o consultor deu) → grafico/tabela (bind) → evolucao → funil → achado → acao. Panorama + a pergunta + One Pager é o esqueleto padrão.",
+    "4. python python/minha-analise/build.py --csv dump.csv --out saida/  → valida (widget, bind, número solto na prosa) e gera saida/relatorio.html com sidebar. Erro = corrija e rode de novo; nada é gravado com erro.",
     "5. Aprofundamento depois de gerado: python python/aprofundar.py --out saida --secao det.json --tabela q.json (mesmo fluxo dos templates).",
-    "6. Ao terminar: registrar(evento='geracao', slug='analise-livre', …). Se a análise vale repetir, salve como template pessoal (salvar_template) com o calc_livre.py, as queries e as seções."
+    "6. Ao terminar: registrar(evento='geracao', slug='analise-livre', …). Se a análise vale repetir, salve como template pessoal (salvar_template) com calc_livre.py, build.py, as queries e as regras."
   ],
   "arquivos": {
-    "python/montar.py": "valida a pasta relatorio/ e gera as 4 camadas + relatorio.html (viewer offline)",
+    "python/relatorio.py": "o builder do relatório (mesmo esqueleto do debriefing/acompanhamento): páginas, seções, eyebrow, kpi, banda, comparativo, grafico, tabela, evolucao, funil, barras, achado, acao; valida e gera o HTML",
+    "python/exemplo/calc_livre.py": "exemplo do cálculo: CSV agregado → tabelas (só stdlib)",
+    "python/exemplo/build.py": "exemplo da composição: 3 páginas (Panorama, a pergunta, One Pager)",
+    "python/exemplo/make_fixture_csv.py": "dado sintético para ver o exemplo rodar (--fixture)",
+    "python/montar.py": "caminho alternativo: pasta relatorio/ com JSON das seções (quando não se quer escrever o build.py)",
     "python/aprofundar.py": "aprofundamento no design system + regera o HTML",
-    "python/common/": "layout (Grid) e formatação",
-    "python/tests/": "exemplo mínimo de relatorio/ + testes do montar.py",
+    "python/common/": "grade de 12 colunas, formatadores pt-BR e builders de card (os mesmos dos motores)",
+    "python/tests/": "testes do builder e do montar.py sobre dado sintético",
     "viewer/": "viewer offline",
-    "documento.md": "como montar a pasta relatorio/ (meta, páginas, dataset, seções) e o que cada widget espera",
-    "guia.md": "as regras da análise livre: número no Python, PII, benchmark, comunicação, como ler",
+    "exemplo/relatorio.html": "o exemplo desta análise, pronto: abra antes de compor",
+    "exemplos/debriefing.html · exemplos/acompanhamento-diario.html": "os relatórios dos templates, como referência do design system",
+    "documento.md": "o contrato do documento: páginas, zonas, o que cada builder produz e a grade",
+    "guia.md": "as regras da análise livre: número no Python, PII, benchmark, comunicação",
     "regras.md": "as regras desta análise, uma por entrada (o título é a regra); geradas da plataforma",
-    "design-system.md": "contrato dos widgets (documento da plataforma; entra em todo kit)"
-  }
+    "design-system.md": "catálogo dos widgets e contrato dos aprofundamentos (documento da plataforma; entra em todo kit)"
+  },
+  "exemplos_de": [
+    "debriefing",
+    "acompanhamento-diario"
+  ]
 }

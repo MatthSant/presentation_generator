@@ -2,4 +2,4 @@
 
 Tipo: regra
 
-Prosa cita só valores que estão numa tabela. O montar.py recusa número solto no texto.
+O card recebe NÚMERO e o builder formata (texto como valor é recusado). Prosa cita só valores que estão numa tabela ou num card; o `build.py` não grava com número solto.

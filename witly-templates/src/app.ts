@@ -6,7 +6,7 @@ import { google } from './auth/google.js';
 import { api } from './api.js';
 import { getPublishedKit, platformKitFiles } from './db/index.js';
 import { signingKey, verifyDownload } from './kit/sign.js';
-import { buildKitZip, loadViewer } from './kit/zip.js';
+import { buildKitZip, loadViewer, renderExampleHtml } from './kit/zip.js';
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -26,7 +26,8 @@ app.get('/dl/:slug/:n', async (c) => {
   if (!(await verifyDownload(signingKey(c.env), slug, n, c.req.query('t')))) return c.text('link inválido ou expirado', 403);
   const kit = await getPublishedKit(c.env.DB, slug);
   if (!kit || kit.version.number !== n) return c.text('versão não publicada', 404);
-  const zip = buildKitZip(kit, await loadViewer(c.env.ASSETS), await platformKitFiles(c.env.DB, c.env.ORG_ID));
+  const viewer = await loadViewer(c.env.ASSETS);
+  const zip = buildKitZip(kit, viewer, await platformKitFiles(c.env.DB, c.env.ORG_ID), await exemplosDeOutros(c.env.DB, kit, viewer));
   return new Response(zip as unknown as BodyInit, {
     headers: {
       'content-type': 'application/zip',
@@ -37,3 +38,17 @@ app.get('/dl/:slug/:n', async (c) => {
 });
 
 app.notFound((c) => c.text('Não encontrado', 404));
+
+/** `exemplos_de` no manifesto: os relatórios de exemplo de outros templates entram no zip como
+ *  exemplos/<slug>.html — referência visual do design system (análise livre usa debriefing e acompanhamento). */
+async function exemplosDeOutros(db: D1Database, kit: Awaited<ReturnType<typeof getPublishedKit>>, viewer: Awaited<ReturnType<typeof loadViewer>>): Promise<Array<{ slug: string; html: string }>> {
+  let slugs: string[] = [];
+  try { const m = JSON.parse(kit!.version.manifest_json) as { exemplos_de?: unknown }; if (Array.isArray(m.exemplos_de)) slugs = m.exemplos_de.filter((x): x is string => typeof x === 'string'); } catch { /* sem manifesto */ }
+  const out: Array<{ slug: string; html: string }> = [];
+  for (const slug of slugs.slice(0, 4)) {
+    const outro = await getPublishedKit(db, slug);
+    const html = outro ? renderExampleHtml(outro, viewer) : null;
+    if (html) out.push({ slug, html });
+  }
+  return out;
+}

@@ -51,11 +51,27 @@ def _slug(s):
     return s[:40] or 'aprofundamento'
 
 
+def _norm_num(s):
+    """"R$ 1.536,50" → 1536.50 · "53.6%" → 53.6 · "1.536" → 1536 · "5,36" → 5.36.
+    Ponto é milhar quando há vírgula ou quando fecha um grupo de 3 dígitos; senão é decimal
+    (os formatadores do kit escrevem percentuais com ponto: pctf → "53.6%")."""
+    s = re.sub(r'[^\d.,]', '', s)
+    if ',' in s and '.' in s:
+        return s.replace('.', '').replace(',', '.')
+    if ',' in s:
+        return s.replace(',', '.')
+    if '.' in s:
+        head, tail = s.rsplit('.', 1)
+        if head and len(tail) == 3:
+            return s.replace('.', '')
+    return s
+
+
 def _numbers_in(text):
     """Números 'de dado' na prosa: com vírgula/ponto decimal, %, R$ ou ≥ 3 dígitos."""
     out = set()
     for m in re.finditer(r'R\$\s?[\d.]+,?\d*|\d+[.,]\d+\s?%?|\d{3,}', text or ''):
-        out.add(re.sub(r'[^\d,]', '', m.group(0)).replace(',', '.'))
+        out.add(_norm_num(m.group(0)))
     return {x for x in out if x and x not in ('2024', '2025', '2026', '2027')}
 
 
