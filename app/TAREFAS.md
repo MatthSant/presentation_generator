@@ -80,6 +80,24 @@ Achados da revisão completa pré-Fase 2:
 
 ## Próximos passos (priorizar quando abrir espaço)
 
+- [ ] **Filtros interativos no HTML exportado (acompanhamento)** — o usuário quer os filtros
+      (Data, Tipo de canal, temperatura) vivos no HTML que vai pro cliente. **Aguarda decisão
+      dele (está pensando).** Achados da investigação:
+      - Os filtros do acompanhamento **recalculam no servidor** (`render_view.py`: `dia`,
+        `origem` Pago/Orgânico, `utm_*`) — ≠ do toggle de canal da conversão-perfil, que é
+        client-side. Por isso o export do acompanhamento hoje **não tem toggle** (o mecanismo
+        de variantes do `exportHtml` só cobre filtro client-side).
+      - **Temperatura NÃO é filtro** no acompanhamento (só dimensão). Pra virar filtro:
+        adicionar ao `render_view` + `meta.controls.filters` primeiro.
+      - **Data é `range`** (alta cardinalidade) → pré-renderizar toda combinação é inviável
+        (explode o tamanho). Só via recompute client-side.
+      - **Opções:** (A) portar o motor `calc.py` do acompanhamento pra JS e recalcular no
+        browser — tamanho fica ok (dados embutidos 1×), mas é ~1000 linhas + manter em sync
+        com o Python + expõe regra de negócio; (B) pré-renderizar só os **bounded** (Tipo de
+        canal, 2–3 estados) chamando `/render` por variante no export — modesto (acomp é ~1
+        seção), mas canal×temp multiplica; (C) deixar o HTML como snapshot (atual).
+      - Tamanho: o pesado (ApexCharts ~500 KB + fontes ~220 KB) entra **1×**; o que multiplica
+        é o conteúdo das seções + chart defs (JSON pequeno).
 - [ ] **CSV de apoio no aprofundamento** — o usuário anexa um CSV auxiliar ao pedir um
       detalhamento (ex.: dados que a base não tem) e a IA usa esse dado para enriquecer a
       resposta. Toca: upload na UI de perguntas/deepen → reter junto à base (`.base/`, como

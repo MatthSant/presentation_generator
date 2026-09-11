@@ -1,6 +1,6 @@
 """calc — motor do "acompanhamento de lançamento" (tático diário, stdlib pura).
 
-Uma linha do CSV (view VW_V2_inscricoes_res_METRICAS) = utm_source × campanha ×
+Uma linha do CSV (view VW_V2_inscricoes_res; pago: VW_V2_inscricoes_pago_res) = utm_source × campanha ×
 conteúdo × anúncio × dia, de UM lançamento (`field_conversion`). Pago = invest_total>0.
 
 Eixo = dia da campanha (1 = primeiro dia com leads). Calcula séries diárias, KPIs
@@ -12,6 +12,7 @@ import csv
 import re
 import os
 import sys
+import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pysrc/ → common
 from common import temp as temp_util
 
@@ -22,7 +23,7 @@ KPI_TRAF = ['cpm', 'hook', 'hold', 'ctr', 'connect', 'conv_pag']
 LABELS = {
     'investimento': 'Investimento', 'cpl': 'CPL', 'cpmql': 'CPMQL',
     'taxa_resp': 'Taxa de Resposta', 'taxa_qual': 'Taxa de Qualidade', 'conv_pag': 'Conv. de Página',
-    'cpm': 'CPM', 'hook': 'Hook Rate', 'hold': 'Hold Rate', 'ctr': 'CTR (Link)', 'connect': 'Connect Rate',
+    'cpm': 'CPM', 'hook': 'Taxa de gancho', 'hold': 'Retenção', 'ctr': 'CTR (Link)', 'connect': 'Connect Rate',
     'leads': 'Leads',
     # ── PAGO: o lead COMPROU o ingresso, então o vocabulário muda na interface
     # inteira (lead → ingresso, CPL → custo por ingresso). Ver spec.
@@ -51,7 +52,7 @@ KPI_MACRO_PAGO = ['exposicao', 'custo_ing_pago', 'roas_geral', 'taxa_bump', 'tax
 KPI_INTER_PAGO = ['receita_ing', 'receita_bump', 'ticket_medio',
                   'bumps', 'taxa_bump', 'taxa_qual']
 FUNNEL_STAGES = [('imp', 'Impressões'), ('clicks', 'Cliques no Link'), ('pageviews', 'Pageviews'),
-                 ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls', 'MQLs')]
+                 ('leads', 'Leads'), ('respostas_pond', 'Respostas Pesq.'), ('mqls_pond_cl', 'MQLs')]
 # PAGO: a etapa de leads vira INGRESSOS e o funil BIFURCA no fim — saiu a pesquisa,
 # entrou o order bump. As duas pontas medem coisas distintas do mesmo ingresso:
 # MQLs = qualidade da base · Order Bumps = receita incremental já no caixa.
@@ -152,6 +153,26 @@ def _day_label(iso):
     return f'{m.group(3)}/{m.group(2)}' if m else (iso or '')
 
 
+def _iso(s):
+    """Aceita só data ISO (YYYY-MM-DD). Qualquer outro formato (ex.: BR 04/08/2026)
+    vira '' — não corrompe comparação de data nem quebra a curva de meta."""
+    s = (s or '').strip()
+    return s[:10] if re.match(r'\d{4}-\d{2}-\d{2}', s) else ''
+
+
+def _days_between(a, b):
+    """Dias de a até b (ISO); 0 se inválido ou b <= a."""
+    a, b = _iso(a), _iso(b)
+    if not (a and b):
+        return 0
+    try:
+        ya, ma, da = map(int, a.split('-'))
+        yb, mb, db = map(int, b.split('-'))
+        return max(0, (datetime.date(yb, mb, db) - datetime.date(ya, ma, da)).days)
+    except Exception:
+        return 0
+
+
 def is_paid(r):
     return fnum(r.get('invest_total')) > 0
 
@@ -223,7 +244,8 @@ def campaign_name(r):
 
 # Campos brutos somados num recorte (dia, total, últimos 3 dias, temperatura…).
 _RAW = ['leads', 'leads_pago', 'invest', 'imp', 'clicks', 'pageviews', 'leads_traf',
-        'mqls', 'respostas', 'novos', 'antigos', 'cli', 'vendas', 'fat', 'views_tot', 'views_50',
+        'mqls', 'respostas', 'mqls_pago', 'respostas_pago', 'novos', 'antigos', 'cli', 'vendas', 'fat',
+        'views_2s', 'views_50', 'views_75', 'views_100', 'views_tot', 'vplays',
         # ── lançamento PAGO: ingresso (_gen) + order bump (_bump) ──────────────
         # Só `_gen` e `_bump` são captação. `_sale`/`_presale`/`_upsell` são da etapa
         # de VENDAS e ficam fora deste relatório de propósito.
@@ -233,7 +255,8 @@ _SRC = {'leads': 'leads', 'invest': 'invest_total', 'imp': 'impressoes', 'clicks
         'pageviews': 'pageviews', 'leads_traf': 'leads_trafego', 'mqls': 'leads_mqls',
         'respostas': 'respostas', 'novos': 'leads_novo', 'antigos': 'leads_antigos',
         'cli': 'cliente_inscrito', 'vendas': 'vendas', 'fat': 'faturamento',
-        'views_tot': 'views_totais', 'views_50': 'views_50pc',
+        'views_2s': 'views_2s', 'views_50': 'views_50pc', 'views_75': 'views_75pc',
+        'views_100': 'views_100pc', 'views_tot': 'views_totais', 'vplays': 'video_play_actions',
         'ing': 'vendas_gen', 'fat_gen': 'faturamento_gen', 'bumps': 'vendas_bump',
         'fat_bump': 'faturamento_bump', 'refund_gen': 'refunded_value_gen',
         'refund_bump': 'refunded_value_bump', 'stax_gen': 'sales_tax_gen',
@@ -270,6 +293,12 @@ def _sum(rows):
         s['ptax'] += _ptax(r)
         if paid:
             s['leads_pago'] += fnum(r.get('leads'))
+            # Qualidade DO TRÁFEGO PAGO (respostas/MQLs só das linhas com investimento):
+            # o CPMQL projeta o custo por MQL a partir do CPL, que é do lead PAGO — então
+            # a taxa de qualificação tem que ser a do pago, não a da base (que mistura o
+            # orgânico, tipicamente mais qualificado, e subestima o custo).
+            s['respostas_pago'] += fnum(r.get('respostas'))
+            s['mqls_pago'] += fnum(r.get('leads_mqls'))
             # recortes PAGOS do lançamento pago: o ROAS/retorno "do tráfego pago" só
             # conta a receita de linhas com investimento (ver spec).
             s['ing_pago'] += fnum(r.get('vendas_gen'))
@@ -304,7 +333,8 @@ def derive(s, pago=False):
     `pago=True` (lançamento pago) acrescenta a camada de caixa e troca a base da taxa
     de resposta: no pago o denominador é o INGRESSO vendido (vendas_gen), não `leads`."""
     cpl = div(s['invest'], s['leads_pago'])
-    tq = pct(s['mqls'], s['respostas'])
+    tq = pct(s['mqls'], s['respostas'])                 # qualidade da base (KPI Taxa de Qualidade)
+    tq_pago = pct(s['mqls_pago'], s['respostas_pago'])  # qualidade do tráfego pago (base do CPMQL)
     receita = s['fat_gen'] + s['fat_bump']
     extra_pago = {
         'ingressos': round(s['ing']),
@@ -339,15 +369,16 @@ def derive(s, pago=False):
         'leads': round(s['leads']),
         'investimento': round(s['invest'], 2),
         'cpl': cpl,
-        'cpmql': (round(cpl * 100 / tq, 4) if (cpl is not None and tq) else None),
+        'cpmql': (round(cpl * 100 / tq_pago, 4) if (cpl is not None and tq_pago) else None),
         # No PAGO a base da taxa de resposta é o INGRESSO vendido; no clássico, o lead.
         'taxa_resp': pct(s['respostas'], s['ing'] if pago else s['leads']),
         'taxa_qual': tq,
         'cpm': div(s['invest'] * 1000, s['imp']),
         'ctr': pct(s['clicks'], s['imp']),
-        # sem dados de vídeo (views) → hook/hold ficam None (blocos omitidos no build)
+        # Taxa de gancho = views_totais ÷ impressões · Retenção = views_75% ÷ views_totais.
+        # Sem views_totais (base sem vídeo) → None (blocos de vídeo omitidos).
         'hook': pct(s['views_tot'], s['imp']) if s['views_tot'] else None,
-        'hold': pct(s['views_50'], s['views_tot']),
+        'hold': pct(s['views_75'], s['views_tot']) if s['views_tot'] else None,
         # sem pageviews → connect fica None e a conv. de página vira leads/clicks
         # (≡ connect × conv_página); com pageviews, conv_página = leads/pageviews
         'connect': pct(s['pageviews'], s['clicks']) if s['pageviews'] else None,
@@ -378,8 +409,10 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False, pago=Fa
     [{key, m:{métrica:valor}}] com os KPIs derivados por grupo.
 
     dim ∈ dia | temperatura | canal | origem. `filtro` (opcional) restringe as linhas
-    ANTES de agrupar — {origem, temperatura, canal} — habilitando cruzamentos como
-    'CPL por dia SÓ do tráfego Quente' (dim='dia', filtro={'temperatura':'Quente'}).
+    ANTES de agrupar — {origem, temperatura, canal, criativo, publico, campanha, dia} —
+    habilitando cruzamentos como 'CPL por dia SÓ do tráfego Quente'
+    (dim='dia', filtro={'temperatura':'Quente'}) ou 'leads por CANAL num dia específico'
+    (dim='canal', filtro={'dia':'10/08'}) — sem estimar por proporção do período.
     `incluir_geral` (só p/ partição: temperatura/canal/origem) acrescenta a linha
     'Geral' com o valor GLOBAL CORRETO — derive(_sum(tudo)): soma p/ contagens,
     RECÁLCULO PONDERADO (num÷den) p/ taxas — em vez de a IA somar os grupos."""
@@ -398,6 +431,8 @@ def frame_rows(rows, dim, filtro=None, trules=None, incluir_geral=False, pago=Fa
         if f.get('publico') and adset_name(r) != f['publico']:
             return False
         if f.get('campanha') and campaign_name(r) != f['campanha']:
+            return False
+        if f.get('dia') and _day_label(_date(r)) != f['dia'] and _date(r) != f['dia']:
             return False
         return True
 
@@ -502,7 +537,10 @@ def trend(series, cost=False):
 def meta_status(val, meta, cost=False):
     if meta is None or val is None or meta == 0:
         return None
-    dev = (val - meta) / meta * 100
+    # Denominador é |meta|: quando a meta é NEGATIVA (ex.: exposição de caixa com meta
+    # -60k = tolera-se ficar até 60k no vermelho), dividir pela meta com sinal invertia o
+    # desvio — um caixa POSITIVO (ótimo, acima do piso) virava "furo" e caía nos riscos.
+    dev = (val - meta) / abs(meta) * 100
     # "gap" = quanto está pior que a meta (abaixo p/ KPI normal, acima p/ custo).
     # gap <= 0: bateu/superou → ok (verde). 0–5%: tolerado, mas não bateu → neutral
     # (cinza). 5–15%: warn. >15%: bad. Alerta só a partir de 5%.
@@ -513,14 +551,21 @@ def meta_status(val, meta, cost=False):
 
 # ── metas (launch_goals opcional ou manual via config) ───────────────────────
 
-def load_goals(path, field_conversion, corte):
+def load_goals(path, field_conversion, corte, canais=None):
     """Lê launch_goals (1 linha por utm_source por dia) → dict de metas agregadas.
-    Total = soma; to-date = soma ≤ corte; KPIs = valor do último dia ≤ corte."""
+    Total = soma; to-date = soma ≤ corte; KPIs = valor do último dia ≤ corte.
+
+    `canais` (opcional): quando o relatório está FILTRADO (render_view), restringe as
+    metas aos utm_source em escopo — assim a meta de captação/ingresso (e a curva do pace)
+    acompanha o filtro em vez de ficar no total da campanha. None = campanha inteira."""
     try:
         rows = load_rows(path)
     except Exception:
         return {}
     rows = [r for r in rows if not field_conversion or r.get('field_conversion') == field_conversion]
+    if canais is not None:
+        _cset = set(canais)
+        rows = [r for r in rows if norm_source(r.get('utm_source')) in _cset]
 
     def dk(r):
         return str(r.get('data', '')).strip()[:10]
@@ -541,7 +586,15 @@ def load_goals(path, field_conversion, corte):
         v = fnum(r.get('meta_leads'))
         if v:
             por_canal[s] = por_canal.get(s, 0.0) + v
+    # Curva REAL de meta por dia (soma dos utm por data). É ela que desenha a linha de
+    # meta acumulada quando há launch_goals — o crescimento NÃO é necessariamente constante.
+    curve = {}
+    for r in rows:
+        v = fnum(r.get('meta_leads'))
+        if v:
+            curve[dk(r)] = curve.get(dk(r), 0.0) + v
     return {
+        'curve': curve or None,
         'leads_total': sum(fnum(r.get('meta_leads')) for r in rows) or None,
         'leads_td': sum(fnum(r.get('meta_leads')) for r in td) or None,
         'invest_total': sum(fnum(r.get('meta_valor_invest')) for r in rows) or None,
@@ -554,9 +607,23 @@ def load_goals(path, field_conversion, corte):
     }
 
 
+def goals_start(path, field_conversion):
+    """1ª data da curva de meta = início OFICIAL da campanha. O dump costuma trazer
+    leads pré-lançamento (captação antecipada); sem esta âncora o relatório começaria
+    no 1º lead, não no 1º dia de campanha, e a linha de meta apareceria dias antes."""
+    try:
+        rows = load_rows(path)
+    except Exception:
+        return ''
+    ds = [str(r.get('data', '')).strip()[:10] for r in rows
+          if (not field_conversion or r.get('field_conversion') == field_conversion)
+          and fnum(r.get('meta_leads')) > 0]
+    return min(ds) if ds else ''
+
+
 # ── build principal ──────────────────────────────────────────────────────────
 
-def build(rows, config=None):
+def build(rows, config=None, goal_canais=None):
     config = config or {}
     # Antes de qualquer leitura: reconcilia a família `_traf` com a canônica. Feito
     # aqui e não em cada acesso porque calc, render_view e query_api entram todos por
@@ -585,10 +652,14 @@ def build(rows, config=None):
 
     all_dates = sorted({_date(r) for r in rows if _date(r)})
     corte = config.get('data_corte') or (all_dates[-1] if all_dates else '')
+    # INÍCIO da campanha: `data_inicio` explícito, senão a 1ª data da curva de meta (a meta
+    # define a janela). Datas do dump ANTES disso são pré-lançamento (captação antecipada)
+    # e ficam fora do relatório — senão o eixo/linha de meta começaria dias antes.
+    camp_start = _iso(config.get('data_inicio')) or (goals_start(config['goals_csv'], fc) if config.get('goals_csv') else '')
     by_date = {}
     for r in rows:
         d = _date(r)
-        if d and d <= corte:
+        if d and d <= corte and (not camp_start or d >= camp_start):
             by_date.setdefault(d, []).append(r)
     dates = sorted(by_date)
     # dia 1 = primeiro dia com leads
@@ -615,6 +686,10 @@ def build(rows, config=None):
     days = [d for d in days if d['date'] >= first_leads]
     n_dias = len(days)
     dia_campanha = n_dias
+    # Horizonte da campanha: dias entre o corte e a data de fim (config). Alimenta o
+    # pace de vendas (ritmo necessário = falta ÷ dias restantes). 0 se não informada.
+    camp_end = _iso(config.get('data_fim'))
+    dias_restantes = _days_between(corte, camp_end)
 
     rows_corte = [r for d in dates for r in by_date[d]]
     tot_sums = _sum(rows_corte)
@@ -670,7 +745,7 @@ def build(rows, config=None):
                 metas[pago_k] = metas[classico]
     meta_canal = None
     if config.get('goals_csv'):
-        g = load_goals(config['goals_csv'], fc, corte)
+        g = load_goals(config['goals_csv'], fc, corte, goal_canais)
         for k in ('cpl', 'cpmql', 'taxa_resp', 'taxa_qual', 'conv_pag'):
             if g.get(k) is not None:
                 metas.setdefault(k, g[k])
@@ -678,6 +753,14 @@ def build(rows, config=None):
         metas.setdefault('_leads_td', g.get('leads_td'))
         metas.setdefault('_invest_total', g.get('invest_total'))
         meta_canal = g.get('por_canal')
+        # Linha de META ACUMULADA a partir da curva REAL da launch_goals (não linear): para
+        # cada dia do relatório, soma o meta_leads das datas da curva até aquele dia. A curva
+        # segue começando na 1ª data das goals; dias do relatório antes dela ficam sem meta.
+        gcurve = g.get('curve') or {}
+        if gcurve:
+            gdates = sorted(gcurve)
+            series['meta_cum'] = [round(sum(gcurve[gd] for gd in gdates if gd <= d['date']), 1) or None
+                                  for d in days]
         if pago:
             # A tabela de launch_goals é a MESMA do clássico — o que muda é o que cada
             # campo significa quando o lead compra: `meta_leads` é meta de INGRESSO e
@@ -820,8 +903,23 @@ def build(rows, config=None):
         fstages = [st for st in FUNNEL_STAGES if st[0] != 'pageviews']
         bench = [fb['ctr'], fb['conv_pag'], metas.get('taxa_resp'), metas.get('taxa_qual')]
     _cpmb = metas.get('cpm')
+    _rows3d = [r for d in last3 for r in by_date[d['date']]]
     funnel_total = _funnel(rows_corte, bench, fstages, fork, fork_bench, _cpmb)
-    funnel_3d = _funnel([r for d in last3 for r in by_date[d['date']]], bench, fstages, fork, fork_bench, _cpmb)
+    funnel_3d = _funnel(_rows3d, bench, fstages, fork, fork_bench, _cpmb)
+    # Variantes do funil por TEMPERATURA (toggle na seção, vale p/ pago E clássico): Geral
+    # + cada temperatura presente no tráfego pago. O toggle troca os DOIS funis juntos.
+    _tr = temp_rules(config)
+    def _temp_of(r): return infer_temp(r.get('field_campaign_name'), _tr)
+    _temps_present = [lab for lab, _ in _tr if any(is_paid(r) and _temp_of(r) == lab for r in rows_corte)]
+
+    def _funnel_by_temp(src, geral):
+        out = {'Geral': geral}
+        for t in _temps_present:
+            out[t] = _funnel([r for r in src if _temp_of(r) == t], bench, fstages, fork, fork_bench, _cpmb)
+        return out
+    funnel_total_temps = _funnel_by_temp(rows_corte, funnel_total)
+    funnel_3d_temps = _funnel_by_temp(_rows3d, funnel_3d)
+    funnel_temps_opts = ['Geral'] + _temps_present
 
     # Rótulos resolvidos por análise: o nome da métrica depende do que a BASE tem.
     # Sem pageviews o funil pago fecha em Cliques→Ingressos, e chamar isso de
@@ -843,6 +941,7 @@ def build(rows, config=None):
         'field_conversion': fc, 'nome': config.get('nome_campanha') or fc,
         'corte': corte, 'corte_label': _day_label(corte),
         'report_date': config.get('data_report') or '', 'dia_campanha': dia_campanha, 'n_dias': n_dias,
+        'camp_end': camp_end, 'camp_end_label': _day_label(camp_end), 'dias_restantes': dias_restantes,
         'days': days, 'series': series, 'tot': tot, 'd3': d3, 'tot_sums': tot_sums,
         'traf_metrics': traf_metrics, 'has_pageviews': has_pageviews, 'has_views': has_views,
         'rows_corte': rows_corte, 'trules': trules,   # modo-fundo: agrega por dimensão/filtro sob demanda
@@ -854,6 +953,8 @@ def build(rows, config=None):
         'split': split, 'temp': temp, 'tipo_lead': tipo_lead, 'canais_org': canais_org,
         'criativos': creatives, 'cr_dia': crdia, 'cr_dia_label': _day_label(crdia),
         'funnel_total': funnel_total, 'funnel_3d': funnel_3d,
+        'funnel_total_temps': funnel_total_temps, 'funnel_3d_temps': funnel_3d_temps,
+        'funnel_temps_opts': funnel_temps_opts,
         'risks_macro': risks_macro, 'risks_traf': risks_traf,
     }
 
@@ -946,21 +1047,28 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench
     bench = bench or [None] * (len(stage_defs) - 1)
     s = _sum(rows)
     leads_total = s['leads'] or 0
-    resp_pond = s['respostas'] * (s['leads_pago'] / leads_total) if leads_total else 0
-    # MQLs rateados pelo mix de tráfego: a pesquisa não distingue se o ingresso veio
-    # de anúncio ou de orgânico, então o funil PAGO leva só a fatia proporcional.
+    # No funil de tráfego PAGO, TODA etapa após Leads segue só a fatia de tráfego pago:
+    # respostas E MQLs são rateadas pela mesma proporção (leads_pago/leads_total). Sem
+    # ratear os MQLs, a transição Respostas→MQLs (a "qualidade" do funil) não batia com o
+    # KPI Taxa de Qualidade (MQLs/respostas) — e o CPMQL derivado dela também divergia.
+    resp_frac = (s['leads_pago'] / leads_total) if leads_total else 0
+    resp_pond = s['respostas'] * resp_frac
+    # No funil PAGO (fork) o rateio dos MQLs usa o mix de INGRESSOS: a pesquisa não
+    # distingue se o ingresso veio de anúncio ou de orgânico, então leva só a fatia paga.
     mix_pago = (s['ing_pago'] / s['ing']) if s['ing'] else 0
     vals = {'invest': s['invest'], 'imp': s['imp'], 'clicks': s['clicks'], 'pageviews': s['pageviews'],
-            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls': s['mqls'],
+            'leads': s['leads_pago'], 'respostas_pond': resp_pond, 'mqls_pond_cl': s['mqls'] * resp_frac,
             'ing_pago': s['ing_pago'], 'mqls_pond': s['mqls'] * mix_pago,
             'bumps_pago': s['bumps'] * mix_pago}
-    # Etapa zerada é PULADA (dado ausente), nunca desenhada como zero — ver spec.
-    # Etapa em REAIS mantém os centavos (o build formata o rótulo); as de contagem
-    # arredondam, porque meia impressão não existe.
+    # Etapa INTERMEDIÁRIA zerada é pulada (dado ausente, ex.: sem coluna de pageviews).
+    # Mas a PRIMEIRA e a ÚLTIMA sempre ficam: a última é o desfecho do funil (MQLs no
+    # clássico, Ingressos no pago) — 0 ali é valor real ("nenhum ainda"), não dado ausente,
+    # e sumir com ela quebra a leitura do funil. Etapa em REAIS mantém os centavos.
+    _last = len(stage_defs) - 1
     stages = [{'key': k, 'label': lbl,
                'value': round(vals[k], 2) if k == 'invest' else round(vals[k]),
                **({'money': True} if k == 'invest' else {})}
-              for k, lbl in stage_defs if vals.get(k) or k == stage_defs[0][0]]
+              for i, (k, lbl) in enumerate(stage_defs) if vals.get(k) or i == 0 or i == _last]
     gaps = []
     for i in range(len(stages) - 1):
         cur, nxt = stages[i]['value'], stages[i + 1]['value']
@@ -1000,9 +1108,9 @@ def _funnel(rows, bench=None, stages=None, fork=None, fork_bench=None, cpm_bench
         base = stages[-1]['value'] if stages else 0
         ramos = []
         for k, lbl in fork:
+            # A bifurcação do PAGO (MQLs · Order Bumps) SEMPRE aparece: 0 é valor real
+            # (nenhum no recorte), não dado ausente. Todo lançamento pago tem order bump.
             v = round(vals.get(k) or 0)
-            if not v:
-                continue
             r = {'key': k, 'label': lbl, 'value': v,
                  'migracao': (round(v / base * 100, 1) if base else None)}
             if k == 'bumps_pago' and fork_bench:

@@ -10,7 +10,7 @@ Dois MODOS analíticos (toggle), que mudam quais indicadores aparecem:
 
 Regras (skill): produto principal = vendas_sale se Σ>0 senão vendas; qualidade =
 MQLs/Respostas (não /Leads); CPMQL = CPL/qualRaw (qualRaw = MQLs/Respostas puro);
-Hook/Hold só com views_totais>0; criativos sem tráfego = no_data (cinza, fora dos KPIs).
+Taxa de gancho = views_totais÷impressões · Retenção = views_75pc÷views_totais (views_totais = 3s plays).
 Percentuais em % real; taxa nunca é média — soma brutos e calcula sobre o total.
 """
 import csv
@@ -58,8 +58,8 @@ METRICS = {
     'cpmql':        {'label': 'CPMQL projetado',   'fmt': 'money', 'mode': 'captacao',  'cost': True},
     'cpm':          {'label': 'CPM',               'fmt': 'money', 'mode': 'captacao',  'cost': True},
     'ctr':          {'label': 'CTR',               'fmt': 'pct',   'mode': 'captacao',  'cost': False},
-    'hook_rate':    {'label': 'Hook Rate',         'fmt': 'pct',   'mode': 'ambos',     'cost': False},
-    'hold_rate':    {'label': 'Hold Rate',         'fmt': 'pct',   'mode': 'ambos',     'cost': False},
+    'hook_rate':    {'label': 'Taxa de gancho',    'fmt': 'pct',   'mode': 'ambos',     'cost': False},
+    'hold_rate':    {'label': 'Retenção',          'fmt': 'pct',   'mode': 'ambos',     'cost': False},
     'connect_rate': {'label': 'Connect Rate',      'fmt': 'pct',   'mode': 'ambos',     'cost': False},
     'conv_pagina':  {'label': 'Conversão de Página', 'fmt': 'pct', 'mode': 'ambos',     'cost': False},
     'videoviews':   {'label': 'Videoviews',        'fmt': 'int',   'mode': 'ambos',     'cost': False},
@@ -81,8 +81,10 @@ def load_dict(path):
     if not path:
         return out
     with open(path, encoding='utf-8-sig', errors='replace') as f:
-        r = csv.reader(f)
-        rows = list(r)
+        head = f.read(8192)
+        f.seek(0)
+        sep = max(',;\t', key=lambda c: head.count(c))   # dict pode vir ; (export BR) ou ,
+        rows = list(csv.reader(f, delimiter=sep))
     if not rows:
         return out
     for row in rows[1:]:
@@ -155,8 +157,10 @@ def metrics(rows, produto):
     pv = soma(rows, 'pageviews')
     v2s = soma(rows, 'views_2s')
     v50 = soma(rows, 'views_50pc')
+    v75 = soma(rows, 'views_75pc')
     v100 = soma(rows, 'views_100pc')
     vtot = soma(rows, 'views_totais')
+    vplays = soma(rows, 'video_play_actions')
     qual_raw = (mqls / resp) if resp > 0 else None
     cpl = div(invest, leads)
     return {
@@ -176,15 +180,12 @@ def metrics(rows, produto):
         'cpm': div(invest * 1000, imp),
         'ctr': pct(clk, imp),
         'tx_resposta': pct(resp, leads),
-        # vídeo / página (só com base de vídeo). A cadeia: o NUMERADOR do Hook é o
-        # DENOMINADOR do Hold — quem começou a assistir.
-        #   Hook = quem começou ÷ quem viu o anúncio
-        #   Hold = quem foi até o fim ÷ quem começou
-        # "quem começou" deveria ser views_2s, mas o export traz o campo ZERADO (usá-lo
-        # apagaria Hook e Hold de todos os criativos), então a base é views_totais.
-        # Idem "views95": não há coluna de 95% no export → views_100pc (assistiu até o fim).
+        # vídeo (views_totais = 3-second video plays):
+        #   Taxa de gancho = views_totais ÷ impressões
+        #   Retenção       = views_75pc  ÷ views_totais
+        # Sem views_totais (base sem vídeo) → None (bloco omitido).
         'hook_rate': (pct(vtot, imp) if vtot > 0 else None),
-        'hold_rate': (pct(v100, vtot) if vtot > 0 else None),
+        'hold_rate': (pct(v75, vtot) if vtot > 0 else None),
         'connect_rate': pct(pv, clk),
         'conv_pagina': pct(leads, pv),
         'videoviews': (round(vtot) if vtot > 0 else None),

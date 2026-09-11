@@ -21,5 +21,9 @@ export function readJson<T>(file: string): T | null {
 
 export function writeJson(file: string, value: unknown): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8');
+  // Atômico (tmp + rename): writeFileSync direto trunca antes de escrever, e um
+  // leitor concorrente (rebuild com preserve, SSE) via o arquivo pela metade.
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(value, null, 2), 'utf8');
+  fs.renameSync(tmp, file);
 }

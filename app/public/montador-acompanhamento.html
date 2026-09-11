@@ -15,7 +15,7 @@
   <div class="mq-page">
     <span class="eyebrow">Acompanhamento de Campanha</span>
     <h1>Extrair as métricas do lançamento</h1>
-    <p class="desc" id="desc">O acompanhamento lê a view <code>VW_V2_inscricoes_res_METRICAS</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.</p>
+    <p class="desc" id="desc">O acompanhamento lê a view <code>VW_V2_inscricoes_res</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.</p>
 
     <div class="card">
       <p class="card-eyebrow">Lançamento</p>
@@ -78,11 +78,6 @@
   <script type="module">
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s).replace(/'/g, "''");
-    const COLS = ['field_conversion', 'data', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content',
-      'field_adset_name', 'field_campaign_name', 'field_ad_name', 'leads', 'leads_mqls', 'respostas',
-      'leads_novo', 'leads_antigos', 'cliente_inscrito', 'vendas', 'faturamento', 'invest_total',
-      'impressoes', 'link_clicks', 'pageviews', 'leads_trafego', 'leads_mqls_trafego',
-      'views_totais', 'views_50pc', 'one_day_click_attribution', 'link_criativo'];
     const isPago = () => $('t-tipo').value === 'pago';
     function buildSql() {
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
@@ -100,7 +95,11 @@ select *
 FROM "VW_V2_inscricoes_pago_res" vrtccp
 where coalesce (conversion_traf, vrtccp.field_conversion) = '${fc}';`;
       }
-      return `-- Métricas diárias do lançamento (acompanhamento tático)\n-- Origem: VW_V2_inscricoes_res_METRICAS\nSELECT\n  ${COLS.join(',\n  ')}\nFROM "VW_V2_inscricoes_res_METRICAS"\nWHERE field_conversion = '${fc}'\nORDER BY data, utm_source, field_campaign_name, field_ad_name;`;
+      return `-- Métricas diárias do lançamento (acompanhamento tático)
+-- Origem: VW_V2_inscricoes_res · uma linha por utm × anúncio × dia
+select *
+FROM "VW_V2_inscricoes_res" vrtccp
+WHERE field_conversion = '${fc}';`;
     }
     function buildDictSql() {
       const fc = esc($('t-fc').value.trim() || 'lcto-...');
@@ -152,7 +151,7 @@ ORDER BY data, utm_source;`;
     $('t-tipo').addEventListener('change', () => {
       $('desc').innerHTML = isPago()
         ? 'O lançamento pago lê a view <code>VW_V2_inscricoes_pago_res</code> — uma linha por <code>utm × anúncio × dia</code>, com receita de ingresso e order bump. O filtro usa <code>COALESCE(conversion_traf, field_conversion)</code> porque a linha vinda da integração de mídia não traz a coluna da venda.'
-        : 'O acompanhamento lê a view <code>VW_V2_inscricoes_res_METRICAS</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.';
+        : 'O acompanhamento lê a view <code>VW_V2_inscricoes_res</code> — uma linha por <code>utm_source × campanha × conteúdo × anúncio × dia</code>. Informe o <code>field_conversion</code> do lançamento e copie o SELECT para exportar o CSV.';
       render();
     });
     window.wireCopy($('copy'), () => $('sql').dataset.raw);

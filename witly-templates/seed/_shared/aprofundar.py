@@ -34,7 +34,7 @@ WIDGET_TYPES = {
     'label-sec', 'request', 'xs', 'def-step', 'mdef-block', 'grp-list',
     'eyebrow', 'kpi-strip', 'kpi-card', 'metric-toggle', 'heatmap-toggle', 'chart-toggle', 'chart-table',
     'embed', 'link-card', 'scatter-picker', 'evolution-picker', 'qa-card', 'funnel', 'strat-grid',
-    'bar-list', 'cri-list', 'meta-bars', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter',
+    'bar-list', 'cri-list', 'meta-bars', 'pace', 'escopo-cards', 'channel-table', 'bullet-groups', 'quadrant-scatter',
     'filter-seg',
 }
 BOUND = {'kpi', 'chart', 'table', 'heatmap', 'rank-card', 'chart-table', 'kpi-card'}

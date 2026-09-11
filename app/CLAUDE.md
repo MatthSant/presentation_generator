@@ -83,7 +83,7 @@ tem (ex.: eyebrow `divider`). KPI cards por tipo (decisão documentada):
 | conversao-perfil | — (não usa) |
 | historico-lancamentos | `launches: [labels]`, `metric: 'conv'\|'qual'\|…` |
 | criativos | `mode: 'resultado'\|'captacao'`, `temp: <temperatura>`, `min_invest: float`, `dict: {}` (injetado pelo render_view) |
-| acompanhamento-lancamento | — (não usa) |
+| acompanhamento-lancamento | `filters: {...}` (render_view filtra as linhas; o assemble usa os canais do recorte p/ escopar as metas launch_goals — captação/ingresso + pace seguem o filtro) |
 | debriefing-lancamento | `filters: { tipo/canal/temp/campanha/publico/criativo: [...] }` (aplicado pelo render_view antes do assemble) |
 
 **Despacho:** `src/server/pygen.ts` resolve `buildScript = pysrc/<pysrcDir>/build_report.py`

@@ -25,7 +25,7 @@ import common.query_core as qc  # noqa: E402
 # Rótulo legível por métrica (vira cabeçalho de coluna nas tabelas).
 _LABEL = {
     'roas': 'ROAS', 'retorno': 'Retorno', 'cpl': 'CPL', 'cpmql': 'CPMQL', 'cpm': 'CPM',
-    'ctr': 'CTR', 'hook_rate': 'Hook', 'hold_rate': 'Hold', 'connect_rate': 'ConnRate',
+    'ctr': 'CTR', 'hook_rate': 'Gancho', 'hold_rate': 'Retenção', 'connect_rate': 'ConnRate',
     'conv_pagina': 'Conv.Pág', 'qualidade': 'Qualid.', 'tx_resposta': 'Tx.Resp',
     'conv': 'Tx.Conv', 'cac': 'CAC', 'leads': 'Leads', 'invest': 'Invest.',
 }

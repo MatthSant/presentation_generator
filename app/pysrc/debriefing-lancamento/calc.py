@@ -243,6 +243,11 @@ def match(r, f):
         return False
     if f.get('campanha') and campaign_name(r) != f['campanha']:
         return False
+    if f.get('dia'):
+        d = _date(r)
+        lbl = (d[8:10] + '/' + d[5:7]) if len(d) >= 10 else d
+        if f['dia'] != d and f['dia'] != lbl:      # aceita ISO (YYYY-MM-DD) ou rótulo DD/MM
+            return False
     return True
 
 

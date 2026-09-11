@@ -99,3 +99,21 @@ body.cr { background: var(--canvas, var(--bg-page)); }
 .cr .g-msg.work { display: block; background: var(--purple-bg); color: var(--purple); }
 .cr .g-msg.ok { display: block; background: var(--ok-bg); color: var(--ok-fg); }
 .cr .g-msg.err { display: block; background: var(--err-bg); color: var(--err-fg); }
+
+/* ── Escolha inicial: montar a query (pegar os dados) × seguir com o que já se tem ── */
+.cr .startpick { display: flex; align-items: center; gap: 14px; margin-top: 22px; padding: 15px 18px; border: 1px solid color-mix(in srgb, var(--purple) 24%, var(--border)); border-radius: var(--r-lg); background: var(--purple-bg); }
+.cr .startpick .sp-i { width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center; color: var(--purple); background: var(--card, #fff); border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent); }
+.cr .startpick .sp-i svg { width: 18px; height: 18px; }
+.cr .startpick .sp-txt { flex: 1; min-width: 0; font-size: 13.5px; color: var(--gray2); font-weight: 600; line-height: 1.5; }
+.cr .startpick .sp-txt b { color: var(--fg); font-weight: 800; }
+.cr .startpick .sp-go { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #fff; background: var(--purple); text-decoration: none; padding: 9px 15px; border-radius: var(--r-md); box-shadow: 0 2px 8px rgba(124,58,237,.28); }
+.cr .startpick .sp-go:hover { background: var(--purple-600); }
+.cr .startpick .sp-go svg { width: 15px; height: 15px; }
+@media (max-width: 560px) { .cr .startpick { flex-wrap: wrap; } .cr .startpick .sp-go { width: 100%; justify-content: center; } }
+
+/* ── Campo de destaque (ex.: Tipo de funil — define a mecânica e o relatório inteiro) ── */
+.cr .field--hero { grid-column: 1 / -1; background: var(--purple-bg); border: 1.5px solid color-mix(in srgb, var(--purple) 38%, var(--border)); border-radius: var(--r-md); padding: 14px 16px 15px; margin: 4px 0; gap: 8px; }
+.cr .field--hero > .label { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--purple-600, var(--purple)); font-weight: 800; }
+.cr .field--hero .ctrl { background: var(--card, #fff); font-weight: 700; font-size: 14.5px; border-color: color-mix(in srgb, var(--purple) 32%, var(--border)); }
+.cr .field--hero .ctrl:focus { border-color: var(--purple); box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple) 18%, transparent); }
+.cr .field--hero .help { color: var(--gray2); }

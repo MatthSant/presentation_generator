@@ -10,11 +10,11 @@ import type {
   LabelSecWidget, RequestWidget, XsWidget, TableCell,
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, HeatmapTab, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
-  EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
+  EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, PaceWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
   FilterSegWidget, FilterDef,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
-import { defFromResolved, buildOptions, valueFmt, captureChart, chartExportMode, type ChartDef } from './charts.js';
+import { defFromResolved, buildOptions, valueFmt, captureChart, capturePicker, chartExportMode, type ChartDef } from './charts.js';
 import { trendR2, bestFit, type TrendType } from './trend.js';
 
 const FIT_LBL: Record<string, string> = { linear: 'Linear', log: 'Log', exp: 'Exp', pow: 'Potência' };
@@ -229,9 +229,29 @@ function renderEyebrow(w: EyebrowWidget): HTMLElement {
   const wrap = el('div', `grp-eyebrow${w.divider ? ' ge-divider' : ''}${w.compact ? ' grp-eyebrow--compact' : ''}${w.color && w.color !== 'purple' ? ` ge-${w.color}` : ''}`);
   if (w.n != null && w.n !== '') wrap.appendChild(el('span', 'ge-i', String(w.n)));
   wrap.appendChild(el('span', 'ge-t', w.title));
-  if (w.info) wrap.appendChild(infoBadge(w.info));
+  // Sem toggle o (i) fica junto do título; com toggle ele desce para o lado do toggle
+  // (o aviso costuma ser SOBRE o toggle, ex.: Geral vs soma das temperaturas).
+  if (w.info && !w.toggle?.options?.length) wrap.appendChild(infoBadge(w.info));
   if (w.caption) wrap.appendChild(el('span', 'ge-c', w.caption));
   wrap.appendChild(el('span', 'ge-rule'));
+  // Toggle segmentado à direita da régua (ex.: Geral/Quente/Frio do funil). Dispara um
+  // evento `funnel-temp:<id>` que os widgets abaixo (com tempChannel) escutam.
+  if (w.toggle?.options?.length) {
+    const seg = el('div', 'ge-toggle');
+    const def = w.toggle.default ?? w.toggle.options[0]?.id ?? '';
+    for (const o of w.toggle.options) {
+      const b = el('button', 'ge-tg-opt' + (o.id === def ? ' on' : '')) as HTMLButtonElement;
+      b.type = 'button'; b.textContent = o.label;
+      b.addEventListener('click', () => {
+        seg.querySelectorAll('.ge-tg-opt').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        document.dispatchEvent(new CustomEvent(`funnel-temp:${w.toggle!.id}`, { detail: o.id }));
+      });
+      seg.appendChild(b);
+    }
+    wrap.appendChild(seg);
+    if (w.info) wrap.appendChild(infoBadge(w.info));   // (i) junto do toggle
+  }
   return wrap;
 }
 
@@ -758,7 +778,9 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
         a.textContent = formatValue(value); a.appendChild(el('span', 'td-link-ic', ' ↗'));
         td.appendChild(a);
       } else {
-        td.textContent = formatValue(value);
+        // célula sem dado (null OU string vazia do bind) → marcador de ausente "—",
+        // nunca em branco. formatValue já cobre null; aqui pegamos o '' também.
+        td.textContent = value === '' ? '—' : formatValue(value);
       }
       if (obj) {
         if (obj.cls) td.classList.add(obj.cls);
@@ -1124,13 +1146,21 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
   if (w.sub) wrap.appendChild(el('div', 'funnel-sub', w.sub));
   const hasHist = (w.transitions || []).some(t => t && t.benchHist != null);
   let body: HTMLElement | null = null;
+  // Toggle de temperatura (evento do eyebrow): a variante ativa troca steps/transitions/
+  // branches. 'Geral' = o próprio widget; as demais vêm de w.temps.
+  let activeTemp = 'Geral';
+  let curMode: 'meta' | 'hist' = getCmpMode();
+  const srcOf = (): Pick<FunnelWidget, 'steps' | 'transitions' | 'branches'> =>
+    (activeTemp !== 'Geral' && w.temps?.[activeTemp]) ? w.temps[activeTemp] : w;
 
   function paint(mode: 'meta' | 'hist'): void {
+    curMode = mode;
+    const src = srcOf();
     const useHist = mode === 'hist' && hasHist;
     if (body) body.remove();
     body = el('div', 'funnel-body');
-    const n = w.steps.length;
-    w.steps.forEach((s, i) => {
+    const n = src.steps.length;
+    src.steps.forEach((s, i) => {
       const bar = el('div', 'funnel-bar');
       bar.style.background = FUNNEL_GRAD[Math.min(i, FUNNEL_GRAD.length - 1)];
       // Afunilamento: largura decresce por etapa, dando a forma de funil. No COMPACTO a
@@ -1144,7 +1174,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
       // empilhar conector+pill+conector entre as barras. Corta ~metade da altura.
       const row = w.compact ? el('div', 'funnel-row') : null;
       if (row) { row.appendChild(bar); body!.appendChild(row); } else { body!.appendChild(bar); }
-      const t = w.transitions?.[i];
+      const t = src.transitions?.[i];
       if (t && i < n - 1) {
         if (!w.compact) body!.appendChild(el('div', 'funnel-conn'));
         const pills = el('div', 'funnel-pills');
@@ -1169,7 +1199,9 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
           if (t.migrate != null) {
             const word = useHistT ? 'hist' : (t.baseLabel || w.baseLabel || 'meta');   // per-transição
             const dec = t.decimals ?? 1;
-            const baseTxt = below && bench != null ? ` · ${word} ${bench.toFixed(t.decimals ?? (bench % 1 ? 1 : 0))}%` : '';
+            // Bench SEMPRE visível (mesmo dentro do esperado) — a referência de mercado
+            // é informação, não só alerta. Antes só aparecia quando furava (below).
+            const baseTxt = bench != null ? ` · ${word} ${bench.toFixed(t.decimals ?? (bench % 1 ? 1 : 0))}%` : '';
             // com hideLoss o MAIOR FURO migra p/ a tag de passagem (a de perda some).
             const furoTxt = (w.hideLoss && t.worst) ? ' · MAIOR FURO' : '';
             pills.appendChild(el('span', `funnel-pill ${below ? 'funnel-pill--alert' : 'funnel-pill--migrate'}`,
@@ -1182,7 +1214,7 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
     // Bifurcação: ramos que saem da ÚLTIMA etapa em paralelo. Lado a lado e de largura
     // igual, porque não há ordem entre eles — quem desenhasse em sequência sugeriria um
     // afunilamento que não existe (as taxas não somam 100%, dividem o mesmo denominador).
-    const branches = w.branches || [];
+    const branches = src.branches || [];
     if (branches.length) {
       body.appendChild(el('div', 'funnel-fork-sep', 'bifurcação'));
       const forkRow = el('div', 'funnel-fork');
@@ -1209,8 +1241,14 @@ function renderFunnel(w: FunnelWidget): HTMLElement {
     wrap.appendChild(body);
   }
 
-  paint(getCmpMode());
+  paint(curMode);
   if (hasHist) onCmpChange(wrap, paint);
+  // Escuta o toggle de temperatura do eyebrow (canal compartilhado) → repinta a variante.
+  if (w.temps && w.tempChannel) {
+    document.addEventListener(`funnel-temp:${w.tempChannel}`, (e) => {
+      activeTemp = String((e as CustomEvent).detail); paint(curMode);
+    });
+  }
   return wrap;
 }
 
@@ -1352,6 +1390,42 @@ function renderMetaBars(w: MetaBarsWidget): HTMLElement {
     row.appendChild(el('div', 'mb-meta', r.meta || '—'));
     row.appendChild(el('div', 'mb-hist', r.hist || '—'));
     wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+/* ── pace ── pace de vendas: duas barras (ritmo atual × necessário, largura relativa ao
+ *  maior ritmo) + multiplicador em pill + projeção no ritmo atual. */
+function renderPace(w: PaceWidget): HTMLElement {
+  const wrap = el('div', 'pace');
+  const head = el('div', 'chart-head');            // mesmo cabeçalho da rosca: dot + caps + divisória
+  head.appendChild(el('div', 'chart-title', w.title || 'Ritmo para a meta'));
+  if (w.info) head.appendChild(infoBadge(w.info));
+  wrap.appendChild(head);
+  const max = Math.max(...w.bars.map((b) => b.pct || 0), 1);
+  const bars = el('div', 'pace-bars');
+  for (const b of w.bars) {
+    const row = el('div', 'pace-row');
+    const top = el('div', 'pace-row-top');
+    top.appendChild(el('span', 'pace-lab', b.label));
+    const v = el('span', 'pace-val');
+    v.appendChild(el('span', 'pace-val-n', b.value));
+    if (b.sub) v.appendChild(el('span', 'pace-val-s', ` ${b.sub}`));
+    top.appendChild(v);
+    row.appendChild(top);
+    const track = el('div', 'pace-track');
+    const fill = el('div', `pace-fill pace-fill--${b.tone || 'neutral'}`);
+    fill.style.width = `${Math.max(3, Math.min(100, ((b.pct || 0) / max) * 100))}%`;
+    track.appendChild(fill);
+    row.appendChild(track);
+    bars.appendChild(row);
+  }
+  wrap.appendChild(bars);
+  if (w.badge || w.note) {
+    const foot = el('div', 'pace-foot');
+    if (w.badge) foot.appendChild(el('span', `pill ${PILL_TONE[w.badge.tone || 'neutral']} pace-badge`, w.badge.text));
+    if (w.note) foot.appendChild(el('span', 'pace-note', w.note));
+    wrap.appendChild(foot);
   }
   return wrap;
 }
@@ -2274,7 +2348,15 @@ function renderEvolutionPicker(w: EvolutionPickerWidget): HTMLElement {
   };
   sel.addEventListener('change', () => { uiSet(w.id, 'm1', sel.value); build(); });
   sel2?.addEventListener('change', () => { uiSet(w.id, 'm2', sel2.value); build(); });
-  if (chartExportMode()) build(); else requestAnimationFrame(build);
+  if (chartExportMode()) {
+    build();
+    // Embute os dados crus p/ o runtime do export reconstruir a série ao trocar de
+    // métrica (o seletor continua vivo no HTML estático). Casa pelo id do chart host.
+    capturePicker(host.id, {
+      metrics: w.metrics.map(m => ({ id: m.id, label: m.label, fmt: m.fmt })),
+      points: w.points, dual, combo: !!w.combo, height: w.height ?? 320,
+    });
+  } else requestAnimationFrame(build);
   return wrap;
 }
 
@@ -2300,6 +2382,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'funnel':      return renderFunnel(widget);
       case 'bar-list':    return renderBarList(widget);
       case 'meta-bars':   return renderMetaBars(widget);
+      case 'pace':        return renderPace(widget);
       case 'bullet-groups': return renderBulletGroups(widget);
       case 'quadrant-scatter': return renderQuadrantScatter(widget);
       case 'escopo-cards': return renderEscopoCards(widget);

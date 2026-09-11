@@ -258,6 +258,9 @@ function validateWidget(c: Collector, path: string, w: unknown, datasets?: DataM
     case 'meta-bars':
       if (!Array.isArray(w.rows) || w.rows.length === 0) c.err(`${path}.rows`, 'meta-bars requires a rows array');
       break;
+    case 'pace':
+      if (!Array.isArray(w.bars) || w.bars.length === 0) c.err(`${path}.bars`, 'pace requires a bars array');
+      break;
     case 'escopo-cards':
       if (!Array.isArray(w.cards) || w.cards.length === 0) c.err(`${path}.cards`, 'escopo-cards requires a cards array');
       break;

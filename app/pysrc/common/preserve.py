@@ -13,14 +13,37 @@ histórico). Idempotente; análises novas (dir vazio) passam ilesas."""
 import json
 import os
 import re
+import time
 
 
 def _load(path):
-    try:
-        with open(path, encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
+    """None só quando o arquivo NÃO EXISTE (análise nova). Arquivo presente mas
+    ilegível é outra história: era engolido e o preserve seguia como se não
+    houvesse nada a preservar — um rebuild concorrendo com uma escrita do deepen
+    apagava TODAS as tabelas q-* e modais em silêncio. Escrita em andamento se
+    resolve em instantes → retry curto; persistindo, aborta o build (perder a
+    geração é recuperável, perder detalhamento pago não é)."""
+    if not os.path.exists(path):
         return None
+    err = None
+    for _ in range(5):
+        try:
+            with open(path, encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            err = e
+            time.sleep(0.2)
+    raise RuntimeError(f'preserve: {os.path.basename(path)} existe mas está ilegível ({err}) — abortando para não descartar conteúdo pós-geração')
+
+
+def write_json(path, obj):
+    """Escrita atômica (tmp + os.replace): json.dump direto trunca o arquivo antes
+    de escrever, e um leitor concorrente (deepen lendo dataset.json, SSE) via o
+    JSON pela metade — a outra ponta do mesmo bug que o _load acima mitiga."""
+    tmp = f'{path}.{os.getpid()}.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 
 def preserve_dataset(out_dir, dataset):

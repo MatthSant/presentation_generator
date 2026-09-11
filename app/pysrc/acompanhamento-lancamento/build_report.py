@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
 from common.fmt import money, pctf, intf
-from common.preserve import preserve, preserve_dataset, preserve_layout
+from common.preserve import preserve, preserve_dataset, preserve_layout, write_json
 # Builders de seção compartilhados. O kpi-card fica no `kcard()` local: o semáforo
 # tático (meta_status 5/15% + flag 3d) tem semântica própria — não é o goalCmp
 # avaliativo (±10%) do km() de common.
@@ -94,6 +94,19 @@ INFO_PAGO = {
     'receita_bump': 'Receita bruta dos order bumps (faturamento_bump), antes de impostos e taxas.',
 }
 
+# (i) SEMPRE presente (pago ou clássico) das métricas de vídeo. A Meta Ads tem "Hook/Hold
+# Rate" com o MESMO propósito mas conta DIFERENTE — por isso nomeamos em português e o (i)
+# deixa a fórmula explícita, para ninguém comparar 1:1 com o gerenciador.
+INFO = {
+    'hook': ('Taxa de gancho = views de 3 segundos (video plays) ÷ impressões. Mede quantos, '
+             'ao ver o anúncio, pararam para assistir os primeiros 3 segundos do vídeo — o '
+             'poder de fisgada da abertura. É calculada diferente do "Hook Rate" da Meta Ads; '
+             'por isso o nome em português.'),
+    'hold': ('Retenção = views a 75% ÷ views de 3 segundos (video plays). Dos que começaram a '
+             'assistir (passaram dos 3s), quantos seguraram até 75% do vídeo — o quanto o '
+             'conteúdo sustenta a atenção. Diferente do "Hold Rate" da Meta Ads.'),
+}
+
 
 def money_exact(v):
     if v is None:
@@ -121,7 +134,14 @@ def vfmt(metric, v, pago=False):
 
 def assemble(rows, config, content, opts=None):
     config = config or {}
-    B = calc.build(rows, config)
+    # Com FILTRO ativo (render_view), a meta de captação/ingresso (e a curva do pace) deve
+    # acompanhar o recorte, não ficar no total da campanha. As launch_goals são por
+    # utm_source × dia → escopa pelos canais presentes nas linhas filtradas. Sem filtro
+    # (build base), goal_canais=None → campanha inteira (comportamento inalterado).
+    goal_canais = None
+    if opts and opts.get('filters'):
+        goal_canais = sorted({calc.norm_source(r.get('utm_source')) for r in rows})
+    B = calc.build(rows, config, goal_canais)
     # MECÂNICA: no lançamento PAGO o lead compra o ingresso — há receita e retorno já
     # na captação, e a decisão do dia vira "estou no verde ou no vermelho?". Troca os
     # KPIs, o funil e o vocabulário (lead → ingresso). Ver docs da spec.
@@ -181,8 +201,9 @@ def assemble(rows, config, content, opts=None):
         card = {'id': wid, 'type': 'kpi-card', 'tier': 'feature',
                 'label': LAB[metric], 'value': vfmt(metric, B['tot'].get(metric)),
                 'icon': ic, 'iconColor': color}
-        if PAGO and INFO_PAGO.get(metric):
-            card['info'] = INFO_PAGO[metric]
+        info = INFO.get(metric) or (INFO_PAGO.get(metric) if PAGO else None)
+        if info:
+            card['info'] = info
         # (i) e legenda embaixo são o MESMO papel — explicar a métrica — em dois lugares.
         # Com os dois, o card fica com duas linhas de texto competindo com o número, que
         # é o que ele existe para mostrar. O (i) ganha: cabe o texto inteiro e só aparece
@@ -335,8 +356,10 @@ def assemble(rows, config, content, opts=None):
     # passa a ser "estou atrás desde quando?" em vez de uma reta que só significa
     # alguma coisa no último ponto. Só quando não há launch_goals (que traz a curva
     # real dia a dia) — aqui a única informação disponível é o total to-date.
-    _meta_acum = None
-    if mtd and _labels:
+    # Com launch_goals, a linha usa a CURVA REAL por dia (crescimento pode não ser
+    # constante). Sem goals, distribui a meta to-date linearmente pelos dias decorridos.
+    _meta_acum = B['series'].get('meta_cum')
+    if not _meta_acum and mtd and _labels:
         _passo = mtd / len(_labels)
         _meta_acum = [round(_passo * (i + 1), 1) for i in range(len(_labels))]
     cum_chart = {'id': 'pan-cum', 'type': 'chart',
@@ -353,7 +376,7 @@ def assemble(rows, config, content, opts=None):
         cum_chart.update({
             'chartType': 'bar', 'colors': ['#AFA9EC', '#534AB7'], 'highlightLast': 3,
             'series': [{'name': 'Acumulado', 'data': _cum, 'type': 'bar'}]})
-    _plot = [v for v in _cum if isinstance(v, (int, float))] + (_meta_acum or [])
+    _plot = [v for v in _cum if isinstance(v, (int, float))] + [v for v in (_meta_acum or []) if isinstance(v, (int, float))]
     _pmax = max(_plot) if _plot else 0
     # A meta TOTAL só entra no gráfico quando cabe na mesma escala. No meio da campanha
     # ela costuma ser uma ordem de grandeza acima do realizado — a linha sobe ao topo e
@@ -370,6 +393,55 @@ def assemble(rows, config, content, opts=None):
     # donut compacto (3 linhas); à esquerda, o gráfico de leads estica para fechar na
     # mesma base. A altura de gráfico no read-path = cells×80 − chrome, então o span
     # do grid é o que dimensiona — mantê-lo enxuto é o que faz a seção caber na dobra.
+    # ── PACE DE VENDAS ── só quando há meta TOTAL e horizonte (data de fim informada).
+    # Compara o ritmo ATUAL (realizado ÷ dias decorridos) com o NECESSÁRIO (falta ÷ dias
+    # restantes) e projeta o fechamento no ritmo atual: "no ritmo de hoje eu chego onde, e
+    # quanto preciso acelerar". Forma um PAR com o donut Pago × Orgânico (pizza à esquerda,
+    # ritmo à direita) — daí ser calculado antes do layout do hero.
+    pace_w = None
+    _dr = B.get('dias_restantes') or 0
+    if mt and _dr > 0 and B['dia_campanha'] > 0:
+        _vend = leads_tot
+        _falta = max(0, mt - _vend)
+        # Ritmo atual = MÉDIA DOS ÚLTIMOS 3 DIAS (não o acumulado ÷ dias) — capta o momento
+        # da campanha, não o histórico inteiro. Com < 3 dias, usa os dias disponíveis.
+        _perkey = 'ing' if PAGO else 'leads'
+        _win = B['days'][-3:]
+        _n3 = len(_win) or 1
+        _rit_atual = sum(d['sums'].get(_perkey, 0) for d in _win) / _n3
+        _rit_nec = _falta / _dr if _falta > 0 else 0.0
+        _proj = _vend + _rit_atual * _dr
+        _proj_pct = calc.pct(_proj, mt) or 0
+        _mult = (_rit_nec / _rit_atual) if _rit_atual > 0 else 0
+        def _rate(x):
+            return f"{x:.1f}".replace('.', ',') if x < 10 else intf(round(x))
+        _no_rumo = _falta == 0 or (_mult and _mult <= 1.05)
+        _bars = [{'label': 'Ritmo atual', 'value': f"{_rate(_rit_atual)}/dia", 'pct': _rit_atual, 'tone': 'neutral'}]
+        if _falta > 0:
+            _bars.append({'label': 'Ritmo necessário', 'value': f"{_rate(_rit_nec)}/dia",
+                          'pct': _rit_nec, 'tone': 'pos' if _no_rumo else 'neg'})
+        if _falta == 0:
+            _badge = {'text': 'meta já batida', 'tone': 'pos'}
+        elif _mult:
+            _badge = {'text': f"{_mult:.1f}".replace('.', ',') + '× o ritmo atual',
+                      'tone': 'pos' if _no_rumo else 'neg'}
+        else:
+            _badge = None
+        _dia_lbl = 'dia' if _n3 == 1 else 'dias'
+        pace_w = {'id': 'pan-pace', 'type': 'pace', 'title': 'Ritmo para a meta',
+                  'bars': _bars,
+                  'info': (f"Ritmo atual = média de {NOUN} dos últimos {_n3} {_dia_lbl}. "
+                           f"Ritmo necessário = o que falta para a meta ({intf(_falta)} {NOUN}) "
+                           f"÷ dias restantes até a data de fim ({_dr}). O multiplicador (N×) é "
+                           f"quantas vezes o ritmo atual precisa acelerar para bater a meta no "
+                           f"prazo; a projeção assume o ritmo atual mantido até o fim."),
+                  'note': f"No ritmo atual: ~{intf(round(_proj))} de {intf(mt)} · {_proj_pct:.0f}% da meta"}
+        if _badge:
+            pace_w['badge'] = _badge
+
+    # Hero de uma tela: à direita, bandas de atingimento (% grande, 1 linha cada); à esquerda,
+    # o gráfico de leads. O donut Pago × Orgânico fecha a seção — sozinho na coluna direita,
+    # ou, quando há PACE, descendo para um PAR full-width abaixo das bandas (pizza esq + pace dir).
     DONUT_H = 3
     hero_lay = [{'id': 'pan-eb-vg', 'type': 'eyebrow', 'x': 0, 'y': 0, 'w': 12, 'h': 1}]
     ry = 1
@@ -395,9 +467,20 @@ def assemble(rows, config, content, opts=None):
                 'height': 185, 'colors': ['#534AB7', '#97C459'], 'donutTotal': True, 'totalLabel': NOUN,
                 'legendValues': True,
                 'bind': {'dataset': 'acom_origem', 'x': 'origem', 'y': 'leads'}})
-    hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
-    bottom = ry + DONUT_H                          # base comum da coluna direita
-    cum_h = bottom - 1                             # gráfico de leads vai do topo até a base
+    if pace_w:
+        pan.append(pace_w)
+        # PAR abaixo das bandas, dentro da coluna direita (largura dos KPIs): pizza (esq) +
+        # pace (dir), preenchendo a altura restante até a base do gráfico de leads — que
+        # segue ALTO à esquerda, sem encolher.
+        DP_H = 4
+        hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 4, 'h': DP_H})
+        hero_lay.append({'id': 'pan-pace', 'type': 'pace', 'x': 9, 'y': ry, 'w': 3, 'h': DP_H})
+        bottom = ry + DP_H
+        cum_h = bottom - 1                          # gráfico de leads acompanha a base do par
+    else:
+        hero_lay.append({'id': 'pan-donut', 'type': 'chart', 'x': 5, 'y': ry, 'w': 7, 'h': DONUT_H})
+        bottom = ry + DONUT_H                       # base comum da coluna direita
+        cum_h = bottom - 1                          # gráfico de leads vai do topo até a base
     hero_lay.insert(1, {'id': 'pan-cum', 'type': 'chart', 'x': 0, 'y': 1, 'w': 5, 'h': cum_h})
     # prima o grid com o layout manual do hero; os KPIs fluem a partir do fim do hero.
     pg.items = hero_lay
@@ -582,12 +665,16 @@ def assemble(rows, config, content, opts=None):
         # a barra do dia mostra o fôlego diário e a linha acumulada mostra a posição —
         # um dia fraco depois de semanas boas não é a mesma coisa que um dia fraco no
         # vermelho, e isso só aparece com as duas juntas.
+        # Equilíbrio de caixa = R$ 0 (break-even: receita paga o tráfego) — referência FIXA,
+        # igual ao 1,00× do ROAS. Antes a linha saía na meta e sumia sem meta; agora o
+        # equilíbrio está sempre desenhado, e a meta (quando há) vira uma 2ª linha com valor.
+        _expo_goals = [{'value': 0, 'label': 'Equilíbrio', 'color': '#B3261E'}]
+        if _mexpo not in (None, 0):
+            _expo_goals.append({'value': _mexpo, 'label': f"Meta {vfmt('exposicao', _mexpo)}", 'color': '#D97706'})
         chart('evo-expo', 'Exposição de caixa', ['expo', 'expo_cum'],
               'mixed', False, 'money', w=4,
               names=['Do dia', 'Acumulada'], types=['bar', 'line'],
-              colors=['#97C459', '#3B6D11'],
-              goals=[{'value': _mexpo, 'label': 'Equilíbrio', 'color': '#B3261E'}]
-              if _mexpo is not None else None)
+              colors=['#97C459', '#3B6D11'], goals=_expo_goals)
         # LINHA 2 — INGRESSOS E EFICIÊNCIA. Os dois pares de custo e de retorno dividem
         # eixo porque são a MESMA unidade em bases diferentes (R$ e múltiplo): é a
         # distância entre as duas linhas que mostra o quanto o orgânico está segurando.
@@ -597,7 +684,7 @@ def assemble(rows, config, content, opts=None):
         chart('evo-custo', 'Custo por ingresso', ['custo_ing_pago', 'custo_ing_geral'],
               'line', False, 'money', w=4,
               names=['CAC (pago)', 'Geral'], colors=['#185FA5', '#9AB6D6'],
-              goals=[{'value': _mcac, 'label': 'Meta CAC', 'color': '#B3261E'}] if _mcac else None)
+              goals=[{'value': _mcac, 'label': f"Meta CAC {vfmt('custo_ing_pago', _mcac)}", 'color': '#B3261E'}] if _mcac else None)
         chart('evo-retorno', 'Retorno por dia', ['roas_pago', 'roas_geral'],
               'line', False, 'x', w=4,
               names=['ROAS (pago)', 'ROI (geral)'], colors=['#3B6D11', '#97C459'],
@@ -868,11 +955,23 @@ def assemble(rows, config, content, opts=None):
     risk_section(tra, tg, B['risks_traf'], 'tra', 'RISCOS DE TRÁFEGO')
     # funis (total + últimos 3 dias) como tabelas — caption reflete as etapas reais
     # (sem Pageviews quando a base não tem o dado)
-    eb(tra, tg, 'tra-eb-fun', 'FUNIL DE TRÁFEGO PAGO', ' → '.join(s['label'] for s in B['funnel_total']))
+    # Toggle de TEMPERATURA na seção (Geral + cada temperatura presente) — troca os DOIS
+    # funis juntos, via evento disparado pelo eyebrow. Só aparece com >1 opção.
+    _topts = B.get('funnel_temps_opts') or ['Geral']
+    _ftoggle = ({'id': 'tra-fun-temp', 'options': [{'id': t, 'label': t} for t in _topts]}
+                if len(_topts) > 1 else None)
+    _ftoggle_info = ('“Geral” são todas as linhas pagas. Nas etapas de contagem (impressões, '
+                     'cliques, leads/ingressos) ele equivale à soma das temperaturas. Já a etapa '
+                     'de MQLs é ponderada pela fatia de tráfego pago — e essa ponderação é '
+                     'recalculada em cada recorte — então nela, e quando há campanhas sem '
+                     'temperatura definida (que entram só no Geral), o total pode não fechar '
+                     'exatamente com a soma das temperaturas.')
+    eb(tra, tg, 'tra-eb-fun', 'FUNIL DE TRÁFEGO PAGO',
+       ' → '.join(s['label'] for s in B['funnel_total']),
+       info=(_ftoggle_info if _ftoggle else None), toggle=_ftoggle)
 
-    def funnel_widget(wid, title, sub, stages, w=6):
-        # Widget de funil visual: barras degradê por etapa + pills perda/migram por
-        # transição + MAIOR FURO (relativo ao benchmark) + dado inválido.
+    def _funnel_payload(stages):
+        # Um funil (steps + transitions + branches) a partir das etapas do calc.
         steps = [dict({'label': s['label'], 'value': s['value']},
                       **({'vlabel': money_exact(s['value'])} if s.get('money') else {}))
                  for s in stages]
@@ -905,20 +1004,31 @@ def assemble(rows, config, content, opts=None):
                 trans.append(t)
             else:
                 trans.append({})
-        wg = {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, 'steps': steps, 'transitions': trans}
+        payload = {'steps': steps, 'transitions': trans}
         # Bifurcação: no pago o ingresso segue por DOIS caminhos paralelos a partir da
         # última etapa (vira MQL na pesquisa · compra order bump). Verde no bump porque
         # é receita incremental; roxo no MQL porque é qualificação, não dinheiro.
         fork = (stages[-1].get('fork') if stages else None) or []
         if fork:
-            wg['branches'] = [{'label': f['label'], 'value': f['value'], 'migrate': f['migracao'],
-                               **({'bench': f['bench'], 'baseLabel': 'bench'} if f.get('bench') else {}),
-                               'color': '#0F7A54' if f['key'] == 'bumps_pago' else '#4A3F9E'}
-                              for f in fork]
+            payload['branches'] = [{'label': f['label'], 'value': f['value'], 'migrate': f['migracao'],
+                                    **({'bench': f['bench'], 'baseLabel': 'bench'} if f.get('bench') else {}),
+                                    'color': '#0F7A54' if f['key'] == 'bumps_pago' else '#4A3F9E'}
+                                   for f in fork]
+        return payload
+
+    def funnel_widget(wid, title, sub, variants, w=6):
+        # variants = {temperatura: etapas}. 'Geral' é o default (base do widget); as demais
+        # vão em `temps` e o toggle da seção (tra-fun-temp) troca entre elas nos dois funis.
+        base = _funnel_payload(variants['Geral'])
+        wg = {'id': wid, 'type': 'funnel', 'title': title, 'sub': sub, **base}
+        temps = {t: _funnel_payload(sv) for t, sv in variants.items() if t != 'Geral'}
+        if temps:
+            wg['temps'] = temps
+            wg['tempChannel'] = 'tra-fun-temp'
         tra.append(wg)
-        tg.add(wid, 'funnel', w, 9 if fork else 7)
-    funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total'])
-    funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d'])
+        tg.add(wid, 'funnel', w, 9 if base.get('branches') else 7)
+    funnel_widget('tra-fun-tot', 'Funil Total da Campanha', f"{B['n_dias']} dias", B['funnel_total_temps'])
+    funnel_widget('tra-fun-3d', 'Funil · Últimos 3 dias', 'dias recentes', B['funnel_3d_temps'])
     sections['s04'] = {'id': 's04', 'header': {'badge': 'Tráfego', 'title': 'Indicadores de Tráfego Pago',
                        'sub': f"{', '.join(LAB[m] for m in B['traf_metrics'])} e funil de conversão."}, 'widgets': tra}
     layouts['s04'] = tg.items
@@ -927,8 +1037,12 @@ def assemble(rows, config, content, opts=None):
     # Acompanhamento é leitura rápida: os 4 grupos (Visão Geral, Evolução, Canais,
     # Tráfego) empilham numa só seção rolável, cada um aberto por um eyebrow-divisor.
     # Só Detalhamentos e Perguntas ficam em páginas à parte (criadas pela rota/preserve).
-    groups = [('s01', None, None), ('s02', 'EVOLUÇÃO DIÁRIA', 'séries por dia da campanha'),
-              ('s03', 'CANAIS E AUDIÊNCIA', None), ('s04', 'TRÁFEGO PAGO', None)]
+    # Com 1 dia só de dado, a Evolução Diária é um ponto só — a seção é OCULTADA (não faz
+    # leitura de série com um ponto). Vale para pago e clássico.
+    groups = [('s01', None, None)]
+    if B['n_dias'] > 1:
+        groups.append(('s02', 'EVOLUÇÃO DIÁRIA', 'séries por dia da campanha'))
+    groups += [('s03', 'CANAIS E AUDIÊNCIA', None), ('s04', 'TRÁFEGO PAGO', None)]
     merged_w, merged_items, y_off = [], [], 0
     for sid, divider, dcap in groups:
         if divider:   # s02+ ganham um divisor com o nome do grupo (s01 usa o header da página)
@@ -1045,7 +1159,10 @@ def _load_dict_links(path):
     links = {}
     try:
         with open(path, encoding='utf-8-sig', errors='replace') as f:
-            rows = list(_csv.reader(f))
+            head = f.read(8192)
+            f.seek(0)
+            sep = max(',;\t', key=lambda c: head.count(c))   # dict pode vir ; (export BR) ou ,
+            rows = list(_csv.reader(f, delimiter=sep))
         for row in rows[1:]:
             if len(row) >= 2 and row[0].strip():
                 links[row[0].strip()] = (row[1] or '').strip() or None
@@ -1064,7 +1181,7 @@ def build(csv_path, config, content, out_dir):
     preserve_dataset(out_dir, r['dataset'])   # tabelas q-* dos detalhamentos sobrevivem
     preserve_layout(out_dir, r['layout'])     # disposição dos det-* sobrevive
     def dump(name, obj):
-        json.dump(obj, open(os.path.join(out_dir, name), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+        write_json(os.path.join(out_dir, name), obj)
     dump('dataset.json', r['dataset']); dump('data.json', r['data']); dump('layout.json', r['layout'])
     for sid, sec in r['sections'].items():
         dump(f'{sid}.json', sec)

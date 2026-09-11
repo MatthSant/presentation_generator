@@ -118,7 +118,7 @@ def q_hook_funil(ctx):
 def q_corr_qualif(ctx):
     q = ctx['col']('qualidade')
     best, blab = 0.0, '—'
-    for k, lab in [('hook_rate', 'Hook'), ('hold_rate', 'Hold'), ('ctr', 'CTR'), ('cpm', 'CPM')]:
+    for k, lab in [('hook_rate', 'Gancho'), ('hold_rate', 'Retenção'), ('ctr', 'CTR'), ('cpm', 'CPM')]:
         c = _corr(ctx['col'](k), q)
         if c is not None and abs(c) > abs(best):
             best, blab = c, lab

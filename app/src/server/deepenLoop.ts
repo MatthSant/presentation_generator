@@ -67,7 +67,9 @@ const CAP = 60; // teto de linhas/categorias por widget no factsheet (controla t
  *  mantém o conteúdo real; NÃO baixa a qualidade (limpa, não fabrica). */
 export function pruneEmptyWidgets(widgets: Widget[]): Widget[] {
   const blank = (v: unknown): boolean => v == null || String(v).trim() === '';
-  return (widgets || []).filter((raw) => {
+  // O modelo às vezes devolve `widgets` como objeto (não-array) → `(widgets||[])` não
+  // protegia (só pega null/undefined) e o .filter estourava. Normaliza p/ array.
+  return (Array.isArray(widgets) ? widgets : []).filter((raw) => {
     const w = raw as { type?: string; text?: unknown; title?: unknown; value?: unknown; bind?: unknown };
     if (w.type === 'highlight' || w.type === 'find-note') return !blank(w.text);
     if (w.type === 'find-block' || w.type === 'ni' || w.type === 'ni-vertical') return !blank(w.title);
