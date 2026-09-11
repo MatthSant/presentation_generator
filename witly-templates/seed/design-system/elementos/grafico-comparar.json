@@ -1,45 +1,40 @@
 {
- "id": "grafico-linha",
+ "id": "grafico-comparar",
  "grupo": "graficos",
- "title": "Linha no tempo",
- "desc": "Série diária; `largo=True` ocupa a linha inteira (12×6). `curva='reta'|'suave'` (sem isto: reta a partir de 50 pontos); `eixo_x`/`eixo_y` nomeiam os eixos.",
- "call": "s.grafico('line', 'CPL por dia', 'q-dia', x='dia', y='cpl', fmt='money', largo=True, curva='reta', eixo_x='Dia', eixo_y='CPL (R$)')",
+ "title": "Duas métricas: barra + linha",
+ "desc": "`comparar=True` com y=[a, b]: a primeira em barras, a segunda em linha no eixo da direita.",
+ "call": "s.grafico('bar', 'Leads e CPL por dia', 'q-dia', x='dia', y=['leads', 'cpl'], comparar=True, fmt='int')",
  "widgets": [
   {
-   "id": "el-grafico-linha-c1",
+   "id": "el-grafico-comparar-c1",
    "type": "chart",
-   "chartType": "line",
-   "title": "CPL por dia",
+   "chartType": "mixed",
+   "title": "Leads e CPL por dia",
    "bind": {
     "dataset": "q-dia",
     "x": "dia",
-    "y": "cpl"
+    "y": [
+     "leads",
+     "cpl"
+    ]
    },
-   "valueFormat": "money",
-   "curve": "straight",
-   "options": {
-    "xaxis": {
-     "title": {
-      "text": "Dia"
-     }
-    },
-    "yaxis": {
-     "title": {
-      "text": "CPL (R$)"
-     }
-    }
-   },
-   "height": 420
+   "valueFormat": "int",
+   "seriesTypes": [
+    "bar",
+    "line"
+   ],
+   "secondaryAxis": 1,
+   "height": 260
   }
  ],
  "layout": [
   {
-   "id": "el-grafico-linha-c1",
+   "id": "el-grafico-comparar-c1",
    "type": "chart",
    "x": 0,
    "y": 0,
-   "w": 12,
-   "h": 6
+   "w": 6,
+   "h": 4
   }
  ],
  "dataset": {
@@ -151,5 +146,5 @@
   }
  },
  "filters": [],
- "sort": 12
+ "sort": 13
 }

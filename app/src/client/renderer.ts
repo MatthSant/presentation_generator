@@ -11,6 +11,7 @@ import type {
   DefStepWidget, MdefBlockWidget, GrpListWidget, RankCardWidget, RankCard, RankClass,
   EyebrowWidget, KpiStripWidget, KpiCardWidget, MetricToggleWidget, HeatmapToggleWidget, HeatmapTab, ChartToggleWidget, ChartTableWidget, ResolvedSeries,
   EmbedWidget, LinkCardWidget, ScatterPickerWidget, ScatterPoint, EvolutionPickerWidget, QaCardWidget, FunnelWidget, StratGridWidget, BarListWidget, CriListWidget, MetaBarsWidget, EscopoCardsWidget, ChannelTableWidget, BulletGroupsWidget, BulletChannel, QuadrantScatterWidget,
+  FilterSegWidget, FilterDef,
 } from '../shared/types.js';
 import { formatValue } from './format.js';
 import { defFromResolved, buildOptions, valueFmt, captureChart, chartExportMode, type ChartDef } from './charts.js';
@@ -21,6 +22,8 @@ const FIT_LBL: Record<string, string> = { linear: 'Linear', log: 'Log', exp: 'Ex
 export interface RenderCtx {
   /** Resolve a bind against the loaded datasets + active filters, or null if unbound/error. */
   resolve(bind?: Bind): ResolvedBind | null;
+  /** Filtros do relatório (defs + estado) e como mudar um — para o seletor inline. */
+  filters?: { defs: FilterDef[]; active: Record<string, string>; set(id: string, value: string | null): void };
   /** Collector for charts that must be instantiated after DOM insertion. */
   charts: { elId: string; def: ChartDef }[];
   /** Chart canvas height (px) derived from the saved layout cell, if any. When
@@ -153,7 +156,7 @@ function renderChart(w: ChartWidget, ctx: RenderCtx): HTMLElement {
   const variant = {
     trend: w.trend, donutTotal: w.donutTotal, totalLabel: w.totalLabel,
     showLabels: w.showLabels, legendValues: w.legendValues, secondaryAxis: w.secondaryAxis, secondaryAxisSuffix: w.secondaryAxisSuffix,
-    dashLast: w.dashLast, valueFormat: w.valueFormat, goalLines: w.goalLines, highlightLast: w.highlightLast,
+    dashLast: w.dashLast, valueFormat: w.valueFormat, goalLines: w.goalLines, highlightLast: w.highlightLast, curve: w.curve,
   };
   let def: ChartDef | null = null;
   if (w.bind) {
@@ -389,7 +392,51 @@ function barEl(segs: { pct: number; color: string }[]): HTMLElement {
   return bar;
 }
 
-function renderKpiCard(w: KpiCardWidget): HTMLElement {
+/** Formata como o fmt.py do kit: money abrevia (k/M), brl é exato, pct/x/int/num pt-BR. */
+export function fmtLive(v: number | null | undefined, fmt?: string): string {
+  if (v == null || !Number.isFinite(v)) return '—';
+  const br = (n: number, d: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  switch (fmt) {
+    case 'money': return Math.abs(v) >= 1e6 ? `R$ ${(v / 1e6).toFixed(1)}M` : Math.abs(v) >= 1e3 ? `R$ ${(v / 1e3).toFixed(0)}k` : `R$ ${br(v, 2)}`;
+    case 'brl': return `R$ ${br(v, 2)}`;
+    case 'pct': return `${v.toFixed(1)}%`;
+    case 'x': return `${v.toFixed(2)}×`;
+    case 'int': return br(Math.round(v), 0);
+    case 'num': return br(v, 1);
+    default: return br(v, Number.isInteger(v) ? 0 : 2);
+  }
+}
+
+/** Valor vivo de um bind: soma de uma coluna ou razão de somas (× mult). */
+function liveValue(r: ResolvedBind | null, spec: { metric?: string; ratio?: [string, string]; mult?: number }): number | null {
+  if (!r) return null;
+  if (spec.ratio) {
+    const [a, b] = spec.ratio;
+    const num = r.totals[a]; const den = r.totals[b];
+    if (num == null || !den) return null;
+    return num / den * (spec.mult ?? 1);
+  }
+  if (spec.metric) { const v = r.totals[spec.metric]; return v == null ? null : v * (spec.mult ?? 1); }
+  return null;
+}
+
+/** Card com bind: recalcula valor (e o rodapé de meta) com as linhas filtradas. */
+function liveKpi(w: KpiCardWidget, ctx: RenderCtx): KpiCardWidget {
+  const v = liveValue(ctx.resolve(w.bind), w);
+  if (v == null) return { ...w, value: '—', goalCmp: undefined, goal: undefined };
+  const out: KpiCardWidget = { ...w, value: fmtLive(v, w.fmt) };
+  if (w.metaValue) {
+    const d = (v - w.metaValue) / w.metaValue * 100;
+    const good = w.invert ? d <= 0 : d >= 0;
+    const status = Math.abs(d) < 1 ? 'neutral' : good ? 'ok' : Math.abs(d) <= 10 ? 'warn' : 'bad';
+    const meta = { label: `Meta ${fmtLive(w.metaValue, w.fmt)}`, delta: `${d >= 0 ? '+' : ''}${d.toFixed(0)}%`, status: status as 'ok' | 'neutral' | 'warn' | 'bad' };
+    out.goalCmp = { meta, hist: w.goalCmp?.hist ?? { label: 'Hist —', delta: '', status: 'neutral' } };
+  }
+  return out;
+}
+
+function renderKpiCard(w0: KpiCardWidget, ctx?: RenderCtx): HTMLElement {
+  const w = ctx && w0.bind ? liveKpi(w0, ctx) : w0;
   const feature = w.tier !== 'volume';
   // Banda de atingimento: rótulo + valor à esquerda, % grande à direita. Compacta
   // o card numa faixa horizontal (metas / meta-to-date) sem inventar um componente novo.
@@ -498,6 +545,24 @@ function renderMetricToggle(w: MetricToggleWidget): HTMLElement {
       for (const x of bar.children) x.classList.toggle('active', x === b);
       document.dispatchEvent(new CustomEvent('metric-change', { detail: m.id }));
     });
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+/* ── filter-seg ── o filtro do FAB, inline na seção (a opção "todos" volta ao início). */
+function renderFilterSeg(w: FilterSegWidget, ctx: RenderCtx): HTMLElement {
+  const bar = el('div', 'seg seg--filter');
+  const f = ctx.filters;
+  const def = f?.defs.find((d) => d.id === w.filter);
+  if (!f || !def) { bar.appendChild(el('span', 'xs', `filtro "${w.filter}" não declarado em meta.filters`)); return bar; }
+  const cur = String(f.active[def.id] ?? def.default ?? def.allValue ?? def.options[0] ?? '');
+  const options = def.allValue && !def.options.includes(def.allValue) ? [def.allValue, ...def.options] : def.options;
+  if (w.label) bar.appendChild(el('span', 'seg-lbl', w.label));
+  for (const o of options) {
+    const b = el('button', 'seg-opt' + (o === cur ? ' active' : '')) as HTMLButtonElement;
+    b.type = 'button'; b.textContent = o;
+    b.addEventListener('click', () => { if (o !== cur) f.set(def.id, o === def.allValue ? null : o); });
     bar.appendChild(b);
   }
   return bar;
@@ -641,7 +706,12 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
       mapped = keys.map(k => ({ label: k, key: k }));
     }
     cols = mapped.map(m => m.label);
-    rows = resolved.rows.map(r => mapped.map(m => (m.key ? (r[m.key] ?? '') : '') as TableCell));
+    let src = resolved.rows;
+    if (w.sort) {
+      const k = keyFor(w.sort.col) ?? w.sort.col; const dir = w.sort.dir === 'desc' ? -1 : 1;
+      src = [...src].sort((a, b) => { const x = a[k], y = b[k]; return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x ?? '').localeCompare(String(y ?? ''))) * dir; });
+    }
+    rows = src.map(r => mapped.map(m => (m.key ? (r[m.key] ?? '') : '') as TableCell));
   } else {
     rows = w.rows || [];
   }
@@ -658,7 +728,7 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
   });
 
   for (const h of cols) {
-    const th = el('th', '', h);
+    const th = el('th', '', w.labels?.[h] ?? h);
     const def = w.defs?.[h];
     if (def) { th.appendChild(document.createTextNode(' ')); th.appendChild(infoBadge(def)); }
     hrow.appendChild(th);
@@ -696,6 +766,12 @@ function renderTable(w: TableWidget, ctx: RenderCtx): HTMLElement {
       }
       const scale = w.colorScale?.[cols[i]] ?? autoDiff[i];
       if (scale) { const cls = heatClass(value, scale); if (cls) td.classList.add(cls); }
+      const esc = w.escala?.[cols[i]];
+      if (esc && typeof value === 'number' && esc.alvo) {
+        // 5 degraus contra o alvo: ±5% neutro, ±15% o degrau forte; `menor` inverte (custo)
+        const d = (value - esc.alvo) / Math.abs(esc.alvo) * (esc.menor ? -1 : 1);
+        td.classList.add(d >= 0.15 ? 'hmd-pos2' : d >= 0.05 ? 'hmd-pos1' : d > -0.05 ? 'hmd-neu' : d > -0.15 ? 'hmd-neg1' : 'hmd-neg2');
+      }
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -1723,11 +1799,17 @@ function renderFindNote(w: FindNoteWidget): HTMLElement {
   return div;
 }
 
-function renderHighlight(w: HighlightWidget): HTMLElement {
+function renderHighlight(w: HighlightWidget, ctx?: RenderCtx): HTMLElement {
   const div = el('div', w.color ? `hl hl-${w.color}` : 'hl');
   if (w.label) div.appendChild(el('span', 'label-sec', w.label));
   const body = el('span');
-  body.innerHTML = safeHtml(w.text || '');
+  let text = w.text || '';
+  if (ctx && w.bind && w.vars) {
+    // destaque vivo: {chave} → valor calculado nas linhas filtradas
+    const r = ctx.resolve(w.bind);
+    text = text.replace(/\{([a-zA-Z0-9_]+)\}/g, (m, k: string) => (w.vars![k] ? fmtLive(liveValue(r, w.vars![k]), w.vars![k].fmt) : m));
+  }
+  body.innerHTML = safeHtml(text);
   div.appendChild(body);
   return div;
 }
@@ -2202,7 +2284,8 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
     switch (widget.type) {
       case 'kpi':         return renderKpi(widget, ctx);
       case 'kpi-strip':   return renderKpiStrip(widget);
-      case 'kpi-card':    return renderKpiCard(widget);
+      case 'kpi-card':    return renderKpiCard(widget, ctx);
+      case 'filter-seg':  return renderFilterSeg(widget, ctx);
       case 'metric-toggle': return renderMetricToggle(widget);
       case 'chart-table': return renderChartTable(widget, ctx);
       case 'eyebrow':     return renderEyebrow(widget);
@@ -2224,7 +2307,7 @@ export function renderWidget(widget: Widget, ctx: RenderCtx): HTMLElement {
       case 'cri-list':    return renderCriList(widget);
       case 'strat-grid':  return renderStratGrid(widget);
       case 'find-note':   return renderFindNote(widget);
-      case 'highlight':   return renderHighlight(widget);
+      case 'highlight':   return renderHighlight(widget, ctx);
       case 'ni':
       case 'ni-vertical': return renderNi(widget);
       case 'label-sec':   return renderLabelSec(widget);

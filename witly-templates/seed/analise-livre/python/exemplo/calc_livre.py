@@ -77,6 +77,13 @@ def calcular(csv_path):
 
     dias = sorted({r['dia'] for r in rows})
     tabela('q-dia', 'dia', _agg(rows, lambda r: r['dia']), ordem=dias, geral=False)
+    # dia × canal, sem linha Geral: é a tabela que responde ao filtro de canal (filters=['canal'])
+    dc = _agg(rows, lambda r: (r['dia'], r['canal']))
+    linhas = []
+    for (d, c) in sorted(dc):
+        m = dc[(d, c)]
+        linhas.append({'dia': d, 'canal': c, **{k: round(m[k], 2) for k in COLS[3:]}, **{k: (round(v, 2) if v is not None else None) for k, v in _razoes(m).items()}})
+    T['q-dia-canal'] = {'dims': ['dia', 'canal'], 'filters': ['canal'], 'rows': linhas}
     tabela('q-canal', 'canal', _agg(rows, lambda r: r['canal']))
     tabela('q-temp', 'temperatura', _agg(rows, lambda r: r['temperatura']))
     geral = T['q-canal']['rows'][-1]

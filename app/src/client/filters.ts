@@ -84,6 +84,13 @@ export class Filters {
     }
   }
 
+  /** Seleção vinda de fora do modal (seletor inline na seção); null = opção inicial. */
+  select(id: string, value: string | null): void {
+    const def = this.store.filterDefs.find((d) => d.id === id);
+    if (!def) return;
+    this.pick(def, value ?? def.allValue ?? def.default ?? def.options[0] ?? '');
+  }
+
   private pick(def: FilterDef, value: string): void {
     if (value === def.allValue) delete this.store.active[def.id];
     else this.store.active[def.id] = value;

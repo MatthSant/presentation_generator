@@ -82,6 +82,8 @@ export class Navigation {
     if (!this.sideHost) return;
     this.sideHost.replaceChildren();
     if (this.navMode() !== 'sidebar') return;
+    // meta.chrome: o que esconder no relatório entregue (marca, cliente, chevron, busca, ⌘K, sidebar fechada)
+    const chrome = ((this.store.data?.meta || {}) as { chrome?: { marca?: boolean; cliente?: boolean; trocar?: boolean; busca?: boolean; atalho?: boolean; sidebar?: string } }).chrome || {};
 
     // Brand: nosso logo do app num quadrado branco arredondado (a sidebar é plum escuro).
     const brand = document.createElement('a');
@@ -110,7 +112,8 @@ export class Navigation {
     collapseBtn.setAttribute('aria-label', 'Minimizar menu');
     collapseBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
     collapseBtn.addEventListener('click', () => this.setNavCollapsed(true));
-    head.append(brand, collapseBtn);
+    if (chrome.marca !== false) head.appendChild(brand);
+    head.appendChild(collapseBtn);
     this.sideHost.appendChild(head);
 
     // Botão flutuante p/ reabrir (criado uma vez, fora do sideHost que é recriado).
@@ -125,8 +128,8 @@ export class Navigation {
       exp.addEventListener('click', () => this.setNavCollapsed(false));
       document.body.appendChild(exp);
     }
-    let startCollapsed = false;
-    try { startCollapsed = localStorage.getItem('nav-collapsed') === '1'; } catch { /* sem storage */ }
+    let startCollapsed = chrome.sidebar === 'fechada';
+    if (!chrome.sidebar) { try { startCollapsed = localStorage.getItem('nav-collapsed') === '1'; } catch { /* sem storage */ } }
     this.setNavCollapsed(startCollapsed);
 
     // Switcher (visual): avatar com iniciais do cliente + título do relatório.
@@ -141,8 +144,9 @@ export class Navigation {
     const swb = document.createElement('b'); swb.textContent = clientName;
     swm.append(swl, swb);
     const chev = document.createElement('span'); chev.className = 'sn-chev'; chev.textContent = '▾';
-    sw.append(pj, swm, chev);
-    this.sideHost.appendChild(sw);
+    sw.append(pj, swm);
+    if (chrome.trocar !== false) sw.appendChild(chev);
+    if (chrome.cliente !== false) this.sideHost.appendChild(sw);
 
     // Busca — ícone + input + atalho ⌘K; filtra itens (nav-items/seções) em tempo real.
     const sbox = document.createElement('div');
@@ -161,8 +165,9 @@ export class Navigation {
       for (const l of this.sideHost!.querySelectorAll<HTMLElement>('.sn-label')) l.style.display = q ? 'none' : '';
     });
     const kbd = document.createElement('kbd'); kbd.className = 'sn-kbd'; kbd.textContent = '⌘K';
-    sbox.append(search, kbd);
-    this.sideHost.appendChild(sbox);
+    sbox.appendChild(search);
+    if (chrome.atalho !== false) sbox.appendChild(kbd);
+    if (chrome.busca !== false) this.sideHost.appendChild(sbox);
 
     // Ordenação dos itens (criativos): A-Z / Investimento / ROAS, com direção ↑↓.
     const sortable = this.store.pages.some((p) => p.sections.some((s) => (s as { inv?: number }).inv !== undefined));

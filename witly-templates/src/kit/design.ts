@@ -79,8 +79,11 @@ export function designReport(kit: Kit, foco?: string | null, override?: Elemento
   const sections: Record<string, unknown> = {};
   const layout: Record<string, unknown[]> = {};
   const pages = new Map<string, { id: string; label: string; sections: Array<{ id: string; label: string }> }>();
+  const filters = new Map<string, unknown>();
   for (const e of els) {
     for (const [name, t] of Object.entries(e.dataset ?? {})) dataset[name] = t;
+    // filtros que o elemento usa (seletor inline, card vivo): entram em meta.filters uma vez por id
+    for (const f of ((e as { filters?: Array<{ id: string }> }).filters ?? [])) if (f && f.id && !filters.has(f.id)) filters.set(f.id, f);
     const sid = `el-${e.id}`;
     sections[sid] = { id: sid, header: { badge: GRUPOS[e.grupo] ?? e.grupo, title: e.title, sub: e.desc ?? '' }, widgets: e.widgets };
     layout[sid] = e.layout;
@@ -90,7 +93,8 @@ export function designReport(kit: Kit, foco?: string | null, override?: Elemento
   const ordem = foco ? [...pages.values()] : [...pages.values()].sort((a, b) => Object.keys(GRUPOS).indexOf(a.id) - Object.keys(GRUPOS).indexOf(b.id));
   const data = {
     meta: { client: 'galeria', client_name: 'Design system', title: `Design system ${kit.version.semver ? 'v' + kit.version.semver : '(rascunho)'}`,
-            type: 'dashboard', theme: 'light', nav: 'sidebar', controls: { kind: 'design-system', compare: 'meta', pages: ordem.map((p) => p.id), filters: [] } },
+            type: 'dashboard', theme: 'light', nav: 'sidebar', controls: { kind: 'design-system', compare: 'meta', pages: ordem.map((p) => p.id), filters: [] },
+            filters: [...filters.values()] },
     pages: ordem,
   };
   return { data, dataset, sections, layout: { sections: layout } };

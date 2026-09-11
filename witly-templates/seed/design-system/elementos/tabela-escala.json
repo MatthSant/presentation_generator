@@ -1,41 +1,54 @@
 {
- "id": "tabela",
+ "id": "tabela-escala",
  "grupo": "graficos",
- "title": "Tabela",
- "desc": "Tabela por `bind` com as colunas escolhidas; `sub` explica a linha Geral.",
- "call": "s.tabela('Resultado por canal', 'q-canal', ['canal', 'leads', 'invest', 'cpl', 'qualif', 'conv', 'vendas'], sub='linha Geral = soma; taxas e custos ponderados')",
+ "title": "Tabela com rótulos e escala vs alvo",
+ "desc": "`colunas` rotula o cabeçalho; `escala` pinta o fundo em 5 degraus contra o alvo (True = menor é melhor); `ordem='desc'` põe o maior primeiro.",
+ "call": "s.tabela('Por canal', 'q-canal', ['canal', 'leads', 'cpl', 'conv'], colunas={'canal': 'Canal', 'leads': 'Leads', 'cpl': 'CPL', 'conv': 'Conversão'}, escala={'cpl': (7.0, True), 'conv': (6.0, False)}, ordem='desc')",
  "widgets": [
   {
-   "id": "el-tabela-t1",
+   "id": "el-tabela-escala-t1",
    "type": "table",
-   "title": "Resultado por canal",
+   "title": "Por canal",
    "cols": [
     "canal",
     "leads",
-    "invest",
     "cpl",
-    "qualif",
-    "conv",
-    "vendas"
+    "conv"
    ],
    "bind": {
     "dataset": "q-canal",
     "metrics": [
      "canal",
      "leads",
-     "invest",
      "cpl",
-     "qualif",
-     "conv",
-     "vendas"
+     "conv"
     ]
    },
-   "sub": "linha Geral = soma; taxas e custos ponderados"
+   "labels": {
+    "canal": "Canal",
+    "leads": "Leads",
+    "cpl": "CPL",
+    "conv": "Conversão"
+   },
+   "escala": {
+    "cpl": {
+     "alvo": 7.0,
+     "menor": true
+    },
+    "conv": {
+     "alvo": 6.0,
+     "menor": false
+    }
+   },
+   "sort": {
+    "col": "canal",
+    "dir": "desc"
+   }
   }
  ],
  "layout": [
   {
-   "id": "el-tabela-t1",
+   "id": "el-tabela-escala-t1",
    "type": "table",
    "x": 0,
    "y": 0,
@@ -81,5 +94,5 @@
   }
  },
  "filters": [],
- "sort": 17
+ "sort": 16
 }

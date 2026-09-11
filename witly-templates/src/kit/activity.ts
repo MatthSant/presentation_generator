@@ -25,7 +25,15 @@ export interface RegistrarInput {
   motivo?: string | null;
   /** edicao */
   mudanca?: string;
+  /** feedback de uso (ao fechar o trabalho): o que segurou, o que custou rodada, a medida e a nota */
+  segurou?: string[];
+  custou?: Array<{ item?: string; prioridade?: string; pedido?: string; rodadas?: number }>;
+  medida?: { apresentacao?: number; filtro?: number; analise?: number; total?: number };
+  nota?: number;
+  resumo?: string;
 }
+
+const PRIORIDADES = ['alta', 'media', 'baixa'];
 
 function str(v: unknown, max = 20000): string | null {
   if (v == null) return null;
@@ -42,13 +50,30 @@ async function visibleSlug(env: ToolEnv, user: ToolUser, slug: string): Promise<
 
 export async function registrar(env: ToolEnv, user: ToolUser, input: RegistrarInput): Promise<string> {
   const evento = input.evento;
-  if (!['geracao', 'aprofundamento'].includes(evento)) throw new ToolError('evento deve ser geracao | aprofundamento (sugestão de regra: sugerir_regra)');
+  if (!['geracao', 'aprofundamento', 'feedback'].includes(evento)) throw new ToolError('evento deve ser geracao | aprofundamento | feedback (sugestão de regra: sugerir_regra)');
   if (!input.slug) throw new ToolError('slug obrigatório');
   const { version } = await visibleSlug(env, user, input.slug);
 
   let dados: Record<string, unknown>;
   if (evento === 'geracao') {
     dados = { contexto: input.contexto ?? {}, resultado: input.resultado ?? {} };
+  } else if (evento === 'feedback') {
+    const nota = Number(input.nota);
+    if (!(Number.isInteger(nota) && nota >= 1 && nota <= 5)) throw new ToolError('feedback exige `nota` (1 a 5)');
+    const segurou = (Array.isArray(input.segurou) ? input.segurou : []).map((x) => str(x, 400)).filter(Boolean).slice(0, 20) as string[];
+    const custou = (Array.isArray(input.custou) ? input.custou : []).slice(0, 30).map((c, i) => {
+      const item = str(c?.item, 500); const pedido = str(c?.pedido, 500);
+      if (!item && !pedido) throw new ToolError(`custou[${i}]: informe item (o que custou rodada) e pedido (o que mudar no kit)`);
+      const prioridade = PRIORIDADES.includes(String(c?.prioridade || '').toLowerCase()) ? String(c!.prioridade).toLowerCase() : 'media';
+      const rodadas = Number.isFinite(Number(c?.rodadas)) && Number(c?.rodadas) > 0 ? Math.round(Number(c!.rodadas)) : null;
+      return { item, pedido, prioridade, rodadas };
+    });
+    const m = input.medida || {};
+    const n = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v)) : 0);
+    const medida = { apresentacao: n(m.apresentacao), filtro: n(m.filtro), analise: n(m.analise) };
+    (medida as { total?: number }).total = n(m.total) || (medida.apresentacao + medida.filtro + medida.analise);
+    if (!segurou.length && !custou.length) throw new ToolError('feedback exige ao menos `segurou` ou `custou`');
+    dados = { segurou, custou, medida, nota, resumo: str(input.resumo, 2000) };
   } else if (evento === 'aprofundamento') {
     const pergunta = str(input.pergunta, 2000);
     if (!pergunta) throw new ToolError('aprofundamento exige `pergunta`');
@@ -60,7 +85,7 @@ export async function registrar(env: ToolEnv, user: ToolUser, input: RegistrarIn
     if (!mudanca) throw new ToolError('edicao exige `mudanca`');
     dados = { mudanca };
   }
-  const avaliacao = input.avaliacao == null ? null : Number(input.avaliacao);
+  const avaliacao = evento === 'feedback' ? Number(input.nota) : (input.avaliacao == null ? null : Number(input.avaliacao));
   if (avaliacao != null && !(Number.isInteger(avaliacao) && avaliacao >= 1 && avaliacao <= 5)) throw new ToolError('avaliacao deve ser inteiro de 1 a 5');
   const motivo = str(input.motivo, 2000);
   if (input.descartado && !motivo) throw new ToolError('descartado exige `motivo`');

@@ -31,13 +31,18 @@ def montar(csv_path, client='fixture', client_name='Cliente Fixture', campanha='
     pior = max(canais, key=lambda r: r['cpl'] or 0)
 
     R = Relatorio(client=client, client_name=client_name, title=f'{client_name} · CPL por canal', campaign_label=campanha,
-                  pergunta='Qual canal captou mais barato e vale receber verba?', decisao='realocar verba entre canais na próxima semana')
+                  pergunta='Qual canal captou mais barato e vale receber verba?', decisao='realocar verba entre canais na próxima semana',
+                  chrome={'atalho': False, 'trocar': False})   # o HTML vai ao cliente: sem ⌘K nem chevron de trocar análise
     for nome, t in T.items():
-        R.tabela(nome, t['dims'], t['rows'])
+        R.tabela(nome, t['dims'], t['rows'], filters=t.get('filters'))
+    # filtro de canal: opções conferidas contra os valores reais da tabela que o declara
+    R.filtro('canal', 'Canal', todos='Todos')
+    VIVO = {'dataset': 'q-dia-canal'}   # os cards abaixo recalculam no filtro (razão de somas, nunca soma de linhas)
 
     # ── Panorama ─────────────────────────────────────────────────────────
     p = R.pagina('panorama', 'Panorama')
     s = p.secao('s01', 'Panorama', f'{client_name} · {campanha}', 'a captação em números: metas, volume e o que mudou no tempo')
+    s.seletor('canal', 'Canal')
     s.eyebrow('ATINGIMENTO', 'realizado vs meta da campanha')
     s.banda('Atingimento · Leads', tot['leads'], METAS['leads'])
     s.banda('Atingimento · Vendas', tot['vendas'], METAS['vendas'])
@@ -47,11 +52,11 @@ def montar(csv_path, client='fixture', client_name='Cliente Fixture', campanha='
     s.kpi('ROAS', tot['roas'], 'x', sub='faturamento ÷ investimento', icon='bolt', color='#EF9F27', emph=True)
     s.kpi('Conversão', tot['conv'], 'pct', sub='vendas ÷ leads', icon='circle-check', color='#3B6D11', meta=METAS['conv'])
     s.eyebrow('INDICADORES DE VOLUME', '8 métricas')
-    s.kpi('Leads', tot['leads'], 'int', meta=METAS['leads'])
-    s.kpi('CPL', tot['cpl'], 'money', meta=METAS['cpl'], invert=True, info='investimento ÷ leads')
-    s.kpi('Taxa de resposta', tot['taxa_resp'], 'pct', meta=METAS['taxa_resp'])
-    s.kpi('Qualificação', tot['qualif'], 'pct', sub='MQLs ÷ respostas', meta=METAS['qualif'])
-    s.kpi('CPMQL', tot['cpmql'], 'money', info='CPL ÷ qualificação', invert=True)
+    s.kpi('Leads', tot['leads'], 'int', meta=METAS['leads'], bind={**VIVO, 'metric': 'leads'})
+    s.kpi('CPL', tot['cpl'], 'money', meta=METAS['cpl'], invert=True, info='investimento ÷ leads', bind={**VIVO, 'ratio': ('invest', 'leads')})
+    s.kpi('Taxa de resposta', tot['taxa_resp'], 'pct', meta=METAS['taxa_resp'], bind={**VIVO, 'ratio': ('respostas', 'leads'), 'mult': 100})
+    s.kpi('Qualificação', tot['qualif'], 'pct', sub='MQLs ÷ respostas', meta=METAS['qualif'], bind={**VIVO, 'ratio': ('mqls', 'respostas'), 'mult': 100})
+    s.kpi('CPMQL', tot['cpmql'], 'money', info='CPL ÷ qualificação', invert=True, bind={**VIVO, 'ratio': ('invest', 'mqls')})
     s.kpi('CTR', tot['ctr'], 'pct', sub='cliques ÷ impressões')
     s.kpi('CPM', tot['cpm'], 'money', invert=True)
     s.kpi('Vendas', tot['vendas'], 'int', meta=METAS['vendas'])
@@ -76,13 +81,17 @@ def montar(csv_path, client='fixture', client_name='Cliente Fixture', campanha='
     s.destaque(f'{melhor["canal"].title()} captou a {money(melhor["cpl"])} por lead contra {money(pior["cpl"])} do {pior["canal"].title()}; '
                f'o geral fechou em {money(tot["cpl"])}.')
     s.eyebrow('CUSTO E QUALIDADE POR CANAL')
-    s.grafico('bar', 'CPL por canal', 'q-canal', x='canal', y='cpl', fmt='money')
+    s.grafico('bar', 'CPL por canal', 'q-canal', x='canal', y='cpl', fmt='brl')
     s.grafico('bar', 'Qualificação por canal', 'q-canal', x='canal', y='qualif', fmt='pct')
     s.tabela('Resultado por canal', 'q-canal', ['canal', 'leads', 'invest', 'cpl', 'taxa_resp', 'qualif', 'cpmql', 'vendas', 'conv'],
-             sub='linha Geral = soma; taxas e custos ponderados')
+             sub='linha Geral = soma; taxas e custos ponderados',
+             colunas={'canal': 'Canal', 'leads': 'Leads', 'invest': 'Investimento', 'cpl': 'CPL', 'taxa_resp': 'Resposta', 'qualif': 'Qualificação', 'cpmql': 'CPMQL', 'vendas': 'Vendas', 'conv': 'Conversão'},
+             escala={'cpl': (METAS['cpl'], True), 'conv': (METAS['conv'], False)})
     s.eyebrow('POR TEMPERATURA', 'quente × frio')
-    s.grafico('bar', 'CPL por temperatura', 'q-temp', x='temperatura', y='cpl', fmt='money')
-    s.grafico('bar', 'Conversão por temperatura', 'q-temp', x='temperatura', y='conv', fmt='pct')
+    s.grafico('bar', 'CPL por temperatura', 'q-temp', x='temperatura', y='cpl', fmt='brl', eixo_y='CPL (R$)')
+    s.grafico('bar', 'Conversão por temperatura', 'q-temp', x='temperatura', y='conv', fmt='pct', eixo_y='Conversão (%)')
+    s.eyebrow('LEADS POR DIA E CANAL', 'responde ao seletor de canal lá em cima')
+    s.grafico('line', 'Leads por dia', 'q-dia-canal', x='dia', y='leads', fmt='int', largo=True, curva='reta', eixo_x='Dia')
     s.eyebrow('O QUE ISSO DIZ')
     s.achado('Resposta', 'ok', f'{melhor["canal"].title()} é o canal mais barato',
              f'CPL de {money(melhor["cpl"])} com {int(melhor["leads"])} leads: volume suficiente para receber verba (tabela Resultado por canal).')

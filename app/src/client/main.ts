@@ -274,6 +274,7 @@ class App {
     this.dashboard = new Dashboard(section, host, {
       datasets: this.store.datasets,
       getActive: () => this.store.active,
+      setFilter: (id, v) => this.filters?.select(id, v),
       getFilterDefs: () => this.store.filterDefs,
       layout: this.store.layoutFor(section.id),
       onSaveLayout: (id, items) => this.persistLayout(id, items),
