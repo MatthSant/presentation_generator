@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* seed — carrega os kits de seed/ no D1 como templates PUBLICADOS + os contextos gerais.
+/* seed — carrega os kits de seed/ no D1 como templates PUBLICADOS + o conhecimento (spec 008).
  *
  *   node scripts/seed.mjs --local        (D1 local do wrangler dev)
  *   node scripts/seed.mjs --remote       (D1 de produção)
@@ -196,14 +196,54 @@ async function kitSql(slug) {
   return { sql, files: files.length, tasks: tasks.length, rules: rules.length, hash };
 }
 
-async function generalSql() {
-  const dir = path.join(SEED, 'general-contexts');
+/** seed/conhecimento/**\/*.md → tabela `conhecimento` (spec 008). Frontmatter: tipo, dominio, nivel,
+ *  escopo, sempre, gatilho, tags, confianca, dados (JSON); depois `# título` e o corpo. O upsert só
+ *  toca o que ainda é do seed (autor = 'seed') e só quando algo mudou (versão + 1, histórico por trigger). */
+function parseFrontmatter(md) {
+  const m = md.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!m) return { meta: {}, rest: md };
+  const meta = {};
+  for (const line of m[1].split('\n')) {
+    const kv = line.match(/^([a-z_]+):\s*(.*)$/);
+    if (!kv) continue;
+    const [, k, raw] = kv; const v = raw.trim();
+    if (k === 'dados') { try { meta[k] = JSON.parse(v); } catch { meta[k] = {}; } }
+    else if (v.startsWith('[')) meta[k] = v.slice(1, -1).split(',').map((x) => x.trim()).filter(Boolean);
+    else if (v === 'true' || v === 'false') meta[k] = v === 'true';
+    else meta[k] = v;
+  }
+  return { meta, rest: m[2] };
+}
+
+const FAMILIA_DE = { conceito: 'saber', definicao: 'saber', metrica: 'saber', benchmark: 'saber', principio: 'pensar', diagnostico: 'pensar', pergunta: 'pensar',
+  regra: 'fazer', metodo: 'fazer', padrao: 'fazer', estilo: 'comunicar', formato: 'comunicar', funil: 'contexto', cliente: 'contexto', campanha: 'contexto', caso: 'memoria', teste: 'memoria' };
+
+async function conhecimentoSql() {
+  const dir = path.join(SEED, 'conhecimento');
+  if (!existsSync(dir)) return [];
   const sql = [];
-  for (const f of (await readdir(dir)).filter((x) => x.endsWith('.md'))) {
-    const slug = f.replace(/\.md$/, '');
-    const { title, body, tipo } = splitMd(await readFile(path.join(dir, f), 'utf8'));
-    sql.push(`INSERT INTO general_contexts (slug, org_id, title, body_md, tipo, author_email) VALUES (${q(slug)}, ${q(ORG)}, ${q(title || slug)}, ${q(body)}, ${q(tipo)}, ${q(AUTHOR)})
-      ON CONFLICT(slug) DO UPDATE SET title = excluded.title, body_md = excluded.body_md, tipo = excluded.tipo, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`);
+  for (const rel of (await walk(dir)).filter((x) => x.endsWith('.md')).sort()) {
+    const id = rel.replace(/\.md$/, '').split('/').pop();
+    const { meta, rest } = parseFrontmatter(await readFile(path.join(dir, rel), 'utf8'));
+    const { title, body } = splitMd(rest);
+    const tipo = meta.tipo || 'regra';
+    const familia = FAMILIA_DE[tipo];
+    if (!familia) throw new Error(`seed/conhecimento/${rel}: tipo desconhecido "${tipo}"`);
+    if (!title) throw new Error(`seed/conhecimento/${rel}: sem título (# …)`);
+    if (title.length > 200 || body.length > 2000) throw new Error(`seed/conhecimento/${rel}: título > 200 ou corpo > 2000 caracteres`);
+    const sempre = meta.sempre === true;
+    const gatilho = Array.isArray(meta.gatilho) && meta.gatilho.length ? meta.gatilho : (sempre ? ['sempre'] : []);
+    const cols = {
+      familia, tipo, dominio: meta.dominio || 'analise', escopo: meta.escopo || 'geral', nivel: meta.nivel || 'tatico',
+      tags_json: JSON.stringify(Array.isArray(meta.tags) ? meta.tags : []), titulo: title, corpo_md: body, dados_json: JSON.stringify(meta.dados || {}),
+      confianca: meta.confianca || 'media', fontes_json: JSON.stringify(Array.isArray(meta.fontes) ? meta.fontes : []), sempre: sempre ? 1 : 0, gatilho_json: JSON.stringify(gatilho),
+    };
+    const keys = Object.keys(cols);
+    const vals = keys.map((k) => (typeof cols[k] === 'number' ? String(cols[k]) : q(cols[k])));
+    const mudou = ['titulo', 'corpo_md', 'dados_json', 'tipo', 'familia', 'dominio', 'escopo', 'nivel', 'tags_json', 'gatilho_json', 'sempre', 'confianca'].map((k) => `conhecimento.${k} IS NOT excluded.${k}`).join(' OR ');
+    sql.push(`INSERT INTO conhecimento (id, org_id, ${keys.join(', ')}, autor) VALUES (${q(id)}, ${q(ORG)}, ${vals.join(', ')}, ${q(AUTHOR)})
+      ON CONFLICT(id) DO UPDATE SET ${keys.map((k) => `${k} = excluded.${k}`).join(', ')}, versao = conhecimento.versao + 1, atualizado_em = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      WHERE conhecimento.autor = ${q(AUTHOR)} AND (${mudou});`);
   }
   return sql;
 }
@@ -238,9 +278,9 @@ async function main() {
     publicados++;
     console.log(`kit ${slug}: motor ${a.engine}, ${k.files} arquivos, ${k.tasks} tarefas, ${k.rules} regras/perguntas`);
   }
-  const g = await generalSql();
+  const g = await conhecimentoSql();
   lines.push(...g);
-  console.log(`contextos gerais: ${g.length}`);
+  console.log(`conhecimento (seed): ${g.length} entradas`);
   lines.push(...await platformSql());
   console.log('documentos da plataforma: design-system');
   const file = sqlOut || path.join(os.tmpdir(), `witly-seed-${Date.now()}.sql`);

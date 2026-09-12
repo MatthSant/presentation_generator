@@ -1,6 +1,9 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import * as db from '../src/db/index.js';
+import { gravarConhecimento } from '../src/db/conhecimento.js';
+import { validarEntrada } from '../src/kit/conhecimento.js';
+const geral = (id: string, titulo: string, corpo: string) => gravarConhecimento(env.DB, ORG, validarEntrada({ id, tipo: 'regra', titulo, corpo_md: corpo, sempre: true, dados: { forca: 'sempre' } }).entrada!, 'seed');
 import { guia, listarTemplates, montarQueries, obterTemplate, resourceText, ToolError } from '../src/kit/tools.js';
 import { verifyDownload } from '../src/kit/sign.js';
 import { ORG, SAMPLE_FILES, SAMPLE_MANIFEST, seedPublished, seedUser } from './helpers.js';
@@ -28,15 +31,16 @@ describe('tools (T011)', () => {
   it('obter_template: texto com manifesto, tarefas, queries, documento, guia, contextos gerais e URL assinada válida', async () => {
     const slug = fresh();
     await seedPublished(slug);
-    await db.upsertGeneralContext(env.DB, { slug: 'numeros-pequenos', org_id: ORG, title: 'Números pequenos', body_md: 'Taxa em cima de pouca base não é sinal.' });
+    await geral('numeros-pequenos', 'Números pequenos', 'Taxa em cima de pouca base não é sinal.');
     const out = await obterTemplate(env, user, slug);
     expect(out).toContain(`# Kit: Acompanhamento diário  \`${slug}\`  v1`);
     expect(out).toContain('### Identificar o lançamento  `lancamento`');
     expect(out).toContain(SAMPLE_FILES[0].content);            // SQL cru com {{param}}
     expect(out).toContain('# Documento');
     expect(out).toContain('Leia com cuidado.');
-    expect(out).toContain('## Contextos gerais');
-    expect(out).toContain('Taxa em cima de pouca base');
+    expect(out).toContain('## Contextos que valem para TODA análise');
+    expect(out).toContain('[REGRA] Números pequenos — Taxa em cima de pouca base');
+    expect(out).toContain('## Conhecimento relevante (índice');
     const m = out.match(new RegExp(String.raw`curl -L -o ${slug}\.zip "http://x/dl/${slug}/1\?t=([^"]+)"`));
     expect(m).not.toBeNull();
     expect(await verifyDownload(env.COOKIE_ENCRYPTION_KEY, slug, 1, m![1])).toBe(true);
@@ -67,19 +71,20 @@ describe('tools (T011)', () => {
   it('guia: devolve o guia + contextos gerais', async () => {
     const slug = fresh();
     await seedPublished(slug);
-    await db.upsertGeneralContext(env.DB, { slug: 'g1', org_id: ORG, title: 'G1', body_md: 'corpo g1' });
+    await geral('g1', 'G1', 'corpo g1');
     const out = await guia(env, user, slug);
     expect(out.startsWith('# Guia')).toBe(true);
-    expect(out).toContain('### [REGRA] G1');
+    expect(out).toContain('[REGRA] G1 — corpo g1');
   });
 
   it('resources: manifesto, guia, contexto/<tarefa>, contexto geral', async () => {
     await seedPublished('acomp');
-    await db.upsertGeneralContext(env.DB, { slug: 'g1', org_id: ORG, title: 'G1', body_md: 'corpo g1' });
+    await geral('g1', 'G1', 'corpo g1');
     expect(JSON.parse((await resourceText(env, 'template://acomp'))!)).toMatchObject({ slug: 'acomp', version: '1.0.0', version_number: 1, params: SAMPLE_MANIFEST.params });
     expect(await resourceText(env, 'template://acomp/guia')).toBe('# Guia\nLeia com cuidado.');
     expect(await resourceText(env, 'template://acomp/contexto/lancamento')).toContain('# Identificar o lançamento');
-    expect(await resourceText(env, 'contexto://geral/g1')).toBe('# G1\n\ncorpo g1');
+    expect(await resourceText(env, 'contexto://geral/g1')).toContain('# G1');
+    expect(await resourceText(env, 'conhecimento://g1')).toContain('corpo g1');
     expect(await resourceText(env, 'template://nada')).toBeNull();
   });
 });

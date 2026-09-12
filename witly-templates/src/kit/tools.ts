@@ -2,7 +2,10 @@
  * registra e chama. Testável sem transporte MCP. */
 
 import { versionLabel } from '../db/semver.js';
-import { canSee, designSystemText, getPublishedKit, getTemplate, listGeneralContexts, listTemplates, logUsage, type GeneralContext, type Kit } from '../db/index.js';
+import { canSee, designSystemText, getPublishedKit, getTemplate, listTemplates, logUsage, type Kit } from '../db/index.js';
+import { obterConhecimento } from '../db/conhecimento.js';
+import { indiceBlock, nivel0Block } from './conhecimento-tools.js';
+import { textoCompleto } from './conhecimento.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
 import { questionsBlock, rulesBlock } from './zip.js';
@@ -44,18 +47,6 @@ async function kitOrThrow(env: ToolEnv, user: ToolUser, slug: string): Promise<K
   throw new ToolError(`template "${slug}" não existe. Disponíveis: ${known.join(', ') || '(nenhum)'}`);
 }
 
-const TIPO_LABEL: Record<string, string> = { regra: 'REGRA', recomendacao: 'RECOMENDAÇÃO', definicao: 'DEFINIÇÃO' };
-
-
-/** Contextos gerais: o TÍTULO já é a regra; o corpo é curto (porquê + como aplicar).
- *  REGRA não se descumpre; RECOMENDAÇÃO pode ser relaxada com motivo; DEFINIÇÃO fixa um termo. */
-function generalBlock(gc: GeneralContext[]): string {
-  if (!gc.length) return '';
-  const out = ['', '', '---', '', '## Contextos gerais (valem para TODA análise)', '',
-    'Leia pelos títulos: cada um já diz o que fazer ou não fazer. REGRA = não descumpra. RECOMENDAÇÃO = siga, salvo motivo dito. DEFINIÇÃO = é assim que o termo é entendido aqui.'];
-  for (const g of gc) out.push('', `### [${TIPO_LABEL[g.tipo] ?? 'REGRA'}] ${g.title}`, '', g.body_md.trim());
-  return out.join('\n');
-}
 
 // ── listar_templates ─────────────────────────────────────────────────────────
 
@@ -102,6 +93,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('');
   out.push(`**Objetivo:** ${kit.template.objective}`);
   out.push(`**Quando usar:** ${kit.template.when_to_use}`);
+  out.push(await nivel0Block(env, slug, m as { funil?: unknown; tags?: unknown }));
   out.push('');
   out.push('## Download do kit completo (Python, viewer, exemplo — NÃO passe pelo contexto, baixe)');
   out.push('');
@@ -161,9 +153,10 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('- Gerou o documento: `registrar({evento:"geracao", slug, versao, cliente, contexto:{tarefas resolvidas}, resultado:{titulo, secoes, problemas}})`.');
   out.push('- Cada aprofundamento: `registrar({evento:"aprofundamento", slug, pergunta, pergunta_id?, resposta, consultas, avaliacao?, descartado?, motivo?})` — resposta = prosa + tabelas agregadas; nunca e-mail, telefone ou CPF.');
   out.push('- Se o consultor der uma nota ao template: `avaliar(slug, nota, comentario)`.');
-  out.push('- Faltou regra, definição ou pergunta no template? `sugerir_regra({slug, tipo, titulo, corpo, motivo})` — vai para a triagem do editor; não muda o kit sozinho.');
+  out.push('- Faltou regra, definição ou pergunta NO TEMPLATE? `sugerir_regra({slug, tipo, titulo, corpo, motivo})` — triagem do editor. Faltou CONHECIMENTO (métrica, diagnóstico, caso, benchmark, formato…)? `sugerir({tipo, titulo, corpo, dados, escopo, motivo, urgencia?, evidencia?})` — vira proposta; cálculo/métrica errada = `urgencia:"urgente"` com evidência.');
+  out.push('- Em todo `registrar`, mande `usadas:[{id, ajudou}]` com as entradas de conhecimento que entraram na análise (é a evidência que mantém o conhecimento vivo).');
   out.push('- **Ao fechar o trabalho com o consultor** (obrigatório): `registrar({evento:"feedback", slug, versao, cliente, resumo, segurou:[…], custou:[{item, prioridade, pedido, rodadas}], medida:{apresentacao, filtro, analise}, nota})` — o que segurou bem, cada ajuste que custou rodada (o `pedido` é o que mudar no kit, escrito como regra), quantas rodadas foram sobre apresentação × filtro × análise, e a nota de 1 a 5. É assim que o kit aprende; o editor triagem cada item.');
-  out.push(generalBlock(await listGeneralContexts(env.DB, env.ORG_ID)));
+  out.push(await indiceBlock(env, kit));
   return out.join('\n');
 }
 
@@ -213,7 +206,7 @@ export async function guia(env: ToolEnv, user: ToolUser, slug: string): Promise<
   const kit = await kitOrThrow(env, user, slug);
   await logUsage(env.DB, { email: user.email, tool: 'guia', slug, version_number: kit.version.number });
   const g = kit.files.find((f) => f.path === 'guia.md')?.content ?? '(sem guia)';
-  return g.trim() + rulesBlock(kit.rules) + generalBlock(await listGeneralContexts(env.DB, env.ORG_ID));
+  return g.trim() + rulesBlock(kit.rules) + await nivel0Block(env, slug, manifestOf(kit) as { funil?: unknown; tags?: unknown });
 }
 
 // ── resources ────────────────────────────────────────────────────────────────
@@ -225,11 +218,11 @@ export async function resourceText(env: ToolEnv, uri: string, viewer?: string): 
     if (u.hostname === 'widgets') return designSystemText(env.DB, env.ORG_ID);
     return null;
   }
-  if (u.protocol === 'contexto:') {
-    // contexto://geral/<slug>
-    const slug = u.pathname.replace(/^\/+/, '');
-    const g = (await listGeneralContexts(env.DB, env.ORG_ID)).find((x) => x.slug === slug);
-    return g ? `# ${g.title}\n\n${g.body_md}` : null;
+  if (u.protocol === 'conhecimento:' || u.protocol === 'contexto:') {
+    // conhecimento://<id> (e o alias antigo contexto://geral/<slug>)
+    const id = (u.hostname && u.hostname !== 'geral' ? u.hostname : u.pathname.replace(/^\/+/, '')).split('/')[0];
+    const e = id ? await obterConhecimento(env.DB, id) : null;
+    return e ? textoCompleto(e) : null;
   }
   if (u.protocol !== 'template:') return null;
   const slug = u.hostname || u.pathname.split('/')[1];

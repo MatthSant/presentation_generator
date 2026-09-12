@@ -95,6 +95,8 @@ describe('api — templates (T020)', () => {
     const list = await (await call('/api/general-contexts', { as: 'ed@witly.digital' })).json() as Array<{ slug: string }>;
     expect(list.some((g) => g.slug === 'regra-x')).toBe(true);
     expect((await call('/api/general-contexts/regra-x', { method: 'DELETE', as: 'ed@witly.digital' })).status).toBe(200);
+    const depois = await (await call('/api/general-contexts', { as: 'ed@witly.digital' })).json() as Array<{ slug: string }>;
+    expect(depois.some((g) => g.slug === 'regra-x')).toBe(false);   // saiu do ativo (nunca se apaga)
   });
 });
 
