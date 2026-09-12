@@ -3,8 +3,8 @@ tipo: regra
 dominio: analise
 nivel: tatico
 escopo: geral
-sempre: true
-gatilho: [sempre, ao_diagnosticar]
+sempre: false
+gatilho: [ao_diagnosticar]
 tags: [trafego-pago, diagnostico, criativos, canais, publico]
 confianca: alta
 dados: {"forca": "geralmente"}

@@ -3,8 +3,8 @@ tipo: metrica
 dominio: analise
 nivel: tatico
 escopo: geral
-sempre: true
-gatilho: [sempre, ao_diagnosticar, ao_consultar_dados]
+sempre: false
+gatilho: [ao_diagnosticar, ao_consultar_dados]
 tags: [trafego-pago, metrica, cpa, cpl, conversao, diagnostico]
 confianca: alta
 dados: {"formula": "CPA = CPL ÷ conversão", "melhor": "menor", "armadilhas": ["explicar a variação do CPA pelo próprio CPA"]}

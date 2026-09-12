@@ -3,8 +3,8 @@ tipo: regra
 dominio: comunicacao
 nivel: tatico
 escopo: geral
-sempre: true
-gatilho: [sempre, ao_escrever]
+sempre: false
+gatilho: [ao_escrever]
 tags: [comunicacao, entrega]
 confianca: alta
 dados: {"forca": "geralmente"}

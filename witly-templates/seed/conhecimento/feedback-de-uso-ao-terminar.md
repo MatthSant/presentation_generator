@@ -3,8 +3,8 @@ tipo: regra
 dominio: analise
 nivel: operacional
 escopo: geral
-sempre: true
-gatilho: [sempre, ao_fechar]
+sempre: false
+gatilho: [ao_fechar]
 tags: [processo, mcp, agente]
 confianca: alta
 dados: {"forca": "sempre"}

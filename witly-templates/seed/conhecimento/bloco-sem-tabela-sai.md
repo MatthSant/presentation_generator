@@ -3,8 +3,8 @@ tipo: regra
 dominio: design
 nivel: operacional
 escopo: geral
-sempre: true
-gatilho: [sempre, ao_escrever]
+sempre: false
+gatilho: [ao_escrever]
 tags: [dashboard, entrega, design, numeros]
 confianca: alta
 fontes: [regras dos templates (revisão 2026-09-12)]
