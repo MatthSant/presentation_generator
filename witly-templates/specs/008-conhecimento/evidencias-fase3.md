@@ -33,3 +33,10 @@
 ## Testes
 - Vitest: 90 (o teste de propostas ganhou a checagem de `/api/conhecimento/esquema`: 6 famílias,
   17 tipos, limites, rótulo do gatilho). Typecheck limpo.
+
+## Tags e comunicação (mesmo dia, depois do PR #69)
+- Vocabulário sugerido no esquema; formulário com datalist e chips por grupo; lista com filtro
+  "tag" e contagem. `#/conhecimento?tag=trafego-pago` → 8 entradas (Saber 5, Fazer 3).
+- Re-etiquetagem dos 28: `numeros` 9 · `entrega` 9 · `trafego-pago` 8 · `escrita` 6 · `dados` 6.
+- `rules/comunicacao.md` do brain → 5 entradas novas em Comunicar/Fazer e 2 enriquecidas
+  (frase-curta v4, vocabulário v4); 33 entradas, seed idempotente (segunda rodada sem versão nova).

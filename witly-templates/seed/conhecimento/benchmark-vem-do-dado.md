@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_diagnosticar]
-tags: [benchmark]
+tags: [benchmark, numeros, entrega]
 confianca: alta
 dados: {"forca": "sempre"}
 ---

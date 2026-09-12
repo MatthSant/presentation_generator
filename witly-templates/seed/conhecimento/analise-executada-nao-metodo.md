@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_escrever]
-tags: [entrega]
+tags: [entrega, comunicacao, agente]
 confianca: alta
 dados: {"forca": "sempre"}
 ---

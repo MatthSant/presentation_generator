@@ -5,7 +5,7 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_consultar_dados, ao_escrever]
-tags: [numeros, agregacao]
+tags: [numeros, agregacao, metrica]
 confianca: alta
 dados: {"forca": "sempre"}
 ---

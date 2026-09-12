@@ -167,5 +167,6 @@ describe('propostas: sugerir, parecida, recusa lembrada, votos, aprovação, urg
     const esq = await (await call('/api/conhecimento/esquema', { as: A })).json() as { familias: unknown[]; tipos: Array<{ tipo: string; campos: unknown[] }>; gatilhos: Array<{ id: string; label: string }>; limites: { titulo: number } };
     expect(esq.familias).toHaveLength(6); expect(esq.tipos).toHaveLength(17); expect(esq.limites.titulo).toBe(200);
     expect(esq.gatilhos.find((g) => g.id === 'ao_escrever')!.label).toBe('antes de redigir a entrega');
+    expect((esq as unknown as { tags_sugeridas: Array<{ grupo: string; tags: string[] }> }).tags_sugeridas.find((g) => g.grupo === 'mídia')!.tags).toContain('trafego-pago');
   }, 20000);
 });

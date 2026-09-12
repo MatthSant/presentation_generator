@@ -5,7 +5,7 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_diagnosticar, ao_escrever]
-tags: [meta-ads, criativos]
+tags: [trafego-pago, meta-ads, criativos, vocabulario]
 confianca: alta
 dados: {"termos": ["gasto zerado = alguém desligou", "a Meta só distribui verba entre o que está ligado"]}
 ---

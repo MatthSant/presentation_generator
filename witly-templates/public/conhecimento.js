@@ -73,6 +73,7 @@
     const sync = (mud) => { const p2 = new URLSearchParams(p); for (const [k, v] of Object.entries(mud)) { if (v) p2.set(k, v); else p2.delete(k); } location.hash = '#/conhecimento?' + p2.toString(); };
     const tiposDaFam = f.familia ? ESQ.tipos.filter((t) => t.familia === f.familia) : ESQ.tipos;
     const escKind = f.escopo.split(':')[0]; const escAlvo = f.escopo.includes(':') ? f.escopo.split(':')[1] : '';
+    const tagCount = new Map(); for (const e of base) for (const t of e.tags || []) tagCount.set(t, (tagCount.get(t) || 0) + 1);
 
     app().innerHTML = `<div class="head"><div><h1>Conhecimento</h1><p class="muted sm">O cérebro do time: cada entrada é curta, tipada e diz onde vale e quando o agente a puxa. Mudança é <b>proposta</b>; editor ou votos aprovam.</p></div>
         <div class="row"><a class="btn" href="#/pendencias">Pendências${props.length ? ` <code>${props.length}</code>` : ''}</a><a class="btn btn-p" href="#/conhecimento/novo">+ Propor entrada</a></div></div>
@@ -86,10 +87,11 @@
         <select id="k-st">${STATUS.map(([k, l]) => `<option value="${k}" ${k === f.status ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <label class="chk"><input type="checkbox" id="k-sempre" ${f.sempre ? 'checked' : ''}> sempre</label>
         <label class="chk"><input type="checkbox" id="k-naover" ${f.naover ? 'checked' : ''}> não verificadas</label>
+        <select id="k-tag"><option value="">tag</option>${[...tagCount.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => `<option value="${esc(t)}" ${t === f.tag ? 'selected' : ''}>${esc(t)} (${n})</option>`).join('')}</select>
         <span class="count">${vis.length} de ${rows.length}</span>
       </div>
       <div class="row" style="margin:-6px 0 14px"><span class="fam-tabs"><button data-fam="" class="${f.familia ? '' : 'on'}">todas <small>${base.length}</small></button>${ESQ.familias.map((x) => `<button data-fam="${x.id}" class="${x.id === f.familia ? 'on' : ''}">${esc(x.label)} <small>${porFam[x.id] || 0}</small></button>`).join('')}</span>
-        ${f.tag ? `<span class="chip">tag: ${esc(f.tag)} <a href="#" id="k-notag">×</a></span>` : ''}</div>
+        ${f.tag ? `<span class="chip esc">tag: ${esc(f.tag)} <a href="#" id="k-notag">×</a></span>` : ''}</div>
       <div class="krows">${vis.map((e) => `<a class="krow" href="#/conhecimento/${esc(e.id)}">
         <div>${pillFam(e)}<div class="km" style="margin-top:5px">${chipNivel(e.nivel)}</div></div>
         <div><div class="kt">${esc(e.titulo)}</div><div class="km"><span>${esc(e.id)}</span><span>· ${esc(e.dominio)}</span>${e.escopo !== 'geral' ? `<span class="chip esc">${esc(e.escopo)}</span>` : ''}${(e.tags || []).slice(0, 5).map((t) => `<span class="chip">${esc(t)}</span>`).join('')}${e.tipo === 'caso' || e.tipo === 'teste' ? `<span class="pill ${e.dados.resultado === 'confirmado' ? 'pub' : e.dados.resultado === 'refutado' ? 'off' : 'draft'}">${esc(e.dados.resultado || 'pendente')}</span>` : ''}</div></div>
@@ -102,6 +104,7 @@
     $('#k-st').onchange = () => sync({ status: $('#k-st').value === 'ativo' ? '' : $('#k-st').value });
     $('#k-sempre').onchange = () => sync({ sempre: $('#k-sempre').checked ? '1' : '' });
     $('#k-naover').onchange = () => sync({ verif: $('#k-naover').checked ? 'nao' : '' });
+    $('#k-tag').onchange = () => sync({ tag: $('#k-tag').value });
     const es = $('#k-esc'), al = $('#k-alvo');
     const syncEsc = () => { const k = es.value; if (!k) return sync({ escopo: '' }); if (k === 'geral') return sync({ escopo: 'geral' }); al.hidden = false; if (al.value.trim()) sync({ escopo: `${k}:${al.value.trim().toLowerCase()}` }); else al.focus(); };
     es.onchange = syncEsc; al.onkeydown = (e) => { if (e.key === 'Enter') syncEsc(); }; al.onblur = syncEsc;
@@ -235,7 +238,8 @@
             <div style="flex:1"><label>Nível</label><select id="p-niv">${ESQ.niveis.map((d) => `<option ${d === e.nivel ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
             <div style="flex:1"><label>Confiança</label><select id="p-conf">${ESQ.confiancas.map((d) => `<option ${d === e.confianca ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>
           <label>Escopo</label><div class="row"><select id="p-esc" style="width:150px">${['geral', 'template', 'funil', 'cliente', 'campanha'].map((k) => `<option ${k === escKind ? 'selected' : ''}>${k}</option>`).join('')}</select><input id="p-alvo" placeholder="slug (template, funil, cliente ou campanha)" value="${esc(escAlvo)}" style="flex:1" ${escKind === 'geral' ? 'hidden' : ''}></div>
-          <label>Tags (vírgula)</label><input id="p-tags" value="${esc((e.tags || []).join(', '))}">
+          <label>Tags (vírgula) — use o vocabulário quando couber; tag nova é livre</label><input id="p-tags" value="${esc((e.tags || []).join(', '))}" list="tags-sug"><datalist id="tags-sug">${(ESQ.tags_sugeridas || []).flatMap((g) => g.tags).map((t) => `<option value="${t}">`).join('')}</datalist>
+          <div class="row" style="gap:4px 6px;margin-top:6px">${(ESQ.tags_sugeridas || []).map((g) => `<span class="muted sm" style="margin-right:2px">${esc(g.grupo)}:</span>${g.tags.map((t) => `<button type="button" class="chip" data-tag="${t}" style="cursor:pointer;border:none">${t}</button>`).join('')}`).join('')}</div>
           <label>Gatilhos — quando o agente puxa</label><div class="row" style="gap:10px 16px">${ESQ.gatilhos.filter((g) => g.id !== 'sempre').map((g) => `<label><input type="checkbox" data-gat="${g.id}" ${(e.gatilho || []).includes(g.id) ? 'checked' : ''}> ${esc(g.label)}</label>`).join('')}</div>
           ${isEditor() ? `<label style="margin-top:14px"><input type="checkbox" id="p-sempre" ${e.sempre ? 'checked' : ''}> entra em toda chamada do MCP ("sempre", cota de ${L.sempre})</label>` : ''}</div>
         <div class="card"><div class="kicker">Por quê</div>
@@ -263,6 +267,7 @@
       const sim = await api(`/api/conhecimento/parecidas?titulo=${encodeURIComponent(t)}${id ? `&excluir=${encodeURIComponent(id)}` : ''}`).catch(() => []);
       box.innerHTML = sim.length ? `<div class="parecidas"><b>Parecidas já existentes</b> — é a mesma coisa? Abra e proponha edição lá em vez de duplicar.<br>${sim.map((s) => `<a href="#/conhecimento/${esc(s.id)}">${esc(s.titulo)}</a> <span class="muted">(${esc(s.tipo)})</span>`).join('<br>')}</div>` : '';
     }
+    for (const b of app().querySelectorAll('[data-tag]')) b.onclick = () => { const cur = $('#p-tags').value.split(',').map((x) => x.trim()).filter(Boolean); if (!cur.includes(b.dataset.tag)) cur.push(b.dataset.tag); $('#p-tags').value = cur.join(', '); };
     const st = $('#p-tipo'); const setE = () => { const d = tipoDef(st.value); $('#tipo-e').textContent = d ? `— ${d.e}` : ''; };
     setE(); st.onchange = () => { $('#campos').innerHTML = camposForm(st.value, {}); setE(); };
     const es = $('#p-esc'), al = $('#p-alvo'); es.onchange = () => { al.hidden = es.value === 'geral'; if (!al.hidden) al.focus(); };

@@ -5,9 +5,10 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_escrever]
-tags: [escrita]
+tags: [escrita, comunicacao]
 confianca: alta
-dados: {"publico": "cliente", "use": ["frases até 20 palavras", "voz ativa com sujeito visível", "aviso antes da instrução"], "evite": ["nominalização em cadeia", "gerúndio encadeado"]}
+fontes: [mediocrebrain/.claude/rules/comunicacao.md]
+dados: {"publico": "cliente", "use": ["instrução até 20 palavras; descrição até 25", "voz ativa com sujeito visível: \"o Matheus desligou o ad42\", não \"o ad42 foi desligado\"", "presente do indicativo; futuro/condicional só quando o tempo importa", "aviso antes da instrução, nunca depois"], "evite": ["nominalização em cadeia", "gerúndio encadeado", "frase longa"]}
 ---
 # Frases curtas (até 20 palavras), uma ideia por frase, voz ativa com sujeito visível; aviso vem antes da instrução
 

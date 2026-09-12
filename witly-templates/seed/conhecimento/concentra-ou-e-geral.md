@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_diagnosticar]
-tags: [diagnostico]
+tags: [trafego-pago, diagnostico, criativos, canais, publico]
 confianca: alta
 dados: {"forca": "geralmente"}
 ---

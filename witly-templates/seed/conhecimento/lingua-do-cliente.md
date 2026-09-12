@@ -5,7 +5,7 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_escrever]
-tags: [escrita, entrega]
+tags: [escrita, entrega, comunicacao]
 confianca: alta
 dados: {"publico": "cliente", "evite": ["jargão estatístico", "nome de tabela, view ou coluna no texto visível"]}
 ---
