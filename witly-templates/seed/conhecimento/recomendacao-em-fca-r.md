@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_recomendar, ao_escrever]
-tags: [fca-r, recomendacao]
+tags: [fca-r, comunicacao, entrega]
 confianca: alta
 dados: {"origem": "witly", "quando": "toda recomendação", "passos": ["Fato: número + janela", "Causa: em qual nível (criativo, público, campanha, funil)", "Ação: o que fazer e quando", "Resultado: como saber se deu certo"], "saida": "uma recomendação por linha em FCA-R"}
 ---

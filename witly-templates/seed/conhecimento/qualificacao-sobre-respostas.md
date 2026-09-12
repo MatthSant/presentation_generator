@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_consultar_dados, ao_diagnosticar]
-tags: [metrica, mql, lancamento]
+tags: [trafego-pago, metrica, mql, cpmql, lancamento, captacao]
 confianca: alta
 dados: {"formula": "qualificação = MQLs ÷ respostas da pesquisa; taxa de resposta = respostas ÷ leads", "unidade": "%", "melhor": "maior", "armadilhas": ["dividir MQL por leads"]}
 ---

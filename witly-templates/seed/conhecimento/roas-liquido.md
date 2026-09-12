@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_consultar_dados, ao_diagnosticar, ao_escrever]
-tags: [metrica, roas, atribuicao]
+tags: [trafego-pago, metrica, roas, atribuicao]
 confianca: alta
 dados: {"formula": "ROAS = faturamento ÷ investimento − 1", "unidade": "x", "melhor": "maior", "armadilhas": ["somar 1", "tratar como bruto", "recalcular a coluna pronta"]}
 ---

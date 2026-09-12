@@ -5,7 +5,7 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre]
-tags: [processo]
+tags: [processo, agente]
 confianca: alta
 dados: {"forca": "geralmente"}
 ---

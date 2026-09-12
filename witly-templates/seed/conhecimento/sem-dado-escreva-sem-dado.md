@@ -5,7 +5,7 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_escrever]
-tags: [numeros, honestidade]
+tags: [numeros, dados-ausentes, escrita]
 confianca: alta
 dados: {"forca": "sempre"}
 ---

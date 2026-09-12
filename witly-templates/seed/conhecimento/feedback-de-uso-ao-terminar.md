@@ -5,7 +5,7 @@ nivel: operacional
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_fechar]
-tags: [processo, mcp]
+tags: [processo, mcp, agente]
 confianca: alta
 dados: {"forca": "sempre"}
 ---

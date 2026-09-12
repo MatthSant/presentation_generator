@@ -5,7 +5,7 @@ nivel: tatico
 escopo: geral
 sempre: true
 gatilho: [sempre, ao_diagnosticar]
-tags: [tendencia, sazonalidade]
+tags: [trafego-pago, tendencia, sazonalidade, janela]
 confianca: alta
 dados: {"forca": "geralmente"}
 ---

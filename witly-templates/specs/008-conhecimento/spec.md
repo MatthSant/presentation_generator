@@ -42,7 +42,7 @@ serve ao Grimório: banco, MCP, UI, time e versão.
 | `dominio` | **de que assunto** trata | `analise` · `dados` · `midia` · `negocio` · `comunicacao` · `design` |
 | `escopo` | **onde vale** | `geral` · `template:<slug>` · `funil:<tipo>` · `cliente:<slug>` · `campanha:<id>` |
 | `nivel` | **em que altura da decisão** | `estrategico` (direção do negócio: canal dominante, oferta, LTV × CAC, metas) · `tatico` (como conduzir campanha e análise: report, escalonamento, teste, régua) · `operacional` (execução do dia: alavanca do Meta, SQL, armadilha do Delfos, formato do report) |
-| `tags` | assunto fino, livre | `atribuicao`, `criativos`, `ltv`, `meta-ads`, … |
+| `tags` | assunto fino, livre — com **vocabulário sugerido** por grupo (mídia: `trafego-pago`, `meta-ads`, `criativos`, `publico`, `canais`…; funil; métricas; leitura; dados; entrega; processo) que o formulário oferece em chips e o filtro lista pelas tags presentes; tag nova continua livre | `trafego-pago`, `atribuicao`, `criativos`, `lancamento`, … |
 
 ### 3.2 Famílias e tipos (17 tipos; a família é o que a UI mostra primeiro)
 **Saber — o que as coisas são**

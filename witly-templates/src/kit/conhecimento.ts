@@ -23,6 +23,18 @@ export const GATILHO_LABEL: Record<Gatilho, string> = {
   ao_diagnosticar: 'quando um número saiu da faixa', ao_recomendar: 'antes de propor ação', ao_escrever: 'antes de redigir a entrega', ao_fechar: 'ao fechar o trabalho',
 };
 
+/** Vocabulário de tags sugerido (a tag continua livre; isto orienta o formulário e o filtro). Grupos só para a UI. */
+export const TAGS_SUGERIDAS: Array<{ grupo: string; tags: string[] }> = [
+  { grupo: 'mídia', tags: ['trafego-pago', 'meta-ads', 'google-ads', 'criativos', 'publico', 'canais', 'budget', 'escala'] },
+  { grupo: 'funil', tags: ['funil', 'lancamento', 'perpetuo', 'captacao', 'conversao', 'pagina', 'checkout', 'atribuicao'] },
+  { grupo: 'métricas', tags: ['metrica', 'cpl', 'cpa', 'cpmql', 'roas', 'cac', 'ltv', 'mql', 'benchmark', 'metas'] },
+  { grupo: 'leitura', tags: ['numeros', 'estatistica', 'amostra', 'janela', 'tendencia', 'sazonalidade', 'diagnostico', 'agregacao'] },
+  { grupo: 'dados', tags: ['dados', 'delfos', 'sql', 'filtros', 'dados-ausentes', 'lgpd'] },
+  { grupo: 'entrega', tags: ['comunicacao', 'escrita', 'entrega', 'fca-r', 'vocabulario', 'dashboard', 'graficos', 'apresentacao', 'design'] },
+  { grupo: 'processo', tags: ['processo', 'agente', 'mcp', 'teste', 'caso'] },
+];
+export const TAGS_TODAS = TAGS_SUGERIDAS.flatMap((g) => g.tags);
+
 export const URGENCIAS = ['urgente', 'normal', 'baixa'] as const;
 export type Urgencia = (typeof URGENCIAS)[number];
 export const MODOS = ['nova', 'edicao', 'substituta', 'fechar_resultado', 'superseder'] as const;
