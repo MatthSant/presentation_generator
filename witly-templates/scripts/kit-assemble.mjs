@@ -58,7 +58,7 @@ export async function assembleKit(slug) {
 export async function kits() {
   const out = [];
   for (const d of await readdir(SEED, { withFileTypes: true })) {
-    if (d.isDirectory() && !d.name.startsWith('_') && d.name !== 'general-contexts') out.push(d.name);
+    if (d.isDirectory() && !d.name.startsWith('_') && d.name !== 'general-contexts' && d.name !== 'conhecimento') out.push(d.name);
   }
   return out;
 }

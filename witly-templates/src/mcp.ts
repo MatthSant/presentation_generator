@@ -6,7 +6,10 @@ import { McpAgent } from 'agents/mcp';
 import { z } from 'zod';
 import { isStillActive } from './auth/access.js';
 import type { Props } from './auth/google.js';
-import { listTemplates, listGeneralContexts } from './db/index.js';
+import { listTemplates } from './db/index.js';
+import { listarConhecimento } from './db/conhecimento.js';
+import { confirmar, conhecimento, sugerir as sugerirConhecimento } from './kit/conhecimento-tools.js';
+import { DOMINIOS, FAMILIAS, GATILHOS, NIVEIS, TIPO_NOMES } from './kit/conhecimento.js';
 import { guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
 import { avaliar, registrar, sugerir } from './kit/activity.js';
 import { removerTemplate, salvarTemplate } from './kit/personal.js';
@@ -86,8 +89,42 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
         medida: z.object({ apresentacao: z.number().int().optional(), filtro: z.number().int().optional(), analise: z.number().int().optional(), total: z.number().int().optional() }).optional().describe('feedback: rodadas por tipo — a régua "bom de dado, caro de aparência"'),
         nota: z.number().int().min(1).max(5).optional().describe('feedback: nota do kit neste uso'),
         resumo: z.string().optional().describe('feedback: uma linha (o que era, quantas páginas, quantas rodadas)'),
+        usadas: z.array(z.object({ id: z.string(), ajudou: z.boolean().nullable().optional() })).optional().describe('entradas de conhecimento (ids) que entraram na análise e se ajudaram — evidência de uso'),
       },
     }, async (input) => this.run((u) => registrar(this.env, u, input)));
+
+    this.server.registerTool('conhecimento', {
+      description: 'O conhecimento do time em camadas: métricas, benchmarks, princípios, diagnósticos (sintoma → causa), regras, métodos, padrões de design, estilo/formato de entrega, funil, cliente, campanha, casos (o que funcionou) e testes. Filtre por tipo/família/domínio/nível/escopo/gatilho/tags ou busque por `q`; `detalhe:"indice"` (1 linha por entrada) ou `"completo"` (corpo + campos). Chame pelo gatilho da etapa: ao_consultar_dados, ao_diagnosticar, ao_recomendar, ao_escrever, ao_fechar. Cliente/campanha nomeados? `{cliente:"slug"}` / `{campanha:"id"}`.',
+      inputSchema: {
+        familia: z.enum(FAMILIAS).optional(), tipo: z.union([z.enum(TIPO_NOMES as [string, ...string[]]), z.array(z.enum(TIPO_NOMES as [string, ...string[]]))]).optional(),
+        dominio: z.enum(DOMINIOS).optional(), nivel: z.enum(NIVEIS).optional().describe('estrategico | tatico | operacional'),
+        escopo: z.union([z.string(), z.array(z.string())]).optional().describe('geral | template:<slug> | funil:<tipo> | cliente:<slug> | campanha:<id>'),
+        cliente: z.string().optional(), funil: z.string().optional(), campanha: z.string().optional(),
+        gatilho: z.enum(GATILHOS).optional(), tags: z.array(z.string()).optional(), ids: z.array(z.string()).optional(),
+        q: z.string().optional().describe('busca de texto (título, corpo, tags), sem acento'),
+        situacao: z.record(z.string(), z.string()).optional().describe('para casos: {funil, nivel, sintoma, metrica} = o que já funcionou nessa situação'),
+        resultado: z.enum(['pendente', 'confirmado', 'refutado']).optional().describe('caso/teste'), origem: z.enum(['witly', 'framework']).optional().describe('metodo/principio'),
+        detalhe: z.enum(['indice', 'completo']).optional(), limite: z.number().int().min(1).max(100).optional(),
+      },
+    }, async (input) => this.run((u) => conhecimento(this.env, u, input as never)));
+
+    this.server.registerTool('sugerir', {
+      description: 'Propõe conhecimento novo ou uma correção (nunca muda direto): entrada nova, edição (entrada_id), substituta ou fechar_resultado de caso/teste. Vai para a fila: editor ou votos decidem. Cálculo/métrica/regra de dado ERRADA que contamina as próximas análises = urgencia:"urgente" com evidencia (o número ou cálculo errado): o editor decide sozinho e, até lá, o agente mostra ao consultor antes de gerar. Exige motivo (o que aconteceu). Idêntica já aberta = só conta ocorrência; recusada há pouco = devolve o motivo. Sem dado pessoal.',
+      inputSchema: {
+        tipo: z.enum(TIPO_NOMES as [string, ...string[]]), titulo: z.string().describe('a frase que o agente precisa (≤ 200)'),
+        corpo: z.string().optional().describe('porquê + como aplicar (≤ 2.000)'), dados: z.record(z.string(), z.unknown()).optional().describe('campos do tipo (metrica: formula…; caso: situacao, fato, causa, acao, resultado; diagnostico: sintoma, causas, checar…)'),
+        escopo: z.string().optional().describe('geral | template:<slug> | funil:<tipo> | cliente:<slug> | campanha:<id>'), dominio: z.enum(DOMINIOS).optional(), nivel: z.enum(NIVEIS).optional(), tags: z.array(z.string()).optional(),
+        motivo: z.string().describe('o que aconteceu na análise que mostrou a falta'), urgencia: z.enum(['urgente', 'normal', 'baixa']).optional(),
+        evidencia: z.array(z.object({ atividade: z.string().optional(), trecho: z.string() })).optional().describe('obrigatória em urgente: o número/cálculo errado'),
+        entrada_id: z.string().optional().describe('para edicao | substituta | fechar_resultado'), modo: z.enum(['nova', 'edicao', 'substituta', 'fechar_resultado']).optional(),
+        slug: z.string().optional().describe('template relacionado (vira escopo template:<slug> se escopo não vier)'),
+      },
+    }, async (input) => this.run((u) => sugerirConhecimento(this.env, u, input as never)));
+
+    this.server.registerTool('confirmar', {
+      description: 'A resposta do consultor a uma proposta pendente mostrada pelo agente ("isso está certo?"): ok:true = confirma e aplica nesta análise; ok:false = recusa e segue a regra atual. Vira voto de quem está logado; a aprovação definitiva de uma urgente é na UI.',
+      inputSchema: { proposta_id: z.string(), ok: z.boolean(), motivo: z.string().optional() },
+    }, async ({ proposta_id, ok, motivo }) => this.run((u) => confirmar(this.env, u, proposta_id, ok, motivo)));
 
     this.server.registerTool('avaliar', {
       description: 'Nota de 1 a 5 do consultor para o template (não para uma resposta): o que faltou, o que sobrou.',
@@ -147,8 +184,9 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
     this.server.registerResource('template-parte', new ResourceTemplate('template://{slug}/{parte}', { list: undefined }), { description: 'guia | documento | perguntas | exemplo de um template' }, read);
     this.server.registerResource('contrato-widgets', 'contrato://widgets', { description: 'Design system dos aprofundamentos: widgets, binds, layout e regras' }, read);
     this.server.registerResource('template-contexto', new ResourceTemplate('template://{slug}/contexto/{tarefa}', { list: undefined }), { description: 'Página detalhada de uma tarefa de contexto' }, read);
-    this.server.registerResource('contexto-geral', new ResourceTemplate('contexto://geral/{slug}', {
-      list: async () => ({ resources: (await listGeneralContexts(this.env.DB, this.env.ORG_ID)).map((g) => ({ uri: `contexto://geral/${g.slug}`, name: g.title })) }),
-    }), { description: 'Contexto geral (vale para toda análise)' }, read);
+    this.server.registerResource('conhecimento', new ResourceTemplate('conhecimento://{id}', {
+      list: async () => ({ resources: (await listarConhecimento(this.env.DB, this.env.ORG_ID, { sempre: true, limit: 60 })).map((e) => ({ uri: `conhecimento://${e.id}`, name: `[${e.tipo}] ${e.titulo}` })) }),
+    }), { description: 'Uma entrada de conhecimento (corpo + campos)' }, read);
+    this.server.registerResource('contexto-geral', new ResourceTemplate('contexto://geral/{slug}', { list: undefined }), { description: 'Alias antigo de conhecimento://{id}' }, read);
   }
 }

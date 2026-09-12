@@ -2,6 +2,7 @@
  * passam pelo gate de PII, gravam. O McpAgent só chama. */
 
 import { canSee, CONTEXTO_TIPOS, getPublishedKit, getTemplate, insertActivity, insertRating, type Activity, type ContextoTipo } from '../db/index.js';
+import { registrarUso } from '../db/conhecimento.js';
 import { checkPii, piiMessage } from './pii.js';
 import { ToolError, type ToolEnv, type ToolUser } from './tools.js';
 
@@ -31,6 +32,8 @@ export interface RegistrarInput {
   medida?: { apresentacao?: number; filtro?: number; analise?: number; total?: number };
   nota?: number;
   resumo?: string;
+  /** entradas de conhecimento que entraram na análise (evidência de uso) */
+  usadas?: Array<{ id?: string; ajudou?: boolean | null }>;
 }
 
 const PRIORIDADES = ['alta', 'media', 'baixa'];
@@ -101,7 +104,9 @@ export async function registrar(env: ToolEnv, user: ToolUser, input: RegistrarIn
     version_number: input.versao ?? version, cliente: str(input.cliente, 120), pergunta_id: str(input.pergunta_id, 120),
     dados, avaliacao, descartado: !!input.descartado, motivo, origem: 'mcp',
   });
-  return `registrado (${evento}, ${input.slug} v${input.versao ?? version ?? '?'}) id=${id}`;
+  const usadas = (Array.isArray(input.usadas) ? input.usadas : []).map((u) => ({ id: String(u?.id ?? '').trim(), ajudou: u?.ajudou ?? null })).filter((u) => u.id).slice(0, 60);
+  const nUsadas = usadas.length ? await registrarUso(env.DB, usadas, user.email, id) : 0;
+  return `registrado (${evento}, ${input.slug} v${input.versao ?? version ?? '?'}) id=${id}${nUsadas ? ` · ${nUsadas} entrada(s) de conhecimento marcadas como usadas` : ''}`;
 }
 
 export async function avaliar(env: ToolEnv, user: ToolUser, slug: string, nota: number, comentario?: string | null): Promise<string> {

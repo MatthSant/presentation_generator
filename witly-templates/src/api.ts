@@ -10,6 +10,9 @@ import { clearSessionCookie, sessionUser, setSessionCookie, signSession, startUi
 import { resolveAccess } from './auth/access.js';
 import { diffVersions } from './kit/versions.js';
 import { virarExemplo, virarRegra } from './kit/curate.js';
+import * as kb from './db/conhecimento.js';
+import { LIMITES, MODOS, URGENCIAS, validarEntrada, type EntradaInput } from './kit/conhecimento.js';
+import { checkPii, piiMessage } from './kit/pii.js';
 
 type Ctx = Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>;
 export const api = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
@@ -370,10 +373,11 @@ api.put('/api/platform-docs/:slug', async (c) => {
   return c.json({ ok: true });
 });
 
-// ── contextos gerais ────────────────────────────────────────────────────────
+// ── contextos gerais (compat: o pane #/gerais lê/escreve o conhecimento `sempre`) ──
 api.get('/api/general-contexts', async (c) => {
   const u = await requireUser(c); if (isResp(u)) return u;
-  return c.json(await db.listGeneralContexts(c.env.DB, c.env.ORG_ID));
+  const rows = await kb.listarConhecimento(c.env.DB, c.env.ORG_ID, { sempre: true, limit: 200 });
+  return c.json(rows.map((e) => ({ slug: e.id, org_id: c.env.ORG_ID, title: e.titulo, body_md: e.corpo_md, tipo: e.tipo === 'regra' ? (e.dados.forca === 'geralmente' ? 'recomendacao' : 'regra') : e.tipo === 'definicao' || e.tipo === 'metrica' ? 'definicao' : 'regra', author_email: e.autor, updated_at: e.atualizado_em, familia: e.familia, tipo_novo: e.tipo, dominio: e.dominio, nivel: e.nivel })));
 });
 api.put('/api/general-contexts/:slug', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
@@ -381,14 +385,141 @@ api.put('/api/general-contexts/:slug', async (c) => {
   if (!SLUG.test(slug)) return c.json({ error: 'slug inválido' }, 400);
   const b = await c.req.json<{ title?: string; body_md?: string; tipo?: string }>();
   if (!b.title?.trim() || typeof b.body_md !== 'string') return c.json({ error: 'title e body_md obrigatórios' }, 400);
-  const tipo = (['regra', 'recomendacao', 'definicao'] as const).find((t) => t === b.tipo) ?? 'regra';
-  await db.upsertGeneralContext(c.env.DB, { slug, org_id: c.env.ORG_ID, title: b.title.trim(), body_md: b.body_md, tipo, author_email: u.email });
+  const cur = await kb.obterConhecimento(c.env.DB, slug);
+  const tipo = b.tipo === 'definicao' ? (cur?.tipo === 'metrica' ? 'metrica' : 'definicao') : 'regra';
+  const dados = { ...(cur?.dados ?? {}), ...(tipo === 'regra' ? { forca: b.tipo === 'recomendacao' ? 'geralmente' : 'sempre' } : {}) };
+  const v = validarEntrada({ ...(cur ? kb.entradaParaInput(cur) : {}), id: slug, tipo, titulo: b.title, corpo_md: b.body_md, dados, sempre: true, dominio: cur?.dominio ?? 'analise', nivel: cur?.nivel ?? 'tatico' } as EntradaInput, { exigirCampos: false });
+  if (v.erros.length) return c.json({ error: v.erros.join('; ') }, 400);
+  await kb.gravarConhecimento(c.env.DB, c.env.ORG_ID, v.entrada!, u.email);
   return c.json({ ok: true });
 });
 api.delete('/api/general-contexts/:slug', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
-  await db.deleteGeneralContext(c.env.DB, c.req.param('slug'));
+  const cur = await kb.obterConhecimento(c.env.DB, c.req.param('slug'));
+  if (!cur) return c.json({ error: 'não existe' }, 404);
+  await kb.gravarConhecimento(c.env.DB, c.env.ORG_ID, { ...cur, status: 'supersedido', sempre: false }, u.email);   // nunca se apaga: sai do ativo
   return c.json({ ok: true });
+});
+
+// ── conhecimento (spec 008) ─────────────────────────────────────────────────
+const lista = (v: string | undefined): string[] | undefined => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : undefined);
+api.get('/api/conhecimento', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const q = c.req.query();
+  const rows = await kb.listarConhecimento(c.env.DB, c.env.ORG_ID, {
+    familia: q.familia || undefined, tipo: lista(q.tipo), dominio: q.dominio || undefined, nivel: q.nivel || undefined, escopo: lista(q.escopo),
+    tags: lista(q.tags), q: q.q || undefined, status: (q.status as never) || 'ativo', sempre: q.sempre === '1' ? true : q.sempre === '0' ? false : undefined,
+    gatilho: q.gatilho || undefined, cliente: q.cliente || undefined, funil: q.funil || undefined, campanha: q.campanha || undefined, resultado: q.resultado || undefined,
+    origem: q.origem || undefined, limit: q.limit ? Number(q.limit) : 300, offset: q.offset ? Number(q.offset) : 0,
+  });
+  return c.json(rows);
+});
+api.get('/api/conhecimento/saude', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  return c.json(await kb.saudeConhecimento(c.env.DB, c.env.ORG_ID));
+});
+api.get('/api/conhecimento/parecidas', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const titulo = c.req.query('titulo') || '';
+  return c.json(titulo ? await kb.parecidas(c.env.DB, c.env.ORG_ID, titulo, 5, c.req.query('excluir') || undefined) : []);
+});
+api.get('/api/conhecimento/:id', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const e = await kb.obterConhecimento(c.env.DB, c.req.param('id'));
+  if (!e) return c.json({ error: 'não existe' }, 404);
+  const [hist, uso, rel, propostas] = await Promise.all([kb.historico(c.env.DB, e.id), kb.usoDe(c.env.DB, e.id), kb.relacoesDe(c.env.DB, e.id), kb.listarPropostas(c.env.DB, c.env.ORG_ID, { entrada_id: e.id, estado: 'todas', limit: 50 })]);
+  return c.json({ ...e, historico: hist, uso, relacoes: rel, propostas });
+});
+api.post('/api/conhecimento/:id/verificar', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ ate?: string | null }>().catch(() => ({} as { ate?: string | null }));
+  if (!(await kb.obterConhecimento(c.env.DB, c.req.param('id')))) return c.json({ error: 'não existe' }, 404);
+  await kb.marcarVerificada(c.env.DB, c.req.param('id'), u.email, b.ate ?? null);
+  return c.json({ ok: true });
+});
+/** Só editor promove/rebaixa `sempre` (P10: com a cota cheia, precisa dizer qual sai). */
+api.post('/api/conhecimento/:id/sempre', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ sempre?: boolean; sai?: string }>().catch(() => ({} as { sempre?: boolean; sai?: string }));
+  const e = await kb.obterConhecimento(c.env.DB, c.req.param('id'));
+  if (!e) return c.json({ error: 'não existe' }, 404);
+  if (b.sempre) {
+    const orc = await kb.orcamentoSempre(c.env.DB, c.env.ORG_ID);
+    if (!e.sempre && orc.n >= orc.limite_n) {
+      const sai = b.sai ? await kb.obterConhecimento(c.env.DB, b.sai) : null;
+      if (!sai?.sempre) return c.json({ error: `cota de ${orc.limite_n} entradas "sempre" cheia: diga qual sai (\`sai\`)`, orcamento: orc }, 409);
+      await kb.gravarConhecimento(c.env.DB, c.env.ORG_ID, { ...sai, sempre: false, gatilho: sai.gatilho.filter((g) => g !== 'sempre') }, u.email);
+    }
+  }
+  await kb.gravarConhecimento(c.env.DB, c.env.ORG_ID, { ...e, sempre: !!b.sempre, gatilho: b.sempre ? [...new Set(['sempre', ...e.gatilho])] as never : e.gatilho.filter((g) => g !== 'sempre') }, u.email);
+  return c.json({ ok: true, orcamento: await kb.orcamentoSempre(c.env.DB, c.env.ORG_ID) });
+});
+
+// ── propostas e votos ───────────────────────────────────────────────────────
+api.get('/api/propostas', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const q = c.req.query();
+  return c.json(await kb.listarPropostas(c.env.DB, c.env.ORG_ID, { estado: (q.estado as never) || 'aberta', urgencia: (q.urgencia as never) || undefined, entrada_id: q.entrada_id || undefined, desde: q.desde || undefined, limit: q.limit ? Number(q.limit) : undefined }));
+});
+api.post('/api/propostas', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const b = await c.req.json<{ entrada_id?: string | null; modo?: string; urgencia?: string; conteudo?: Record<string, unknown>; motivo?: string; evidencia?: unknown[] }>();
+  const modo = (MODOS as readonly string[]).includes(b.modo || '') ? b.modo as never : 'nova';
+  const urgencia = (URGENCIAS as readonly string[]).includes(b.urgencia || '') ? b.urgencia as never : 'normal';
+  if (modo !== 'nova' && !b.entrada_id) return c.json({ error: `modo ${modo} exige entrada_id` }, 400);
+  if (b.entrada_id && !(await kb.obterConhecimento(c.env.DB, b.entrada_id))) return c.json({ error: 'entrada não existe' }, 404);
+  const conteudo = (b.conteudo && typeof b.conteudo === 'object') ? b.conteudo : {};
+  if (modo === 'nova' || modo === 'substituta') {
+    const v = validarEntrada(conteudo as never, { exigirCampos: modo === 'nova' });
+    if (v.erros.length) return c.json({ error: v.erros.join('; '), erros: v.erros }, 400);
+    conteudo.id = v.entrada!.id;
+  }
+  const pii = checkPii({ conteudo, motivo: b.motivo ?? '' }, [u.email]);
+  if (!pii.ok) return c.json({ error: piiMessage(pii) }, 400);
+  const r = await kb.criarProposta(c.env.DB, c.env.ORG_ID, { entrada_id: b.entrada_id ?? null, modo, urgencia, conteudo, motivo: String(b.motivo ?? '').slice(0, 2000), evidencia: Array.isArray(b.evidencia) ? b.evidencia.slice(0, 10) : [], origem: `ui:${u.email}`, autor: u.email });
+  return c.json({ ok: true, ...r }, r.recusada ? 409 : 201);
+});
+api.get('/api/propostas/:id', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const p = await kb.getProposta(c.env.DB, c.req.param('id'));
+  if (!p) return c.json({ error: 'não existe' }, 404);
+  const votos = (await c.env.DB.prepare('SELECT email, valor, comentario, at FROM voto WHERE proposta_id = ? ORDER BY at').bind(p.id).all()).results;
+  const entrada = p.entrada_id ? await kb.obterConhecimento(c.env.DB, p.entrada_id) : null;
+  return c.json({ ...p, votos_lista: votos, entrada });
+});
+api.post('/api/propostas/:id/votar', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const b = await c.req.json<{ valor?: number; comentario?: string }>().catch(() => ({} as { valor?: number; comentario?: string }));
+  if (b.valor !== 1 && b.valor !== -1) return c.json({ error: 'valor deve ser 1 ou -1' }, 400);
+  try { return c.json({ ok: true, ...(await kb.votar(c.env.DB, c.env.ORG_ID, c.req.param('id'), u.email, b.valor, b.comentario ?? null)) }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 409); }
+});
+api.post('/api/propostas/:id/decidir', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ decisao?: string; motivo?: string }>().catch(() => ({} as { decisao?: string; motivo?: string }));
+  if (b.decisao !== 'aprovada' && b.decisao !== 'recusada') return c.json({ error: 'decisao: aprovada | recusada' }, 400);
+  try { return c.json({ ok: true, ...(await kb.decidirProposta(c.env.DB, c.env.ORG_ID, c.req.param('id'), u.email, b.decisao, b.motivo ?? null)) }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 409); }
+});
+api.post('/api/propostas/:id/reverter', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ motivo?: string }>().catch(() => ({} as { motivo?: string }));
+  try { await kb.reverterProposta(c.env.DB, c.env.ORG_ID, c.req.param('id'), u.email, b.motivo ?? null); return c.json({ ok: true }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 409); }
+});
+
+// ── configuração da org ─────────────────────────────────────────────────────
+api.get('/api/config', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  return c.json({ ...(await kb.getOrgConfig(c.env.DB, c.env.ORG_ID)), limites: LIMITES });
+});
+api.put('/api/config', async (c) => {
+  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const b = await c.req.json<{ votos?: number; dias_pendente?: number }>();
+  const patch: Partial<kb.OrgConfig> = {};
+  if (b.votos != null) { if (!(Number.isInteger(b.votos) && b.votos >= 1 && b.votos <= 20)) return c.json({ error: 'votos: 1–20' }, 400); patch.votos = b.votos; }
+  if (b.dias_pendente != null) { if (!(Number.isInteger(b.dias_pendente) && b.dias_pendente >= 1)) return c.json({ error: 'dias_pendente ≥ 1' }, 400); patch.dias_pendente = b.dias_pendente; }
+  return c.json({ ok: true, config: await kb.setOrgConfig(c.env.DB, c.env.ORG_ID, patch) });
 });
 
 // ── usuários (corte de acesso, spec FR-014) ─────────────────────────────────
