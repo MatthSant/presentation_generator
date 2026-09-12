@@ -1,7 +1,9 @@
 /* Witly Grimório — UI. Vanilla JS, sem build. Rotas por hash:
  *   #/                     catálogo
  *   #/t/<slug>[/<aba>]     editor de template (rascunho quando existe; senão publicada)
- *   #/gerais               contextos gerais
+ *   #/conhecimento[/<id>]  conhecimento (spec 008) — em conhecimento.js
+ *   #/pendencias[/<id>]    propostas, urgentes, casos pendentes — em conhecimento.js
+ *   #/config               configurações da org (editor) — em conhecimento.js
  *   #/usuarios             usuários (editor)
  * Toda escrita vai para o RASCUNHO (o servidor cria se não existir); "Publicar" promove. */
 (function () {
@@ -66,6 +68,17 @@
     }
     window.addEventListener('hashchange', route);
     route();
+    contarPendencias();
+  }
+  /** Contador de pendências no menu (propostas abertas + triagem sem veredito). */
+  async function contarPendencias() {
+    if (!me) return;
+    try {
+      const [props, tri] = await Promise.all([api('/api/propostas?estado=aberta&limit=200'), api('/api/atividade/resumo?evento=aprofundamento,sugestao,feedback&veredito=sem')]);
+      const n = props.length + (isEditor() ? (tri.sem_veredito || 0) : 0);
+      const el = $('#nav-pend'); el.textContent = n; el.hidden = !n;
+      el.classList.toggle('urg', props.some((p) => p.urgencia === 'urgente'));
+    } catch { /* menu sem contador */ }
   }
   function setNav(key) { for (const a of document.querySelectorAll('#nav a[data-nav]')) a.classList.toggle('on', a.dataset.nav === key); }
 
@@ -81,7 +94,8 @@
     if (seg === 'plataforma') { setNav('design'); return renderPlataforma(); }
     if (seg === 'design') { setNav('design'); return renderDesign(slug, tab); }
     if (seg === 't' && slug) { setNav('templates'); return renderTemplate(slug, tab, rest.length ? decodeURIComponent(rest.join('/')) : null); }
-    if (seg === 'gerais') { setNav('gerais'); return renderGerais(); }
+    if (seg === 'gerais') { location.replace('#/conhecimento?sempre=1'); return; }
+    if (window.KB && KB.route(seg, slug, tab, rest)) return;
     if (seg === 'usuarios') { setNav('usuarios'); return renderUsuarios(); }
     setNav('templates'); return renderCatalog();
   }
@@ -326,7 +340,7 @@
       const r = rules.find((x) => x.rule_id === cur);
       el.innerHTML = `<p class="muted sm">${soPergunta
         ? 'O <b>título é a pergunta</b>: o agente lê pelos títulos, escolhe as 3–5 mais relevantes pelo <code>numeros.json</code> e propõe no chat. Corpo: como aprofundar e que decisão alimenta.'
-        : 'O <b>título é a regra</b>: o agente lê pelos títulos, aqui e no <code>regras.md</code> do kit. Corpo curto: por quê + como aplicar.'}</p>
+        : `O <b>título é a regra</b>: o agente lê pelos títulos, aqui e no <code>regras.md</code> do kit. Corpo curto: por quê + como aplicar. Estas entradas viajam com a <b>versão</b> do kit; o que vale além deste template fica no <a href="#/conhecimento?escopo=template:${esc(slug)}">Conhecimento escopado a ele →</a>`}</p>
         <div class="split"><div class="card"><div class="list">${rules.map((x) => `<button data-id="${esc(x.rule_id)}" class="${x.rule_id === cur ? 'on' : ''}">${soPergunta ? '' : `<span class="pill ${PILL_TIPO[x.tipo] || 'pub'}">${esc(TIPO_REGRA[x.tipo] || x.tipo || 'regra')}</span> `}${esc(x.title)}<br><code>${esc(x.rule_id)}</code></button>`).join('') || `<div class="muted sm">Nenhuma ${nome} ainda.</div>`}</div>
           ${canEdit ? `<div class="actions"><button class="btn" id="newrule">+ ${soPergunta ? 'Pergunta' : 'Regra'}</button></div>` : ''}</div>
         <div class="card">${r ? `${soPergunta ? '' : `<label>Tipo</label><select id="r-tipo" ${canEdit ? '' : 'disabled'}><option value="regra" ${r.tipo === 'regra' || !r.tipo ? 'selected' : ''}>Regra — o agente não pode descumprir</option><option value="recomendacao" ${r.tipo === 'recomendacao' ? 'selected' : ''}>Recomendação — siga, salvo motivo dito</option><option value="definicao" ${r.tipo === 'definicao' ? 'selected' : ''}>Definição — como o termo é entendido nesta análise</option></select>`}
@@ -615,10 +629,11 @@
   async function renderSaude() {
     if (!isEditor()) { app.innerHTML = '<div class="empty">Só editores.</div>'; return; }
     skeleton('doc');
-    const { templates, lacunas } = await api('/api/saude');
+    const [{ templates, lacunas }, kbs] = await Promise.all([api('/api/saude'), api('/api/conhecimento/saude').catch(() => null)]);
     const pct = (t) => (t.aprofundamentos ? Math.round(100 * t.descartados / t.aprofundamentos) : 0);
-    app.innerHTML = `<div class="row sm" style="margin-bottom:14px"><a href="#/atividade"><code>← atividade</code></a></div>
-      <div class="head"><div><h1>Saúde dos templates</h1></div><a class="btn" href="#/uso">Uso por versão →</a></div><p class="muted sm" style="max-width:66ch;margin:-14px 0 22px">Descarte alto e pergunta repetida são o mesmo sintoma: o template não entrega algo que o consultor precisa. Comece pelo topo da lista.</p>
+    app.innerHTML = `<div class="head"><div><h1>Saúde</h1><p class="muted sm">O que está parado, o que estourou o orçamento, o que ninguém verificou.</p></div><a class="btn" href="#/uso">Uso por versão →</a></div>
+      ${kbs ? (window.KB ? KB.saudeBlock(kbs) : '') : ''}
+      <h2>Templates</h2><p class="muted sm" style="max-width:66ch;margin:-6px 0 14px">Descarte alto e pergunta repetida são o mesmo sintoma: o template não entrega algo que o consultor precisa. Comece pelo topo da lista.</p>
       <div class="card"><table><thead><tr><th>Template</th><th>Ger.</th><th>Aprof.</th><th>Descarte</th><th>Sem veredito</th><th>Nota</th><th>Feedback</th></tr></thead><tbody>
       ${templates.map((t) => `<tr><td><a href="#/t/${esc(t.slug)}"><code>${esc(t.slug)}</code></a><br><span class="sm muted">${t.published_semver ? `v${esc(t.published_semver)}` : 'sem publicada'}</span></td>
         <td><code>${t.geracoes}</code></td><td><code>${t.aprofundamentos}</code></td>
@@ -801,5 +816,7 @@
     }
   }
 
+  // helpers para os módulos de tela (conhecimento.js)
+  window.GRIM = { $, api, toast, modal, esc, isEditor, me: () => me, route, params, setQuery, skeleton, fmtAt, setNav, app: () => app, refreshNav: contarPendencias };
   boot();
 })();
