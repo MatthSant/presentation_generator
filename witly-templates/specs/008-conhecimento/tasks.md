@@ -13,13 +13,14 @@
 - [x] T8 Resource `conhecimento://{id}` (+ alias `contexto://geral/{slug}`).
 - [x] T9 API: `/api/conhecimento` (lista, saúde, parecidas, detalhe com histórico/uso/relações/propostas, verificar, sempre com evict-to-admit), `/api/propostas` (lista, criar, detalhe, votar, decidir, reverter), `/api/config`; `/api/general-contexts` compatível (o pane `#/gerais` segue funcionando sobre o conhecimento).
 - [x] T10 Testes: `test/conhecimento.test.ts` (5) + ajustes em tools/api; Vitest 90; typecheck.
-- [ ] T11 Browser (pane `#/gerais` sobre o conhecimento; API no browser) → `evidencias.md`; migração 0011 + deploy + seed remoto; PR.
+- [x] T11 Browser (pane `#/gerais` sobre o conhecimento; API no browser) → `evidencias.md`; migração 0011 + deploy + seed remoto; PR #68.
 
 ## Fase 3 — UI (PR 2)
-- [ ] T12 `#/conhecimento`: lista por família/tipo/domínio/nível/escopo/tag/confiança/status, busca, 1 linha por entrada.
-- [ ] T13 Entrada: formulário gerado do esquema, campos por tipo, fontes, histórico com diff/restaurar, aba Propostas (concorrentes lado a lado, votos).
-- [ ] T14 Propor (nova/edição/substituta/fechar resultado) com detector de parecida; votar; aprovar/recusar (editor); Aprovadas por votos (30 dias) com Reverter.
-- [ ] T15 Pendências: urgentes (banner) · propostas · casos/testes pendentes · triagem do agente; Saúde do conhecimento; Configurações (N, limites).
+- [x] T12 `#/conhecimento` (`public/conhecimento.js`): busca no servidor (FTS), famílias como segmentos com contagem, filtros de tipo (por família), domínio, nível, escopo (tipo + slug), status, "sempre", "não verificadas", tag; tudo na URL; 1 linha por entrada com id, nível, domínio, escopo, tags, resultado (caso/teste), versão, propostas abertas e verificação. `#/gerais` redireciona.
+- [x] T13 `#/conhecimento/<id>`: corpo (markdown mínimo), campos do tipo, tags, gatilhos, fontes, uso, relações, propostas abertas (com voto/decisão), histórico (ver snapshot, Restaurar = proposta aprovada), propostas decididas; ações: propor edição/substituta, fechar resultado, verificar (com prazo), sempre (evict-to-admit quando a cota enche), superseder.
+- [x] T14 Formulário gerado do esquema (`/api/conhecimento/esquema`): tipo agrupado por família, contadores de título/corpo, campos do tipo por kind (texto, lista, enum, objeto JSON, data), eixos, gatilhos, sempre (editor), motivo, urgência com evidência, detector de parecidas no título, "aprovar agora" para editor; recusada/duplicada tratadas.
+- [x] T15 `#/pendencias`: Propostas (banner de urgentes; cards com voto, aprovar/recusar), Aprovadas por votos (30 dias, Reverter), Casos e testes pendentes (→ fechar resultado), Triagem do agente (→ atividade); `#/pendencias/<id>` com atual × proposta, votos e decisão. Saúde com o bloco do conhecimento; `#/config` (N de votos, dias, limites); contador de pendências no menu; nav em Plataforma / Trabalho / Admin; aba Regras do template aponta para o conhecimento escopado.
+- [x] T16 Browser + Vitest → `evidencias-fase3.md`; deploy; PR.
 
 ## Fase 4 — `kind = conversa` (PR 3)
 - [ ] T16 Manifesto de roteiro (etapas com entrega/espera/registra/puxa), `obter_template` para conversa, editor na UI.

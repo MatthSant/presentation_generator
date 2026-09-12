@@ -11,7 +11,7 @@ import { resolveAccess } from './auth/access.js';
 import { diffVersions } from './kit/versions.js';
 import { virarExemplo, virarRegra } from './kit/curate.js';
 import * as kb from './db/conhecimento.js';
-import { LIMITES, MODOS, URGENCIAS, validarEntrada, type EntradaInput } from './kit/conhecimento.js';
+import { CONFIANCAS, DOMINIOS, FAMILIA_LABEL, FAMILIAS, GATILHO_LABEL, GATILHOS, LIMITES, MODOS, NIVEIS, TIPOS, URGENCIAS, validarEntrada, type EntradaInput } from './kit/conhecimento.js';
 import { checkPii, piiMessage } from './kit/pii.js';
 
 type Ctx = Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>;
@@ -413,6 +413,11 @@ api.get('/api/conhecimento', async (c) => {
     origem: q.origem || undefined, limit: q.limit ? Number(q.limit) : 300, offset: q.offset ? Number(q.offset) : 0,
   });
   return c.json(rows);
+});
+/** O esquema (famílias, tipos e campos, eixos, gatilhos, limites): a UI gera formulário e filtros daqui. */
+api.get('/api/conhecimento/esquema', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  return c.json({ familias: FAMILIAS.map((f) => ({ id: f, label: FAMILIA_LABEL[f] })), tipos: TIPOS, dominios: DOMINIOS, niveis: NIVEIS, confiancas: CONFIANCAS, gatilhos: GATILHOS.map((g) => ({ id: g, label: GATILHO_LABEL[g] })), urgencias: URGENCIAS, modos: MODOS, limites: LIMITES });
 });
 api.get('/api/conhecimento/saude', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;

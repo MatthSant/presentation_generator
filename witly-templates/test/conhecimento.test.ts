@@ -162,7 +162,10 @@ describe('propostas: sugerir, parecida, recusa lembrada, votos, aprovação, urg
     const saude = await (await call('/api/conhecimento/saude', { as: ED })).json() as { sempre: { n: number }; propostas: { por_votos_30d: number } };
     expect(saude.sempre.n).toBeGreaterThanOrEqual(2);
     expect(saude.propostas.por_votos_30d).toBe(0);   // a aprovada por votos foi revertida acima
-    // config: N de votos
+    // config: N de votos; esquema para a UI
     expect((await (await call('/api/config', { method: 'PUT', as: ED, body: JSON.stringify({ votos: 3 }) })).json() as { config: { votos: number } }).config.votos).toBe(3);
-  });
+    const esq = await (await call('/api/conhecimento/esquema', { as: A })).json() as { familias: unknown[]; tipos: Array<{ tipo: string; campos: unknown[] }>; gatilhos: Array<{ id: string; label: string }>; limites: { titulo: number } };
+    expect(esq.familias).toHaveLength(6); expect(esq.tipos).toHaveLength(17); expect(esq.limites.titulo).toBe(200);
+    expect(esq.gatilhos.find((g) => g.id === 'ao_escrever')!.label).toBe('antes de redigir a entrega');
+  }, 20000);
 });
