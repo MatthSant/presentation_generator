@@ -3,6 +3,8 @@
  *   #/t/<slug>[/<aba>]     editor de template (rascunho quando existe; senão publicada)
  *   #/conhecimento[/<id>]  conhecimento (spec 008) — em conhecimento.js
  *   #/pendencias[/<id>]    propostas, urgentes, casos pendentes — em conhecimento.js
+ *   #/campanhas[/<id>]     campanhas e a linha do tempo — em conhecimento.js
+ *   #/acoes                o que foi feito, de todos os clientes — em conhecimento.js
  *   #/config               configurações da org (editor) — em conhecimento.js
  *   #/usuarios             usuários (editor)
  * Toda escrita vai para o RASCUNHO (o servidor cria se não existir); "Publicar" promove. */
@@ -78,6 +80,8 @@
       const n = props.length + (isEditor() ? (tri.sem_veredito || 0) : 0);
       const el = $('#nav-pend'); el.textContent = n; el.hidden = !n;
       el.classList.toggle('urg', props.some((p) => p.urgencia === 'urgente'));
+      const { acoes } = await api('/api/acoes?vencidas=1&limit=200');
+      const ea = $('#nav-acoes'); ea.textContent = acoes.length; ea.hidden = !acoes.length; ea.classList.add('urg');
     } catch { /* menu sem contador */ }
   }
   function setNav(key) { for (const a of document.querySelectorAll('#nav a[data-nav]')) a.classList.toggle('on', a.dataset.nav === key); }

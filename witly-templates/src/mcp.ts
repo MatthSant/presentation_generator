@@ -90,6 +90,20 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
         nota: z.number().int().min(1).max(5).optional().describe('feedback: nota do kit neste uso'),
         resumo: z.string().optional().describe('feedback: uma linha (o que era, quantas páginas, quantas rodadas)'),
         usadas: z.array(z.object({ id: z.string(), ajudou: z.boolean().nullable().optional() })).optional().describe('entradas de conhecimento (ids) que entraram na análise e se ajudaram — evidência de uso'),
+        campanha: z.string().optional().describe('id da entrada `campanha` no conhecimento: os eventos entram na linha do tempo dela'),
+        eventos: z.array(z.object({
+          tipo: z.enum(['contexto', 'analise', 'achado', 'acao', 'resultado']),
+          texto: z.string().optional().describe('o que aconteceu, em uma frase'),
+          data: z.string().optional().describe('AAAA-MM-DD; padrão hoje'),
+          area: z.string().optional().describe('acao: trafego | crm | pagina | oferta | conteudo | dados | outro'),
+          nivel: z.string().optional().describe('acao: campanha, adset, criativo, fluxo, etapa, pagina…'),
+          alvo: z.string().optional().describe('acao (obrigatório): o que foi mexido — nome ou id'),
+          acao: z.string().optional().describe('acao (obrigatório): verbo curto — ligar, desligar, escalar, reduzir, trocar, criar, corrigir, manter, budget'),
+          valor: z.string().optional().describe('acao: quanto (ex.: "+20%", "R$ 300/dia")'),
+          fato: z.string().optional().describe('acao: o número + janela que motivou'),
+          causa: z.string().optional().describe('acao: o diagnóstico e em qual nível; inclua o motivo real do consultor'),
+          verificar_em: z.string().optional().describe('acao: AAAA-MM-DD em que o resultado deve ser checado'),
+        })).optional().describe('eventos para a linha do tempo da campanha. Achado e ação entram como PROPOSTO: uma pessoa confirma na UI. A decisão é do consultor — registre o motivo real dele em `causa`.'),
       },
     }, async (input) => this.run((u) => registrar(this.env, u, input)));
 

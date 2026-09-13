@@ -13,6 +13,7 @@ import { virarExemplo, virarRegra } from './kit/curate.js';
 import * as kb from './db/conhecimento.js';
 import { CONFIANCAS, DOMINIOS, FAMILIA_LABEL, FAMILIAS, GATILHO_LABEL, GATILHOS, LIMITES, MODOS, NIVEIS, TAGS_SUGERIDAS, TIPOS, URGENCIAS, validarEntrada, type EntradaInput } from './kit/conhecimento.js';
 import { checkPii, piiMessage } from './kit/pii.js';
+import { ACOES_SUGERIDAS, AREAS, NIVEIS_SUGERIDOS, normalizaEvento, EventoError, eventosDe, pendentesVencidas } from './kit/campanha.js';
 
 type Ctx = Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>;
 export const api = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
@@ -516,6 +517,60 @@ api.post('/api/propostas/:id/reverter', async (c) => {
   const b = await c.req.json<{ motivo?: string }>().catch(() => ({} as { motivo?: string }));
   try { await kb.reverterProposta(c.env.DB, c.env.ORG_ID, c.req.param('id'), u.email, b.motivo ?? null); return c.json({ ok: true }); }
   catch (e) { return c.json({ error: (e as Error).message }, 409); }
+});
+
+// ── campanhas e ações (spec 008 fase 5) ─────────────────────────────────────
+api.get('/api/campanhas', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const rows = await kb.listarConhecimento(c.env.DB, c.env.ORG_ID, { tipo: 'campanha', status: (c.req.query('status') as never) || 'ativo', cliente: c.req.query('cliente') || undefined, limit: 300 });
+  return c.json(rows.map((e) => {
+    const ev = eventosDe(e.dados);
+    return { id: e.id, titulo: e.titulo, cliente_id: e.dados.cliente_id ?? null, funil: e.dados.funil ?? null, periodo: e.dados.periodo ?? null, status: e.status,
+      eventos: ev.length, propostos: ev.filter((x) => x.proposto).length, acoes: ev.filter((x) => x.tipo === 'acao' && !x.proposto).length,
+      vencidas: pendentesVencidas(e.dados).length, atualizado_em: e.atualizado_em };
+  }));
+});
+api.get('/api/campanhas/:id', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const e = await kb.obterConhecimento(c.env.DB, c.req.param('id'));
+  if (!e || e.tipo !== 'campanha') return c.json({ error: 'campanha não existe' }, 404);
+  const escopado = await kb.listarConhecimento(c.env.DB, c.env.ORG_ID, { escopo: `campanha:${e.id}`, limit: 60 });
+  return c.json({ ...e, linha_do_tempo: eventosDe(e.dados), vencidas: pendentesVencidas(e.dados), escopado });
+});
+/** Evento na linha do tempo pela UI: quem registra aqui é pessoa, então nada de "proposto". */
+api.post('/api/campanhas/:id/eventos', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const b = await c.req.json<Record<string, unknown>>();
+  const pii = checkPii(b, [u.email]);
+  if (!pii.ok) return c.json({ error: piiMessage(pii) }, 400);
+  try {
+    const ev = normalizaEvento(b, { quem: u.email, proposto: false });
+    const r = await kb.anexarEventos(c.env.DB, c.req.param('id'), [ev], u.email);
+    return c.json({ ok: true, evento: ev, ...r }, 201);
+  } catch (e) { return c.json({ error: (e as Error).message }, e instanceof EventoError ? 400 : 404); }
+});
+api.post('/api/campanhas/:id/eventos/:ev/confirmar', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const b = await c.req.json<{ ok?: boolean }>().catch(() => ({} as { ok?: boolean }));
+  try { return c.json({ ok: true, evento: await kb.confirmarEvento(c.env.DB, c.req.param('id'), c.req.param('ev'), u.email, b.ok !== false) }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 404); }
+});
+api.post('/api/campanhas/:id/eventos/:ev/fechar', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const b = await c.req.json<{ resultado?: string; texto?: string }>();
+  if (b.resultado !== 'confirmado' && b.resultado !== 'refutado') return c.json({ error: 'resultado: confirmado | refutado' }, 400);
+  try { return c.json({ ok: true, evento: await kb.fecharAcao(c.env.DB, c.req.param('id'), c.req.param('ev'), { resultado: b.resultado, texto: b.texto ?? null }, u.email) }); }
+  catch (e) { return c.json({ error: (e as Error).message }, 404); }
+});
+api.get('/api/acoes', async (c) => {
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const q = c.req.query();
+  const rows = await kb.listarAcoes(c.env.DB, c.env.ORG_ID, {
+    cliente: q.cliente || undefined, campanha: q.campanha || undefined, area: q.area || undefined, nivel: q.nivel || undefined,
+    acao: q.acao || undefined, resultado: q.resultado || undefined, quem: q.quem || undefined, desde: q.desde || undefined, ate: q.ate || undefined,
+    vencidas: q.vencidas === '1', limit: q.limit ? Number(q.limit) : undefined,
+  });
+  return c.json({ acoes: rows, sugestoes: { areas: AREAS, niveis: NIVEIS_SUGERIDOS, acoes: ACOES_SUGERIDAS } });
 });
 
 // ── configuração da org ─────────────────────────────────────────────────────

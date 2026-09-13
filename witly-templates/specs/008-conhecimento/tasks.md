@@ -30,4 +30,9 @@
 - [x] T21 Testes `test/conversa.test.ts` (2); Vitest 92; browser → `evidencias-fase4.md`.
 
 ## Fase 5 — campanha (PR 4)
-- [ ] T18 Linha do tempo via `registrar({campanha})`, evento `acao` estruturado, telas Campanhas/Clientes/Ações, "o que funcionou".
+- [x] T22 `src/kit/campanha.ts`: evento (contexto · analise · achado · acao · resultado), ação estruturada genérica (area/nivel/alvo/acao/valor/fato/causa/resultado/verificar_em — texto com sugestão, não enum), `proposto` do agente, `acaoFeita`, `pendentesVencidas`, `eventoVelho` (14 dias) e `resumoCampanha` (nível 2 do MCP).
+- [x] T23 `registrar({campanha, eventos})` anexa na linha do tempo: `geracao` entra como `analise` sozinha; achado e ação do agente entram propostos; PII e validação com mensagem clara. `conhecimento({campanha})` devolve o resumo + ações a verificar + conhecimento escopado.
+- [x] T24 db: `anexarEventos`, `confirmarEvento`, `fecharAcao`, `listarAcoes` (todas as campanhas, só o confirmado) e as ações na saúde.
+- [x] T25 API: `/api/campanhas`, `/api/campanhas/:id`, `POST eventos` (pela UI nunca é proposto), `confirmar`, `fechar`, `/api/acoes` com filtros.
+- [x] T26 UI: `#/campanhas` (lista com propostos e vencidas), `#/campanhas/:id` (linha do tempo com confirmar/descartar e fechar resultado, contexto e pendências, "+ Registrar"), `#/acoes` (tudo o que foi feito, filtros na URL, "só a verificar", fechar da tabela), bloco Ações na Saúde e contador no menu.
+- [x] T27 Testes `test/campanha.test.ts` (3); Vitest 95; browser → `evidencias-fase5.md`.

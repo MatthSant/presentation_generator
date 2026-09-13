@@ -4,6 +4,7 @@
 
 import { criarProposta, getProposta, listarConhecimento, obterConhecimento, parecidas, registrarUso, urgentesPendentes, usoDe, votar, type Filtro } from '../db/conhecimento.js';
 import { getUser, logUsage, type Kit } from '../db/index.js';
+import { resumoCampanha } from './campanha.js';
 import { bytes, DOMINIOS, FAMILIAS, GATILHOS, LIMITES, linhaIndice, linhaSempre, NIVEIS, parseEscopo, textoCompleto, TIPO_NOMES, URGENCIAS, validarEntrada, type Gatilho, type Urgencia } from './conhecimento.js';
 import { checkPii, piiMessage } from './pii.js';
 import { ToolError, type ToolEnv, type ToolUser } from './tools.js';
@@ -18,6 +19,15 @@ const lista = (v: unknown): string[] => (Array.isArray(v) ? v : v == null || v =
 
 export async function conhecimento(env: ToolEnv, user: ToolUser, input: ConhecimentoInput): Promise<string> {
   const detalhe = input.detalhe === 'completo' ? 'completo' : 'indice';
+  // campanha nomeada: o resumo (período, metas, budgets, pendências vencidas, últimos eventos) vem primeiro
+  if (input.campanha && !input.tipo && !input.q) {
+    const c = await obterConhecimento(env.DB, String(input.campanha));
+    if (c?.tipo === 'campanha') {
+      await logUsage(env.DB, { email: user.email, tool: 'conhecimento' });
+      const resto = await listarConhecimento(env.DB, env.ORG_ID, { escopo: `campanha:${c.id}`, limit: 40 });
+      return resumoCampanha(c.titulo, c.dados) + (resto.length ? ['', '', '## Conhecimento escopado a esta campanha', '', ...resto.map((e) => linhaIndice(e))].join('\n') : '');
+    }
+  }
   const f: Filtro = {};
   if (input.familia) { if (!(FAMILIAS as readonly string[]).includes(input.familia)) throw new ToolError(`familia: ${FAMILIAS.join(' | ')}`); f.familia = input.familia; }
   const tipos = lista(input.tipo);
