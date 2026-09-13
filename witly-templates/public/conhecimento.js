@@ -52,6 +52,8 @@
       return true;
     }
     if (seg === 'pendencias') { setNav('pendencias'); if (slug) renderProposta(slug); else renderPendencias(); return true; }
+    if (seg === 'campanhas') { setNav('campanhas'); if (slug) renderCampanha(slug); else renderCampanhas(); return true; }
+    if (seg === 'acoes') { setNav('acoes'); renderAcoes(); return true; }
     if (seg === 'config') { setNav('config'); renderConfig(); return true; }
     return false;
   }
@@ -403,6 +405,141 @@
     const rv = $('#d-rev'); if (rv) rv.onclick = async () => { const motivo = prompt('Por que reverter?'); if (motivo === null) return; try { await api(`/api/propostas/${p.id}/reverter`, { method: 'POST', body: { motivo } }); toast('Revertida'); G.route(); } catch (err) { toast(err.message, true); } };
   }
 
+  // ── campanhas ─────────────────────────────────────────────────────────
+  const EV_PILL = { analise: 'leitor', achado: 'draft', acao: 'editor', resultado: 'pub', contexto: '' };
+  const RES_PILL = { confirmado: 'pub', refutado: 'off', pendente: 'draft' };
+
+  async function renderCampanhas() {
+    skeleton('rows');
+    const rows = await api('/api/campanhas');
+    app().innerHTML = `<div class="head"><div><h1>Campanhas</h1><p class="muted sm">O histórico vivo de cada campanha: contexto, análises, achados, ações e resultados. A análise entra sozinha pelo MCP; achado e ação do agente entram como <b>proposto</b> e você confirma.</p></div>
+        <a class="btn btn-p" href="#/conhecimento/novo?tipo=campanha">+ Propor campanha</a></div>
+      <div class="krows">${rows.map((c) => `<a class="krow" href="#/campanhas/${esc(c.id)}">
+        <div><span class="pill fam-contexto">campanha</span><div class="km" style="margin-top:5px">${c.cliente_id ? `<span class="chip esc">${esc(c.cliente_id)}</span>` : ''}</div></div>
+        <div><div class="kt">${esc(c.titulo)}</div><div class="km"><span>${esc(c.id)}</span>${c.periodo ? `<span>· ${esc(c.periodo)}</span>` : ''}${c.funil ? `<span class="chip">${esc(c.funil)}</span>` : ''}
+          <span>· ${c.eventos} eventos · ${c.acoes} ações</span>${c.propostos ? `<span class="pill draft">${c.propostos} a confirmar</span>` : ''}${c.vencidas ? `<span class="pill urg">${c.vencidas} a verificar</span>` : ''}</div></div>
+        <div class="kr"><span>${esc(fmtAt(c.atualizado_em))}</span></div></a>`).join('') || '<div class="empty">Nenhuma campanha ainda. Proponha uma (tipo <code>campanha</code>) ou deixe o roteiro <code>novo-cliente</code> criar.</div>'}</div>`;
+  }
+
+  function formEvento(campanha, sug) {
+    const opt = (arr, v) => arr.map((x) => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+    return G.modal('Registrar na linha do tempo', `<label>Tipo</label>
+      <select id="e-tipo"><option value="acao">ação — algo que foi feito</option><option value="achado">achado — algo que chamou atenção</option><option value="contexto">contexto — mudou algo na campanha</option><option value="resultado">resultado — fechamento de um ciclo</option></select>
+      <div id="e-acao">
+        <div class="row" style="gap:10px"><div style="flex:1"><label>Área</label><input id="e-area" list="l-area" value="trafego"><datalist id="l-area">${opt(sug.areas)}</datalist></div>
+          <div style="flex:1"><label>Nível</label><input id="e-nivel" list="l-nivel" placeholder="campanha, adset, criativo…"><datalist id="l-nivel">${opt(sug.niveis)}</datalist></div></div>
+        <label>Alvo — o que foi mexido</label><input id="e-alvo" placeholder="nome ou id da campanha, adset, criativo…">
+        <div class="row" style="gap:10px"><div style="flex:1"><label>Ação</label><input id="e-ac" list="l-acao" placeholder="desligar, escalar…"><datalist id="l-acao">${opt(sug.acoes)}</datalist></div>
+          <div style="flex:1"><label>Valor</label><input id="e-valor" placeholder="+20%, R$ 300/dia"></div></div>
+        <label>Fato — o número + janela que motivou</label><input id="e-fato" placeholder="custo por checkout R$ 41 em 3d, teto R$ 30">
+        <label>Causa e motivo do consultor</label><input id="e-causa" placeholder="criativo saturado; o Matheus preferiu segurar o adset">
+        <label>Verificar em</label><input id="e-verif" type="date" style="width:180px"></div>
+      <label>Texto (o que aconteceu; vazio = monto da ação)</label><input id="e-texto">`, 'Registrar', async (fechar, ov) => {
+      const tipo = $('#e-tipo', ov).value;
+      const body = { tipo, texto: $('#e-texto', ov).value.trim() };
+      if (tipo === 'acao') Object.assign(body, { area: $('#e-area', ov).value.trim(), nivel: $('#e-nivel', ov).value.trim(), alvo: $('#e-alvo', ov).value.trim(), acao: $('#e-ac', ov).value.trim(), valor: $('#e-valor', ov).value.trim(), fato: $('#e-fato', ov).value.trim(), causa: $('#e-causa', ov).value.trim(), verificar_em: $('#e-verif', ov).value || undefined });
+      try { await api(`/api/campanhas/${encodeURIComponent(campanha)}/eventos`, { method: 'POST', body }); fechar(); toast('Registrado'); G.route(); G.refreshNav(); }
+      catch (e) { toast(e.message, true); }
+    });
+  }
+
+  function linhaEvento(c, e) {
+    const acao = e.tipo === 'acao';
+    return `<div class="pcard ${e.proposto ? 'baixa' : acao ? 'normal' : ''}" data-ev="${esc(e.id)}">
+      <div class="meta"><span class="pill ${EV_PILL[e.tipo] || ''}">${esc(e.tipo)}</span><span>${esc(e.data)}</span>${e.quem ? `<span>· ${esc(e.quem)}</span>` : ''}
+        ${e.proposto ? '<span class="pill draft">proposto pelo agente</span>' : ''}
+        ${acao && e.resultado ? `<span class="pill ${RES_PILL[e.resultado]}">${esc(e.resultado)}</span>` : ''}
+        ${acao && e.verificar_em && e.resultado === 'pendente' ? `<span>· verificar em ${esc(e.verificar_em)}</span>` : ''}
+        ${e.ref ? `<a href="#/atividade/${esc(e.ref)}" style="margin-left:auto"><code>atividade</code></a>` : ''}</div>
+      <p class="q">${esc(e.texto)}</p>
+      ${acao && (e.fato || e.causa) ? `<p class="a" style="margin:0">${e.fato ? `<b>F:</b> ${esc(e.fato)} ` : ''}${e.causa ? `<b>C:</b> ${esc(e.causa)}` : ''}${e.resultado_texto ? ` <b>R:</b> ${esc(e.resultado_texto)}` : ''}</p>` : ''}
+      ${acao ? `<div class="km" style="margin-top:6px"><span class="chip">${esc(e.area || 'outro')}</span><span class="chip">${esc(e.nivel || 'outro')}</span><span>${esc(e.acao)} <b>${esc(e.alvo)}</b>${e.valor ? ` (${esc(e.valor)})` : ''}</span></div>` : ''}
+      ${e.proposto || (acao && e.resultado === 'pendente') ? `<div class="foot">${e.proposto ? '<button class="btn btn-ok" data-conf="1">Confirmar</button><button class="btn btn-drop" data-conf="0">Descartar</button>' : ''}
+        ${acao && !e.proposto && e.resultado === 'pendente' ? '<button class="btn btn-ok" data-fechar="confirmado">Deu certo</button><button class="btn btn-drop" data-fechar="refutado">Não deu</button>' : ''}</div>` : ''}</div>`;
+  }
+
+  function wireEventos(id) {
+    for (const card of app().querySelectorAll('[data-ev]')) {
+      const ev = card.dataset.ev;
+      for (const b of card.querySelectorAll('[data-conf]')) b.onclick = async () => {
+        try { await api(`/api/campanhas/${encodeURIComponent(id)}/eventos/${ev}/confirmar`, { method: 'POST', body: { ok: b.dataset.conf === '1' } }); toast(b.dataset.conf === '1' ? 'Confirmado: conta como feito' : 'Descartado'); G.route(); G.refreshNav(); }
+        catch (e) { toast(e.message, true); }
+      };
+      for (const b of card.querySelectorAll('[data-fechar]')) b.onclick = async () => {
+        const texto = prompt(b.dataset.fechar === 'confirmado' ? 'O número que fecha (o que melhorou):' : 'O que aconteceu (por que não deu):');
+        if (texto === null) return;
+        try { await api(`/api/campanhas/${encodeURIComponent(id)}/eventos/${ev}/fechar`, { method: 'POST', body: { resultado: b.dataset.fechar, texto } }); toast('Resultado fechado'); G.route(); G.refreshNav(); }
+        catch (e) { toast(e.message, true); }
+      };
+    }
+  }
+
+  async function renderCampanha(id) {
+    skeleton('doc');
+    let c; try { c = await api(`/api/campanhas/${encodeURIComponent(id)}`); } catch (e) { app().innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    const sug = (await api('/api/acoes?limit=1')).sugestoes;
+    const d = c.dados || {};
+    const campo = (k, v) => (v == null || v === '' ? '' : `<dt>${esc(k)}</dt><dd>${esc(typeof v === 'object' ? JSON.stringify(v) : String(v))}</dd>`);
+    app().innerHTML = `<div class="row sm" style="margin-bottom:12px"><a href="#/campanhas"><code>← campanhas</code></a></div>
+      <div class="head"><div><h1 style="max-width:40ch">${esc(c.titulo)}</h1>
+        <div class="row sm" style="margin-top:6px"><span class="pill fam-contexto">campanha</span><code>${esc(c.id)}</code>${d.cliente_id ? `<a class="chip esc" href="#/conhecimento/${esc(d.cliente_id)}">${esc(d.cliente_id)}</a>` : ''}${d.periodo ? `<span class="chip">${esc(d.periodo)}</span>` : ''}${d.funil ? `<span class="chip">${esc(d.funil)}</span>` : ''}<span class="muted">v${c.versao}</span></div></div>
+        <div class="row"><a class="btn" href="#/conhecimento/${esc(c.id)}/propor">Editar contexto</a><button class="btn btn-p" id="c-add">+ Registrar</button></div></div>
+      ${c.vencidas.length ? `<div class="banner">⏱ <b>${c.vencidas.length} ${c.vencidas.length === 1 ? 'ação' : 'ações'} a verificar</b> — a data chegou: feche o resultado antes de olhar o dia.</div>` : ''}
+      <div class="two"><div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <h2 style="margin-top:0">Linha do tempo</h2>
+        ${c.linha_do_tempo.map((e) => linhaEvento(c, e)).join('') || '<div class="empty">Sem eventos. O MCP registra as análises; você registra o que foi feito.</div>'}
+      </div>
+      <div class="side-col">
+        <div class="card"><div class="kicker">Contexto</div><dl class="kv">${campo('objetivo', d.objetivo)}${campo('metas', d.metas)}${campo('tetos', d.tetos)}${campo('processo', d.processo)}${campo('budgets', d.budgets)}</dl>
+          ${c.corpo_md ? `<div class="kbody" style="margin-top:10px">${md(c.corpo_md)}</div>` : ''}</div>
+        ${Array.isArray(d.pendencias) && d.pendencias.length ? `<div class="card"><div class="kicker">Pendências</div>${d.pendencias.map((x) => `<p class="sm" style="margin:0 0 4px">${esc(typeof x === 'string' ? x : JSON.stringify(x))}</p>`).join('')}</div>` : ''}
+        ${c.escopado.length ? `<div class="card"><div class="kicker">Conhecimento desta campanha</div>${c.escopado.map((e) => `<p class="sm" style="margin:0 0 4px"><a href="#/conhecimento/${esc(e.id)}">${esc(e.titulo)}</a></p>`).join('')}</div>` : ''}
+      </div></div>`;
+    $('#c-add').onclick = () => formEvento(c.id, sug);
+    wireEventos(c.id);
+  }
+
+  // ── ações (o que foi feito, em todos os clientes) ──────────────────────
+  async function renderAcoes() {
+    skeleton('rows');
+    const p = params();
+    const qs = new URLSearchParams();
+    for (const k of ['cliente', 'campanha', 'area', 'nivel', 'acao', 'resultado', 'quem', 'desde']) if (p.get(k)) qs.set(k, p.get(k));
+    if (p.get('vencidas') === '1') qs.set('vencidas', '1');
+    const { acoes, sugestoes } = await api('/api/acoes?' + qs.toString());
+    const sync = (mud) => { const p2 = new URLSearchParams(p); for (const [k, v] of Object.entries(mud)) { if (v) p2.set(k, v); else p2.delete(k); } location.hash = '#/acoes' + (p2.toString() ? '?' + p2 : ''); };
+    const sel = (id, lista, v, label) => `<select id="${id}"><option value="">${label}</option>${lista.map((x) => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+    const hoje = new Date().toISOString().slice(0, 10);
+    app().innerHTML = `<div class="head"><div><h1>Ações</h1><p class="muted sm">Tudo o que foi feito, em todos os clientes e frentes — e o que ainda falta verificar. Só entra aqui o que uma pessoa confirmou.</p></div></div>
+      <div class="filters">
+        <input id="a-cliente" placeholder="cliente" style="width:140px" value="${esc(p.get('cliente') || '')}">
+        <input id="a-campanha" placeholder="campanha" style="width:150px" value="${esc(p.get('campanha') || '')}">
+        ${sel('a-area', sugestoes.areas, p.get('area'), 'área')}
+        ${sel('a-nivel', sugestoes.niveis, p.get('nivel'), 'nível')}
+        ${sel('a-acao', sugestoes.acoes, p.get('acao'), 'ação')}
+        ${sel('a-res', ['pendente', 'confirmado', 'refutado'], p.get('resultado'), 'resultado')}
+        <label class="chk"><input type="checkbox" id="a-venc" ${p.get('vencidas') === '1' ? 'checked' : ''}> só a verificar</label>
+        <span class="count">${acoes.length} ${acoes.length === 1 ? 'ação' : 'ações'}</span></div>
+      <div class="card"><table><thead><tr><th>Quando</th><th>Onde</th><th>O que foi feito</th><th>Por quê</th><th>Resultado</th><th></th></tr></thead><tbody>
+      ${acoes.map((a) => { const venc = (a.resultado || 'pendente') === 'pendente' && a.verificar_em && a.verificar_em <= hoje;
+        return `<tr data-camp="${esc(a.campanha_id)}" data-ev="${esc(a.id)}"><td><code>${esc(a.data)}</code>${venc ? '<br><span class="pill urg">verificar</span>' : ''}</td>
+        <td class="sm"><a href="#/campanhas/${esc(a.campanha_id)}">${esc(a.campanha)}</a><br><code class="muted">${esc(a.cliente_id || '—')} · ${esc(a.area || '')} · ${esc(a.nivel || '')}</code></td>
+        <td class="sm"><b>${esc(a.acao)}</b> ${esc(a.alvo)}${a.valor ? ` <code>${esc(a.valor)}</code>` : ''}${a.fato ? `<br><span class="muted">${esc(a.fato)}</span>` : ''}</td>
+        <td class="sm">${esc(a.causa || '')}<br><code class="muted">${esc(a.quem || '')}</code></td>
+        <td><span class="pill ${RES_PILL[a.resultado || 'pendente']}">${esc(a.resultado || 'pendente')}</span>${a.resultado_texto ? `<br><span class="sm muted">${esc(a.resultado_texto)}</span>` : ''}${a.verificar_em && (a.resultado || 'pendente') === 'pendente' ? `<br><code class="muted">até ${esc(a.verificar_em)}</code>` : ''}</td>
+        <td class="row" style="justify-content:flex-end">${(a.resultado || 'pendente') === 'pendente' ? '<button class="btn btn-ok" data-fechar="confirmado">Deu certo</button><button class="btn btn-drop" data-fechar="refutado">Não deu</button>' : ''}</td></tr>`; }).join('') || '<tr><td colspan="6" class="empty">Nenhuma ação com esse filtro.</td></tr>'}
+      </tbody></table></div>`;
+    for (const [id, k] of [['a-cliente', 'cliente'], ['a-campanha', 'campanha']]) { const el = $('#' + id); el.onkeydown = (e) => { if (e.key === 'Enter') sync({ [k]: el.value.trim() }); }; el.onblur = () => { if (el.value.trim() !== (p.get(k) || '')) sync({ [k]: el.value.trim() }); }; }
+    for (const [id, k] of [['a-area', 'area'], ['a-nivel', 'nivel'], ['a-acao', 'acao'], ['a-res', 'resultado']]) $('#' + id).onchange = () => sync({ [k]: $('#' + id).value });
+    $('#a-venc').onchange = () => sync({ vencidas: $('#a-venc').checked ? '1' : '' });
+    for (const tr of app().querySelectorAll('tr[data-camp]')) for (const b of tr.querySelectorAll('[data-fechar]')) b.onclick = async () => {
+      const texto = prompt(b.dataset.fechar === 'confirmado' ? 'O número que fecha (o que melhorou):' : 'O que aconteceu (por que não deu):');
+      if (texto === null) return;
+      try { await api(`/api/campanhas/${encodeURIComponent(tr.dataset.camp)}/eventos/${tr.dataset.ev}/fechar`, { method: 'POST', body: { resultado: b.dataset.fechar, texto } }); toast('Resultado fechado'); G.route(); G.refreshNav(); }
+      catch (e) { toast(e.message, true); }
+    };
+  }
+
   // ── configurações ─────────────────────────────────────────────────────
   async function renderConfig() {
     if (!isEditor()) { app().innerHTML = '<div class="empty">Só editores.</div>'; return; }
@@ -428,6 +565,7 @@
         <div class="stat ${k.propostas.urgentes_24h ? 'warn-k' : ''}"><div class="stat-k">Propostas</div><div class="stat-v"><a href="#/pendencias">${k.propostas.abertas}</a> <small>abertas · ${k.propostas.urgentes} urgentes${k.propostas.urgentes_24h ? ` · ${k.propostas.urgentes_24h} há +24h` : ''} · ${k.propostas.por_votos_30d} por votos</small></div></div>
         <div class="stat ${k.verificacao_vencida ? 'warn-k' : ''}"><div class="stat-k">Verificação</div><div class="stat-v"><a href="#/conhecimento?verif=nao">${k.nao_verificadas}</a> <small>sem verificar · ${k.verificacao_vencida} vencidas</small></div></div>
         <div class="stat ${k.pendentes ? 'warn-k' : ''}"><div class="stat-k">Resultados a fechar</div><div class="stat-v"><a href="#/pendencias?t=pendentes">${k.pendentes}</a> <small>casos/testes · ${k.contradicoes_abertas} contradições</small></div></div>
+        ${k.acoes ? `<div class="stat ${k.acoes.vencidas || k.acoes.propostos ? 'warn-k' : ''}"><div class="stat-k">Ações</div><div class="stat-v"><a href="#/acoes">${k.acoes.total}</a> <small>${k.acoes.pendentes} pendentes · <a href="#/acoes?vencidas=1">${k.acoes.vencidas} a verificar</a> · ${k.acoes.propostos} a confirmar</small></div></div>` : ''}
       </div>`;
   }
 

@@ -2,6 +2,7 @@
  * aprovação/reversão e a configuração da org. Uma função por operação. */
 
 import { bytes, chaveTitulo, linhaSempre, termosBusca, validarEntrada, type Entrada, type EntradaInput, type EntradaNormalizada, type Modo, type Urgencia, LIMITES, type RELACOES } from '../kit/conhecimento.js';
+import { acaoFeita, comEventos, eventosDe, type Evento, type Resultado } from '../kit/campanha.js';
 
 const now = () => new Date().toISOString();
 const J = (v: unknown) => JSON.stringify(v ?? null);
@@ -314,6 +315,76 @@ export async function reverterProposta(db: D1Database, org_id: string, id: strin
   await db.prepare('UPDATE proposta SET estado = ?, motivo_decisao = ?, atualizado_em = ? WHERE id = ?').bind('revertida', motivo ?? `revertida por ${por}`, now(), id).run();
 }
 
+/** Anexa eventos à linha do tempo de uma campanha (spec 008 §3.4). Não passa por proposta:
+ *  é log — o que o agente propõe entra marcado e uma pessoa confirma depois. */
+export async function anexarEventos(db: D1Database, campanha_id: string, eventos: Evento[], autor: string): Promise<{ n: number; total: number }> {
+  const cur = await obterConhecimento(db, campanha_id);
+  if (!cur) throw new Error(`campanha "${campanha_id}" não existe no conhecimento`);
+  if (cur.tipo !== 'campanha') throw new Error(`"${campanha_id}" é do tipo ${cur.tipo}, não campanha`);
+  const dados = comEventos(cur.dados, eventos);
+  await db.prepare('UPDATE conhecimento SET dados_json = ?, autor = ?, versao = versao + 1, atualizado_em = ? WHERE id = ?')
+    .bind(J(dados), autor.toLowerCase(), now(), campanha_id).run();
+  return { n: eventos.length, total: eventosDe(dados).length };
+}
+
+/** Confirma (ou recusa) um evento proposto pelo agente; confirmar é o que o faz contar como feito. */
+export async function confirmarEvento(db: D1Database, campanha_id: string, evento_id: string, por: string, ok: boolean): Promise<Evento | null> {
+  const cur = await obterConhecimento(db, campanha_id);
+  if (!cur || cur.tipo !== 'campanha') throw new Error('campanha não existe');
+  const linha = eventosDe(cur.dados);
+  const e = linha.find((x) => x.id === evento_id);
+  if (!e) throw new Error('evento não existe nesta campanha');
+  const nova = ok
+    ? linha.map((x) => (x.id === evento_id ? { ...x, proposto: false, confirmado_por: por.toLowerCase(), confirmado_em: now() } : x))
+    : linha.filter((x) => x.id !== evento_id);
+  await db.prepare('UPDATE conhecimento SET dados_json = ?, versao = versao + 1, atualizado_em = ? WHERE id = ?')
+    .bind(J({ ...cur.dados, linha_do_tempo: nova }), now(), campanha_id).run();
+  return ok ? (nova.find((x) => x.id === evento_id) as Evento) : null;
+}
+
+/** Fecha o resultado de uma ação (confirmado/refutado) com o número que fecha. */
+export async function fecharAcao(db: D1Database, campanha_id: string, evento_id: string, r: { resultado: Resultado; texto?: string | null }, por: string): Promise<Evento> {
+  const cur = await obterConhecimento(db, campanha_id);
+  if (!cur || cur.tipo !== 'campanha') throw new Error('campanha não existe');
+  const linha = eventosDe(cur.dados);
+  const e = linha.find((x) => x.id === evento_id);
+  if (!e || e.tipo !== 'acao') throw new Error('ação não existe nesta campanha');
+  const nova = linha.map((x) => (x.id === evento_id ? { ...x, resultado: r.resultado, resultado_texto: r.texto ?? null, resultado_em: now().slice(0, 10), confirmado_por: x.confirmado_por ?? por.toLowerCase() } : x));
+  await db.prepare('UPDATE conhecimento SET dados_json = ?, versao = versao + 1, atualizado_em = ? WHERE id = ?')
+    .bind(J({ ...cur.dados, linha_do_tempo: nova }), now(), campanha_id).run();
+  return nova.find((x) => x.id === evento_id) as Evento;
+}
+
+export interface AcaoLinha extends Evento { campanha_id: string; campanha: string; cliente_id: string | null }
+export interface FiltroAcao { cliente?: string; campanha?: string; area?: string; nivel?: string; acao?: string; resultado?: string; quem?: string; desde?: string; ate?: string; vencidas?: boolean; limit?: number }
+
+/** Todas as ações CONFIRMADAS de todas as campanhas (a tela Ações): uma linha por ação. */
+export async function listarAcoes(db: D1Database, org_id: string, f: FiltroAcao = {}): Promise<AcaoLinha[]> {
+  const camps = await listarConhecimento(db, org_id, { tipo: 'campanha', status: 'todos', limit: 300 });
+  const hoje = new Date().toISOString().slice(0, 10);
+  const out: AcaoLinha[] = [];
+  for (const c of camps) {
+    const cliente_id = (c.dados.cliente_id as string) ?? null;
+    if (f.cliente && cliente_id !== f.cliente) continue;
+    if (f.campanha && c.id !== f.campanha) continue;
+    for (const e of eventosDe(c.dados)) {
+      if (!acaoFeita(e)) continue;
+      if (f.area && e.area !== f.area) continue;
+      if (f.nivel && e.nivel !== f.nivel) continue;
+      if (f.acao && e.acao !== f.acao) continue;
+      if (f.resultado && (e.resultado ?? 'pendente') !== f.resultado) continue;
+      if (f.quem && e.quem !== f.quem) continue;
+      if (f.desde && e.data < f.desde) continue;
+      if (f.ate && e.data > f.ate) continue;
+      if (f.vencidas && !((e.resultado ?? 'pendente') === 'pendente' && e.verificar_em && e.verificar_em <= hoje)) continue;
+      out.push({ ...e, campanha_id: c.id, campanha: c.titulo, cliente_id });
+    }
+  }
+  const peso = (e: AcaoLinha) => ((e.resultado ?? 'pendente') === 'pendente' && e.verificar_em && e.verificar_em <= hoje ? 0 : 1);
+  out.sort((a, b) => peso(a) - peso(b) || String(b.data).localeCompare(String(a.data)));
+  return out.slice(0, Math.min(f.limit ?? 300, 1000));
+}
+
 export function entradaParaInput(e: Entrada): EntradaInput {
   return { id: e.id, tipo: e.tipo, dominio: e.dominio, escopo: e.escopo, nivel: e.nivel, tags: e.tags, titulo: e.titulo, corpo_md: e.corpo_md, dados: e.dados, confianca: e.confianca, fontes: e.fontes, sempre: e.sempre, gatilho: e.gatilho, status: e.status };
 }
@@ -326,6 +397,11 @@ export async function saudeConhecimento(db: D1Database, org_id: string): Promise
   const prop = await db.prepare("SELECT SUM(estado = 'aberta') AS abertas, SUM(estado = 'aberta' AND urgencia = 'urgente') AS urgentes, SUM(estado = 'aberta' AND urgencia = 'urgente' AND criado_em < ?) AS urgentes_24h, SUM(estado = 'aprovada' AND aprovada_por = 'votos' AND decidido_em >= ?) AS por_votos_30d FROM proposta WHERE org_id = ?")
     .bind(new Date(Date.now() - 864e5).toISOString(), new Date(Date.now() - 30 * 864e5).toISOString(), org_id).first<Record<string, number | null>>();
   const contradiz = await db.prepare("SELECT COUNT(*) AS n FROM conhecimento_rel r JOIN conhecimento a ON a.id = r.de JOIN conhecimento b ON b.id = r.para WHERE r.tipo = 'contradiz' AND a.status = 'ativo' AND b.status = 'ativo'").first<{ n: number }>();
+  const acoes = await listarAcoes(db, org_id, { limit: 1000 });
+  const hojeISO = now().slice(0, 10);
+  const vencidas = acoes.filter((a) => (a.resultado ?? 'pendente') === 'pendente' && a.verificar_em && a.verificar_em <= hojeISO).length;
+  const propostos = (await listarConhecimento(db, org_id, { tipo: 'campanha', status: 'todos', limit: 300 })).reduce((n, c) => n + eventosDe(c.dados).filter((e) => e.proposto).length, 0);
   return { por_tipo: porTipo, sempre: orc, pendentes: pend?.pendentes ?? 0, nao_verificadas: pend?.nao_verificadas ?? 0, verificacao_vencida: pend?.vencidas ?? 0,
-    propostas: { abertas: prop?.abertas ?? 0, urgentes: prop?.urgentes ?? 0, urgentes_24h: prop?.urgentes_24h ?? 0, por_votos_30d: prop?.por_votos_30d ?? 0 }, contradicoes_abertas: contradiz?.n ?? 0 };
+    propostas: { abertas: prop?.abertas ?? 0, urgentes: prop?.urgentes ?? 0, urgentes_24h: prop?.urgentes_24h ?? 0, por_votos_30d: prop?.por_votos_30d ?? 0 }, contradicoes_abertas: contradiz?.n ?? 0,
+    acoes: { total: acoes.length, pendentes: acoes.filter((a) => (a.resultado ?? 'pendente') === 'pendente').length, vencidas, propostos } };
 }

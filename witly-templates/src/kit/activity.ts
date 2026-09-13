@@ -2,7 +2,8 @@
  * passam pelo gate de PII, gravam. O McpAgent só chama. */
 
 import { canSee, CONTEXTO_TIPOS, getPublishedKit, getTemplate, insertActivity, insertRating, type Activity, type ContextoTipo } from '../db/index.js';
-import { registrarUso } from '../db/conhecimento.js';
+import { anexarEventos, obterConhecimento, registrarUso } from '../db/conhecimento.js';
+import { normalizaEvento, EventoError } from './campanha.js';
 import { checkPii, piiMessage } from './pii.js';
 import { ToolError, type ToolEnv, type ToolUser } from './tools.js';
 
@@ -34,6 +35,9 @@ export interface RegistrarInput {
   resumo?: string;
   /** entradas de conhecimento que entraram na análise (evidência de uso) */
   usadas?: Array<{ id?: string; ajudou?: boolean | null }>;
+  /** id da entrada `campanha` no conhecimento: os eventos entram na linha do tempo dela */
+  campanha?: string | null;
+  eventos?: Array<Record<string, unknown>>;
 }
 
 const PRIORIDADES = ['alta', 'media', 'baixa'];
@@ -106,7 +110,38 @@ export async function registrar(env: ToolEnv, user: ToolUser, input: RegistrarIn
   });
   const usadas = (Array.isArray(input.usadas) ? input.usadas : []).map((u) => ({ id: String(u?.id ?? '').trim(), ajudou: u?.ajudou ?? null })).filter((u) => u.id).slice(0, 60);
   const nUsadas = usadas.length ? await registrarUso(env.DB, usadas, user.email, id) : 0;
-  return `registrado (${evento}, ${input.slug} v${input.versao ?? version ?? '?'}) id=${id}${nUsadas ? ` · ${nUsadas} entrada(s) de conhecimento marcadas como usadas` : ''}`;
+  const camp = await anexaNaCampanha(env, user, input, id, evento);
+  return `registrado (${evento}, ${input.slug} v${input.versao ?? version ?? '?'}) id=${id}${nUsadas ? ` · ${nUsadas} entrada(s) de conhecimento marcadas como usadas` : ''}${camp}`;
+}
+
+/** Linha do tempo da campanha: a análise entra sozinha; achado e ação do agente entram propostos. */
+async function anexaNaCampanha(env: ToolEnv, user: ToolUser, input: RegistrarInput, atividade_id: string, evento: string): Promise<string> {
+  const campanha = str(input.campanha, 80);
+  const brutos = Array.isArray(input.eventos) ? input.eventos.slice(0, 30) : [];
+  if (!campanha) {
+    if (brutos.length) throw new ToolError('`eventos` exige `campanha` (o id da entrada de campanha no conhecimento)');
+    return '';
+  }
+  const c = await obterConhecimento(env.DB, campanha);
+  if (!c) throw new ToolError(`campanha "${campanha}" não existe no conhecimento (use conhecimento({tipo:"campanha"}) ou proponha com sugerir)`);
+  if (c.tipo !== 'campanha') throw new ToolError(`"${campanha}" é do tipo ${c.tipo}, não campanha: os eventos vão na campanha, não no cliente`);
+  const lista: Array<Record<string, unknown>> = [...brutos];
+  if (evento === 'geracao') {
+    const r = (input.resultado ?? {}) as { titulo?: string };
+    lista.unshift({ tipo: 'analise', texto: str(r.titulo, 300) || `entrega registrada (${input.slug})`, data: undefined });
+  }
+  if (!lista.length) return '';
+  const pii = checkPii(lista, [user.email]);
+  if (!pii.ok) throw new ToolError(piiMessage(pii));
+  try {
+    const eventos = lista.map((e, i) => normalizaEvento(e, { quem: user.email, proposto: true, ref: atividade_id, i }));
+    const { n, total } = await anexarEventos(env.DB, campanha, eventos, user.email);
+    const props = eventos.filter((e) => e.proposto).length;
+    return ` · ${n} evento(s) na campanha ${campanha} (${total} no total)${props ? `; ${props} entra(m) como PROPOSTO — uma pessoa confirma na UI para contar como feito` : ''}`;
+  } catch (e) {
+    if (e instanceof EventoError) throw new ToolError(e.message);
+    throw e;
+  }
 }
 
 export async function avaliar(env: ToolEnv, user: ToolUser, slug: string, nota: number, comentario?: string | null): Promise<string> {
