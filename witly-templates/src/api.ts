@@ -76,18 +76,23 @@ api.get('/api/catalogo', async (c) => {
 
 api.post('/api/templates', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
-  const b = await c.req.json<{ slug?: string; name?: string; objective?: string; when_to_use?: string }>();
+  const b = await c.req.json<{ slug?: string; name?: string; objective?: string; when_to_use?: string; kind?: string }>();
   if (!b.slug || !SLUG.test(b.slug)) return c.json({ error: 'slug inválido (a-z, 0-9, hífen)' }, 400);
   if (!b.name?.trim()) return c.json({ error: 'nome obrigatório' }, 400);
   if (await db.getTemplate(c.env.DB, b.slug)) return c.json({ error: 'slug já existe' }, 409);
+  const conversa = b.kind === 'conversa';
   const v = await db.createTemplate(c.env.DB, {
-    slug: b.slug, org_id: c.env.ORG_ID, name: b.name.trim(), objective: b.objective ?? '', when_to_use: b.when_to_use ?? '',
-    manifest: { params: [], queries: [], tarefas_contexto: [], como_gerar: [] },
-    files: [
-      { path: 'guia.md', content: `# Guia de leitura: ${b.name.trim()}\n\n## Como funciona a mecânica\n\n## Definições\n\n## Como ler cada bloco\n` },
-      { path: 'documento.md', content: `# Documento: ${b.name.trim()}\n` },
-      { path: 'python/gerar.py', content: '#!/usr/bin/env python3\n"""gerar — TODO"""\n' },
-    ],
+    slug: b.slug, org_id: c.env.ORG_ID, name: b.name.trim(), objective: b.objective ?? '', when_to_use: b.when_to_use ?? '', kind: conversa ? 'conversa' : 'analise',
+    manifest: conversa
+      ? { kind: 'conversa', entrada: '', etapas: [{ id: 'contexto', entrega: 'cliente e campanha identificados', espera: 'ok do consultor', registra: '', puxa: ['cliente', 'campanha'] }], ferramentas: [], saida: '', tags: [], tarefas_contexto: [] }
+      : { params: [], queries: [], tarefas_contexto: [], como_gerar: [] },
+    files: conversa
+      ? [{ path: 'guia.md', content: `# Guia: ${b.name.trim()}\n\n## Como conduzir\n\n## Formato da entrega\n` }]
+      : [
+        { path: 'guia.md', content: `# Guia de leitura: ${b.name.trim()}\n\n## Como funciona a mecânica\n\n## Definições\n\n## Como ler cada bloco\n` },
+        { path: 'documento.md', content: `# Documento: ${b.name.trim()}\n` },
+        { path: 'python/gerar.py', content: '#!/usr/bin/env python3\n"""gerar — TODO"""\n' },
+      ],
     tasks: [], author_email: u.email,
   });
   return c.json({ ok: true, version: v }, 201);

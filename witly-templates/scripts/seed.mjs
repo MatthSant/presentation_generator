@@ -136,6 +136,7 @@ async function kitSql(slug) {
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
   const files = [];
   const design = manifest.kind === 'design';
+  const conversa = manifest.kind === 'conversa';
   if (design) {
     // contrato.md nasce das fontes de hoje; os elementos, do galeria.py (relatorio.py sobre dado sintético)
     files.push({ path: 'contrato.md', content: await buildDesignSystemMd() });
@@ -145,9 +146,10 @@ async function kitSql(slug) {
     if (design && !rel.startsWith('elementos/')) continue;
     if (rel === 'manifest.json' || rel.startsWith('tarefas/') || rel.startsWith('regras/') || rel.startsWith('perguntas/') || rel.startsWith('viewer/') || rel === 'exemplo.html' || rel === 'design-system.md' || rel === 'perguntas.md') continue;
     if (rel.startsWith('python/tests/out')) continue;
+    if (conversa && !rel.endsWith('.md')) continue;   // roteiro: só markdown (guia, formato…)
     files.push({ path: rel, content: await readFile(path.join(dir, rel), 'utf8') });
   }
-  if (!design) files.push(...await buildExample(slug));
+  if (!design && !conversa) files.push(...await buildExample(slug));
   const tasks = [];
   // regras da análise: uma entrada por arquivo em regras/ (título = a regra, `Tipo:` no corpo)
   const rules = [];
