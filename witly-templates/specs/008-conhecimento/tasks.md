@@ -23,8 +23,11 @@
 - [x] T16 Browser + Vitest → `evidencias-fase3.md`; deploy; PR.
 
 ## Fase 4 — `kind = conversa` (PR 3)
-- [ ] T16 Manifesto de roteiro (etapas com entrega/espera/registra/puxa), `obter_template` para conversa, editor na UI.
-- [ ] T17 Roteiros `otimizar-trafego` e `novo-cliente` (seed).
+- [x] T17 `templates.kind` aceita `conversa` (sem migração: a coluna é texto). Catálogo, saúde e stats incluem os roteiros; `kit-assemble`, `seed` e `test-kits` tratam kit sem Python (só `.md`).
+- [x] T18 Manifesto de roteiro: `entrada`, `etapas[{id, entrega, espera, registra, puxa}]`, `ferramentas`, `saida`, `funil`, `tags`. `obter_template` devolve o roteiro (regra do checkpoint, nível 0, tarefas, tabela de etapas, guia, regras, perguntas, "Ao terminar", índice do conhecimento) — sem zip e sem Python; `listar_templates` marca o tipo.
+- [x] T19 UI: catálogo com filtro "roteiros" e pill; "Novo template" escolhe análise ou roteiro; aba **Roteiro** com editor de etapas (mover, excluir, + Etapa) e abas do kit escondidas.
+- [x] T20 Seed: `otimizar-trafego` (6 etapas, 8 regras, 2 perguntas, 2 tarefas) e `novo-cliente` (4 etapas, 3 regras, 1 tarefa com as perguntas de contexto).
+- [x] T21 Testes `test/conversa.test.ts` (2); Vitest 92; browser → `evidencias-fase4.md`.
 
 ## Fase 5 — campanha (PR 4)
 - [ ] T18 Linha do tempo via `registrar({campanha})`, evento `acao` estruturado, telas Campanhas/Clientes/Ações, "o que funcionou".

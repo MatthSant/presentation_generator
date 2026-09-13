@@ -23,8 +23,17 @@ export interface Manifest {
   como_gerar?: string[];
   config?: unknown;
   arquivos?: Record<string, string>;
+  /** kind = conversa (roteiro): etapas com checkpoint, o que pedir, ferramentas, saída */
+  kind?: string;
+  entrada?: string;
+  etapas?: Etapa[];
+  ferramentas?: string[];
+  saida?: string;
+  funil?: string;
+  tags?: string[];
   [k: string]: unknown;
 }
+export interface Etapa { id: string; entrega: string; espera?: string; registra?: string; puxa?: string[] }
 
 export const DOWNLOAD_TTL = 15 * 60;
 
@@ -60,6 +69,7 @@ export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<str
     const kit = await getPublishedKit(env.DB, t.slug);
     const m = kit ? manifestOf(kit) : {};
     out.push(`## ${t.name}  \`${t.slug}\`  (${versionLabel({ semver: t.published_semver, number: t.published_number })})${t.owner_email ? '  — PESSOAL (só você vê)' : ''}`);
+    if (t.kind === 'conversa') out.push('**Tipo:** ROTEIRO de conversa em etapas (sem Python nem zip): o agente entrega uma etapa, espera a palavra do consultor, registra e avança.');
     if (t.objective) out.push(`**Objetivo:** ${t.objective}`);
     if (t.when_to_use) out.push(`**Quando usar:** ${t.when_to_use}`);
     if (m.tarefas_contexto?.length) out.push(`**Tarefas de contexto:** ${m.tarefas_contexto.map((x) => `${x.id} (${x.objetivo})`).join(' · ')}`);
@@ -79,6 +89,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   const m = manifestOf(kit);
   const n = kit.version.number;
   await logUsage(env.DB, { email: user.email, tool: 'obter_template', slug, version_number: n });
+  if (kit.template.kind === 'conversa') return obterRoteiro(env, kit, m);
 
   const token = await signDownload(signingKey(env), slug, n, DOWNLOAD_TTL);
   const base = (env.PUBLIC_URL || '').replace(/\/$/, '');
@@ -156,6 +167,44 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('- Faltou regra, definição ou pergunta NO TEMPLATE? `sugerir_regra({slug, tipo, titulo, corpo, motivo})` — triagem do editor. Faltou CONHECIMENTO (métrica, diagnóstico, caso, benchmark, formato…)? `sugerir({tipo, titulo, corpo, dados, escopo, motivo, urgencia?, evidencia?})` — vira proposta; cálculo/métrica errada = `urgencia:"urgente"` com evidência.');
   out.push('- Em todo `registrar`, mande `usadas:[{id, ajudou}]` com as entradas de conhecimento que entraram na análise (é a evidência que mantém o conhecimento vivo).');
   out.push('- **Ao fechar o trabalho com o consultor** (obrigatório): `registrar({evento:"feedback", slug, versao, cliente, resumo, segurou:[…], custou:[{item, prioridade, pedido, rodadas}], medida:{apresentacao, filtro, analise}, nota})` — o que segurou bem, cada ajuste que custou rodada (o `pedido` é o que mudar no kit, escrito como regra), quantas rodadas foram sobre apresentação × filtro × análise, e a nota de 1 a 5. É assim que o kit aprende; o editor triagem cada item.');
+  out.push(await indiceBlock(env, kit));
+  return out.join('\n');
+}
+
+/** kind = conversa: o roteiro em etapas com checkpoint (spec 008 §5). Sem zip, sem Python. */
+async function obterRoteiro(env: ToolEnv, kit: Kit, m: Manifest): Promise<string> {
+  const slug = kit.template.slug;
+  const files = new Map(kit.files.map((f) => [f.path, f.content]));
+  const out: string[] = [];
+  out.push(`# Roteiro: ${kit.template.name}  \`${slug}\`  ${versionLabel(kit.version)}${kit.template.owner_email ? '  — PESSOAL' : ''}`);
+  out.push('');
+  out.push(`**Objetivo:** ${kit.template.objective}`);
+  out.push(`**Quando usar:** ${kit.template.when_to_use}`);
+  out.push('');
+  out.push('Este template é uma **conversa em etapas**, não um gerador de HTML. Regra do roteiro: entregue a etapa, faça a pergunta de `espera` ao consultor, registre o que a etapa manda e só então avance. Não faça tudo de uma vez.');
+  out.push(await nivel0Block(env, slug, m as { funil?: unknown; tags?: unknown }));
+  if (m.entrada) { out.push('', '## Entrada — o que pedir ao consultor antes de começar', '', String(m.entrada)); }
+  const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
+  if (kit.tasks.length) {
+    out.push('', '## Tarefas (execute ANTES da etapa 1; as marcadas PERGUNTE ao consultor)');
+    for (const t of kit.tasks) { out.push('', `### ${t.title}  \`${t.task_id}\`  — ${confirmar.get(t.task_id) === false ? 'resolva pela regra (pergunte só se ambíguo)' : '**PERGUNTE AO CONSULTOR e confirme**'}`, '', t.body_md.trim()); }
+  }
+  out.push('', '## Etapas (uma por vez, com checkpoint)', '');
+  out.push('| # | entrega | espera (o que libera a próxima) | registra | puxa do conhecimento |');
+  out.push('|---|---|---|---|---|');
+  for (const [i, e] of (m.etapas || []).entries()) out.push(`| ${i} \`${e.id}\` | ${e.entrega} | ${e.espera || '—'} | ${e.registra || '—'} | ${(e.puxa || []).map((p) => `\`${p}\``).join(', ') || '—'} |`);
+  if (m.ferramentas?.length) out.push('', `**Ferramentas:** ${m.ferramentas.join(' · ')}`);
+  if (m.saida) out.push('', `**Saída:** ${m.saida}`);
+  const guia = files.get('guia.md');
+  if (guia) out.push('', '## Guia', '', guia.trim());
+  out.push(rulesBlock(kit.rules));
+  out.push(questionsBlock(kit.rules));
+  out.push('', '## Ao terminar (obrigatório)', '');
+  out.push(`- Cada entrega (report, resumo, recomendação): \`registrar({evento:"geracao", slug:"${slug}", versao, cliente, contexto:{etapa, campanha}, resultado:{titulo, secoes, decisoes}})\`.`);
+  out.push('- Decisão do consultor (desligar, escalar, budget, manter) → vai no `resultado.decisoes` em FCA-R com o motivo real dele e como verificar.');
+  out.push('- Faltou conhecimento (regra, diagnóstico, caso, benchmark)? `sugerir({...})`. Cálculo ou métrica errada: `urgencia:"urgente"` com evidência.');
+  out.push('- Em todo `registrar`, mande `usadas:[{id, ajudou}]` com as entradas de conhecimento que entraram.');
+  out.push(`- **Ao fechar**: \`registrar({evento:"feedback", slug:"${slug}", versao, cliente, resumo, segurou:[…], custou:[{item, prioridade, pedido, rodadas}], medida:{apresentacao, filtro, analise}, nota})\`.`);
   out.push(await indiceBlock(env, kit));
   return out.join('\n');
 }

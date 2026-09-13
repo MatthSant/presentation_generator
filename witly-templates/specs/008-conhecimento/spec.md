@@ -1,6 +1,6 @@
 # Spec 008 — Conhecimento: o cérebro Witly como entradas tipadas no banco, que o time edita e o MCP puxa rápido
 
-**Estado**: desenho fechado em 2026-09-12; fases 1–2 (banco + MCP) no PR #68 e fase 3 (UI) no PR seguinte — ver `tasks.md`, `evidencias.md` e `evidencias-fase3.md`. Fases 4–5 pendentes.
+**Estado**: desenho fechado em 2026-09-12; fases 1–2 (banco + MCP) no PR #68 e fase 3 (UI) e fase 4 (`kind = conversa`) nos PRs seguintes — ver `tasks.md` e `evidencias*.md`. Fase 5 (campanha) pendente.
 
 ## 1. O problema hoje
 O Grimório tem "contexto" em três lugares e nenhum eixo claro:

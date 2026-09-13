@@ -23,7 +23,7 @@ let failed = 0;
 for (const slug of await kits()) {
   if (only.length && !only.includes(slug)) continue;
   const manifest = JSON.parse(await readFile(path.join(ROOT, 'seed', slug, 'manifest.json'), 'utf8'));
-  if (manifest.kind === 'design') continue;   // sem Python: só contrato, regras e elementos
+  if (manifest.kind === 'design' || manifest.kind === 'conversa') continue;   // sem Python: design system e roteiros
   const a = await assembleKit(slug);
   const py = path.join(ROOT, 'seed', slug, 'python');
   process.stdout.write(`\n== ${slug} (motor ${a.engine})\n`);

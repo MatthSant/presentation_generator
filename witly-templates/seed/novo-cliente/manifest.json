@@ -1,0 +1,63 @@
+{
+  "slug": "novo-cliente",
+  "name": "Novo cliente (roteiro)",
+  "kind": "conversa",
+  "objective": "Montar o contexto de negócio de um cliente novo no conhecimento do Grimório: o que vende, modelo, ticket, público, funis, canais, metas, slug no Delfos e armadilhas de dado — a partir da página do cliente ou de perguntas ao consultor. Termina com uma proposta de entrada `cliente` (e `funil`/`campanha` quando houver).",
+  "when_to_use": "Quando o agente vai analisar ou otimizar um cliente que ainda não tem entrada `cliente` no conhecimento, ou quando o consultor pede \"cadastra o cliente X\". Também para atualizar o contexto de um cliente que mudou de modelo ou de funil.",
+  "audience": "Consultor Witly. Nada de dado pessoal: só o negócio, agregado.",
+  "tags": [
+    "cliente",
+    "contexto",
+    "onboarding"
+  ],
+  "entrada": "A página do cliente (URL ou texto colado: site, landing, apresentação interna) OU as respostas às perguntas de contexto da tarefa. Slug do Delfos se já existir.",
+  "ferramentas": [
+    "Delfos: Credentials(slug), Tables_Views_Docs, Search_Columns (para confirmar views e armadilhas)",
+    "Grimório: conhecimento({tipo:\"cliente\"}), conhecimento({tipo:\"funil\"}), sugerir"
+  ],
+  "saida": "Uma proposta `sugerir({tipo:\"cliente\", titulo, corpo, dados:{slug_delfos, modelo, funis, metas, canais, armadilhas_dado, templates}, escopo:\"cliente:<slug>\"})` e, se o consultor descreveu um lançamento em curso, uma `campanha`.",
+  "etapas": [
+    {
+      "id": "fonte",
+      "entrega": "pergunte: tem a página do cliente (URL/texto) ou vamos pelas perguntas? Se veio página, extraia o que responde às perguntas e liste o que faltou",
+      "espera": "a página ou o começo das respostas",
+      "registra": "—",
+      "puxa": [
+        "conhecimento({tipo:\"funil\"})",
+        "conhecimento({tipo:\"cliente\"}) para ver o padrão das existentes"
+      ]
+    },
+    {
+      "id": "perguntas",
+      "entrega": "as perguntas de contexto que ainda faltam, em blocos curtos (negócio → funis → canais e metas → dados)",
+      "espera": "as respostas do consultor; assuma o razoável e declare a premissa quando ele não souber",
+      "registra": "—",
+      "puxa": [
+        "conhecimento({tipo:\"metrica\", q:\"cac ltv\"})"
+      ]
+    },
+    {
+      "id": "resumo",
+      "entrega": "o resumo em uma tela: quem é (3 linhas), modelo e ticket, funis ativos com tipo e métrica de decisão, canais e peso, metas, slug do Delfos, armadilhas de dado conhecidas",
+      "espera": "\"está certo?\" — correções do consultor",
+      "registra": "—",
+      "puxa": [
+        "conhecimento({tipo:\"benchmark\", funil})"
+      ]
+    },
+    {
+      "id": "proposta",
+      "entrega": "sugerir({tipo:\"cliente\", ...}) com o resumo aprovado; se há lançamento em curso, sugerir({tipo:\"campanha\", ...}); diga que um editor aprova",
+      "espera": "—",
+      "registra": "registrar(geracao) com o resumo; registrar(feedback) ao fechar",
+      "puxa": []
+    }
+  ],
+  "tarefas_contexto": [
+    {
+      "id": "perguntas-de-contexto",
+      "objetivo": "As perguntas que montam o contexto de negócio (sem dado pessoal)",
+      "confirmar": true
+    }
+  ]
+}

@@ -10,8 +10,9 @@ export interface User { email: string; name: string | null; org_id: string; role
 
 export interface Template {
   slug: string; org_id: string; name: string; objective: string; when_to_use: string;
-  /** analise = template de análise; design = o design system (fora do catálogo e do MCP como template). */
-  kind: 'analise' | 'design';
+  /** analise = template de análise (kit Python); conversa = roteiro em etapas, sem Python (spec 008 §5);
+   *  design = o design system (fora do catálogo e do MCP como template). */
+  kind: 'analise' | 'conversa' | 'design';
   published_version_id: string | null; draft_version_id: string | null;
   /** NULL = da organização; e-mail = template pessoal do dono. */
   owner_email: string | null; promoted_from: string | null; notas: string;
@@ -101,7 +102,7 @@ export async function listTemplates(db: D1Database, org_id: string, viewer: stri
        FROM templates t
        LEFT JOIN template_versions p ON p.id = t.published_version_id
        LEFT JOIN template_versions d ON d.id = t.draft_version_id
-      WHERE t.org_id = ? AND t.kind = 'analise'${where} ORDER BY t.owner_email IS NOT NULL, t.name`,
+      WHERE t.org_id = ? AND t.kind IN ('analise', 'conversa')${where} ORDER BY t.owner_email IS NOT NULL, t.kind, t.name`,
   );
   return (await (viewer === '*' ? stmt.bind(org_id) : stmt.bind(org_id, viewer.toLowerCase())).all<TemplateRow>()).results;
 }
@@ -180,7 +181,7 @@ export interface NewTemplateInput {
   notas?: string;
   /** true = já nasce publicado (templates pessoais salvos pelo MCP). */
   publish?: boolean;
-  kind?: 'analise' | 'design';
+  kind?: 'analise' | 'conversa' | 'design';
 }
 
 /** Cria o template com a versão 1 já como RASCUNHO (publicar é passo explícito). */
@@ -462,11 +463,11 @@ export async function catalogStats(db: D1Database, org_id: string, desde30: stri
     `SELECT SUM(t.published_version_id IS NOT NULL) AS publicados,
             SUM(t.draft_version_id IS NOT NULL) AS rascunhos,
             (SELECT MAX(v.published_at) FROM template_versions v JOIN templates x ON x.slug = v.slug
-              WHERE x.org_id = ? AND x.kind = 'analise' AND v.state = 'published') AS ultima_publicacao,
+              WHERE x.org_id = ? AND x.kind IN ('analise', 'conversa') AND v.state = 'published') AS ultima_publicacao,
             SUM(t.published_version_id IS NOT NULL
                 AND NOT EXISTS (SELECT 1 FROM activity a WHERE a.slug = t.slug AND a.at >= ?)
                 AND NOT EXISTS (SELECT 1 FROM usage_log u WHERE u.slug = t.slug AND u.at >= ?)) AS sem_uso_30d
-       FROM templates t WHERE t.org_id = ? AND t.kind = 'analise'`,
+       FROM templates t WHERE t.org_id = ? AND t.kind IN ('analise', 'conversa')`,
   ).bind(org_id, desde30, desde30, org_id).first<CatalogStats>();
   return { publicados: r?.publicados ?? 0, rascunhos: r?.rascunhos ?? 0, ultima_publicacao: r?.ultima_publicacao ?? null, sem_uso_30d: r?.sem_uso_30d ?? 0 };
 }
@@ -485,7 +486,7 @@ export async function healthStats(db: D1Database, org_id: string): Promise<Healt
             (SELECT COUNT(*) FROM activity a WHERE a.slug = t.slug AND a.evento = 'feedback') AS feedbacks,
             (SELECT AVG(json_extract(a.dados_json, '$.nota')) FROM activity a WHERE a.slug = t.slug AND a.evento = 'feedback') AS nota_feedback
        FROM templates t LEFT JOIN template_versions p ON p.id = t.published_version_id
-      WHERE t.org_id = ? AND t.owner_email IS NULL AND t.kind = 'analise'
+      WHERE t.org_id = ? AND t.owner_email IS NULL AND t.kind IN ('analise', 'conversa')
       ORDER BY descartados * 1.0 / MAX(aprofundamentos, 1) DESC, aprofundamentos DESC, t.name`,
   ).bind(org_id).all<HealthRow>()).results;
 }

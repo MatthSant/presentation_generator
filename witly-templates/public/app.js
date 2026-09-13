@@ -109,7 +109,7 @@
   }
 
   // ── catálogo ───────────────────────────────────────────────────────────
-  const CAT_FILTROS = [['todos', 'todos'], ['mcp', 'no MCP'], ['rascunho', 'com rascunho'], ['parado', 'sem uso 30d']];
+  const CAT_FILTROS = [['todos', 'todos'], ['analise', 'análises'], ['conversa', 'roteiros'], ['mcp', 'no MCP'], ['rascunho', 'com rascunho'], ['parado', 'sem uso 30d']];
 
   async function renderCatalog() {
     skeleton('cards');
@@ -124,6 +124,8 @@
       const busca = q.trim().toLowerCase();
       const rows = templates.filter((t) => {
         if (busca && !`${t.name} ${t.slug} ${t.objective}`.toLowerCase().includes(busca)) return false;
+        if (f === 'analise') return t.kind !== 'conversa';
+        if (f === 'conversa') return t.kind === 'conversa';
         if (f === 'mcp') return !!t.published_number;
         if (f === 'rascunho') return !!t.draft_number;
         if (f === 'parado') return parado(t);
@@ -145,7 +147,7 @@
         <div class="grid">${rows.map((t) => `<a class="card tcard" href="#/t/${esc(t.slug)}" style="display:flex;flex-direction:column">
           <div class="row" style="justify-content:space-between;align-items:flex-start"><span class="t">${esc(t.name)}</span>
             ${t.published_number ? `<span class="pill pub">v${esc(t.published_semver || t.published_number)}</span>` : '<span class="pill off">sem publicada</span>'}</div>
-          <div class="muted sm" style="margin:6px 0"><code>${esc(t.slug)}</code>${t.owner_email ? ' <span class="pill">pessoal</span>' : ''}</div>
+          <div class="muted sm" style="margin:6px 0"><code>${esc(t.slug)}</code>${t.kind === 'conversa' ? ' <span class="pill editor">roteiro</span>' : ''}${t.owner_email ? ' <span class="pill">pessoal</span>' : ''}</div>
           <div class="sm" style="margin-bottom:12px">${esc(t.objective)}</div>
           <div style="margin-top:auto;padding-top:11px;border-top:1px solid var(--line-soft);display:flex;gap:10px;align-items:center">
             <code class="sm">${t.geracoes} ger · ${t.aprofundamentos} aprof</code>
@@ -159,17 +161,25 @@
     draw();
   }
 
-  async function newTemplate() {
-    const slug = prompt('slug (a-z, 0-9, hífen), ex.: debriefing');
-    if (!slug) return;
-    const name = prompt('Nome do template');
-    if (!name) return;
-    try { await api('/api/templates', { method: 'POST', body: { slug, name } }); location.hash = `#/t/${slug}`; toast('Template criado como rascunho'); }
-    catch (e) { toast(e.message, true); }
+  function newTemplate() {
+    const corpo = `<label>Tipo</label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label><input type="radio" name="kind" value="analise" checked> análise <span class="muted sm">kit com Python: gera um documento HTML</span></label>
+        <label><input type="radio" name="kind" value="conversa"> roteiro <span class="muted sm">conversa em etapas com checkpoint, sem Python (ex.: otimizar tráfego, novo cliente)</span></label></div>
+      <label>Slug (a-z, 0-9, hífen)</label><input id="nt-slug" placeholder="ex.: otimizar-crm">
+      <label>Nome</label><input id="nt-name" placeholder="ex.: Otimizar CRM (roteiro)">`;
+    const ov = modal('Novo template', corpo, 'Criar rascunho', async (fechar) => {
+      const slug = $('#nt-slug', ov).value.trim(); const name = $('#nt-name', ov).value.trim(); const kind = ov.querySelector('input[name=kind]:checked').value;
+      if (!slug || !name) { toast('slug e nome são obrigatórios', true); return; }
+      try { await api('/api/templates', { method: 'POST', body: { slug, name, kind } }); fechar(); location.hash = `#/t/${slug}`; toast('Template criado como rascunho'); }
+      catch (e) { toast(e.message, true); }
+    });
   }
 
   // ── editor de template ─────────────────────────────────────────────────
   const TABS = [['info', 'Info'], ['manifesto', 'Manifesto'], ['tarefas', 'Tarefas'], ['regras', 'Regras'], ['queries', 'Queries'], ['python', 'Python'], ['documento', 'Documento'], ['guia', 'Guia'], ['perguntas', 'Perguntas'], ['exemplo', 'Exemplo'], ['versoes', 'Versões']];
+  /** Roteiro (kind = conversa): sem Python, queries, documento nem exemplo; o manifesto vira a aba Roteiro. */
+  const TABS_CONVERSA = [['info', 'Info'], ['roteiro', 'Roteiro'], ['tarefas', 'Tarefas'], ['regras', 'Regras'], ['perguntas', 'Perguntas'], ['guia', 'Guia'], ['manifesto', 'Manifesto (JSON)'], ['versoes', 'Versões']];
 
   async function loadKit(slug) {
     const d = await api(`/api/templates/${encodeURIComponent(slug)}?state=draft`);
@@ -184,6 +194,14 @@
     const cheio = (path) => (files.get(path) || '').trim().length > 0;
     const temPrefixo = (pre) => [...files.keys()].some((k) => k.startsWith(pre));
     const m = (kit && kit.manifest) || {};
+    if (t.kind === 'conversa') return {
+      info: !!(t.objective || '').trim() && !!(t.when_to_use || '').trim(),
+      roteiro: Array.isArray(m.etapas) && m.etapas.length > 0 && !!(m.entrada || '').trim(),
+      tarefas: !!(kit && kit.tasks.length),
+      regras: !!(kit && (kit.rules || []).some((r) => r.tipo !== 'pergunta')),
+      perguntas: !!(kit && (kit.rules || []).some((r) => r.tipo === 'pergunta')),
+      guia: cheio('guia.md'),
+    };
     return {
       info: !!(t.objective || '').trim() && !!(t.when_to_use || '').trim(),
       manifesto: ((m.como_gerar || []).length > 0),
@@ -242,30 +260,31 @@
   }
 
   async function renderTemplate(slug, tab, sub) {
-    tab = TABS.some(([k]) => k === tab) ? tab : 'info';
     let data;
     try { data = await loadKit(slug); } catch (e) { app.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
     const { template: t, kit, state } = data;
+    const tabs = t.kind === 'conversa' ? TABS_CONVERSA : TABS;
+    tab = tabs.some(([k]) => k === tab) ? tab : 'info';
     const v = kit ? kit.version : null;
     const canEdit = isEditor() || (t.owner_email && t.owner_email === me.email);
     const kc = kitCheck(t, kit);
     const feitos = Object.values(kc).filter(Boolean).length;
     const total = Object.keys(kc).length;
     app.innerHTML = `<div class="head">
-      <div><a class="muted sm" href="#/">← Templates</a><h1>${esc(t.name)} <code>${esc(t.slug)}</code>${t.owner_email ? ` <span class="pill">pessoal · ${esc(t.owner_email)}</span>` : ''}</h1>
+      <div><a class="muted sm" href="#/">← Templates</a><h1>${esc(t.name)} <code>${esc(t.slug)}</code>${t.kind === 'conversa' ? ' <span class="pill editor">roteiro</span>' : ''}${t.owner_email ? ` <span class="pill">pessoal · ${esc(t.owner_email)}</span>` : ''}</h1>
         <div class="row sm"><span class="muted">${kit ? (state === 'draft' ? `Editando o <b>rascunho</b> (nº ${v.number})` : `Vendo a <b>publicada v${v.semver || v.number}</b>`) : 'Sem versão'}</span>
         ${t.published_version_id ? '<span class="pill pub">publicada</span>' : '<span class="pill off">sem publicada</span>'}${t.draft_version_id ? '<span class="pill draft">rascunho</span>' : ''}
         <span class="kitbar" title="Partes do kit já preenchidas">kit ${feitos}/${total} <span class="bar ${feitos === total ? '' : feitos * 2 >= total ? 'mid' : 'bad'}"><span style="width:${Math.round(100 * feitos / total)}%"></span></span></span></div></div>
       <div class="row">${canEdit && !t.draft_version_id && t.published_version_id ? '<button class="btn" id="mkdraft">Criar rascunho</button>' : ''}
         ${canEdit && t.draft_version_id ? '<button class="btn btn-p" id="publish">Publicar rascunho</button>' : ''}</div></div>
-      <div class="tabs">${TABS.map(([k, l]) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}">${l}${k in kc && !kc[k] ? '<span class="dot" title="vazio"></span>' : ''}</button>`).join('')}</div>
+      <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}">${l}${k in kc && !kc[k] ? '<span class="dot" title="vazio"></span>' : ''}</button>`).join('')}</div>
       <div id="pane"></div>`;
     for (const b of app.querySelectorAll('.tab')) b.onclick = () => { location.hash = `#/t/${slug}/${b.dataset.tab}`; };
     const mk = $('#mkdraft'); if (mk) mk.onclick = async () => { try { await api(`/api/templates/${slug}/draft`, { method: 'POST' }); toast('Rascunho criado'); route(); } catch (e) { toast(e.message, true); } };
     const pb = $('#publish'); if (pb) pb.onclick = () => publicarModal(t, v);
     if (!kit) { $('#pane').innerHTML = '<div class="empty">Este template ainda não tem conteúdo.</div>'; return; }
     const ctx = { slug, kit, canEdit, state, sub };
-    ({ info: paneInfo, manifesto: paneManifest, tarefas: paneTarefas, contexto: paneTarefas, regras: (c, e) => paneRegras({ ...c, tipos: ['regra', 'recomendacao', 'definicao'] }, e), queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: (c, e) => paneRegras({ ...c, tipos: ['pergunta'] }, e), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
+    ({ info: paneInfo, roteiro: paneRoteiro, manifesto: paneManifest, tarefas: paneTarefas, contexto: paneTarefas, regras: (c, e) => paneRegras({ ...c, tipos: ['regra', 'recomendacao', 'definicao'] }, e), queries: paneFiles('queries/', 'sql'), python: paneFiles('python/', 'py'), documento: paneSingle('documento.md'), guia: paneSingle('guia.md'), perguntas: (c, e) => paneRegras({ ...c, tipos: ['pergunta'] }, e), exemplo: paneExemplo, versoes: paneVersoes })[tab](ctx, $('#pane'));
   }
 
   function saveFile(slug, path, content) {
@@ -304,6 +323,47 @@
       let m; try { m = JSON.parse($('#ed').value); } catch { throw new Error('JSON inválido'); }
       await api(`/api/templates/${encodeURIComponent(slug)}/draft/manifest`, { method: 'PUT', body: { manifest: m } });
     });
+  }
+
+  /** Roteiro: etapas com checkpoint (entrega · espera · registra · puxa), entrada, ferramentas, saída, funil e tags do manifesto. */
+  function paneRoteiro({ slug, kit, canEdit }, el) {
+    const m = JSON.parse(JSON.stringify(kit.manifest || {}));
+    if (!Array.isArray(m.etapas)) m.etapas = [];
+    const lista = (v) => (Array.isArray(v) ? v.join('\n') : (v || ''));
+    const draw = () => {
+      el.innerHTML = `<p class="muted sm">O agente <b>entrega</b> a etapa, faz a pergunta de <b>espera</b> ao consultor, <b>registra</b> o que a etapa manda e só então avança. <b>Puxa</b> são as chamadas de <code>conhecimento(...)</code> daquela etapa. Tudo isto vai no <code>obter_template</code> como tabela.</p>
+        <div class="card"><label>Entrada — o que pedir ao consultor antes de começar</label><textarea id="r-entrada" style="min-height:70px" ${canEdit ? '' : 'readonly'}>${esc(m.entrada || '')}</textarea>
+          <div class="row" style="gap:14px;align-items:flex-start"><div style="flex:1"><label>Funil (escopo do índice)</label><input id="r-funil" value="${esc(m.funil || '')}" placeholder="perpetuo, lancamento…" ${canEdit ? '' : 'readonly'}></div>
+            <div style="flex:2"><label>Tags (vírgula) — puxam o índice do conhecimento</label><input id="r-tags" value="${esc((m.tags || []).join(', '))}" ${canEdit ? '' : 'readonly'}></div></div>
+          <label>Ferramentas (uma por linha)</label><textarea id="r-ferr" style="min-height:60px" ${canEdit ? '' : 'readonly'}>${esc(lista(m.ferramentas))}</textarea>
+          <label>Saída</label><textarea id="r-saida" style="min-height:60px" ${canEdit ? '' : 'readonly'}>${esc(m.saida || '')}</textarea></div>
+        <h2>Etapas</h2>
+        <div id="etapas" style="display:flex;flex-direction:column;gap:10px">${m.etapas.map((e, i) => `<div class="card" data-i="${i}"><div class="row" style="justify-content:space-between"><b>${i} · <code>${esc(e.id)}</code></b>
+            ${canEdit ? `<span class="row"><button class="btn btn-ghost" data-up="${i}" ${i === 0 ? 'disabled' : ''}>↑</button><button class="btn btn-ghost" data-down="${i}" ${i === m.etapas.length - 1 ? 'disabled' : ''}>↓</button><button class="btn btn-ghost btn-danger" data-del="${i}">Excluir</button></span>` : ''}</div>
+          <div class="row" style="gap:14px;align-items:flex-start"><div style="flex:1"><label>Id</label><input data-f="id" value="${esc(e.id)}" ${canEdit ? '' : 'readonly'}></div></div>
+          <label>Entrega — o que o agente mostra</label><textarea data-f="entrega" style="min-height:56px" ${canEdit ? '' : 'readonly'}>${esc(e.entrega || '')}</textarea>
+          <div class="row" style="gap:14px;align-items:flex-start"><div style="flex:1"><label>Espera — o que libera a próxima</label><textarea data-f="espera" style="min-height:56px" ${canEdit ? '' : 'readonly'}>${esc(e.espera || '')}</textarea></div>
+            <div style="flex:1"><label>Registra — antes de avançar</label><textarea data-f="registra" style="min-height:56px" ${canEdit ? '' : 'readonly'}>${esc(e.registra || '')}</textarea></div></div>
+          <label>Puxa — chamadas de conhecimento (uma por linha)</label><textarea data-f="puxa" style="min-height:48px" ${canEdit ? '' : 'readonly'}>${esc(lista(e.puxa))}</textarea></div>`).join('') || '<div class="empty">Sem etapas. Um roteiro precisa de pelo menos uma.</div>'}</div>
+        ${canEdit ? '<div class="actions" style="justify-content:space-between"><button class="btn" id="r-add">+ Etapa</button><button class="btn btn-p" id="save">Salvar no rascunho</button></div>' : '<p class="muted sm">Só editores alteram.</p>'}`;
+      const ler = () => {
+        const linhas = (v) => v.split('\n').map((x) => x.trim()).filter(Boolean);
+        m.entrada = $('#r-entrada').value; m.funil = $('#r-funil').value.trim() || undefined; m.tags = $('#r-tags').value.split(',').map((x) => x.trim()).filter(Boolean);
+        m.ferramentas = linhas($('#r-ferr').value); m.saida = $('#r-saida').value;
+        m.etapas = [...el.querySelectorAll('#etapas [data-i]')].map((c) => ({ id: c.querySelector('[data-f=id]').value.trim(), entrega: c.querySelector('[data-f=entrega]').value.trim(), espera: c.querySelector('[data-f=espera]').value.trim(), registra: c.querySelector('[data-f=registra]').value.trim(), puxa: linhas(c.querySelector('[data-f=puxa]').value) }));
+        if (!m.funil) delete m.funil;
+      };
+      const add = $('#r-add'); if (add) add.onclick = () => { ler(); m.etapas.push({ id: `etapa-${m.etapas.length}`, entrega: '', espera: '', registra: '', puxa: [] }); draw(); };
+      for (const b of el.querySelectorAll('[data-del]')) b.onclick = () => { ler(); m.etapas.splice(Number(b.dataset.del), 1); draw(); };
+      for (const b of el.querySelectorAll('[data-up]')) b.onclick = () => { ler(); const i = Number(b.dataset.up); [m.etapas[i - 1], m.etapas[i]] = [m.etapas[i], m.etapas[i - 1]]; draw(); };
+      for (const b of el.querySelectorAll('[data-down]')) b.onclick = () => { ler(); const i = Number(b.dataset.down); [m.etapas[i + 1], m.etapas[i]] = [m.etapas[i], m.etapas[i + 1]]; draw(); };
+      wireSave(async () => {
+        ler();
+        if (!m.etapas.length || m.etapas.some((e) => !e.id || !e.entrega)) throw new Error('cada etapa precisa de id e entrega');
+        await api(`/api/templates/${encodeURIComponent(slug)}/draft/manifest`, { method: 'PUT', body: { manifest: { ...m, kind: 'conversa' } } });
+      });
+    };
+    draw();
   }
 
   function paneTarefas({ slug, kit, canEdit, sub }, el) {

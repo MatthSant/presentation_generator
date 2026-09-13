@@ -1,0 +1,97 @@
+{
+  "slug": "otimizar-trafego",
+  "name": "Otimizar tráfego pago (roteiro)",
+  "kind": "conversa",
+  "objective": "Conduzir com o consultor a otimização de mídia de uma campanha: report geral, report por temperatura, visão campanha a campanha e decisão uma campanha por vez, registrando cada ação com o motivo real de quem opera a conta.",
+  "when_to_use": "Quando o consultor pede \"roda o report\", \"otimização\", \"analisa a campanha X\", \"custo por checkout de ontem\", \"ligar/desligar/escalar\", \"budget da campanha\". Se o pedido é um documento fechado (debriefing, acompanhamento), use o template de análise.",
+  "audience": "Consultor ou gestor de tráfego da Witly. A saída é o report em texto e as decisões registradas.",
+  "funil": "perpetuo",
+  "tags": [
+    "trafego-pago",
+    "meta-ads",
+    "criativos",
+    "publico",
+    "canais",
+    "escala",
+    "budget"
+  ],
+  "entrada": "Cliente (slug do Delfos), a campanha ou lançamento (nome e período), o modo — \"roda o report\" = etapas 0–1 e para; \"otimização\" = todas — e os budgets configurados (o Delfos só tem o realizado: sem valor, é pendência, nunca estimativa).",
+  "ferramentas": [
+    "Delfos: Credentials(slug), Tables_Views_Docs, Search_Columns, Witly_Query, Log_Queries",
+    "Grimório: conhecimento (por gatilho), registrar, sugerir, confirmar"
+  ],
+  "saida": "Report em texto no formato do guia (números com janela e data do dado fechado; cada item em FCA-R) e, no modo otimização, a lista de decisões do consultor com critério de verificação.",
+  "etapas": [
+    {
+      "id": "contexto",
+      "entrega": "cliente e campanha identificados; dado fechado confirmado (MAX(data) por fonte); budgets e pendências vencidas da campanha na mesa",
+      "espera": "\"ok\" ou correção do consultor; se há decisão pendente vencida, pergunte antes: \"o que decidimos dia X deu certo?\"",
+      "registra": "—",
+      "puxa": [
+        "conhecimento({cliente})",
+        "conhecimento({campanha})",
+        "urgentes pendentes"
+      ]
+    },
+    {
+      "id": "report-geral",
+      "entrega": "report geral da campanha: por funil/campanha em 1d, 3d e 7d, só o que gastou ontem; custo por checkout (ou CPL/CPMQL em captação) em destaque; tendência entre janelas; teto do funil; avisos de fim de semana/feriado e maturação antes de qualquer leitura",
+      "espera": "\"vai\" — ou o consultor para aqui (\"roda o report\")",
+      "registra": "registrar(geracao) com o report em resultado",
+      "puxa": [
+        "conhecimento({tipo:\"formato\", q:\"report\"})",
+        "conhecimento({tipo:\"metrica\", gatilho:\"ao_consultar_dados\"})",
+        "conhecimento({tipo:\"benchmark\", funil})"
+      ]
+    },
+    {
+      "id": "temperatura",
+      "entrega": "report por temperatura: 1º token do nome da campanha (hot/warm/cold/adv); sem marcador = avise e pule a camada",
+      "espera": "\"vai\"",
+      "registra": "achado por temperatura que chamou atenção (resultado.achados)",
+      "puxa": [
+        "conhecimento({gatilho:\"ao_diagnosticar\", tags:[\"trafego-pago\"]})"
+      ]
+    },
+    {
+      "id": "campanhas",
+      "entrega": "visão campanha a campanha: a lista ordenada pelo que merece olhar (piora concentrada, teto, saturação), com o número que justifica cada posição",
+      "espera": "o consultor escolhe a campanha",
+      "registra": "—",
+      "puxa": [
+        "conhecimento({tipo:\"diagnostico\", tags:[\"trafego-pago\"]})"
+      ]
+    },
+    {
+      "id": "uma-campanha",
+      "entrega": "uma campanha por vez: público → criativo em 1d/3d/7d, FCA-R por item, recomendação respeitando as alavancas (criativo só liga/desliga; verba é no adset; campanha = objetivo/oferta/on-off)",
+      "espera": "a decisão do consultor: \"desliga o ad42\", \"sobe 20% no adset X\", \"deixa\" — e o motivo dele",
+      "registra": "cada decisão em resultado.decisoes: {nivel, alvo, acao, valor, fato, causa, motivo do consultor, verificar_em}; budget novo e follow-up (\"olhar de novo em N dias\")",
+      "puxa": [
+        "conhecimento({tipo:\"caso\", situacao:{funil, sintoma}, resultado:\"confirmado\"})",
+        "conhecimento({tipo:\"regra\", tags:[\"escala\"]})"
+      ]
+    },
+    {
+      "id": "fechamento",
+      "entrega": "resumo do que foi decidido, o que ficou pendente e quando verificar; Log_Queries",
+      "espera": "—",
+      "registra": "registrar(feedback); aprendizado que serve a outro cliente → sugerir; caso/teste que nasceu aqui → sugerir({tipo:\"caso\"|\"teste\"})",
+      "puxa": [
+        "conhecimento({gatilho:\"ao_fechar\"})"
+      ]
+    }
+  ],
+  "tarefas_contexto": [
+    {
+      "id": "cliente-campanha",
+      "objetivo": "Identificar cliente (slug do Delfos), campanha/lançamento e o modo (report ou otimização)",
+      "confirmar": true
+    },
+    {
+      "id": "dado-fechado-e-budgets",
+      "objetivo": "Confirmar o dado fechado por fonte e os budgets configurados; sem budget = pendência explícita",
+      "confirmar": true
+    }
+  ]
+}

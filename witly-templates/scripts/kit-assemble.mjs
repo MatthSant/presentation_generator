@@ -27,6 +27,7 @@ export async function assembleKit(slug) {
   const dir = path.join(SEED, slug);
   const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
   if (manifest.kind === 'design') return { slug, engine: 'design', files: 0 };   // só contrato, regras e elementos
+  if (manifest.kind === 'conversa') return { slug, engine: 'conversa', files: 0 };   // roteiro: só md, tarefas e regras
   const engine = manifest.engine || DEFAULT_ENGINE[slug] || null;
   if (!engine && !manifest.livre) throw new Error(`kit ${slug}: sem 'engine' no manifest (ou marque "livre": true)`);
   const py = path.join(dir, 'python');
