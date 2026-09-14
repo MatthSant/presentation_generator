@@ -111,7 +111,7 @@ def assemble(rows, config, content, opts=None):
     # A cor das bandas avalia o atingimento (verde ≥100% · âmbar 80–99% · vermelho <80%).
     mv_meta = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas')
     band('pan-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']), x=0, y=1)
-    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']), x=0, y=3)
+    band('pan-at-vendas', 'Atingimento · Vendas', M['vendas_tot'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']), x=0, y=3)
 
     # Metas derivadas das goals p/ Retorno e ROI (meta_receita − meta_invest);
     # histórico (lançamento anterior) p/ o ROAS. Mesmo rodapé "Meta/Hist · ±%".
@@ -133,24 +133,29 @@ def assemble(rows, config, content, opts=None):
     roi_h = (retorno_h / h_inv * 100) if (retorno_h is not None and h_inv) else None
     roas_h = H.get('roas')
     # ── linha de cima (direita): Faturamento, Reembolsos, Conversão ──
-    km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat']),
-       f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
-       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=2, x=6, y=1, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
+    km(pan, pg, 'pan-k-fat', 'Faturamento Bruto', money(M['fat_tot']),
+       (f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}" + (f" · não inscritos {money(M['ni_fat'])}" if M.get('tem_ni') else "")), 'coin', '#3B6D11',
+       real=M['fat_tot'], meta=G.get('fat'), hist=H.get('fat'), w=2, x=6, y=1, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
        hist_fmt=(money(H.get('fat')) if H.get('fat') else None))
-    km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
-       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2, x=8, y=1)
+    if M.get('tem_ni'):
+        km(pan, pg, 'pan-k-ni', 'Vendas Não Inscritos', intf(M['ni_vendas']),
+           f"{money(M['ni_fat'])} · {pct_of(M['ni_fat'], M['fat_tot'])} do fat. total", 'user-plus', '#185FA5', w=2, x=8, y=1)
+        pan[-1]['info'] = 'Compraram o produto do funil sem ter se inscrito. Somam no total, no faturamento e no retorno; não entram na conversão nem no ROAS de captação, porque a venda não veio da captação.'
+    else:
+        km(pan, pg, 'pan-k-ref', 'Reembolsos', intf(M['refunds_n']),
+           f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2, x=8, y=1)
     km(pan, pg, 'pan-k-conv', 'Conversão Geral', pctf(M['conv_geral']),
        f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#3B6D11', w=2, x=10, y=1,
        real=M['conv_geral'], meta=G.get('conv'), meta_fmt=(pctf(G.get('conv')) if G.get('conv') else None))
     # ── linha de baixo (direita): Retorno, ROI, ROAS — eficiência em roxo, fórmula no (i) ──
-    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno']), '', 'database', '#534AB7', w=2, x=6, y=3,
-       real=M['retorno'], meta=retorno_meta, hist=retorno_h,
+    km(pan, pg, 'pan-k-ret', 'Retorno Bruto', money(M['retorno_tot']), '', 'database', '#534AB7', w=2, x=6, y=3,
+       real=M['retorno_tot'], meta=retorno_meta, hist=retorno_h,
        meta_fmt=(money(retorno_meta) if retorno_meta is not None else None),
        hist_fmt=(money(retorno_h) if retorno_h is not None else None))
     pan[-1]['emph'] = True
     pan[-1]['info'] = 'Indicador calculado: faturamento total − investimento total. Lucro bruto da campanha, antes de impostos e demais custos.'
-    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi']:.0f}%", 'retorno líq. / R$1 investido', 'trending-up', '#185FA5', w=2, x=8, y=3,
-       real=M['roi'], meta=roi_meta, hist=roi_h,
+    km(pan, pg, 'pan-k-roi', 'ROI Global', f"{M['roi_tot']:.0f}%", 'retorno líq. / R$1 investido', 'trending-up', '#185FA5', w=2, x=8, y=3,
+       real=M['roi_tot'], meta=roi_meta, hist=roi_h,
        meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None),
        hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
     pan[-1]['emph'] = True
@@ -180,7 +185,7 @@ def assemble(rows, config, content, opts=None):
     ks(pan, pg, 'pan-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
     ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
     pan[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
-    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
+    ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_tot']), (f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}" + (f" · não inscritos {intf(M['ni_vendas'])}" if M.get('tem_ni') else '')), 'shopping-cart', '#534AB7', real=M['vendas_tot'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
 
     eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META', 'indicadores na ordem do funil')
     # Barras de atingimento (widget meta-bars), na ordem do FUNIL: verba → leads (+CPL)
@@ -1192,22 +1197,27 @@ def assemble(rows, config, content, opts=None):
     op_band('op-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']), x=0, y=1)
     op_band('op-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']), x=0, y=3)
     km(op, opg, 'op-k-fat', 'Faturamento Bruto', money(M['fat']),
-       f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}", 'coin', '#3B6D11',
-       real=M['fat'], meta=G.get('fat'), hist=H.get('fat'), w=2, x=6, y=1, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
+       (f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}" + (f" · não inscritos {money(M['ni_fat'])}" if M.get('tem_ni') else "")), 'coin', '#3B6D11',
+       real=M['fat_tot'], meta=G.get('fat'), hist=H.get('fat'), w=2, x=6, y=1, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
        hist_fmt=(money(H.get('fat')) if H.get('fat') else None))
-    km(op, opg, 'op-k-ref', 'Reembolsos', intf(M['refunds_n']),
-       f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2, x=8, y=1)
+    if M.get('tem_ni'):
+        km(op, opg, 'op-k-ni', 'Vendas Não Inscritos', intf(M['ni_vendas']),
+           f"{money(M['ni_fat'])} · {pct_of(M['ni_fat'], M['fat_tot'])} do fat. total", 'user-plus', '#185FA5', w=2, x=8, y=1)
+        op[-1]['info'] = 'Compraram o produto do funil sem ter se inscrito. Somam no total, no faturamento e no retorno; não entram na conversão nem no ROAS de captação, porque a venda não veio da captação.'
+    else:
+        km(op, opg, 'op-k-ref', 'Reembolsos', intf(M['refunds_n']),
+           f"{money(M['refund_val'])} · {pct_of(M['refund_val'], M['fat'])} do fat.", 'arrow-back-up', '#A32D2D', w=2, x=8, y=1)
     km(op, opg, 'op-k-conv', 'Conversão Geral', pctf(M['conv_geral']),
        f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#3B6D11', w=2, x=10, y=1,
        real=M['conv_geral'], meta=G.get('conv'), meta_fmt=(pctf(G.get('conv')) if G.get('conv') else None))
     km(op, opg, 'op-k-ret', 'Retorno Bruto', money(M['retorno']), '', 'database', '#534AB7', w=2, x=6, y=3,
-       real=M['retorno'], meta=retorno_meta, hist=retorno_h,
+       real=M['retorno_tot'], meta=retorno_meta, hist=retorno_h,
        meta_fmt=(money(retorno_meta) if retorno_meta is not None else None),
        hist_fmt=(money(retorno_h) if retorno_h is not None else None))
     op[-1]['emph'] = True
     op[-1]['info'] = 'Indicador calculado: faturamento total − investimento total. Lucro bruto da campanha, antes de impostos e demais custos.'
     km(op, opg, 'op-k-roi', 'ROI Global', f"{M['roi']:.0f}%", 'retorno líq. / R$1 investido', 'trending-up', '#185FA5', w=2, x=8, y=3,
-       real=M['roi'], meta=roi_meta, hist=roi_h,
+       real=M['roi_tot'], meta=roi_meta, hist=roi_h,
        meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None),
        hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
     op[-1]['emph'] = True

@@ -3,7 +3,7 @@
 
 uso:
   python gerar.py --config config.json --csv dump.csv --out saida/
-                  [--goals goals.csv] [--dict dict.csv] [--hist hist.csv] [--content content.json]
+                  [--goals goals.csv] [--dict dict.csv] [--hist hist.csv] [--ni nao_inscritos.csv] [--content content.json]
                   [--opts '{"mode":"captacao"}']
   python gerar.py --out saida/ --rerender          # só regera o relatorio.html das camadas em --out
 
@@ -39,7 +39,7 @@ DEFAULT_CONTENT = {
     },
     'detalhamentos': {},
 }
-AUX = {'goals': 'goals_csv', 'dict': 'dict_csv', 'hist': 'hist_csv'}
+AUX = {'goals': 'goals_csv', 'dict': 'dict_csv', 'hist': 'hist_csv', 'ni': 'ni_csv'}
 
 
 def manifest():
@@ -512,6 +512,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description='gera o relatório do template (4 camadas + numeros.json + relatorio.html)')
     ap.add_argument('--config'); ap.add_argument('--csv'); ap.add_argument('--out', required=True)
     ap.add_argument('--goals'); ap.add_argument('--dict'); ap.add_argument('--hist'); ap.add_argument('--content')
+    ap.add_argument('--ni', help='CSV de vendas para não inscritos (query nao_inscritos.sql)')
     ap.add_argument('--sem-filtros', action='store_true', help='não pré-calcula os filtros do relatório (HTML menor; recortes só por --opts)')
     ap.add_argument('--opts', help='JSON de recorte passado ao assemble (snapshot), ex.: \'{"mode":"captacao"}\'')
     ap.add_argument('--rerender', action='store_true')
@@ -526,7 +527,7 @@ def main(argv=None):
         opts = json.loads(a.opts) if a.opts else None
         if a.sem_filtros:
             opts = dict(opts or {}, _sem_filtros=True)
-        r = gerar(a.config, a.csv, a.out, {'goals': a.goals, 'dict': a.dict, 'hist': a.hist}, a.content, opts)
+        r = gerar(a.config, a.csv, a.out, {'goals': a.goals, 'dict': a.dict, 'hist': a.hist, 'ni': a.ni}, a.content, opts)
     sys.stdout.buffer.write((json.dumps(r, ensure_ascii=False) + '\n').encode('utf-8'))
     if not r.get('html'):
         sys.stderr.write('aviso: pasta viewer/ não encontrada — relatorio.html não foi gerado (as camadas estão em --out)\n')

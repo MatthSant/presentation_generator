@@ -7,10 +7,10 @@ As outras tarefas produzem o `config.json`; esta confere se o config produziu **
 reclama quando a classificação erra: ele divide por zero e devolve zero. Um debriefing com ROAS 0,00×, CPL
 R$ 0,00 e metas vazias sai bonito, completo e errado — e quem lê não tem como saber.
 
-Três erros já aconteceram em produção e passam calados. Esta tarefa existe para pegar os três.
+Cinco erros já aconteceram em produção e passam calados. Esta tarefa existe para pegar os cinco.
 
 ## Como executar
-Rode a query de conferência, faça as cinco checagens e **mostre a tabela ao consultor**. Só gere depois do "ok".
+Rode a query de conferência, faça as sete checagens e **mostre a tabela ao consultor**. Só gere depois do "ok".
 
 ```sql
 -- 1. Investimento por campanha, com a classificação que o seu config vai aplicar
@@ -28,7 +28,7 @@ FROM "VW_V2_invest_traf"
 WHERE <filtro do funil> = '<field_conversion>';
 ```
 
-### As cinco checagens
+### As sete checagens
 
 | # | Checagem | Falhou quando | O que fazer |
 |---|---|---|---|
@@ -37,6 +37,8 @@ WHERE <filtro do funil> = '<field_conversion>';
 | 3 | **Investimento do dump ≈ mídia bruta** | o dump traz bem menos (ex.: metade) | a view de inscrições atribui mídia ao inscrito por UTM e perde o gasto que não casou. Diga o tamanho da diferença ao consultor antes de seguir |
 | 4 | **Metas carregadas** | `goals.csv` sem linha, ou metas zeradas no relatório | compare a coluna `field_conversion` do `goals.csv` com a do dump: valor diferente, coluna vazia ou ausente descarta tudo em silêncio |
 | 5 | **Leads de tráfego > 0** | `leads_trafego` zerado | sem ele o CPL não fecha; confirme se a coluna existe nesta base |
+| 6 | **Recorte de público preenchido** | a aba Público do Gargalos vem vazia ou só com "Não trackeado" | `field_adset_name` não veio no dump: confira a lista de colunas da `dump.sql` |
+| 7 | **Vendas para não inscritos conferidas** | `nao_inscritos.csv` não foi gerado | rode `nao_inscritos.sql`. Elas somam no total, no faturamento e no retorno; **nunca** na conversão nem no ROAS de captação, porque conversão de captação só conta venda de quem se inscreveu |
 
 ### A tabela que vai para o consultor
 
@@ -48,6 +50,8 @@ WHERE <filtro do funil> = '<field_conversion>';
 | Campanhas com gasto em "outro" | n (liste os nomes) | classificação | 2 |
 | Metas | n linhas, CPL meta R$ … | `goals.csv` | 4 |
 | Leads de tráfego | n | soma do dump | 5 |
+| Públicos com investimento | n (liste os 3 maiores) | `field_adset_name` do dump | 6 |
+| Vendas para não inscritos | n · R$ … (x% do faturamento) | `nao_inscritos.csv` | 7 |
 
 Feche perguntando com todas as letras: **"esses números batem com o que você vê no painel? Posso gerar?"**
 

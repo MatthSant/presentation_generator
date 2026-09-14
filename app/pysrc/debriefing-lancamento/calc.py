@@ -326,6 +326,28 @@ def _mean_nonzero(vals):
     return round(sum(vals) / len(vals), 4) if vals else 0.0
 
 
+def load_nao_inscritos(path):
+    """Vendas do funil para quem NÃO se inscreveu (query nao_inscritos.sql).
+
+    Elas somam no total, no faturamento e no retorno — NUNCA na conversão (conversão de
+    captação só conta venda de quem se inscreveu), no ROAS de captação, no CAC nem nas
+    quebras por canal/temperatura/campanha (a venda não tem canal de inscrição).
+    """
+    try:
+        rows = load_rows(path)
+    except Exception:
+        return None
+    if not rows:
+        return None
+    return {
+        'vendas': int(soma(rows, 'vendas')),
+        'fat': round(soma(rows, 'faturamento'), 2),
+        'vendas_sale': int(soma(rows, 'vendas_sale')),
+        'fat_sale': round(soma(rows, 'faturamento_sale'), 2),
+        'dias': len(rows),
+    }
+
+
 def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
     try:
         rows = load_rows(path)
@@ -375,7 +397,7 @@ def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
 
 # ── métricas (dict M) ──────────────────────────────────────────────────────────
 
-def metrics(rows, config=None, goals=None, hist=None):
+def metrics(rows, config=None, goals=None, hist=None, ni=None):
     config = config or {}
     pago = _sub(rows, _tipo='pago')
     org = _sub(rows, _tipo='organico')
@@ -434,10 +456,25 @@ def metrics(rows, config=None, goals=None, hist=None):
     }
     # atingimento vs metas
     G = goals or {}
+    # ── vendas para NÃO inscritos ────────────────────────────────────────────
+    # Entram no total, no faturamento e no retorno. Não entram em conversão, ROAS de
+    # captação, CAC nem nas quebras por canal — a venda não veio da captação.
+    M['ni_vendas'] = int((ni or {}).get('vendas') or 0)
+    M['ni_fat'] = round(float((ni or {}).get('fat') or 0.0), 2)
+    M['ni_vendas_sale'] = int((ni or {}).get('vendas_sale') or 0)
+    M['ni_fat_sale'] = round(float((ni or {}).get('fat_sale') or 0.0), 2)
+    M['tem_ni'] = bool(M['ni_vendas'] or M['ni_fat'])
+    # Totais do lançamento COM os não inscritos (o que vai para atingimento e retorno).
+    M['vendas_tot'] = M['vendas_total'] + M['ni_vendas']
+    M['fat_tot'] = round(M['fat'] + M['ni_fat'], 2)
+    M['retorno_tot'] = round(M['fat_tot'] - invest_total, 2)
+    M['roi_tot'] = pct(M['retorno_tot'], invest_total)
+    M['ticket_tot'] = div(M['fat_tot'], M['vendas_tot'])
+
     total_meta_vendas = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas') or 0
     M['at_leads'] = pct(leads_total, G.get('leads')) if G.get('leads') else None
-    M['at_fat'] = pct(fat, G.get('fat')) if G.get('fat') else None
-    M['at_vendas'] = pct(vendas_total, total_meta_vendas) if total_meta_vendas else None
+    M['at_fat'] = pct(M['fat_tot'], G.get('fat')) if G.get('fat') else None
+    M['at_vendas'] = pct(M['vendas_tot'], total_meta_vendas) if total_meta_vendas else None
     M['goals'] = G
     M['hist'] = hist or {}
     M['chan'] = _chan(rows, config)
@@ -796,6 +833,7 @@ def build(rows, config=None):
     goals = None
     if config.get('goals_csv'):
         goals = load_goals(config['goals_csv'], fc, config.get('meta_vendas_canal'), config.get('meta_vendas_temperatura'))
+    ni = load_nao_inscritos(config['ni_csv']) if config.get('ni_csv') else None
     hist = None
     hist_rows = []
     if config.get('hist_csv'):
@@ -808,7 +846,7 @@ def build(rows, config=None):
             classify(hrows, config)
             hist = _hist_meta(hrows)
             hist_rows = hrows
-    M = metrics(rows, config, goals, hist)
+    M = metrics(rows, config, goals, hist, ni)
     M['field_conversion'] = fc
     M['nome'] = config.get('client_name') or config.get('nome_campanha') or fc
     M['campaign_label'] = config.get('campaign_label') or ''
