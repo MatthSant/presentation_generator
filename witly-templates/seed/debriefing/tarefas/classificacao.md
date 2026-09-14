@@ -29,6 +29,11 @@ GROUP BY 1, 2 ORDER BY 3 DESC;
 3. Corrija **acrescentando padrões** às listas (nunca reclassificando linha a linha). Toda campanha com investimento e "outro" merece pergunta.
 
 ## Casos ambíguos
+- **Separador diferente do padrão**: os padrões de fábrica usam hífen (`venda-`, `cadastro-`). Base que nomeia
+  com underscore (`hot_venda_ingresso`, `hot_venda_ideia-pro`) **não casa nada** e cai tudo em "outro" — zerando
+  o investimento de captação e, com ele, CPL, CPMQL, CPM, CPC e ROAS. Olhe o separador antes de aceitar o padrão.
+- **Lançamento pago**: vender ingresso **é** a captação. As campanhas de ingresso entram no `cpt_pattern`; venda
+  do produto principal, order bump e distribuição de conteúdo entram no `vnd_pattern` e ficam fora do CPL.
 - Campanha de captação sem prefixo (ex.: `LX Interesses`): adicione o trecho ao `cpt_pattern`.
 - `utm_source` = `ig` ou `instagram` com investimento: é pago? Confirme; se sim, acrescente a `paid_sources`.
 - Google Search de captação: `google-search-` já está no padrão.

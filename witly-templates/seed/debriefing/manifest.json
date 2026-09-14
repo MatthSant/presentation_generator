@@ -86,6 +86,12 @@
       "objetivo": "Perguntar ao consultor se o relatório é do lançamento inteiro ou de um recorte (tipo, canal, temperatura, campanha, público, criativo)",
       "saida": "--opts {\"filters\": {...}} ou nenhum",
       "confirmar": true
+    },
+    {
+      "id": "conferencia",
+      "objetivo": "Conferir os números (investimento de captação, mídia bruta, metas, leads de tráfego) e confirmar com o consultor ANTES de gerar",
+      "saida": "o \"ok\" do consultor à tabela de conferência",
+      "confirmar": true
     }
   ],
   "config": {
@@ -151,10 +157,11 @@
   "como_gerar": [
     "1. Execute as tarefas (tarefas/*.md) com o consultor e monte config.json.",
     "2. Rode as queries no Delfos (montar_query devolve o SQL preenchido): dump.csv e goals.csv (obrigatório); hist.csv se houver lançamento anterior.",
-    "3. python python/gerar.py --config config.json --csv dump.csv --goals goals.csv [--hist hist.csv] --out saida/ [--opts '{\"filters\":{\"canal\":[\"facebook\"]}}']",
-    "4. Abra saida/relatorio.html (6 páginas, a última é o One Pager; filtros tipo/canal/temperatura/campanha/público/criativo em cascata e combináveis, pré-calculados). Os números estão em saida/numeros.json.",
-    "5. Leia saida/numeros.json e o perguntas.md do kit e proponha NO CHAT as 3–5 perguntas mais relevantes para este caso (não vão para o HTML).",
-    "6. Aprofundamento aceito: design-system.md → corte em Python (importe calc.py) → q-<id>.json + det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
+    "3. Antes de gerar: rode a tarefa `conferencia` e mostre a tabela ao consultor. Investimento de captação zerado, campanha com gasto em \"outro\", dump muito abaixo da mídia bruta ou metas sem linha = NÃO gere; volte à classificação ou à query.",
+    "4. python python/gerar.py --config config.json --csv dump.csv --goals goals.csv [--hist hist.csv] --out saida/ [--opts '{\"filters\":{\"canal\":[\"facebook\"]}}']",
+    "5. Abra saida/relatorio.html (6 páginas, a última é o One Pager; filtros tipo/canal/temperatura/campanha/público/criativo em cascata e combináveis, pré-calculados). Os números estão em saida/numeros.json.",
+    "6. Leia saida/numeros.json e o perguntas.md do kit e proponha NO CHAT as 3–5 perguntas mais relevantes para este caso (não vão para o HTML).",
+    "7. Aprofundamento aceito: design-system.md → corte em Python (importe calc.py) → q-<id>.json + det-<id>.json → python python/aprofundar.py --out saida --secao det.json --tabela q.json; depois registrar(evento='aprofundamento', pergunta_id=...)."
   ],
   "arquivos": {
     "python/gerar.py": "CLI genérica: 4 camadas + numeros.json + relatorio.html (--opts = snapshot de um recorte)",
