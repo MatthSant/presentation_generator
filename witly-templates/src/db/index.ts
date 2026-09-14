@@ -593,3 +593,82 @@ export async function logUsage(db: D1Database, e: { email: string; tool: string;
   await db.prepare('INSERT INTO usage_log (email, tool, slug, version_number) VALUES (?, ?, ?, ?)')
     .bind(e.email, e.tool, e.slug ?? null, e.version_number ?? null).run();
 }
+
+export interface UsoDash {
+  resumo: { chamadas: number; pessoas: number; templates: number; geracoes: number; aprofundamentos: number; clientes: number; desde: string | null; ate: string | null };
+  semanas: Array<{ semana: string; inicio: string; chamadas: number; pessoas: number; geracoes: number }>;
+  pessoas: Array<{ email: string; chamadas: number; geracoes: number; aprofundamentos: number; ultimo: string }>;
+  ferramentas: Array<{ tool: string; n: number; pessoas: number; ultimo: string }>;
+  templates: Array<{ slug: string; chamadas: number; geracoes: number; aprofundamentos: number; ultimo: string | null }>;
+  clientes: Array<{ cliente: string; geracoes: number; aprofundamentos: number; ultimo: string }>;
+  conhecimento: { total: number; usadas: number; consultas: number; top: Array<{ id: string; titulo: string; n: number }> };
+}
+
+/** O painel de USO: adoção (quem, quando, com que frequência), o que é puxado e o que
+ *  nunca é. Perguntas diferentes da Saúde, que olha a QUALIDADE do que saiu — aqui é se
+ *  a ferramenta entrou na rotina do time e qual pedaço dela ninguém encontra. */
+export async function usoDash(db: D1Database, org_id: string, dias = 90): Promise<UsoDash> {
+  const desde = `-${Math.max(1, dias)} days`;
+  const [resumo, semanas, pessoas, ferramentas, templates, clientes, kb, kbTop] = await db.batch([
+    db.prepare(
+      `SELECT (SELECT COUNT(*) FROM usage_log WHERE at >= datetime('now', ?1)) AS chamadas,
+              (SELECT COUNT(DISTINCT email) FROM usage_log WHERE at >= datetime('now', ?1)) AS pessoas,
+              (SELECT COUNT(DISTINCT slug) FROM usage_log WHERE slug IS NOT NULL AND at >= datetime('now', ?1)) AS templates,
+              (SELECT COUNT(*) FROM activity WHERE org_id = ?2 AND evento = 'geracao' AND at >= datetime('now', ?1)) AS geracoes,
+              (SELECT COUNT(*) FROM activity WHERE org_id = ?2 AND evento = 'aprofundamento' AND at >= datetime('now', ?1)) AS aprofundamentos,
+              (SELECT COUNT(DISTINCT cliente) FROM activity WHERE org_id = ?2 AND cliente IS NOT NULL AND cliente <> '' AND at >= datetime('now', ?1)) AS clientes,
+              (SELECT MIN(at) FROM usage_log) AS desde, (SELECT MAX(at) FROM usage_log) AS ate`,
+    ).bind(desde, org_id),
+    db.prepare(
+      `SELECT strftime('%Y-%W', at) AS semana, MIN(date(at)) AS inicio, COUNT(*) AS chamadas,
+              COUNT(DISTINCT email) AS pessoas,
+              (SELECT COUNT(*) FROM activity a WHERE a.org_id = ?2 AND a.evento = 'geracao'
+                 AND strftime('%Y-%W', a.at) = strftime('%Y-%W', u.at)) AS geracoes
+         FROM usage_log u WHERE at >= datetime('now', ?1) GROUP BY 1 ORDER BY 1`,
+    ).bind(desde, org_id),
+    db.prepare(
+      `SELECT u.email, COUNT(*) AS chamadas, MAX(u.at) AS ultimo,
+              (SELECT COUNT(*) FROM activity a WHERE a.org_id = ?2 AND a.email = u.email AND a.evento = 'geracao') AS geracoes,
+              (SELECT COUNT(*) FROM activity a WHERE a.org_id = ?2 AND a.email = u.email AND a.evento = 'aprofundamento') AS aprofundamentos
+         FROM usage_log u WHERE u.at >= datetime('now', ?1) GROUP BY u.email ORDER BY chamadas DESC`,
+    ).bind(desde, org_id),
+    db.prepare(
+      `SELECT tool, COUNT(*) AS n, COUNT(DISTINCT email) AS pessoas, MAX(at) AS ultimo
+         FROM usage_log WHERE at >= datetime('now', ?1) GROUP BY tool ORDER BY n DESC`,
+    ).bind(desde),
+    db.prepare(
+      `SELECT t.slug,
+              (SELECT COUNT(*) FROM usage_log u WHERE u.slug = t.slug AND u.at >= datetime('now', ?1)) AS chamadas,
+              (SELECT COUNT(*) FROM activity a WHERE a.org_id = ?2 AND a.slug = t.slug AND a.evento = 'geracao') AS geracoes,
+              (SELECT COUNT(*) FROM activity a WHERE a.org_id = ?2 AND a.slug = t.slug AND a.evento = 'aprofundamento') AS aprofundamentos,
+              (SELECT MAX(u.at) FROM usage_log u WHERE u.slug = t.slug) AS ultimo
+         FROM templates t WHERE t.org_id = ?2 ORDER BY chamadas DESC, t.slug`,
+    ).bind(desde, org_id),
+    db.prepare(
+      `SELECT cliente, SUM(evento = 'geracao') AS geracoes, SUM(evento = 'aprofundamento') AS aprofundamentos, MAX(at) AS ultimo
+         FROM activity WHERE org_id = ?2 AND cliente IS NOT NULL AND cliente <> '' AND at >= datetime('now', ?1)
+        GROUP BY cliente ORDER BY geracoes DESC, ultimo DESC`,
+    ).bind(desde, org_id),
+    db.prepare(
+      `SELECT (SELECT COUNT(*) FROM conhecimento WHERE org_id = ?1 AND status = 'ativo') AS total,
+              (SELECT COUNT(DISTINCT entrada_id) FROM conhecimento_uso) AS usadas,
+              (SELECT COUNT(*) FROM conhecimento_uso) AS consultas`,
+    ).bind(org_id),
+    db.prepare(
+      `SELECT c.id, c.titulo, COUNT(*) AS n FROM conhecimento_uso uso
+         JOIN conhecimento c ON c.id = uso.entrada_id AND c.org_id = ?1
+        GROUP BY c.id ORDER BY n DESC LIMIT 10`,
+    ).bind(org_id),
+  ]);
+  const r = (resumo.results[0] || {}) as UsoDash['resumo'];
+  const k = (kb.results[0] || {}) as { total: number; usadas: number; consultas: number };
+  return {
+    resumo: r,
+    semanas: semanas.results as UsoDash['semanas'],
+    pessoas: pessoas.results as UsoDash['pessoas'],
+    ferramentas: ferramentas.results as UsoDash['ferramentas'],
+    templates: templates.results as UsoDash['templates'],
+    clientes: clientes.results as UsoDash['clientes'],
+    conhecimento: { ...k, top: kbTop.results as Array<{ id: string; titulo: string; n: number }> },
+  };
+}

@@ -330,8 +330,13 @@ api.post('/api/atividade/:id/virar-regra', async (c) => {
 api.get('/api/uso', async (c) => {
   const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
   const slug = c.req.query('slug') || undefined;
-  const [stats, top] = await Promise.all([db.usageStats(c.env.DB, c.env.ORG_ID), db.topQuestions(c.env.DB, c.env.ORG_ID, slug, 10)]);
-  return c.json({ stats: slug ? stats.filter((s) => s.slug === slug) : stats, top_perguntas: top });
+  const dias = Math.min(365, Math.max(7, Number(c.req.query('dias')) || 90));
+  const [stats, top, dash] = await Promise.all([
+    db.usageStats(c.env.DB, c.env.ORG_ID),
+    db.topQuestions(c.env.DB, c.env.ORG_ID, slug, 10),
+    db.usoDash(c.env.DB, c.env.ORG_ID, dias),
+  ]);
+  return c.json({ stats: slug ? stats.filter((s) => s.slug === slug) : stats, top_perguntas: top, dias, ...dash });
 });
 
 /** Saúde dos templates: descarte, fila de triagem e as perguntas que o template não responde sozinho. */

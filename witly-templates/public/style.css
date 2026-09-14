@@ -273,3 +273,16 @@ td .sm.muted,td code{font-family:var(--mono);font-size:11.5px}
   main{padding:22px 18px 70px}
   .split{grid-template-columns:1fr}
 }
+
+/* ── uso: barras por semana ── adoção ao longo do tempo. Barra em div (sem lib de
+   gráfico nesta UI); só a altura vem inline, porque é dado, não estilo.
+   A barra mora numa .wtrack própria: se o % resolvesse contra a coluna inteira, o
+   rótulo e o número comeriam a escala e 17 de 37 desenharia como 60%, não 46%. */
+.wbars{display:flex;align-items:stretch;gap:6px;height:150px;padding:10px 2px 0}
+.wbar{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:5px}
+.wtrack{flex:1 1 auto;display:flex;align-items:flex-end;min-height:0}
+.wtrack>i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--purple);min-height:2px}
+.wbar.zero .wtrack>i{background:var(--line)}
+.wbar>b{font:400 10px/1 var(--mono);color:var(--ink-faint);text-align:center}
+.wlbl{font:400 10px/1.2 var(--mono);color:var(--ink-faint);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wlegend{display:flex;gap:16px;font-size:12px;color:var(--ink-soft);margin-top:8px}

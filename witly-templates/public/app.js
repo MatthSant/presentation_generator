@@ -92,7 +92,7 @@
     const [seg, slug, tab, ...rest] = h.split('/');
     if (seg === 'atividade' && slug) { setNav('atividade'); return renderAtividadeDetalhe(slug); }
     if (seg === 'atividade') { setNav('atividade'); return renderAtividade(); }
-    if (seg === 'uso') { setNav('atividade'); return renderUso(); }
+    if (seg === 'uso') { setNav('uso'); return renderUso(); }
     if (seg === 'saude') { setNav('atividade'); return renderSaude(); }
     if (seg === 'pessoais') { setNav('pessoais'); return renderPessoais(); }
     if (seg === 'plataforma') { setNav('design'); return renderPlataforma(); }
@@ -715,15 +715,78 @@
 
   async function renderUso() {
     if (!isEditor()) { app.innerHTML = '<div class="empty">Só editores.</div>'; return; }
-    const u = await api('/api/uso');
-    app.innerHTML = `<div class="head"><div><h1>Uso por template</h1><p class="muted sm">Gerações, aprofundamentos, descartes e notas por versão. As perguntas mais frequentes dizem o que o template ainda não entrega.</p></div><a class="btn" href="#/atividade">← Atividade</a></div>
-      <div class="card"><table><thead><tr><th>Template</th><th>Versão</th><th>Gerações</th><th>Aprofund.</th><th>Descartados</th><th>Nota média</th><th>Avaliações</th></tr></thead><tbody>
-      ${u.stats.map((s) => `<tr><td><a href="#/t/${esc(s.slug)}"><code>${esc(s.slug)}</code></a></td><td>v${s.version_number ?? '?'}</td><td>${s.geracoes}</td><td>${s.aprofundamentos}</td><td>${s.aprofundamentos ? Math.round(100 * s.descartados / s.aprofundamentos) + '%' : '—'}</td><td>${s.nota_media != null ? s.nota_media.toFixed(1) : '—'}</td><td>${s.avaliacoes}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Sem uso registrado.</td></tr>'}
-      </tbody></table></div>
+    const dias = Number(params().get('dias')) || 90;
+    skeleton('doc');
+    const u = await api('/api/uso?dias=' + dias);
+    const R = u.resumo || {};
+    const per = (n) => `${n} dia${n > 1 ? 's' : ''}`;
+    const jan = (d) => `<a class="btn ${dias === d ? 'btn-p' : ''}" href="#/uso?dias=${d}">${per(d)}</a>`;
+
+    // Barras por semana: a altura é proporcional ao maior valor da série.
+    const topo = Math.max(1, ...u.semanas.map((w) => w.chamadas));
+    const barras = u.semanas.map((w) => `<div class="wbar ${w.chamadas ? '' : 'zero'}" title="${esc(w.inicio)} · ${w.chamadas} chamadas · ${w.pessoas} pessoa(s) · ${w.geracoes} geração(ões)">
+      <b>${w.chamadas}</b><span class="wtrack"><i style="height:${Math.round(100 * w.chamadas / topo)}%"></i></span><span class="wlbl">${esc(String(w.inicio || '').slice(5))}</span></div>`).join('');
+
+    const tab = (cols, linhas, vazio) => `<div class="card"><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas || `<tr><td colspan="${cols.length}" class="empty">${vazio}</td></tr>`}</tbody></table></div>`;
+
+    const K = u.conhecimento || { total: 0, usadas: 0, consultas: 0, top: [] };
+    const nunca = Math.max(0, K.total - K.usadas);
+
+    app.innerHTML = `<div class="head"><div><h1>Uso</h1><p class="muted sm">Se o Grimório entrou na rotina do time: quem usa, com que frequência, o que é puxado — e o que ninguém encontra. A <a href="#/saude">Saúde</a> responde outra pergunta: se o que saiu presta.</p></div>
+        <div class="row" style="gap:6px">${jan(30)}${jan(90)}${jan(365)}</div></div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-k">Chamadas</div><div class="stat-v">${R.chamadas || 0}<small> em ${per(u.dias)}</small></div></div>
+        <div class="stat"><div class="stat-k">Pessoas ativas</div><div class="stat-v">${R.pessoas || 0}</div></div>
+        <div class="stat"><div class="stat-k">Análises geradas</div><div class="stat-v">${R.geracoes || 0}</div></div>
+        <div class="stat"><div class="stat-k">Aprofundamentos</div><div class="stat-v">${R.aprofundamentos || 0}</div></div>
+        <div class="stat"><div class="stat-k">Clientes atendidos</div><div class="stat-v">${R.clientes || 0}</div></div>
+      </div>
+      <p class="muted sm" style="margin:-14px 0 20px">Primeira chamada registrada em ${R.desde ? esc(fmtAt(R.desde)) : '—'} · última em ${R.ate ? esc(fmtAt(R.ate)) : '—'}.</p>
+
+      <h2>Adoção por semana</h2>
+      <div class="card">${u.semanas.length ? `<div class="wbars">${barras}</div><div class="wlegend"><span>Altura = chamadas ao MCP na semana</span><span>Passe o mouse para pessoas e gerações</span></div>` : '<div class="empty">Nenhuma chamada na janela.</div>'}</div>
+
+      <h2>Quem usa</h2>
+      <p class="muted sm" style="max-width:66ch;margin:-6px 0 14px">Uma pessoa só na lista significa que a ferramenta ainda não é do time — é de quem a construiu.</p>
+      ${tab(['Pessoa', 'Chamadas', 'Gerações', 'Aprofund.', 'Último uso'],
+        u.pessoas.map((p) => `<tr><td>${esc(p.email)}</td><td><code>${p.chamadas}</code></td><td><code>${p.geracoes}</code></td><td><code>${p.aprofundamentos}</code></td><td><code class="muted">${esc(fmtAt(p.ultimo))}</code></td></tr>`).join(''),
+        'Ninguém usou nesta janela.')}
+
+      <h2>O que é puxado</h2>
+      <p class="muted sm" style="max-width:66ch;margin:-6px 0 14px">${R.templates || 0} de ${u.templates.length} templates foram abertos nesta janela. Template publicado que ninguém abre não está resolvendo problema de ninguém — ou ninguém sabe que ele existe.</p>
+      ${tab(['Ferramenta', 'Vezes', 'Pessoas', 'Último'],
+        u.ferramentas.map((f) => `<tr><td><code>${esc(f.tool)}</code></td><td><code>${f.n}</code></td><td><code>${f.pessoas}</code></td><td><code class="muted">${esc(fmtAt(f.ultimo))}</code></td></tr>`).join(''),
+        'Nenhuma ferramenta chamada.')}
+      ${tab(['Template', 'Chamadas', 'Gerações', 'Aprofund.', 'Último uso'],
+        u.templates.map((t) => `<tr><td><a href="#/t/${esc(t.slug)}"><code>${esc(t.slug)}</code></a></td><td><code>${t.chamadas}</code></td><td><code>${t.geracoes}</code></td><td><code>${t.aprofundamentos}</code></td><td><code class="muted">${t.ultimo ? esc(fmtAt(t.ultimo)) : 'nunca'}</code></td></tr>`).join(''),
+        'Nenhum template publicado.')}
+
+      <h2>Clientes atendidos</h2>
+      ${tab(['Cliente', 'Análises', 'Aprofund.', 'Último'],
+        u.clientes.map((c) => `<tr><td>${esc(c.cliente)}</td><td><code>${c.geracoes}</code></td><td><code>${c.aprofundamentos}</code></td><td><code class="muted">${esc(fmtAt(c.ultimo))}</code></td></tr>`).join(''),
+        'Nenhuma análise registrou cliente nesta janela.')}
+
+      <h2>Conhecimento</h2>
+      <div class="stats">
+        <div class="stat"><div class="stat-k">Entradas ativas</div><div class="stat-v">${K.total}</div></div>
+        <div class="stat"><div class="stat-k">Já consultadas</div><div class="stat-v">${K.usadas}</div></div>
+        <div class="stat ${nunca && K.total ? 'warn-k' : ''}"><div class="stat-k">Nunca consultadas</div><div class="stat-v">${nunca}</div></div>
+        <div class="stat"><div class="stat-k">Consultas</div><div class="stat-v">${K.consultas}</div></div>
+      </div>
+      ${K.total && !K.usadas
+        ? `<div class="banner"><span>Nenhuma das ${K.total} entradas foi consultada ainda. O uso só é gravado quando o agente puxa <code>conhecimento(...)</code> em modo completo — se as análises estão saindo sem passar por ele, o que está escrito não está chegando na hora da decisão.</span><a class="btn" href="#/conhecimento" style="margin-left:auto;white-space:nowrap">Ver o conhecimento →</a></div>`
+        : tab(['Entrada', 'Consultas'], K.top.map((e) => `<tr><td><a href="#/conhecimento/${esc(e.id)}">${esc(e.titulo)}</a></td><td><code>${e.n}</code></td></tr>`).join(''), 'Nenhuma consulta registrada.')}
+
+      <h2>Detalhe por versão</h2>
+      <p class="muted sm" style="max-width:66ch;margin:-6px 0 14px">Descarte e nota por versão publicada: onde a mudança de uma versão para a outra ajudou ou atrapalhou.</p>
+      ${tab(['Template', 'Versão', 'Gerações', 'Aprofund.', 'Descartados', 'Nota média', 'Avaliações'],
+        u.stats.map((s) => `<tr><td><a href="#/t/${esc(s.slug)}"><code>${esc(s.slug)}</code></a></td><td>v${s.version_number ?? '?'}</td><td>${s.geracoes}</td><td>${s.aprofundamentos}</td><td>${s.aprofundamentos ? Math.round(100 * s.descartados / s.aprofundamentos) + '%' : '—'}</td><td>${s.nota_media != null ? s.nota_media.toFixed(1) : '—'}</td><td>${s.avaliacoes}</td></tr>`).join(''),
+        'Sem uso registrado.')}
+
       <h2>Perguntas de aprofundamento mais frequentes</h2>
-      <div class="card"><table><thead><tr><th>Template</th><th>Pergunta</th><th>Vezes</th></tr></thead><tbody>
-      ${u.top_perguntas.map((p) => `<tr><td><code>${esc(p.slug)}</code></td><td>${esc(p.pergunta)}</td><td>${p.n}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">—</td></tr>'}
-      </tbody></table></div>`;
+      ${tab(['Template', 'Pergunta', 'Vezes'],
+        u.top_perguntas.map((p) => `<tr><td><code>${esc(p.slug)}</code></td><td>${esc(p.pergunta)}</td><td>${p.n}</td></tr>`).join(''), '—')}`;
   }
 
   // ── Fase 2: versões (aba do editor) ────────────────────────────────────
