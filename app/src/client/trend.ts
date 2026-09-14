@@ -78,10 +78,17 @@ export function buildTrendSeries(pts: Point[], type: TrendType = 'linear', steps
   const r2 = calcR2(pts, fn);
   const xs = pts.map(([x]) => x);
   const xMin = Math.min(...xs), xMax = Math.max(...xs), dx = (xMax - xMin) / (steps - 1);
+  const ys = pts.map(([, y]) => y);
+  // Casas decimais pelo TAMANHO do passo, não fixas: com um eixo estreito (CPMQL de
+  // 10,87 a 11,50) um toFixed(1) colapsa os 60 pontos em ~7 valores de x e a curva
+  // sai como escada. Duas casas além do passo mantêm a linha lisa em qualquer escala.
+  const casas = (passo: number): number =>
+    Math.max(1, Math.min(10, Math.ceil(-Math.log10(Math.abs(passo) || 1)) + 2));
+  const dcx = casas(dx), dcy = casas((Math.max(...ys) - Math.min(...ys)) / (steps - 1));
   const data: Point[] = [];
   for (let i = 0; i < steps; i++) {
     const x = xMin + i * dx, y = fn(x);
-    if (Number.isFinite(y)) data.push([+x.toFixed(1), +y.toFixed(2)]);
+    if (Number.isFinite(y)) data.push([+x.toFixed(dcx), +y.toFixed(dcy)]);
   }
   return { name: `${label} (R² = ${r2.toFixed(2)})`, type: 'line', data };
 }

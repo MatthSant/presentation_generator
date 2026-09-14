@@ -790,11 +790,9 @@ body[data-nav="sidebar"] #sidenav {
   background: var(--plum); color: #fff;
   overflow-y: auto; padding: 16px 14px;
 }
-/* brand — ícone num box branco + título "Witly Grimório" AO LADO (branco, sobre o plum) */
+/* brand — só o lockup branco, direto sobre o plum (sem box e sem título ao lado) */
 .sn-brand { display: flex; align-items: center; gap: 11px; padding: 2px 4px; margin: 2px 0 12px; text-decoration: none; }
-.sn-logo-box { display: grid; place-items: center; background: #fff; border-radius: 11px; padding: 7px; flex-shrink: 0; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); }
-.sn-logo { height: 24px; width: auto; display: block; }
-.sn-brand-name { font-size: 15.5px; font-weight: 800; letter-spacing: -.02em; color: #fff; white-space: nowrap; }
+.sn-logo { height: 26px; width: auto; display: block; flex-shrink: 0; }
 /* header da sidebar: marca + botão de minimizar */
 .sn-head { display: flex; align-items: center; gap: 6px; margin: 2px 0 12px; }
 .sn-head .sn-brand { flex: 1; min-width: 0; margin: 0; }

@@ -63,7 +63,7 @@ async function main() {
   await writeFile(path.join(OUT, 'viewer.css'), css);
 
   let logo = '';
-  try { logo = `data:image/png;base64,${(await readFile(path.join(APP, 'public', 'assets', 'logo-lockup.png'))).toString('base64')}`; } catch { /* sem logo */ }
+  try { logo = `data:image/png;base64,${(await readFile(path.join(APP, 'public', 'assets', 'logo-wordmark-white.png'))).toString('base64')}`; } catch { /* sem logo */ }
 
   const shell = `<!doctype html>
 <html lang="pt-BR" data-theme="light">

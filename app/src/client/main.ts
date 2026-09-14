@@ -12,6 +12,7 @@ import { Filters } from './filters.js';
 import { Dashboard } from './dashboard.js';
 import { renderWidget, setCmpMode, type RenderCtx } from './renderer.js';
 import { ChartManager, setChartExportMode, chartCaptureStart, chartCaptureEnd, takePickers, type ChartDef } from './charts.js';
+import { reportCrumbs, type CrumbMeta } from './format.js';
 import { PerguntasView } from './perguntas.js';
 import { DeepenQueue } from './deepen-queue.js';
 import { HistoricoFilters } from './historico-controls.js';
@@ -148,18 +149,7 @@ class App {
     const brand = document.getElementById('tn-client');
     if (brand) {
       // breadcrumb DS Witly: Cliente / Tipo de análise / Campanha (3 níveis).
-      const m = (data.meta || {}) as { client?: string; client_name?: string; campaign_label?: string; title?: string; report_type?: string; controls?: { kind?: string } };
-      const TYPE_LABELS: Record<string, string> = {
-        'acompanhamento-lancamento': 'Acompanhamento de Campanha',
-        'debriefing-lancamento': 'Debriefing de Lançamento',
-        'historico-lancamentos': 'Histórico de Lançamentos',
-        'conversao-perfil': 'Conversão por Perfil',
-        'criativos': 'Análise de Criativos',
-      };
-      const cliente = m.client_name || m.client || '';
-      const tipo = TYPE_LABELS[m.controls?.kind || ''] || TYPE_LABELS[m.report_type || ''] || '';
-      const campanha = m.campaign_label || this.slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
-      const crumbs = [cliente, tipo, campanha].filter(Boolean);
+      const crumbs = reportCrumbs((data.meta || {}) as CrumbMeta, this.slug);
       brand.innerHTML = crumbs.length > 1
         ? crumbs.map((c, i) => i === crumbs.length - 1
             ? `<b class="tn-cur">${esc(c)}</b>`
@@ -1383,7 +1373,7 @@ class App {
       const fontsCss = await embedFonts();
       const apexCss = [...document.querySelectorAll('style')]
         .map(s => s.textContent || '').filter(t => /apexcharts/i.test(t)).join('\n');
-      const logo = await fetch('/assets/witly-logo.png').then(r => r.blob()).then(blobToDataUrl).catch(() => '');
+      const logo = await fetch('/assets/logo-wordmark-white.png').then(r => r.blob()).then(blobToDataUrl).catch(() => '');
       // Gráficos interativos: empacota buildOptions (charts.js só depende de trend.js;
       // tipos são apagados) + o ApexCharts real. Strip de import/export → escopo do IIFE.
       const strip = (js: string): string => js.replace(/^\s*import[^\n]*\n/gm, '').replace(/^\s*export\s+/gm, '');
@@ -1417,7 +1407,7 @@ class App {
       const sideTree = `<div class="sn-label">Relatório</div>${reportPages.map((p, i) => pageGroup(p, i + 1)).join('')}${detPage && detPage.sections.length ? `<div class="sn-label">Aprofundamentos</div><div class="sn-group" data-group="${esc(detPage.id)}">${detPage.sections.map(s => secBtn(detPage.id, s)).join('')}</div>` : ''}`;
 
       const sidenav = `<aside id="sidenav">
-  <div class="sn-head"><a class="sn-brand" href="#">${logo ? `<span class="sn-logo-box"><img class="sn-logo" src="${logo}" alt="Witly"></span>` : ''}<span class="sn-brand-name">Witly Grimório</span></a><button class="sn-collapse" data-collapse aria-label="Minimizar menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+  <div class="sn-head"><a class="sn-brand" href="#">${logo ? `<img class="sn-logo" src="${logo}" alt="Witly">` : ''}</a><button class="sn-collapse" data-collapse aria-label="Minimizar menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>
   <a class="sn-switcher" href="#"><span class="sn-pj">${esc(initials)}</span><span class="sn-sw-meta"><small>Cliente</small><b>${esc(clientName)}</b></span></a>
   ${sideTree}
 </aside>

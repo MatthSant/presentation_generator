@@ -26,10 +26,10 @@ DEF_VND = ['-vnd]', 'venda-', 'vendas-']
 # Default em ordem de prioridade (1ª regra que casar vence). Sobrescrevível pelo
 # cliente/fallback geral via config['temp_rules'] (ou legado config['temperature']).
 DEF_TEMP_RULES = [
-    {'contains': ['advantage', '[advantage]'], 'label': 'advantage'},
-    {'contains': ['quente', 'hot', 'warm'], 'label': 'quente'},
-    {'contains': ['frio', 'cold'], 'label': 'frio'},
-    {'contains': ['rmkt', 'remarketing'], 'label': 'remarketing'},
+    {'contains': ['advantage', '[advantage]'], 'label': 'Advantage'},
+    {'contains': ['quente', 'hot', 'warm'], 'label': 'Quente'},
+    {'contains': ['frio', 'cold'], 'label': 'Frio'},
+    {'contains': ['rmkt', 'remarketing'], 'label': 'Remarketing'},
 ]
 
 

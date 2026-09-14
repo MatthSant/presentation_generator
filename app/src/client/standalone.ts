@@ -11,6 +11,7 @@ import { Store } from './store.js';
 import { Navigation } from './navigation.js';
 import { Dashboard } from './dashboard.js';
 import { el, mountShell, setBadge, type FabShell } from './controls-utils.js';
+import { reportCrumbs, type CrumbMeta } from './format.js';
 
 /** Snapshot pré-calculado de um filtro do relatório (gerar.py → variantes.json). */
 interface Variant { dataset: DataMap; sections: Record<string, Section>; layout: Layout; pages?: ReportData['pages'] }
@@ -74,10 +75,22 @@ class StandaloneApp {
   }
 
   boot(): void {
-    const meta = (this.store.data.meta || {}) as { client?: string; client_name?: string; title?: string };
+    const meta = (this.store.data.meta || {}) as CrumbMeta;
     document.title = meta.title || meta.client || 'Relatório';
     const tn = document.getElementById('tn-client');
-    if (tn) tn.textContent = meta.client_name || meta.client || '';
+    if (tn) {
+      // Mesmo breadcrumb do app: sozinho, o nome do cliente não diz que relatório é este.
+      tn.replaceChildren();
+      const crumbs = reportCrumbs(meta);
+      crumbs.forEach((c, i) => {
+        const ult = i === crumbs.length - 1;
+        const sp = document.createElement(ult && crumbs.length > 1 ? 'b' : 'span');
+        sp.className = crumbs.length > 1 ? (ult ? 'tn-cur' : 'tn-crumb') : '';
+        sp.textContent = c;
+        tn.appendChild(sp);
+        if (!ult) { const sep = document.createElement('span'); sep.className = 'tn-sep'; sep.textContent = '/'; tn.appendChild(sep); }
+      });
+    }
 
     this.buildNav();
 

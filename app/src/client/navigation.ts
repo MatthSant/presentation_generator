@@ -85,22 +85,18 @@ export class Navigation {
     // meta.chrome: o que esconder no relatório entregue (marca, cliente, chevron, busca, ⌘K, sidebar fechada)
     const chrome = ((this.store.data?.meta || {}) as { chrome?: { marca?: boolean; cliente?: boolean; trocar?: boolean; busca?: boolean; atalho?: boolean; sidebar?: string } }).chrome || {};
 
-    // Brand: nosso logo do app num quadrado branco arredondado (a sidebar é plum escuro).
+    // Brand: só o lockup branco sobre o plum da sidebar. Sem box branco e sem repetir
+    // "Witly Grimório" ao lado — o relatório é entregue ao cliente, e o que precisa
+    // estar em evidência ali é o relatório, não a marca da ferramenta.
     const brand = document.createElement('a');
     brand.className = 'sn-brand';
     brand.href = '/';
     brand.title = 'Início';
-    const logoBox = document.createElement('span');
-    logoBox.className = 'sn-logo-box';
     const logo = document.createElement('img');
     logo.className = 'sn-logo';
-    logo.src = '/assets/witly-logo.png';
-    logo.alt = 'Witly Grimório';
-    logoBox.appendChild(logo);
-    const name = document.createElement('span');
-    name.className = 'sn-brand-name';
-    name.textContent = 'Witly Grimório';
-    brand.append(logoBox, name);
+    logo.src = '/assets/logo-wordmark-white.png';
+    logo.alt = 'Witly';
+    brand.appendChild(logo);
 
     // Header: marca + botão de minimizar a sidebar (estado persistido em localStorage).
     const head = document.createElement('div');

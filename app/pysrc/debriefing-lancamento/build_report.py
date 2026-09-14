@@ -718,6 +718,12 @@ def assemble(rows, config, content, opts=None):
         for s in segs:
             if (s.get('leads') or 0) < 50:   # pontos com poucos leads são ruído na correlação
                 continue
+            if not (s.get('inv') or 0):
+                # Segmento com lead e venda mas sem investimento casado (rastreio quebrado,
+                # ex.: macro {{adset.id}} literal). Os leads e as vendas contam em todo o
+                # resto; aqui não: CPL, CPMQL, CPM, CTR e ROAS são zero por divisão vazia e
+                # o ponto cairia na origem, puxando a reta de ajuste.
+                continue
             out.append({'name': _dfull(s.get(namekey))[:54], 'vals': {
                 'retorno': (s.get('fat') or 0) - (s.get('inv') or 0), 'inv': s.get('inv'), 'fat': s.get('fat'),
                 'leads': s.get('leads'), 'vendas': s.get('vendas'), 'cpl': s.get('cpl'), 'cpmql': s.get('cpmql'),

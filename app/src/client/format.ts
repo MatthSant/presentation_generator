@@ -27,3 +27,30 @@ export function formatValue(value: unknown, hint?: string): string {
   if (typeof value === 'number') return formatNumber(value, hint);
   return String(value);
 }
+
+/* ── breadcrumb do relatório ── Cliente / Tipo de análise / Campanha.
+ *  Vive aqui porque o app (main.ts) e o viewer offline (standalone.ts) montam a
+ *  mesma barra: sem isso o HTML entregue ao cliente mostrava só o nome do cliente,
+ *  que já está no switcher da lateral, e nunca dizia que relatório era aquele. */
+const TIPO_LABELS: Record<string, string> = {
+  'acompanhamento-lancamento': 'Acompanhamento de Campanha',
+  'debriefing-lancamento': 'Debriefing de Lançamento',
+  'historico-lancamentos': 'Histórico de Lançamentos',
+  'conversao-perfil': 'Conversão por Perfil',
+  'criativos': 'Análise de Criativos',
+};
+
+export interface CrumbMeta {
+  client?: string; client_name?: string; campaign_label?: string;
+  title?: string; report_type?: string; controls?: { kind?: string };
+}
+
+export function reportCrumbs(meta: CrumbMeta, slug?: string): string[] {
+  const titulo = (s?: string): string => (s || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const campanha = meta.campaign_label || titulo(slug);
+  return [
+    meta.client_name || meta.client || '',
+    TIPO_LABELS[meta.controls?.kind || ''] || TIPO_LABELS[meta.report_type || ''] || '',
+    campanha,
+  ].filter(Boolean);
+}

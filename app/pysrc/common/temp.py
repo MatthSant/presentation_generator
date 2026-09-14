@@ -17,22 +17,29 @@ def _terms(kws):
     return [str(k).strip().lower() for k in (kws or []) if str(k).strip()]
 
 
+def _label(v):
+    """Label pronto para exibição: o consultor escreve 'quente' no config e o
+    relatório mostra 'Quente'. Só a 1ª letra — 'n/c' e siglas ficam intactas."""
+    s = str(v or '').strip()
+    return s[:1].upper() + s[1:] if s else s
+
+
 def normalize_rules(raw):
     """-> [(label, [termo_lower, ...]), ...] preservando a ordem. Aceita:
        - lista [{'contains': [..]|str, 'label': str}, ...]
        - dict  {label: [kw, ...]}  (legado)
-    Descarta regras sem label ou sem termos."""
+    Descarta regras sem label ou sem termos. O label sai com inicial maiúscula."""
     out = []
     if isinstance(raw, dict):
         for label, kws in raw.items():
             terms = _terms(kws)
-            if str(label).strip() and terms:
-                out.append((str(label).strip(), terms))
+            if _label(label) and terms:
+                out.append((_label(label), terms))
     elif isinstance(raw, list):
         for r in raw:
             if not isinstance(r, dict):
                 continue
-            label = str(r.get('label') or '').strip()
+            label = _label(r.get('label'))
             terms = _terms(r.get('contains'))
             if label and terms:
                 out.append((label, terms))
