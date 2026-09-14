@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Witly Grimório — Arquitetura</title>
+<title>Witly Grimório — como funciona</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-  :root{--bg:#F7F6FB;--fg:#1A1330;--muted:#5C5675;--line:#E4E0EE;--line-soft:#EFEDF6;--card:#fff;--zebra:#FBFAFE;--purple:#7C3AED;--purple-700:#5B21B6;--plum:#2E084B;--green:#2F6B12;--amber:#8A5205;--blue:#185FA5;
+  :root{--bg:#F7F6FB;--fg:#1A1330;--muted:#5C5675;--faint:#8E88A6;--line:#E4E0EE;--line-soft:#EFEDF6;--card:#fff;--zebra:#FBFAFE;--purple:#7C3AED;--purple-700:#5B21B6;--plum:#2E084B;--green:#2F6B12;--amber:#8A5205;--blue:#185FA5;--red:#A4271A;
     --sans:Poppins,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
@@ -15,25 +15,37 @@
   h1{font-size:26px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}
   .sub{color:var(--muted);margin:0 0 28px}
   h2{font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--purple);margin:34px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+  h3{font-size:14px;font-weight:600;margin:0 0 6px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card+.card{margin-top:14px}
   .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
-  th{color:#8E88A6;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;background:var(--zebra);border-bottom:1px solid var(--line)}
+  th{color:var(--faint);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;background:var(--zebra);border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
   code{background:none;padding:0;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
   pre{background:var(--plum);color:#E6DDF5;padding:14px 16px;border-radius:9px;overflow:auto;font-family:var(--mono);font-size:12.5px}
   .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#EDE9FE;color:var(--purple-700);margin-right:6px}
+  .tag.g{background:#E7F3DC;color:var(--green)} .tag.a{background:#FBEED3;color:var(--amber)} .tag.b{background:#E6F0FA;color:var(--blue)} .tag.r{background:#FDE3D3;color:#9A3412}
   .ok{color:var(--green)} .todo{color:var(--amber)}
   ol li,ul li{margin:4px 0}
   svg text{font-family:inherit}
   .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:8px}
   .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+  .fam{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}
+  .fam b{display:block;font-size:12px}
+  .fam>div{flex:1 1 150px;background:var(--zebra);border:1px solid var(--line-soft);border-radius:9px;padding:9px 11px}
+  .fam span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .nota{color:var(--muted);font-size:13px;margin-top:10px}
+  .lvl{display:grid;grid-template-columns:86px 1fr;gap:2px 14px;align-items:start}
+  .lvl dt{font-family:var(--mono);font-size:11.5px;color:var(--purple-700);padding-top:3px}
+  .lvl dd{margin:0 0 10px}
 </style>
 </head>
 <body>
 <main>
   <h1>Witly Grimório — como funciona</h1>
-  <p class="sub">Uma plataforma na Cloudflare que entrega <b>templates de análise</b> ao agente que a pessoa já usa. O MCP é inteligência, não compute: o Python roda na máquina do consultor. Atualizado em 2026-09-07 · Fases 1 e 2 em produção.</p>
+  <p class="sub">Uma plataforma na Cloudflare que dá ao agente do consultor três coisas: <b>templates de análise</b> (kit com Python que gera o relatório), <b>roteiros</b> (conversas em etapas) e o <b>conhecimento do time</b> (métricas, diagnósticos, regras, casos, clientes e campanhas). O MCP é inteligência, não compute: o Python roda na máquina do consultor. Atualizado em 2026-09-14 · specs 001 a 008 em produção.</p>
 
   <h2>O fluxo, ponta a ponta</h2>
   <div class="card">
@@ -44,90 +56,236 @@
       </defs>
 
       <!-- Consultor + agente -->
-      <rect class="box" x="20" y="150" width="200" height="120" style="stroke:#7C3AED"/>
-      <text class="t" x="120" y="180" text-anchor="middle" font-weight="700">Consultor + agente</text>
-      <text class="s" x="120" y="200" text-anchor="middle">Claude Code · Codex · Claude.ai</text>
-      <text class="s" x="120" y="222" text-anchor="middle">Python 3 na máquina</text>
-      <text class="s" x="120" y="240" text-anchor="middle">gerar.py → relatorio.html</text>
+      <rect class="box" x="20" y="150" width="200" height="130" style="stroke:#7C3AED"/>
+      <text class="t" x="120" y="178" text-anchor="middle" font-weight="700">Consultor + agente</text>
+      <text class="s" x="120" y="198" text-anchor="middle">Claude Code · Codex · Claude.ai</text>
+      <text class="s" x="120" y="218" text-anchor="middle">Python 3 na máquina</text>
+      <text class="s" x="120" y="236" text-anchor="middle">gerar.py → relatorio.html</text>
+      <text class="s" x="120" y="256" text-anchor="middle">ou roteiro: conversa em etapas</text>
 
       <!-- Worker -->
-      <rect class="box" x="360" y="60" width="300" height="300" style="stroke:#2E084B"/>
-      <text class="t" x="510" y="88" text-anchor="middle" font-weight="700">Worker witly-templates (Cloudflare)</text>
-      <rect class="box" x="380" y="104" width="260" height="46"/>
-      <text class="l" x="510" y="123" text-anchor="middle">OAuth Google → token MCP</text>
-      <text class="s" x="510" y="140" text-anchor="middle">/authorize · /callback · /token · /register</text>
-      <rect class="box" x="380" y="160" width="260" height="70"/>
-      <text class="l" x="510" y="180" text-anchor="middle">MCP  /mcp  (Durable Object)</text>
-      <text class="s" x="510" y="198" text-anchor="middle">listar · obter · montar_query · guia · perguntas</text>
-      <text class="s" x="510" y="214" text-anchor="middle">registrar · avaliar · salvar_template · resources</text>
-      <rect class="box" x="380" y="240" width="125" height="46"/>
-      <text class="l" x="442" y="259" text-anchor="middle">/dl/&lt;slug&gt;/&lt;v&gt;</text>
-      <text class="s" x="442" y="276" text-anchor="middle">zip assinado (15 min)</text>
-      <rect class="box" x="515" y="240" width="125" height="46"/>
-      <text class="l" x="577" y="259" text-anchor="middle">UI  /api · assets</text>
-      <text class="s" x="577" y="276" text-anchor="middle">editar · versões · atividade · pessoais</text>
-      <text class="s" x="510" y="340" text-anchor="middle">D1 (templates, versões, contexto, usuários, uso) · KV (OAuth) · Assets (UI, viewer)</text>
+      <rect class="box" x="360" y="50" width="300" height="330" style="stroke:#2E084B"/>
+      <text class="t" x="510" y="78" text-anchor="middle" font-weight="700">Worker witly-templates (Cloudflare)</text>
+      <rect class="box" x="380" y="94" width="260" height="44"/>
+      <text class="l" x="510" y="112" text-anchor="middle">OAuth Google → token MCP</text>
+      <text class="s" x="510" y="129" text-anchor="middle">/authorize · /callback · /token · /register</text>
+      <rect class="box" x="380" y="148" width="260" height="86"/>
+      <text class="l" x="510" y="167" text-anchor="middle">MCP  /mcp  (Durable Object)</text>
+      <text class="s" x="510" y="184" text-anchor="middle">listar · obter · montar_query · guia · perguntas</text>
+      <text class="s" x="510" y="200" text-anchor="middle">conhecimento · sugerir · confirmar</text>
+      <text class="s" x="510" y="216" text-anchor="middle">registrar · avaliar · salvar_template · resources</text>
+      <rect class="box" x="380" y="244" width="125" height="44"/>
+      <text class="l" x="442" y="262" text-anchor="middle">/dl/&lt;slug&gt;/&lt;v&gt;</text>
+      <text class="s" x="442" y="279" text-anchor="middle">zip assinado (15 min)</text>
+      <rect class="box" x="515" y="244" width="125" height="44"/>
+      <text class="l" x="577" y="262" text-anchor="middle">UI  /api · assets</text>
+      <text class="s" x="577" y="279" text-anchor="middle">conhecimento · campanhas · ações</text>
+      <text class="s" x="510" y="308" text-anchor="middle">D1: templates e versões · conhecimento (FTS,</text>
+      <text class="s" x="510" y="324" text-anchor="middle">histórico, propostas, votos, uso) · atividade</text>
+      <text class="s" x="510" y="340" text-anchor="middle">KV (OAuth) · Assets (UI, viewer)</text>
 
       <!-- Delfos -->
-      <rect class="box" x="20" y="300" width="200" height="90" style="stroke:#185FA5"/>
-      <text class="t" x="120" y="330" text-anchor="middle" font-weight="700">Delfos (MCP, existe)</text>
-      <text class="s" x="120" y="350" text-anchor="middle">Credentials · Witly_Query</text>
-      <text class="s" x="120" y="368" text-anchor="middle">banco do cliente → CSV local</text>
+      <rect class="box" x="20" y="308" width="200" height="82" style="stroke:#185FA5"/>
+      <text class="t" x="120" y="334" text-anchor="middle" font-weight="700">Delfos (MCP, existe)</text>
+      <text class="s" x="120" y="354" text-anchor="middle">Credentials · Witly_Query</text>
+      <text class="s" x="120" y="372" text-anchor="middle">banco do cliente → CSV local</text>
 
       <!-- Google -->
-      <rect class="box" x="760" y="60" width="210" height="60" style="stroke:#3B6D11"/>
-      <text class="t" x="865" y="86" text-anchor="middle" font-weight="700">Google (identidade)</text>
-      <text class="s" x="865" y="105" text-anchor="middle">domínio @witly.digital = leitor</text>
+      <rect class="box" x="760" y="50" width="210" height="58" style="stroke:#3B6D11"/>
+      <text class="t" x="865" y="75" text-anchor="middle" font-weight="700">Google (identidade)</text>
+      <text class="s" x="865" y="94" text-anchor="middle">domínio @witly.digital = leitor</text>
 
-      <!-- Editor -->
-      <rect class="box" x="760" y="220" width="210" height="80" style="stroke:#854F0B"/>
-      <text class="t" x="865" y="248" text-anchor="middle" font-weight="700">Editor (UI)</text>
-      <text class="s" x="865" y="268" text-anchor="middle">cadastra / edita template</text>
-      <text class="s" x="865" y="286" text-anchor="middle">contexto por tarefa · guia · publicar</text>
+      <!-- Time -->
+      <rect class="box" x="760" y="180" width="210" height="130" style="stroke:#854F0B"/>
+      <text class="t" x="865" y="206" text-anchor="middle" font-weight="700">O time (UI)</text>
+      <text class="s" x="865" y="226" text-anchor="middle">edita template e roteiro</text>
+      <text class="s" x="865" y="244" text-anchor="middle">propõe conhecimento · vota</text>
+      <text class="s" x="865" y="262" text-anchor="middle">editor aprova · reverte</text>
+      <text class="s" x="865" y="280" text-anchor="middle">confirma ação da campanha</text>
+      <text class="s" x="865" y="298" text-anchor="middle">fecha resultado</text>
 
       <!-- arrows -->
-      <path class="ar" d="M220,190 C300,190 300,127 380,127"/>
+      <path class="ar" d="M220,190 C300,190 300,117 380,117"/>
       <text class="l" x="290" y="150" text-anchor="middle">1. cola a URL, loga</text>
-      <path class="ar" d="M220,210 C300,210 300,195 380,195"/>
-      <text class="l" x="290" y="228" text-anchor="middle">2. pede o template</text>
-      <path class="ar" d="M380,263 C300,263 300,250 220,250"/>
-      <text class="l" x="290" y="280" text-anchor="middle">3. curl do kit (zip)</text>
-      <path class="ar" d="M120,300 L120,270"/>
-      <text class="l" x="200" y="290" text-anchor="start">4. SQL do kit no Delfos</text>
-      <path class="ar" d="M640,127 L760,95"/>
-      <path class="ar" d="M760,260 L640,263"/>
-      <text class="l" x="700" y="248" text-anchor="middle">edita</text>
+      <path class="ar" d="M220,212 C300,212 300,191 380,191"/>
+      <text class="l" x="290" y="232" text-anchor="middle">2. pede template ou conhecimento</text>
+      <path class="ar" d="M380,266 C300,266 300,256 220,256"/>
+      <text class="l" x="290" y="290" text-anchor="middle">3. curl do kit (zip)</text>
+      <path class="ar" d="M120,308 L120,282"/>
+      <text class="l" x="200" y="300" text-anchor="start">4. SQL do kit no Delfos</text>
+      <path class="ar" d="M640,117 L760,88"/>
+      <path class="ar" d="M760,230 L640,215"/>
+      <text class="l" x="706" y="200" text-anchor="middle">5. registra · propõe</text>
     </svg>
     <div class="legend">
       <span><span class="dot" style="background:#7C3AED"></span>máquina da pessoa</span>
       <span><span class="dot" style="background:#2E084B"></span>este projeto</span>
       <span><span class="dot" style="background:#185FA5"></span>Delfos (não muda)</span>
       <span><span class="dot" style="background:#3B6D11"></span>Google</span>
+      <span><span class="dot" style="background:#854F0B"></span>o time, na UI</span>
     </div>
   </div>
 
-  <div class="grid" style="margin-top:14px">
+  <h2>Os três jeitos de usar</h2>
+  <div class="grid">
     <div class="card">
-      <span class="tag">O que acontece</span>
+      <span class="tag">Análise <code>kind = analise</code></span>
+      <h3>Um documento, com Python</h3>
       <ol>
-        <li>A pessoa cola a URL do MCP no agente; o navegador abre o login Google; sem token digitado.</li>
-        <li>O agente chama <code>listar_templates</code> e <code>obter_template</code>: recebe manifesto, <b>tarefas de contexto</b>, queries, documento, guia e contextos gerais como texto, e uma URL assinada do zip.</li>
-        <li>Executa as tarefas de contexto com o consultor (lançamento, tipo de funil, temperatura, metas, recorte…) e monta o <code>config.json</code>. Cinco templates: acompanhamento diário, debriefing, criativos, histórico, conversão por perfil.</li>
+        <li><code>obter_template(slug)</code>: manifesto, tarefas de contexto, queries, documento, guia e a URL assinada do zip.</li>
+        <li>As tarefas de contexto com o consultor (lançamento, funil, metas, recorte) viram o <code>config.json</code>.</li>
         <li><code>montar_query</code> devolve o SQL preenchido; roda no Delfos; salva <code>dump.csv</code> local.</li>
         <li><code>python gerar.py</code> → 4 camadas + <code>numeros.json</code> + <code>relatorio.html</code> (o mesmo relatório do app, offline).</li>
-        <li>O agente propõe no chat as perguntas norteadoras mais relevantes; aceita uma, calcula o corte em Python (importando <code>calc.py</code>), monta a seção no design system e roda <code>aprofundar.py</code>.</li>
-        <li>Ao terminar, <code>registrar</code> (geração/aprofundamento) e, se houver nota, <code>avaliar</code>. Um padrão próprio vira template pessoal com <code>salvar_template</code>.</li>
+        <li>Aprofundamento: o agente propõe as perguntas norteadoras, calcula o corte em Python sobre o <code>calc.py</code> e roda <code>aprofundar.py</code>.</li>
       </ol>
+      <p class="nota">Sete templates: acompanhamento diário, debriefing, criativos, histórico, conversão por perfil, análise livre e o recorte quente.</p>
     </div>
     <div class="card">
-      <span class="tag">Princípios que não mudam</span>
+      <span class="tag a">Roteiro <code>kind = conversa</code></span>
+      <h3>Uma conversa em etapas, sem Python</h3>
+      <p>Nem todo trabalho vira HTML. O roteiro descreve uma conversa: cada etapa diz o que o agente <b>entrega</b>, o que ele <b>espera</b> do consultor para avançar, o que <b>registra</b> antes de seguir e o que <b>puxa</b> do conhecimento.</p>
+      <p>A regra é não fazer tudo de uma vez: entrega a etapa, pergunta, anota, avança.</p>
       <ul>
-        <li>Número nasce no <code>calc.py</code>; o modelo escreve prosa.</li>
-        <li>Dado pessoal nunca sobe; linha crua nunca; agregado pode.</li>
-        <li>Contexto é por análise; os gerais são poucos e curados.</li>
+        <li><code>otimizar-trafego</code> — report geral, por temperatura, campanha a campanha e decisão uma por vez. "Roda o report" para na etapa 1; "otimização" vai até o fim.</li>
+        <li><code>novo-cliente</code> — monta o contexto do cliente pela página dele ou por perguntas e termina propondo a entrada.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag b">Conhecimento</span>
+      <h3>O cérebro do time</h3>
+      <p>Entradas curtas e tipadas que o agente puxa quando precisa: a fórmula de uma métrica, o que um sintoma costuma significar, como escrever o report, o contexto de um cliente, o que já funcionou numa situação parecida.</p>
+      <p>Título de até 200 caracteres, corpo de até 2.000. O que não cabe vira outra entrada. Nada é enciclopédia: tudo é escrito em função dos negócios que a gente analisa.</p>
+      <p class="nota">Tool <code>conhecimento(filtro)</code>, resource <code>conhecimento://&lt;id&gt;</code>, tela <code>#/conhecimento</code>.</p>
+    </div>
+  </div>
+
+  <h2>O conhecimento: como é organizado</h2>
+  <div class="card">
+    <p>Uma tabela só, com quatro eixos. Os eixos são o que permite o agente pedir pouco e certo, e você filtrar na tela sem rolar lista.</p>
+    <table>
+      <tr><th>Eixo</th><th>Responde</th><th>Valores</th></tr>
+      <tr><td><b>tipo</b> (em família)</td><td>que natureza de conhecimento é</td><td>17 tipos, abaixo</td></tr>
+      <tr><td><b>domínio</b></td><td>de que assunto trata</td><td><code>analise · dados · midia · negocio · comunicacao · design</code></td></tr>
+      <tr><td><b>escopo</b></td><td>onde vale</td><td><code>geral</code> · <code>template:&lt;slug&gt;</code> · <code>funil:&lt;tipo&gt;</code> · <code>cliente:&lt;slug&gt;</code> · <code>campanha:&lt;id&gt;</code></td></tr>
+      <tr><td><b>nível</b></td><td>em que altura da decisão</td><td><code>estrategico</code> (direção do negócio) · <code>tatico</code> (como conduzir) · <code>operacional</code> (execução do dia)</td></tr>
+    </table>
+    <p class="nota">Mais as <b>tags</b>, livres, com vocabulário sugerido por grupo (mídia, funil, métricas, leitura, dados, entrega, processo). É a tag que junta tudo o que é de tráfego pago, por exemplo.</p>
+    <div class="fam">
+      <div><b>Saber</b><span>conceito · definicao · metrica · benchmark</span></div>
+      <div><b>Pensar</b><span>principio · diagnostico · pergunta</span></div>
+      <div><b>Fazer</b><span>regra · metodo · padrao</span></div>
+      <div><b>Comunicar</b><span>estilo · formato</span></div>
+      <div><b>Contexto</b><span>funil · cliente · campanha</span></div>
+      <div><b>Memória</b><span>caso · teste</span></div>
+    </div>
+    <p class="nota">Cada tipo tem campos próprios, validados: <code>metrica</code> tem fórmula, unidade, se maior é melhor, onde está no Delfos e as armadilhas; <code>diagnostico</code> tem sintoma, causas em ordem e o que checar; <code>caso</code> tem a situação estruturada e Fato, Causa, Ação, Resultado. O formulário da UI é gerado desses campos, então não existe entrada pela metade.</p>
+  </div>
+
+  <h2>Como o contexto chega ao agente</h2>
+  <div class="card">
+    <p>Despejar tudo no contexto estraga a análise e custa caro. O conhecimento vem em camadas, e cada entrada declara <b>quando</b> é puxada.</p>
+    <dl class="lvl">
+      <dt>nível 0</dt><dd><b>Sempre.</b> Em toda chamada: as correções urgentes pendentes e as entradas marcadas <code>sempre</code>, em uma linha cada. Teto de 40 entradas e 10 KB — promover uma com a cota cheia exige dizer qual sai.</dd>
+      <dt>nível 1</dt><dd><b>Ao abrir o template.</b> As regras do próprio kit e um índice (só títulos, até 40 linhas) do conhecimento escopado àquele template, funil e tags.</dd>
+      <dt>nível 2</dt><dd><b>Ao identificar cliente ou campanha.</b> O resumo do cliente, ou o da campanha com metas, tetos, budgets, pendências e os últimos eventos.</dd>
+      <dt>nível 3</dt><dd><b>Por gatilho.</b> O corpo completo, só quando a etapa pede: <code>ao_consultar_dados</code> (antes do SQL), <code>ao_diagnosticar</code> (número fora da faixa), <code>ao_recomendar</code> (antes de propor ação, inclui os casos que já funcionaram), <code>ao_escrever</code> (antes de redigir), <code>ao_fechar</code>.</dd>
+    </dl>
+    <p class="nota">Cada etapa de um roteiro declara os gatilhos dela. Entrada sem gatilho só aparece por busca. A tela Saúde mostra quanto do orçamento do nível 0 está em uso, e o registro de uso por entrada mostra o que nunca é lido.</p>
+  </div>
+
+  <h2>Como o conhecimento muda</h2>
+  <div class="grid">
+    <div class="card">
+      <span class="tag">Proposta</span>
+      <h3>Ninguém edita direto</h3>
+      <p>Toda mudança é uma proposta na própria entrada: nova, edição, substituta, fechar resultado ou superseder. Vem da UI (botão Propor) ou do agente (<code>sugerir</code>), sempre com o <b>motivo</b>: o que aconteceu que mostrou a falta.</p>
+      <ul>
+        <li>Proposta parecida com uma existente aparece antes de salvar: se é a mesma coisa, vota na que já existe.</li>
+        <li>Proposta idêntica já aberta só conta uma ocorrência e sobe na fila.</li>
+        <li>Recusada é lembrada por 90 dias, com o motivo — não reabre sozinha.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag g">Aprovação</span>
+      <h3>Editor ou votos</h3>
+      <p>Um editor aprova quando quiser. Sem editor, <b>2 votos</b> líquidos aprovam (o número é configurável). O que entrou por votos fica 30 dias num painel com <b>Reverter</b>: a entrada volta à versão anterior e o histórico permanece.</p>
+      <p>Nada se apaga. Entrada substituída fica <code>supersedida</code> apontando para a nova, e cada versão vira um snapshot no histórico, com diff e restaurar.</p>
+    </div>
+    <div class="card">
+      <span class="tag r">Urgência</span>
+      <h3>O erro que contamina as próximas análises</h3>
+      <p>Cálculo errado, métrica usada com o sentido trocado, regra de dado quebrada: <code>urgencia: urgente</code>, com evidência do número errado.</p>
+      <ol>
+        <li>Só editor aprova; votos não valem.</li>
+        <li>Até a aprovação, o agente <b>mostra a pendência ao consultor antes de gerar</b> e pergunta se está certo.</li>
+        <li>A resposta do consultor vira voto (<code>confirmar</code>); se ele é editor, a próxima análise já nasce com a correção.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="card">
+    <span class="tag b">Verificação</span>
+    <p>Confiança numérica engana. O que vale é ter dono e prazo: qualquer editor marca uma entrada como <b>verificada</b>, com data e, se quiser, um prazo para reverificar. O MCP devolve esse status junto da entrada ("verificada em 01/09 por X" ou "não verificada"), e a Saúde acusa as vencidas.</p>
+  </div>
+
+  <h2>Campanha: o que foi feito e o que deu</h2>
+  <div class="card">
+    <p>Uma campanha é uma entrada de conhecimento com <b>linha do tempo</b>: contexto, análise, achado, ação e resultado. É onde o histórico do cliente para de morar na cabeça de quem operou.</p>
+    <table>
+      <tr><th>Evento</th><th>De onde vem</th><th>Vale quando</th></tr>
+      <tr><td><code>analise</code></td><td>o agente registra a entrega (<code>registrar</code>)</td><td>na hora — é log do que foi entregue</td></tr>
+      <tr><td><code>achado</code> · <code>acao</code> do agente</td><td><code>registrar({campanha, eventos})</code></td><td>entra marcado <b>proposto</b>; só conta como feito depois que uma pessoa confirma</td></tr>
+      <tr><td><code>acao</code> da pessoa</td><td>botão "+ Registrar" na campanha</td><td>na hora — quem registrou foi gente</td></tr>
+    </table>
+    <p class="nota">A ação é genérica e serve a qualquer frente (tráfego, CRM, página, oferta, conteúdo, dados): área, nível, alvo, verbo, valor, o fato com número e janela, a causa <b>com o motivo real do consultor</b>, o resultado e a data de verificar.</p>
+    <p><b>O ciclo fecha</b>: quando a data de verificação chega, a ação aparece no resumo da campanha que o agente recebe, com a instrução de perguntar o resultado <i>antes</i> de olhar o dia. É a primeira etapa do roteiro de tráfego. A tela <b>Ações</b> reúne tudo o que foi feito em todos os clientes, com filtro por área, nível, verbo, resultado e "só a verificar".</p>
+  </div>
+
+  <h2>As tools do MCP</h2>
+  <div class="card">
+    <table>
+      <tr><th>Tool</th><th>Para quê</th></tr>
+      <tr><td><code>listar_templates</code></td><td>o catálogo: análises e roteiros, com objetivo, quando usar e parâmetros</td></tr>
+      <tr><td><code>obter_template</code></td><td>o kit completo (ou o roteiro em etapas) + urgentes pendentes + o conhecimento <code>sempre</code> + o índice do escopo + a URL do zip</td></tr>
+      <tr><td><code>montar_query</code> · <code>guia</code> · <code>perguntas</code></td><td>SQL preenchido e escapado · guia de leitura · perguntas norteadoras</td></tr>
+      <tr><td><code>conhecimento</code></td><td>busca em camadas: família, tipo, domínio, nível, escopo, cliente, campanha, gatilho, tags, texto, situação. <code>indice</code> (1 linha) ou <code>completo</code></td></tr>
+      <tr><td><code>sugerir</code></td><td>propor conhecimento ou correção; urgente exige evidência. Nunca muda nada direto</td></tr>
+      <tr><td><code>confirmar</code></td><td>a resposta do consultor a uma pendência urgente; vira voto</td></tr>
+      <tr><td><code>registrar</code></td><td>geração, aprofundamento e <b>feedback de uso</b> ao fechar; leva <code>usadas</code> (o conhecimento que entrou) e <code>eventos</code> da campanha</td></tr>
+      <tr><td><code>avaliar</code> · <code>salvar_template</code> · <code>remover_template</code></td><td>nota do consultor ao template · template pessoal salvo pelo agente</td></tr>
+      <tr><td>resources</td><td><code>conhecimento://&lt;id&gt;</code> · <code>template://&lt;slug&gt;[/parte]</code> · <code>contrato://widgets</code> (design system)</td></tr>
+    </table>
+  </div>
+
+  <h2>A UI, tela por tela</h2>
+  <div class="card">
+    <table>
+      <tr><th>Tela</th><th>O que faz</th></tr>
+      <tr><td><b>Templates</b></td><td>catálogo com filtro por análises e roteiros; editor por abas (manifesto, tarefas, regras, queries, Python, documento, guia, perguntas, exemplo, versões). Roteiro tem a aba <b>Roteiro</b>, onde as etapas se editam e reordenam. Publicar escolhe o tamanho da mudança e mostra o diff</td></tr>
+      <tr><td><b>Conhecimento</b></td><td>busca sem acento e filtros por família, tipo, domínio, nível, escopo, tag, status, "sempre" e "não verificadas" — tudo na URL. A entrada mostra corpo, campos, gatilhos, uso, relações, propostas e histórico</td></tr>
+      <tr><td><b>Pendências</b></td><td>propostas abertas (com urgentes no topo), aprovadas por votos com Reverter, casos e testes a fechar, e a triagem do que o agente registrou</td></tr>
+      <tr><td><b>Campanhas</b> · <b>Ações</b></td><td>a linha do tempo de cada campanha, com confirmar e fechar resultado; e tudo o que foi feito em todos os clientes, com o que falta verificar</td></tr>
+      <tr><td><b>Design system</b></td><td>galeria interativa dos elementos (renderizada pelo mesmo viewer dos relatórios), regras, contrato e versões. Entra em todo kit como <code>design-system.md</code></td></tr>
+      <tr><td><b>Atividade</b> · <b>Saúde</b></td><td>o que os agentes registraram, com veredito; e o que está parado, o que estourou o orçamento do nível 0 e o que ninguém verificou</td></tr>
+      <tr><td><b>Usuários</b> · <b>Configurações</b></td><td>convidar, promover a editor, cortar acesso; número de votos que aprova e os limites</td></tr>
+    </table>
+  </div>
+
+  <h2>Princípios que não mudam</h2>
+  <div class="grid">
+    <div class="card">
+      <ul>
+        <li>Número nasce no Python; o modelo escreve prosa.</li>
+        <li>Dado pessoal nunca sobe. Linha crua nunca; agregado pode.</li>
+        <li>O agente propõe, nunca decide sozinho: conhecimento entra por proposta, ação de campanha entra por confirmação.</li>
+        <li>A decisão de mídia é do consultor. O registro guarda o motivo real dele.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <ul>
+        <li>Entrada curta e aplicada ao negócio: nada de enciclopédia.</li>
+        <li>Nada se apaga: supersessão e histórico.</li>
         <li>Template autossuficiente e versionado; o MCP serve só o publicado.</li>
-        <li>Uma plataforma, um login (Google).</li>
-        <li>Spec-driven + testes unitários por tarefa.</li>
+        <li>Uma plataforma, um login (Google). Spec-driven, com teste por tarefa.</li>
       </ul>
     </div>
   </div>
@@ -139,13 +297,12 @@
       <tr><td>Worker</td><td>Cloudflare Workers, Hono, TypeScript</td><td>API, OAuth, downloads, UI</td></tr>
       <tr><td>MCP</td><td><code>agents</code> (McpAgent, Durable Object) + <code>@modelcontextprotocol/sdk</code></td><td>tools e resources por Streamable HTTP</td></tr>
       <tr><td>Login</td><td><code>@cloudflare/workers-oauth-provider</code> + Google OAuth</td><td>registro dinâmico de cliente; token MCP com e-mail</td></tr>
-      <tr><td>Dados</td><td>D1 (SQLite)</td><td>templates, versões, arquivos do kit, tarefas de contexto, contextos gerais, usuários, log de uso</td></tr>
+      <tr><td>Dados</td><td>D1 (SQLite) + FTS5</td><td>templates, versões, arquivos do kit, tarefas; conhecimento com histórico por trigger, busca sem acento, relações tipadas, propostas, votos e uso; atividade; usuários</td></tr>
       <tr><td>Estado OAuth</td><td>KV <code>OAUTH_KV</code></td><td>códigos, tokens, grants</td></tr>
       <tr><td>Estáticos</td><td>Workers Assets (<code>public/</code>)</td><td>UI e o <b>viewer</b> (client do app empacotado com esbuild)</td></tr>
-      <tr><td>Documentos da plataforma</td><td>D1 <code>platform_docs</code></td><td>design system dos aprofundamentos: um para todos, editável na UI, em todo zip e como <code>contrato://widgets</code></td></tr>
-      <tr><td>Kit</td><td>zip montado na hora (<code>fflate</code>)</td><td><b>autossuficiente, sem git</b>: python/ (cópia literal do <code>app/pysrc</code> + perguntas/), viewer/, exemplo/, design-system.md, textos</td></tr>
+      <tr><td>Kit</td><td>zip montado na hora (<code>fflate</code>)</td><td><b>autossuficiente, sem git</b>: python/ (cópia literal do <code>app/pysrc</code>), viewer/, exemplo/, design-system.md, textos. Roteiro não tem zip</td></tr>
       <tr><td>Máquina da pessoa</td><td>Python 3.8+ (stdlib) · curl</td><td>gerar as camadas e o HTML; cortes em Python sobre o <code>calc.py</code></td></tr>
-      <tr><td>Testes</td><td>Vitest (pool de Workers) · <code>unittest</code> · script de paridade</td><td>31 testes no Worker, 7 no Python, kit == app</td></tr>
+      <tr><td>Testes</td><td>Vitest (pool de Workers) · <code>unittest</code> · script de paridade</td><td>95 testes no Worker, os testes de cada kit, kit == app</td></tr>
     </table>
   </div>
 
@@ -171,7 +328,7 @@
       <ul>
         <li>Um agente com MCP remoto (Claude Code, Claude.ai, Codex, Cursor).</li>
         <li>Conta Google do domínio.</li>
-        <li>Python 3 e curl. Acesso ao Delfos para o dado.</li>
+        <li>Python 3 e curl para os templates de análise. Acesso ao Delfos para o dado.</li>
       </ul>
     </div>
   </div>
@@ -181,21 +338,20 @@
 # Claude.ai: Conectores → adicionar → a mesma URL    # Codex/Cursor: a mesma URL no config
 # → abre o navegador → login Google → pronto</pre>
 
-  <h2>Estado (Fases 1–3)</h2>
+  <h2>Estado</h2>
   <div class="card">
     <table>
-      <tr><th>Tarefa</th><th>Estado</th></tr>
-      <tr><td>Setup, D1, OAuth Google, MCP vazio (T001–T008)</td><td class="ok">✓ feito, testes verdes</td></tr>
-      <tr><td>montar_query, URL assinada + zip, tools do MCP (T009–T011)</td><td class="ok">✓ feito, testes verdes</td></tr>
-      <tr><td>Viewer offline + gerar.py + kit acompanhamento-diario + seed + paridade (T012–T016)</td><td class="ok">✓ feito; kit == app na fixture</td></tr>
-      <tr><td>Deploy + login Google real + instalar em Claude Code (T017)</td><td class="ok">✓ em produção: <code>witly-templates.projetos-145.workers.dev</code>; Claude.ai e Codex pendentes</td></tr>
-      <tr><td>Corte de acesso, API de usuários, UI de edição (Fases D/E)</td><td class="ok">✓ UI em <code>/</code> (login Google), páginas Templates · Contextos gerais · Usuários</td></tr>
-      <tr><td><b>Fase 2</b>: atividade (registrar/avaliar), curadoria (virar exemplo/regra), versões com diff e restaurar, templates pessoais (salvar pelo agente, promover na UI), perguntas norteadoras no kit (relevância local, sugestão no chat), aprofundamento no design system (<code>aprofundar.py</code>), importador do deepen_history</td><td class="ok">✓ em produção (template v3)</td></tr>
-      <tr><td><b>Pós-uso</b>: filtros offline no botão flutuante (cascata combinável no acompanhamento/debriefing; opções em criativos/histórico; canal em conversão); versão semântica (v1.0.x / v1.x.0 / vx.0.0, escolhida ao publicar); contextos gerais curtos e tipados (regra / recomendação / definição, título = a regra); kit <code>analise-livre</code> (design system com exemplo real de cada widget + <code>montar.py</code> que valida e gera)</td><td class="ok">✓ em produção</td></tr>
-      <tr><td><b>Fase 3</b>: <code>seed/_shared/gerar.py</code> genérico (motor por manifesto, <code>--goals/--dict/--hist</code>, <code>--opts</code> = recorte igual ao app, <code>numeros.json</code> por motor) + kits <code>debriefing</code> (metas obrigatórias), <code>criativos</code> (tipo de campanha + modo), <code>historico</code>, <code>conversao-perfil</code> (benchmark = respondentes, codependência); viewer offline ganha o seletor de filtro de dataset (canal); <code>scripts/test-kits.mjs</code> roda unittest + paridade dos 5 kits no CI</td><td class="ok">✓ em produção (5 templates publicados)</td></tr>
+      <tr><th>Spec</th><th>O que entregou</th><th>Estado</th></tr>
+      <tr><td>001–002</td><td>Worker, D1, OAuth Google, MCP, <code>montar_query</code>, zip assinado, viewer offline, seed e paridade kit == app; atividade, curadoria, versões com diff e restaurar, templates pessoais, perguntas norteadoras, aprofundamento no design system</td><td class="ok">✓ em produção</td></tr>
+      <tr><td>003</td><td><code>gerar.py</code> genérico por manifesto (<code>--goals/--dict/--hist</code>, <code>--opts</code>) e os kits debriefing, criativos, histórico e conversão por perfil; filtros offline no viewer; versão semântica</td><td class="ok">✓ em produção</td></tr>
+      <tr><td>005</td><td>Kit sem <code>query_api</code>: o agente escreve o corte em Python sobre o <code>calc.py</code>; perguntas e definições viram entradas; <code>sugerir_regra</code>; seed idempotente por hash</td><td class="ok">✓ em produção</td></tr>
+      <tr><td>006</td><td>Design system como template versionado: galeria interativa, regras como entradas, contrato em todo kit</td><td class="ok">✓ em produção</td></tr>
+      <tr><td>007</td><td>Os 13 pedidos do feedback de uso (card e destaque vivos no filtro, filtro validado, seletor inline, dinheiro exato, tabela com escala, chrome) e o <b>feedback como evento</b> do MCP, com triagem</td><td class="ok">✓ em produção</td></tr>
+      <tr><td><b>008</b></td><td><b>O conhecimento</b>: 17 tipos em 6 famílias × domínio × escopo × nível; camadas e gatilhos; propostas com votos, urgência e reversão; verificação com dono e prazo; roteiros (<code>kind = conversa</code>); campanha com linha do tempo e a tela de Ações</td><td class="ok">✓ em produção</td></tr>
     </table>
+    <p class="nota">Hoje no ar: 7 templates de análise, 2 roteiros, o design system e 75 entradas de conhecimento (32 no nível 0).</p>
   </div>
-  <p class="sub" style="margin-top:20px">Fonte: <code>witly-templates/PLANO.md</code>, <code>constitution.md</code>, <code>specs/001-fase1-mcp-templates/</code>. Este desenho é atualizado ao fechar cada fase.</p>
+  <p class="sub" style="margin-top:20px">Fonte: <code>witly-templates/specs/</code> (uma pasta por spec, com <code>spec.md</code>, <code>tasks.md</code> e <code>evidencias*.md</code>) e <code>constitution.md</code>. Este desenho é atualizado ao fechar cada fase.</p>
 </main>
 </body>
 </html>
