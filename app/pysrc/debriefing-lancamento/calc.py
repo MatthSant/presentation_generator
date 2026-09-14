@@ -348,14 +348,35 @@ def load_nao_inscritos(path):
     }
 
 
+class MetasVazias(Exception):
+    """O CSV de metas foi passado mas não sobrou nada de usável. O debriefing inteiro
+    se compara contra meta: seguir sem elas produz um relatório completo, bonito e com
+    todo o atingimento zerado — e quem lê não tem como saber. Estourar é o certo."""
+
+
 def load_goals(path, fc, meta_vendas_canal=None, meta_vendas_temp=None):
     try:
         rows = load_rows(path)
-    except Exception:
-        return None
-    rows = [r for r in rows if not fc or r.get('field_conversion') == fc]
+    except Exception as e:
+        raise MetasVazias(f'não consegui ler o CSV de metas ({path}): {e}') from e
     if not rows:
-        return None
+        raise MetasVazias(f'o CSV de metas ({path}) não tem nenhuma linha. '
+                          'Refaça a goals.sql — wtl_launch_goals pode estar vazia para este lançamento.')
+    if fc:
+        do_lcto = [r for r in rows if r.get('field_conversion') == fc]
+        if not do_lcto:
+            # Mesmo tratamento que o dump dá a um field_conversion defasado: a goals.sql
+            # roda por lançamento, então um CSV com um único valor (ou sem a coluna) é
+            # este lançamento com o nome escrito diferente. Com vários, não dá pra adivinhar.
+            presentes = sorted({(r.get('field_conversion') or '').strip() for r in rows})
+            if len(presentes) > 1:
+                raise MetasVazias(
+                    f"nenhuma linha do CSV de metas casa field_conversion='{fc}', e o CSV tem "
+                    f"mais de um lançamento ({', '.join(presentes)}). Refaça a goals.sql com o "
+                    'mesmo field_conversion do dump.')
+            rows = rows
+        else:
+            rows = do_lcto
     by_canal = {}
     for r in rows:
         src = (r.get('utm_source') or '').strip()
@@ -470,6 +491,15 @@ def metrics(rows, config=None, goals=None, hist=None, ni=None):
     M['retorno_tot'] = round(M['fat_tot'] - invest_total, 2)
     M['roi_tot'] = pct(M['retorno_tot'], invest_total)
     M['ticket_tot'] = div(M['fat_tot'], M['vendas_tot'])
+    # Produto principal × downsell no lançamento INTEIRO (fat_sale/fat_dsell cobrem só o
+    # inscrito). O atingimento conta toda venda, e a diferença de ticket entre as duas é
+    # grande o bastante para mudar a leitura: quem olha "vendas vs meta" precisa ver isso.
+    M['vendas_sale_tot'] = M['vendas_sale'] + M['ni_vendas_sale']
+    M['fat_sale_tot'] = round(M['fat_sale'] + M['ni_fat_sale'], 2)
+    M['vendas_dsell_tot'] = M['vendas_tot'] - M['vendas_sale_tot']
+    M['fat_dsell_tot'] = round(M['fat_tot'] - M['fat_sale_tot'], 2)
+    M['ticket_sale_tot'] = div(M['fat_sale_tot'], M['vendas_sale_tot'])
+    M['ticket_dsell_tot'] = div(M['fat_dsell_tot'], M['vendas_dsell_tot'])
 
     total_meta_vendas = sum((G.get('meta_vendas_canal') or {}).values()) or G.get('vendas') or 0
     M['at_leads'] = pct(leads_total, G.get('leads')) if G.get('leads') else None

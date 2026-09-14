@@ -34,7 +34,7 @@ WHERE <filtro do funil> = '<field_conversion>';
 |---|---|---|---|
 | 1 | **Investimento de captação > 0** | nenhuma campanha casou o `cpt_pattern` | volte à tarefa `classificacao`: é a causa de ROAS, CPL, CPMQL, CPM e CPC zerados de uma vez |
 | 2 | **Nenhuma campanha com investimento ficou em "outro"** | sobrou campanha com gasto sem tipo | decida com o consultor: é captação ou é venda? Acrescente o trecho ao padrão certo |
-| 3 | **Investimento do dump ≈ mídia bruta** | o dump traz bem menos (ex.: metade) | a view de inscrições atribui mídia ao inscrito por UTM e perde o gasto que não casou. Diga o tamanho da diferença ao consultor antes de seguir |
+| 3 | **Investimento do dump ≈ mídia bruta** | o dump traz bem menos (ex.: metade) | no funil pago, é quase sempre a `dump.sql` usada no lugar da `dump_pago.sql` (ver "Funil pago"). No clássico, a view atribui mídia ao inscrito por UTM e perde o gasto que não casou: diga o tamanho da diferença ao consultor antes de seguir |
 | 4 | **Metas carregadas** | `goals.csv` sem linha, ou metas zeradas no relatório | compare a coluna `field_conversion` do `goals.csv` com a do dump: valor diferente, coluna vazia ou ausente descarta tudo em silêncio |
 | 5 | **Leads de tráfego > 0** | `leads_trafego` zerado | sem ele o CPL não fecha; confirme se a coluna existe nesta base |
 | 6 | **Recorte de público preenchido** | a aba Público do Gargalos vem vazia ou só com "Não trackeado" | `field_adset_name` não veio no dump: confira a lista de colunas da `dump.sql` |
@@ -56,9 +56,14 @@ WHERE <filtro do funil> = '<field_conversion>';
 Feche perguntando com todas as letras: **"esses números batem com o que você vê no painel? Posso gerar?"**
 
 ## Funil pago
-Neste lançamento a captação é **vender ingresso**: as campanhas de ingresso entram no `cpt_pattern`, e venda do
+No lançamento pago a captação é **vender ingresso**: as campanhas de ingresso entram no `cpt_pattern`, e venda do
 produto principal, order bump e distribuição de conteúdo ficam fora do CPL. Confirme a lista com o consultor,
-campanha por campanha, e confirme também qual view traz o investimento completo.
+campanha por campanha.
+
+E confirme que o dump veio da `dump_pago.sql`, não da `dump.sql`. A query do funil pago filtra por
+`COALESCE(conversion_traf, field_conversion)` porque a linha que vem só do tráfego tem `field_conversion` vazio.
+Sem isso a checagem 3 falha por construção: medido em `lcto-ideia-workshop-jun-26`, R$ 24.595,03 no dump contra
+R$ 52.076,52 na mídia bruta — 53% do investimento fora do relatório, sem nenhum erro na tela.
 
 ## Casos ambíguos
 - Diferença pequena entre dump e mídia bruta (poucos por cento) costuma ser gasto sem UTM; diga e siga.

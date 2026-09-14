@@ -1,6 +1,23 @@
 # Classificação: fonte paga, campanha de captação, campanha de vendas
 
-**Saída:** `config.paid_sources`, `config.cpt_pattern`, `config.vnd_pattern`. **Confirmar com o consultor** — é o erro mais comum do debriefing.
+**Saída:** a escolha do dump (clássico × pago) + `config.paid_sources`, `config.cpt_pattern`, `config.vnd_pattern`. **Confirmar com o consultor** — é o erro mais comum do debriefing.
+
+## Primeiro: qual funil, e portanto qual dump
+Antes de classificar campanha, decida com o consultor se o lançamento é **clássico** (o lead se inscreve de
+graça) ou **pago** (o lead compra o ingresso). Isso escolhe a query, e a query errada não dá erro — dá um
+número menor.
+
+| Funil | Query | View |
+|---|---|---|
+| Clássico | `dump.sql` | `VW_V2_inscricoes_res` |
+| Pago | `dump_pago.sql` | `VW_V2_inscricoes_pago_res`, filtrada por `COALESCE(conversion_traf, field_conversion)` |
+
+As duas salvam como `dump.csv` e têm as mesmas colunas: o motor não muda.
+
+O COALESCE não é detalhe. No pago, a linha que vem só do tráfego tem `field_conversion` vazio e
+`conversion_traf` preenchido. Filtrar só por `field_conversion` descarta essas linhas e leva junto metade
+da mídia — medido em `lcto-ideia-workshop-jun-26`: **R$ 24.595,03 contra R$ 52.076,52 reais**. Com o
+COALESCE o total bate ao centavo com `VW_V2_invest_traf`.
 
 ## Definição
 O motor precisa separar três coisas para os números fazerem sentido:
@@ -39,6 +56,8 @@ GROUP BY 1, 2 ORDER BY 3 DESC;
 - Google Search de captação: `google-search-` já está no padrão.
 
 ## Saída (formato exato)
+Registre também, em prosa para a conferência, qual dump foi usado.
+
 ```json
 "paid_sources": ["facebook", "meta", "google", "fb"],
 "cpt_pattern": ["cadastro-", "google-search-", "-cpt]"],

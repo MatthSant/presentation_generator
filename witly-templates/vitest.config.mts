@@ -26,6 +26,12 @@ export default defineConfig(async () => {
     test: {
       include: ['test/**/*.test.ts'],
       setupFiles: ['./test/apply-migrations.ts'],
+      // Cada teste sobe um worker com D1/KV/DO isolados. Sozinho, um caso roda em ~500ms;
+      // com os 21 arquivos em paralelo a contenção passa dos 5000ms padrão e o suite falha
+      // um punhado de casos diferentes a cada rodada — sinal aleatório, que é pior que
+      // nenhum. 20s dá folga para a contenção sem esconder um teste de fato travado.
+      testTimeout: 20_000,
+      hookTimeout: 20_000,
     },
   };
 });

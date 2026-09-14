@@ -35,6 +35,13 @@
       "desc": "Uma linha por utm_source × campanha × anúncio × dia, da view VW_V2_inscricoes_res (funil, vendas, mídia, reembolsos)."
     },
     {
+      "id": "dump_pago",
+      "file": "queries/dump_pago.sql",
+      "title": "Consolidado do lançamento PAGO (no lugar do dump, quando o funil é pago)",
+      "saida": "dump.csv",
+      "desc": "Mesmas colunas, da view VW_V2_inscricoes_pago_res. O filtro usa COALESCE(conversion_traf, field_conversion): sem ele a linha que vem só do tráfego some e leva junto metade da mídia."
+    },
+    {
       "id": "goals",
       "file": "queries/goals.sql",
       "title": "Metas do lançamento (launch goals) — OBRIGATÓRIO",
@@ -164,7 +171,7 @@
   },
   "como_gerar": [
     "1. Execute as tarefas (tarefas/*.md) com o consultor e monte config.json.",
-    "2. Rode as queries no Delfos (montar_query devolve o SQL preenchido): dump.csv e goals.csv (obrigatório); hist.csv se houver lançamento anterior; nao_inscritos.csv quase sempre (vendas do funil feitas por quem não se inscreveu).",
+    "2. Rode as queries no Delfos (montar_query devolve o SQL preenchido): dump.csv — dump.sql se o funil é clássico, dump_pago.sql se é pago (a tarefa `classificacao` decide) — e goals.csv (obrigatório); hist.csv se houver lançamento anterior; nao_inscritos.csv quase sempre (vendas do funil feitas por quem não se inscreveu).",
     "3. Antes de gerar: rode a tarefa `conferencia` e mostre a tabela ao consultor. Investimento de captação zerado, campanha com gasto em \"outro\", dump muito abaixo da mídia bruta ou metas sem linha = NÃO gere; volte à classificação ou à query.",
     "4. python python/gerar.py --config config.json --csv dump.csv --goals goals.csv [--hist hist.csv] [--ni nao_inscritos.csv] --out saida/ [--opts '{\"filters\":{\"canal\":[\"facebook\"]}}']",
     "5. Abra saida/relatorio.html (6 páginas, a última é o One Pager; filtros tipo/canal/temperatura/campanha/público/criativo em cascata e combináveis, pré-calculados). Os números estão em saida/numeros.json.",

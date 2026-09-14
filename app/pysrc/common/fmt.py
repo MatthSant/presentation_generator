@@ -16,6 +16,16 @@ def money(v):
     return f'R$ {v:.2f}'.replace('.', ',')
 
 
+def money_exact(v):
+    """Reais sem abreviar. money() encurta acima de mil, o que num valor UNITÁRIO (ticket,
+    saldo, posição de caixa) apaga o que importa: R$ 1.495,00 vira "R$ 1k". Use este
+    quando o número é uma decisão em reais, não uma ordem de grandeza."""
+    if v is None:
+        return '—'
+    s = f'{abs(v):,.2f}'.replace(',', '§').replace('.', ',').replace('§', '.')
+    return f"{'-' if v < 0 else ''}R$ {s}"
+
+
 def pctf(v): return '—' if v is None else f'{v:.1f}%'
 def xf(v): return '—' if v is None else f'{v:.2f}×'
 def intf(v): return f'{int(v or 0):,}'.replace(',', '.')

@@ -12,7 +12,7 @@ sys.path.insert(0, _here)
 sys.path.insert(0, os.path.dirname(_here))
 import calc
 from common.layout import Grid
-from common.fmt import money, pctf, xf, intf
+from common.fmt import money, money_exact, pctf, xf, intf
 from common.preserve import preserve, preserve_dataset, preserve_layout, write_json
 # Builders de card/seção + motor de comparação Meta×Histórico — fonte canônica em common.report.
 from common.report import (dev as _dev, gstatus as _gstatus, goalcmp as _goalcmp,
@@ -186,6 +186,15 @@ def assemble(rows, config, content, opts=None):
     ks(pan, pg, 'pan-v-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
     pan[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
     ks(pan, pg, 'pan-v-vendas', 'Vendas', intf(M['vendas_tot']), (f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}" + (f" · não inscritos {intf(M['ni_vendas'])}" if M.get('tem_ni') else '')), 'shopping-cart', '#534AB7', real=M['vendas_tot'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
+    if M.get('vendas_dsell_tot'):
+        # O atingimento de vendas conta tudo; sem esta nota ninguém vê que o volume que
+        # fecha a meta pode ser downsell a um ticket que não paga a mesma conta.
+        _dn = (f"Das {intf(M['vendas_tot'])} vendas, {intf(M['vendas_sale_tot'])} são do produto principal "
+               f"({money(M['fat_sale_tot'])}, ticket {money_exact(M['ticket_sale_tot'])}) e "
+               f"{intf(M['vendas_dsell_tot'])} são downsell ({money(M['fat_dsell_tot'])}, ticket "
+               f"{money_exact(M['ticket_dsell_tot'])}). A meta conta as duas: se ela foi definida para o produto "
+               "principal, compare contra as do principal.")
+        pan[-1]['info'] = _dn
 
     eb(pan, pg, 'pan-eb-cmp', 'COMPARATIVO — REALIZADO vs META', 'indicadores na ordem do funil')
     # Barras de atingimento (widget meta-bars), na ordem do FUNIL: verba → leads (+CPL)
@@ -1201,8 +1210,8 @@ def assemble(rows, config, content, opts=None):
 
     eb(op, opg, 'op-eb-glob', 'INDICADORES GLOBAIS', 'atingimento de metas + resultado macro do lançamento')
     op_band('op-at-leads', 'Atingimento · Leads', M['leads_total'], G.get('leads'), M['at_leads'], at_tone(M['at_leads']), x=0, y=1)
-    op_band('op-at-vendas', 'Atingimento · Vendas', M['vendas_total'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']), x=0, y=3)
-    km(op, opg, 'op-k-fat', 'Faturamento Bruto', money(M['fat']),
+    op_band('op-at-vendas', 'Atingimento · Vendas', M['vendas_tot'], mv_meta, M['at_vendas'], at_tone(M['at_vendas']), x=0, y=3)
+    km(op, opg, 'op-k-fat', 'Faturamento Bruto', money(M['fat_tot']),
        (f"Principal {money(M['fat_sale'])} · Downsell {money(M['fat_dsell'])}" + (f" · não inscritos {money(M['ni_fat'])}" if M.get('tem_ni') else "")), 'coin', '#3B6D11',
        real=M['fat_tot'], meta=G.get('fat'), hist=H.get('fat'), w=2, x=6, y=1, meta_fmt=money(G.get('fat')) if G.get('fat') else None,
        hist_fmt=(money(H.get('fat')) if H.get('fat') else None))
@@ -1216,13 +1225,13 @@ def assemble(rows, config, content, opts=None):
     km(op, opg, 'op-k-conv', 'Conversão Geral', pctf(M['conv_geral']),
        f"pago {pctf(M['conv_pago'])} · org {pctf(M['conv_org'])}", 'circle-check', '#3B6D11', w=2, x=10, y=1,
        real=M['conv_geral'], meta=G.get('conv'), meta_fmt=(pctf(G.get('conv')) if G.get('conv') else None))
-    km(op, opg, 'op-k-ret', 'Retorno Bruto', money(M['retorno']), '', 'database', '#534AB7', w=2, x=6, y=3,
+    km(op, opg, 'op-k-ret', 'Retorno Bruto', money(M['retorno_tot']), '', 'database', '#534AB7', w=2, x=6, y=3,
        real=M['retorno_tot'], meta=retorno_meta, hist=retorno_h,
        meta_fmt=(money(retorno_meta) if retorno_meta is not None else None),
        hist_fmt=(money(retorno_h) if retorno_h is not None else None))
     op[-1]['emph'] = True
     op[-1]['info'] = 'Indicador calculado: faturamento total − investimento total. Lucro bruto da campanha, antes de impostos e demais custos.'
-    km(op, opg, 'op-k-roi', 'ROI Global', f"{M['roi']:.0f}%", 'retorno líq. / R$1 investido', 'trending-up', '#185FA5', w=2, x=8, y=3,
+    km(op, opg, 'op-k-roi', 'ROI Global', f"{M['roi_tot']:.0f}%", 'retorno líq. / R$1 investido', 'trending-up', '#185FA5', w=2, x=8, y=3,
        real=M['roi_tot'], meta=roi_meta, hist=roi_h,
        meta_fmt=(f"{roi_meta:.0f}%" if roi_meta is not None else None),
        hist_fmt=(f"{roi_h:.0f}%" if roi_h is not None else None))
@@ -1249,7 +1258,16 @@ def assemble(rows, config, content, opts=None):
     ks(op, opg, 'op-v-qual', 'Qualificação', pctf(M['qual']), f"{intf(M['mqls_total'])} MQLs / {intf(M['resps_total'])} resp.", 'star', '#854F0B', real=M['qual'], meta=G.get('qual'), hist=H.get('qual'), meta_fmt=(pctf(G.get('qual')) if G.get('qual') else None), hist_fmt=(pctf(H.get('qual')) if H.get('qual') else None))
     ks(op, opg, 'op-v-cpmql', 'CPMQL', money(M['cpmql']), '', 'star', '#854F0B', real=M['cpmql'], meta=G.get('cpmql'), invert=True, hist=H.get('cpmql'), meta_fmt=(money(G.get('cpmql')) if G.get('cpmql') else None), hist_fmt=(money(H.get('cpmql')) if H.get('cpmql') else None))
     op[-1]['info'] = 'Indicador calculado: CPL ÷ taxa de qualificação paga. Custo por lead qualificado (MQL).'
-    ks(op, opg, 'op-v-vendas', 'Vendas', intf(M['vendas_total']), f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}", 'shopping-cart', '#534AB7', real=M['vendas_total'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
+    ks(op, opg, 'op-v-vendas', 'Vendas', intf(M['vendas_tot']), (f"pago {intf(M['vendas_pago'])} · org {intf(M['vendas_org'])}" + (f" · não inscritos {intf(M['ni_vendas'])}" if M.get('tem_ni') else '')), 'shopping-cart', '#534AB7', real=M['vendas_tot'], meta=mv_meta, hist=H.get('vendas'), meta_fmt=(intf(mv_meta) if mv_meta else None), hist_fmt=(intf(H.get('vendas')) if H.get('vendas') else None))
+    if M.get('vendas_dsell_tot'):
+        # O atingimento de vendas conta tudo; sem esta nota ninguém vê que o volume que
+        # fecha a meta pode ser downsell a um ticket que não paga a mesma conta.
+        _dn = (f"Das {intf(M['vendas_tot'])} vendas, {intf(M['vendas_sale_tot'])} são do produto principal "
+               f"({money(M['fat_sale_tot'])}, ticket {money_exact(M['ticket_sale_tot'])}) e "
+               f"{intf(M['vendas_dsell_tot'])} são downsell ({money(M['fat_dsell_tot'])}, ticket "
+               f"{money_exact(M['ticket_dsell_tot'])}). A meta conta as duas: se ela foi definida para o produto "
+               "principal, compare contra as do principal.")
+        op[-1]['info'] = _dn
     # ── Perguntas Estratégicas — logo após os KPIs iniciais ──
     eb(op, opg, 'op-eb-strat', 'PERGUNTAS ESTRATÉGICAS', 'leitura rápida do lançamento')
     op.append({'id': 'op-strat', 'type': 'strat-grid', 'cols': _strat_questions(M, G, H)}); opg.add('op-strat', 'strat-grid', 12, 4)

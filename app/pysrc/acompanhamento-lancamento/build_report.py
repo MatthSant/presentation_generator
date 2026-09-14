@@ -17,7 +17,7 @@ sys.path.insert(0, _here)
 sys.path.insert(0, os.path.dirname(_here))   # pysrc/ → pacote common
 import calc
 from common.layout import Grid
-from common.fmt import money, pctf, intf
+from common.fmt import money, money_exact, pctf, intf
 from common.preserve import preserve, preserve_dataset, preserve_layout, write_json
 # Builders de seção compartilhados. O kpi-card fica no `kcard()` local: o semáforo
 # tático (meta_status 5/15% + flag 3d) tem semântica própria — não é o goalCmp
@@ -106,13 +106,6 @@ INFO = {
              'assistir (passaram dos 3s), quantos seguraram até 75% do vídeo — o quanto o '
              'conteúdo sustenta a atenção. Diferente do "Hold Rate" da Meta Ads.'),
 }
-
-
-def money_exact(v):
-    if v is None:
-        return '—'
-    s = f'{abs(v):,.2f}'.replace(',', '§').replace('.', ',').replace('§', '.')
-    return f"{'-' if v < 0 else ''}R$ {s}"
 
 
 def vfmt(metric, v, pago=False):
