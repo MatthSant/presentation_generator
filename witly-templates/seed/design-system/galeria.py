@@ -138,7 +138,8 @@ def main(argv=None):
         el['sort'] = i
         with open(os.path.join(a.out, f'{eid}.json'), 'w', encoding='utf-8') as f:
             json.dump(el, f, ensure_ascii=False, indent=1)
-    print(f'{len(ELEMENTOS)} elementos → {a.out}')
+    # buffer.write, não print: o console cp1252 do Windows não encoda a seta e derruba o seed
+    sys.stdout.buffer.write((f'{len(ELEMENTOS)} elementos → {a.out}' + chr(10)).encode('utf-8'))
     return 0
 
 
