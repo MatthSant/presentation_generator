@@ -114,13 +114,18 @@ export async function comecePorAqui(env: ToolEnv, user: ToolUser): Promise<strin
   o.push('`detalhe:"indice"` devolve só títulos (varredura barata); `detalhe:"completo"` devolve o corpo. Nada encontrado? Afrouxe os filtros. Continua vazio e você precisava daquilo? É uma lacuna real — proponha com `sugerir`.', '');
 
   o.push('## Entregar a análise ao cliente', '');
-  o.push('O relatório fica no seu disco. Para o cliente ver, ele vai para o **Insights**:', '');
-  o.push('1. `insights_destino({cliente:"…"})` — acha o projeto certo (só lê).');
-  o.push('2. `insights_preparar({projeto:<id>, nome:"…"})` — cria o documento e devolve um `curl`. **Rode você o curl**: o relatório tem alguns MB e não pode passar por argumento de tool, que é texto gerado por você. O arquivo sai da máquina direto para o servidor.');
-  o.push('3. **Pergunte ao consultor se pode publicar.** Só com o sim dele: `insights_publicar({documento:<id>, consultor_pediu:true})`. Até aqui o cliente não viu nada; publicar é imediato para ele e não se desfaz sem ele ter visto. A decisão de entregar é do consultor, nunca sua.');
-  o.push('Para substituir a análise de um documento que já existe, passe `documento:<id>` no preparar e publique de novo. `insights_link` gera link público com prazo e senha.', '');
-  o.push('O `nome` do documento é o que o cliente lê na área dele: escreva como escreveria num e-mail para ele — "Debriefing · Cria abr/26", não `lcto-cria-abr-26`. Identificador técnico ali é recusado.', '');
-  o.push('Se o login for compartilhado (`projetos@witly.digital`), **pergunte ao consultor o e-mail dele** e mande em `autor` — é esse nome que assina no histórico do cliente.', '');
+  o.push('O relatório fica no seu disco. Para o cliente ver, ele vai para o **Insights** — e isso é uma conversa em etapas, não um comando só. Chame `entregar_analise` a cada passo: ela descobre sozinha em que ponto você está (o documento existe? tem arquivo no rascunho? já está no ar?) e diz o próximo.', '');
+  o.push('```');
+  o.push('entregar_analise({})                                     // 1. onde publicar');
+  o.push('entregar_analise({projeto:34, nome:"Debriefing · Cria abr/26"})   // 2. devolve o curl');
+  o.push('   … você roda o curl no terminal …');
+  o.push('entregar_analise({documento:99})                         // 3. confere e manda perguntar');
+  o.push('entregar_analise({documento:99, consultor_pediu:true})   // 4. publica');
+  o.push('```', '');
+  o.push('Duas coisas que a tool não deixa passar, e com razão:', '');
+  o.push('- **O arquivo não passa por você.** O relatório tem alguns MB e argumento de tool é texto que você gera. O `curl` da etapa 2 manda o arquivo da máquina direto para o servidor.');
+  o.push('- **Publicar é decisão do consultor.** A etapa 3 para e manda perguntar; sem `consultor_pediu:true` a etapa 4 é recusada. Publicar põe a análise na frente do cliente na hora e não se desfaz sem ele ter visto.', '');
+  o.push('O `nome` é o que o cliente lê na área dele: escreva como escreveria num e-mail para ele — "Debriefing · Cria abr/26", nunca `lcto-cria-abr-26`. Identificador técnico ali é recusado. Se o login for compartilhado (`projetos@witly.digital`), pergunte o e-mail de quem está entregando e mande em `autor`.', '');
   o.push('## Devolver o que aprendeu (é isto que mantém o Grimório vivo)', '');
   o.push('- **`registrar({evento:"geracao"|"aprofundamento", …, usadas:[{id, ajudou}]})`** — `usadas` é o que diz quais entradas de conhecimento realmente entraram na análise. Sem isso ninguém sabe o que está servindo e o que é peso morto.');
   o.push('- **`registrar({evento:"feedback", …})`** ao fechar com o consultor: o que segurou bem, cada ajuste que custou rodada, e a nota. É assim que o template melhora.');

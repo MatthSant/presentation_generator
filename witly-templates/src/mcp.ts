@@ -11,7 +11,7 @@ import { listarConhecimento } from './db/conhecimento.js';
 import { confirmar, conhecimento, sugerir as sugerirConhecimento } from './kit/conhecimento-tools.js';
 import { DOMINIOS, FAMILIAS, GATILHOS, NIVEIS, TIPO_NOMES } from './kit/conhecimento.js';
 import { proporVersao } from './kit/versao-proposta.js';
-import { insightsDestino, insightsLink, insightsPreparar, insightsPublicar } from './kit/insights.js';
+import { entregarAnalise } from './kit/insights.js';
 import { comecePorAqui, guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
 import { avaliar, registrar, sugerir } from './kit/activity.js';
 import { removerTemplate, salvarTemplate } from './kit/personal.js';
@@ -194,47 +194,21 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
       },
     }, async (a) => this.run((u) => proporVersao(this.env, u, a as never)));
 
-    this.server.registerTool('insights_destino', {
-      description: 'Onde a análise vai ser publicada no Insights: navega Cliente → Projeto → Documento. Chame sem argumento para os clientes, com `cliente` para os projetos, com os dois para os documentos. Só lê — não move arquivo. Use antes de `insights_preparar` quando não souber o id do projeto.',
+    this.server.registerTool('entregar_analise', {
+      description: 'Entrega a análise pronta ao cliente pelo Insights, em ETAPAS. Chame a mesma tool a cada passo: ela descobre em que ponto você está olhando o estado real (o documento existe? tem arquivo no rascunho? já está no ar?) e diz o que fazer em seguida. 1) sem argumento → onde publicar · 2) com projeto e nome → devolve o `curl` para VOCÊ subir os arquivos da sua máquina (o relatório tem MB: não me mande o conteúdo) · 3) com documento → confere o rascunho e manda você PERGUNTAR ao consultor · 4) com consultor_pediu:true → publica e devolve o endereço · 5) com link → link público. Publicar é imediato para o cliente: nunca antes de ele pedir.',
       inputSchema: {
-        cliente: z.string().optional().describe('id ou nome do cliente'),
-        projeto: z.string().optional().describe('id ou nome do projeto'),
-        autor: z.string().optional().describe('e-mail de QUEM está publicando. Obrigatório quando o login é compartilhado (projetos@witly.digital) — é este nome que assina no histórico do cliente'),
-      },
-    }, async (a) => this.run((u) => insightsDestino(this.env, u, a as never)));
-
-    this.server.registerTool('insights_preparar', {
-      description: 'Cria (ou reusa) o documento no Insights e devolve o comando de UPLOAD para você rodar no terminal. NÃO me mande o conteúdo do relatório: ele tem alguns MB e argumento de tool é texto que você gera — estoura o contexto. O arquivo sai da sua máquina direto para o servidor por uma URL assinada que vale 30 minutos. Tudo cai no rascunho: o cliente não vê nada até o `insights_publicar`.',
-      inputSchema: {
-        projeto: z.union([z.string(), z.number()]).optional().describe('id do projeto (ou nome, junto com `cliente`)'),
-        cliente: z.string().optional().describe('id ou nome do cliente, se for achar o projeto pelo nome'),
-        documento: z.number().optional().describe('id de um documento que já existe, para SUBSTITUIR a análise dele'),
-        nome: z.string().optional().describe('nome do documento novo — é o que o cliente vê na lista'),
+        cliente: z.string().optional().describe('id ou nome do cliente (etapa 1)'),
+        projeto: z.union([z.string(), z.number()]).optional().describe('id do projeto onde criar o documento (ou nome, junto com `cliente`)'),
+        documento: z.number().optional().describe('id de um documento existente: para continuar o fluxo ou SUBSTITUIR a análise dele (o link do cliente não muda)'),
+        nome: z.string().optional().describe('nome do documento novo — é o que o CLIENTE lê na lista dele. Escreva como num e-mail para ele ("Debriefing · Cria abr/26"), nunca o identificador técnico'),
         tipo: z.string().optional().describe("tipo do documento (padrão 'analise')"),
-        autor: z.string().optional().describe('e-mail de QUEM está publicando. Obrigatório quando o login é compartilhado (projetos@witly.digital) — é este nome que assina no histórico do cliente'),
-      },
-    }, async (a) => this.run((u) => insightsPreparar(this.env, u, a as never)));
-
-    this.server.registerTool('insights_publicar', {
-      description: 'Põe o rascunho no ar e devolve o endereço que o cliente abre. SÓ CHAME DEPOIS DE O CONSULTOR PEDIR: publicar é imediato para o cliente e não se desfaz sem ele ter visto. Mostre o que está no rascunho, pergunte, e só então chame com `consultor_pediu:true`. Se o documento tiver mais de um arquivo que possa ser a página principal, diga qual em `principal`.',
-      inputSchema: {
-        documento: z.number().describe('id devolvido pelo insights_preparar'),
-        consultor_pediu: z.boolean().optional().describe('true só depois de o consultor dizer que pode publicar. Sem isso a chamada é recusada — a decisão de entregar é dele'),
-        principal: z.string().optional().describe("qual arquivo é a página do documento, ex.: 'relatorio.html'"),
+        autor: z.string().optional().describe('e-mail de QUEM está entregando. Obrigatório quando o login é compartilhado (projetos@witly.digital) — é este nome que assina no histórico do cliente'),
+        consultor_pediu: z.boolean().optional().describe('true só depois de o consultor dizer que pode publicar. É o que libera a etapa 4'),
+        principal: z.string().optional().describe("qual arquivo é a página do documento, ex.: 'relatorio.html' (só quando houver mais de um candidato)"),
         cliente_ve: z.boolean().optional().describe('padrão true: o cliente dono passa a ver na área dele. false = no ar, mas só por link'),
-        autor: z.string().optional().describe('e-mail de QUEM está publicando. Obrigatório quando o login é compartilhado (projetos@witly.digital) — é este nome que assina no histórico do cliente'),
+        link: z.object({ expira_em: z.string().optional(), senha: z.string().optional() }).optional().describe('etapa 5: link público de um documento já publicado'),
       },
-    }, async (a) => this.run((u) => insightsPublicar(this.env, u, a as never)));
-
-    this.server.registerTool('insights_link', {
-      description: 'Link público de um documento JÁ publicado, com prazo e senha opcionais. Link de documento fora do ar nasce morto e a API recusa.',
-      inputSchema: {
-        documento: z.number().describe('id do documento'),
-        expira_em: z.string().optional().describe('AAAA-MM-DD'),
-        senha: z.string().optional().describe('senha do link; mande-a ao cliente por outro canal'),
-        autor: z.string().optional().describe('e-mail de QUEM está publicando. Obrigatório quando o login é compartilhado (projetos@witly.digital) — é este nome que assina no histórico do cliente'),
-      },
-    }, async (a) => this.run((u) => insightsLink(this.env, u, a as never)));
+    }, async (a) => this.run((u) => entregarAnalise(this.env, u, a as never)));
 
     this.server.registerTool('quem_sou', {
       description: 'Identidade do usuário logado neste MCP (diagnóstico).',

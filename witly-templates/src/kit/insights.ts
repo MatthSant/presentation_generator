@@ -99,51 +99,6 @@ interface Eu { email: string; name: string; role: string; poderes: string[]; env
 
 const lista = <T>(v: unknown): T[] => (Array.isArray(v) ? v as T[] : ((v as { items?: T[] })?.items ?? []));
 
-// ── destino: onde publicar ───────────────────────────────────────────────────
-
-export interface DestinoInput { cliente?: string; projeto?: string; autor?: string }
-
-/** Navega Cliente → Projeto → Documento. Só JSON pequeno: é o passo de DECIDIR onde a
- *  análise vai, antes de mover qualquer arquivo. */
-export async function insightsDestino(env: ToolEnv & InsightsEnv, user: ToolUser, input: DestinoInput): Promise<string> {
-  const autor = autorDe(user, input.autor);
-  await logUsage(env.DB, { email: user.email, tool: 'insights_destino' });
-  const o: string[] = [];
-
-  if (!input.cliente) {
-    const cs = lista<Cliente>(await api(env, '/clients', { autor }));
-    o.push(`# Clientes no Insights (${cs.length}) — assinando como \`${autor}\``, '');
-    if (!cs.length) o.push('_(nenhum cliente que essa pessoa alcance — confira o acesso dela no Insights)_');
-    for (const c of cs) o.push(`- \`${c.id}\` ${c.name}`);
-    o.push('', 'Escolha um e chame de novo com `cliente:"<id ou nome>"` para ver os projetos.');
-    return o.join('\n');
-  }
-
-  const cs = lista<Cliente>(await api(env, '/clients', { autor }));
-  const cli = acha(cs, input.cliente, (x) => x.name);
-  if (!cli) throw new ToolError(`não achei o cliente "${input.cliente}". Chame sem o filtro de cliente para ver a lista inteira.`);
-
-  const ps = lista<Projeto>(await api(env, `/clients/${cli.id}/projects`, { autor }));
-  if (!input.projeto) {
-    o.push(`# ${cli.name} — ${ps.length} projeto(s)`, '');
-    for (const p of ps) o.push(`- \`${p.id}\` ${p.name}`);
-    if (!ps.length) o.push('_(nenhum projeto ainda)_');
-    o.push('', 'Chame de novo com `projeto:"<id ou nome>"` para ver os documentos, ou vá direto ao `insights_preparar`.');
-    return o.join('\n');
-  }
-
-  const prj = acha(ps, input.projeto, (x) => x.name);
-  if (!prj) throw new ToolError(`não achei o projeto "${input.projeto}" em ${cli.name}. Projetos: ${ps.map((p) => p.name).join(' · ') || '(nenhum)'}`);
-  const ts = lista<Documento>(await api(env, `/projects/${prj.id}/trackings`, { autor }));
-  o.push(`# ${cli.name} › ${prj.name} — ${ts.length} documento(s)`, '');
-  for (const t of ts) {
-    o.push(`- \`${t.id}\` **${t.name}**${t.published_at ? ` · no ar em https://insights.witly.com.br/v/${t.code}/` : ' · _nunca publicado_'}`);
-  }
-  if (!ts.length) o.push('_(nenhum documento ainda — o `insights_preparar` cria)_');
-  o.push('', `Para publicar uma análise aqui: \`insights_preparar({projeto:${prj.id}, nome:"…"})\` (ou \`documento:<id>\` para substituir a análise de um que já existe).`);
-  return o.join('\n');
-}
-
 function acha<T>(itens: T[], busca: string, nome: (x: T) => string): T | undefined {
   const b = String(busca).trim().toLowerCase();
   const porId = itens.find((x) => String((x as { id: number }).id) === b);
@@ -151,106 +106,169 @@ function acha<T>(itens: T[], busca: string, nome: (x: T) => string): T | undefin
   return itens.find((x) => nome(x).toLowerCase() === b) ?? itens.find((x) => nome(x).toLowerCase().includes(b));
 }
 
-// ── preparar: cria (ou reusa) o documento e devolve como subir os arquivos ────
+// ── entregar_analise: uma conversa em etapas ─────────────────────────────────
+//
+// Uma tool só, não quatro. As etapas não são independentes — "preparar" sozinho não
+// significa nada, e publicar antes do upload põe documento vazio na frente do cliente. Em
+// tools separadas a ordem fica por conta do agente; aqui ela é do servidor.
+//
+// A etapa não é declarada pelo agente: é DEDUZIDA do estado real no Insights (o documento
+// existe? tem arquivo no rascunho? já está no ar?). Então "já subi" e "já publiquei" são
+// verificados, não acreditados — que é a diferença entre um roteiro e uma lista de botões.
 
-export interface PrepararInput { projeto?: string | number; cliente?: string; documento?: number; nome?: string; tipo?: string; autor?: string }
+export interface EntregarInput {
+  cliente?: string;
+  projeto?: string | number;
+  documento?: number;
+  nome?: string;
+  tipo?: string;
+  autor?: string;
+  consultor_pediu?: boolean;
+  principal?: string;
+  cliente_ve?: boolean;
+  link?: { expira_em?: string; senha?: string };
+}
 
-export async function insightsPreparar(env: ToolEnv & InsightsEnv, user: ToolUser, input: PrepararInput): Promise<string> {
+interface Arquivo { path: string; version?: string }
+
+const cabeca = (etapa: string, de: number, autor: string): string[] =>
+  [`## Entrega da análise — etapa ${de} de 5: **${etapa}**`, '', `_assinando como \`${autor}\`_`, ''];
+
+export async function entregarAnalise(env: ToolEnv & InsightsEnv, user: ToolUser, input: EntregarInput): Promise<string> {
   const autor = autorDe(user, input.autor);
-  let doc: Documento;
+  await logUsage(env.DB, { email: user.email, tool: 'entregar_analise' });
 
+  // ── etapa 1: onde ──────────────────────────────────────────────────────────
+  if (!input.documento && !input.projeto) return await etapaOnde(env, autor, input);
+
+  // ── resolve o documento (cria se for novo) ─────────────────────────────────
+  let doc: Documento;
+  let recemCriado = false;
   if (input.documento) {
     doc = await api<Documento>(env, `/trackings/${input.documento}`, { autor });
   } else {
-    if (!input.projeto) throw new ToolError('diga em qual projeto: `projeto:<id>`. Não sabe? `insights_destino({cliente:"…"})` lista os projetos.');
     const nome = nomeDocumento(input.nome);
-    let projetoId = Number(input.projeto);
-    if (!Number.isFinite(projetoId)) {
-      if (!input.cliente) throw new ToolError('para achar o projeto pelo nome preciso também do `cliente`. Ou passe o id do projeto.');
-      const cs = lista<Cliente>(await api(env, '/clients', { autor }));
-      const cli = acha(cs, input.cliente, (x) => x.name);
-      if (!cli) throw new ToolError(`não achei o cliente "${input.cliente}".`);
-      const ps = lista<Projeto>(await api(env, `/clients/${cli.id}/projects`, { autor }));
-      const prj = acha(ps, String(input.projeto), (x) => x.name);
-      if (!prj) throw new ToolError(`não achei o projeto "${input.projeto}" em ${cli.name}.`);
-      projetoId = prj.id;
-    }
-    doc = await api<Documento>(env, `/projects/${projetoId}/trackings`, { metodo: 'POST', autor, corpo: { name: nome, type: input.tipo || 'analise' } });
+    const projetoId = await achaProjeto(env, autor, input);
+    doc = await api<Documento>(env, `/projects/${projetoId}/trackings`, {
+      metodo: 'POST', autor, corpo: { name: nome, type: input.tipo || 'analise' },
+    });
+    recemCriado = true;
   }
 
+  // ── o que já existe no rascunho decide a etapa ─────────────────────────────
+  const arquivos = await api<{ files?: Arquivo[] } | Arquivo[]>(env, `/trackings/${doc.id}/files`, { autor });
+  const todos: Arquivo[] = Array.isArray(arquivos) ? arquivos : (arquivos.files ?? []);
+  const staging = todos.filter((f) => !f.version || f.version === 'staging');
+
+  if (!staging.length) return await etapaSubir(env, autor, doc, recemCriado);
+  if (input.consultor_pediu === true) return await etapaPublicar(env, autor, doc, staging, input);
+  if (input.link && doc.published_at) return await etapaLink(env, autor, doc, input.link);
+  return await etapaConferir(env, autor, doc, staging);
+}
+
+async function achaProjeto(env: ToolEnv & InsightsEnv, autor: string, input: EntregarInput): Promise<number> {
+  const id = Number(input.projeto);
+  if (Number.isFinite(id)) return id;
+  if (!input.cliente) throw new ToolError('para achar o projeto pelo nome preciso também do `cliente` — ou passe o id do projeto.');
+  const cs = lista<Cliente>(await api(env, '/clients', { autor }));
+  const cli = acha(cs, input.cliente, (x) => x.name);
+  if (!cli) throw new ToolError(`não achei o cliente "${input.cliente}". Chame sem \`cliente\` e sem \`projeto\` para ver a lista.`);
+  const ps = lista<Projeto>(await api(env, `/clients/${cli.id}/projects`, { autor }));
+  const prj = acha(ps, String(input.projeto), (x) => x.name);
+  if (!prj) throw new ToolError(`não achei o projeto "${input.projeto}" em ${cli.name}. Projetos: ${ps.map((p) => p.name).join(' · ') || '(nenhum)'}`);
+  return prj.id;
+}
+
+async function etapaOnde(env: ToolEnv & InsightsEnv, autor: string, input: EntregarInput): Promise<string> {
+  const o = cabeca('onde a análise vai', 1, autor);
+  const cs = lista<Cliente>(await api(env, '/clients', { autor }));
+  if (!input.cliente) {
+    o.push(`${cs.length} cliente(s) que \`${autor}\` alcança:`, '');
+    for (const c of cs) o.push(`- \`${c.id}\` ${c.name}`);
+    if (!cs.length) o.push('_(nenhum — confira o acesso dessa pessoa no Insights)_');
+    o.push('', '**Próximo:** chame de novo com `cliente:"<id ou nome>"` para ver os projetos.');
+    return o.join('\n');
+  }
+  const cli = acha(cs, input.cliente, (x) => x.name);
+  if (!cli) throw new ToolError(`não achei o cliente "${input.cliente}". Chame sem argumento para ver a lista.`);
+  const ps = lista<Projeto>(await api(env, `/clients/${cli.id}/projects`, { autor }));
+  o.push(`**${cli.name}** — ${ps.length} projeto(s):`, '');
+  for (const p of ps) {
+    const ts = lista<Documento>(await api(env, `/projects/${p.id}/trackings`, { autor }));
+    o.push(`- \`${p.id}\` **${p.name}** — ${ts.length} documento(s)`);
+    for (const t of ts.slice(0, 6)) {
+      o.push(`    - \`${t.id}\` ${t.name}${t.published_at ? ' · no ar' : ' · _nunca publicado_'}`);
+    }
+  }
+  if (!ps.length) o.push('_(nenhum projeto ainda)_');
+  o.push('', '**Próximo:** documento NOVO → `{projeto:<id>, nome:"Debriefing · Cria abr/26"}`. '
+    + 'SUBSTITUIR a análise de um que já existe (o link do cliente não muda) → `{documento:<id>}`.');
+  return o.join('\n');
+}
+
+async function etapaSubir(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, novo: boolean): Promise<string> {
   const eu = await api<Eu>(env, '/me', { autor });
   const token = await signUpload(signingKey(env), doc.id, autor);
   const url = `${(env.PUBLIC_URL || '').replace(/\/$/, '')}/up/${doc.id}?t=${encodeURIComponent(token)}&a=${encodeURIComponent(autor)}`;
-  await logUsage(env.DB, { email: user.email, tool: 'insights_preparar' });
-
-  const o: string[] = [];
-  o.push(`Documento **${doc.name}** \`${doc.id}\` pronto para receber os arquivos${input.documento ? '' : ' (recém-criado)'}.`, '');
-  o.push('## Suba os arquivos DA SUA MÁQUINA (não me mande o conteúdo)', '');
-  o.push('O relatório tem alguns MB. Passar o arquivo por aqui seria texto gerado por mim: estoura o contexto e não é para ser feito. Rode isto no terminal, na pasta da análise:', '');
+  const o = cabeca('subir os arquivos', 2, autor);
+  o.push(`Documento **${doc.name}** \`${doc.id}\`${novo ? ' (recém-criado)' : ''} está vazio no rascunho.`, '');
+  o.push('**Rode este comando no terminal, na pasta da análise.** Não me mande o conteúdo do relatório: ele tem alguns MB, e argumento de tool é texto que você gera — o arquivo tem de sair da máquina direto para o servidor.', '');
   o.push('```bash');
   o.push(`curl -sS -X POST "${url}" \\`);
-  o.push('  -F "files=@relatorio.html"          # e um -F por arquivo extra, com o caminho relativo');
+  o.push('  -F "files=@relatorio.html"');
   o.push('```', '');
-  o.push(`O nome do arquivo **é** o caminho dentro do documento: \`-F "files=@assets/grafico.png"\` vive em \`assets/grafico.png\`, então os caminhos relativos do HTML continuam funcionando. Até ${eu.envio?.maxArquivosPorVez ?? 60} arquivos por chamada. A URL vale 30 minutos e só serve para este documento.`, '');
-  o.push('Nada disso aparece para o cliente ainda: cai no rascunho.', '');
-  o.push('**Depois do upload, PERGUNTE ao consultor se pode publicar.** Publicar é imediato para o cliente e não se desfaz sem ele ver. Com o "pode publicar" dele na mão:', '');
-  o.push(`\`insights_publicar({documento:${doc.id}, consultor_pediu:true})\``, '');
-  o.push(`Assinando como \`${autor}\` — é este nome que fica no histórico do cliente.`);
+  o.push(`O nome do arquivo **é** o caminho dentro do documento: \`-F "files=@assets/grafico.png"\` vive em \`assets/grafico.png\`, então os caminhos relativos do HTML continuam funcionando. Um \`-F\` por arquivo, até ${eu.envio?.maxArquivosPorVez ?? 60} por chamada. A URL vale 30 minutos e só serve para este documento.`, '');
+  o.push(`**Próximo:** com o upload feito, chame \`entregar_analise({documento:${doc.id}})\` de novo — eu confiro o que entrou e preparo o que mostrar ao consultor. Nada disso o cliente vê ainda.`);
   return o.join('\n');
 }
 
-// ── publicar ─────────────────────────────────────────────────────────────────
+async function etapaConferir(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, staging: Arquivo[]): Promise<string> {
+  const o = cabeca('conferir e PERGUNTAR ao consultor', 3, autor);
+  o.push(`**${doc.name}** \`${doc.id}\` tem ${staging.length} arquivo(s) no rascunho:`, '');
+  for (const f of staging.slice(0, 20)) o.push(`- \`${f.path}\``);
+  if (staging.length > 20) o.push(`- _(+${staging.length - 20})_`);
 
-export interface PublicarInput { documento: number; principal?: string; cliente_ve?: boolean; autor?: string; consultor_pediu?: boolean }
-
-export async function insightsPublicar(env: ToolEnv & InsightsEnv, user: ToolUser, input: PublicarInput): Promise<string> {
-  const autor = autorDe(user, input.autor);
-  const id = Number(input.documento);
-  if (!Number.isFinite(id)) throw new ToolError('`documento` é o id numérico que o `insights_preparar` devolveu.');
-  // Publicar é a única ação daqui que o cliente vê na hora, e ninguém desfaz sem ele ter
-  // visto. Quem decide entregar é o consultor, não o agente: sem o pedido dele, para aqui.
-  if (input.consultor_pediu !== true) {
-    throw new ToolError(
-      'publicar coloca a análise na frente do cliente AGORA, e isso é decisão do consultor, não sua. '
-      + 'Mostre a ele o que está no rascunho, pergunte se pode publicar, e só com o sim repita com `consultor_pediu:true`. '
-      + 'Se ele quiser ver antes, o rascunho continua lá — nada se perde esperando.');
+  const principais = staging.filter((f) => /\.(html|md|pdf|pptx)$/i.test(f.path));
+  if (principais.length > 1 && !doc.entry_path) {
+    o.push('', `⚠ Há ${principais.length} arquivos que podem ser a página do documento (${principais.map((f) => `\`${f.path}\``).join(', ')}). Diga qual em \`principal:"…"\` — sem isso a publicação é recusada.`);
   }
-
-  if (input.principal) await api(env, `/trackings/${id}`, { metodo: 'PATCH', autor, corpo: { entry_path: input.principal } });
-
-  const antes = await api<{ files?: unknown[] }>(env, `/trackings/${id}/diff`, { autor }).catch(() => null);
-  const pub = await api<{ ok: boolean; files: number }>(env, `/trackings/${id}/publish`, { metodo: 'POST', autor });
-  if (input.cliente_ve !== false) await api(env, `/trackings/${id}`, { metodo: 'PATCH', autor, corpo: { client_access: true } });
-
-  const doc = await api<Documento>(env, `/trackings/${id}`, { autor });
-  await logUsage(env.DB, { email: user.email, tool: 'insights_publicar' });
-
-  const o: string[] = [];
-  o.push(`**${doc.name}** está no ar com ${pub.files} arquivo(s).`, '');
-  o.push(`https://insights.witly.com.br/v/${doc.code}/`, '');
-  o.push(input.cliente_ve === false
-    ? 'O cliente **não** vê na área dele (você pediu `cliente_ve:false`) — só quem tiver o link.'
-    : 'O cliente dono passa a ver na área dele **agora**. Publicar é imediato do ponto de vista dele.');
-  if (antes && Array.isArray(antes.files) && antes.files.length) o.push('', `Mudaram ${antes.files.length} arquivo(s) em relação ao que estava no ar.`);
-  o.push('', `Assinado por \`${autor}\`. Link público com prazo ou senha: \`insights_link({documento:${id}})\`.`);
+  if (doc.published_at) {
+    const d = await api<{ files?: unknown[] }>(env, `/trackings/${doc.id}/diff`, { autor }).catch(() => null);
+    const n = Array.isArray(d?.files) ? d!.files!.length : null;
+    o.push('', `Este documento **já está no ar**${n != null ? ` e ${n} arquivo(s) mudam em relação ao que o cliente vê hoje` : ''}. Publicar substitui o que está lá.`);
+  }
+  o.push('', '### Pare aqui e pergunte', '');
+  o.push('Publicar põe a análise na frente do cliente **na hora**, e não se desfaz sem ele ter visto. Essa decisão é do consultor, não sua. Mostre a ele o que a análise diz, e pergunte se pode publicar.', '');
+  o.push(`**Com o sim dele:** \`entregar_analise({documento:${doc.id}, consultor_pediu:true})\`${principais.length > 1 && !doc.entry_path ? ', incluindo `principal`' : ''}.`);
+  o.push('**Se ele quiser mudar algo:** refaça o arquivo, suba por cima (o mesmo caminho sobrescreve) e volte aqui. O rascunho espera o tempo que precisar.');
   return o.join('\n');
 }
 
-// ── link público ─────────────────────────────────────────────────────────────
+async function etapaPublicar(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, staging: Arquivo[], input: EntregarInput): Promise<string> {
+  if (input.principal) await api(env, `/trackings/${doc.id}`, { metodo: 'PATCH', autor, corpo: { entry_path: input.principal } });
+  const pub = await api<{ ok: boolean; files: number }>(env, `/trackings/${doc.id}/publish`, { metodo: 'POST', autor });
+  if (input.cliente_ve !== false) await api(env, `/trackings/${doc.id}`, { metodo: 'PATCH', autor, corpo: { client_access: true } });
+  const dep = await api<Documento>(env, `/trackings/${doc.id}`, { autor });
 
-export interface LinkInput { documento: number; expira_em?: string; senha?: string; autor?: string }
+  const o = cabeca('publicar', 4, autor);
+  o.push(`**${dep.name}** está no ar com ${pub.files} arquivo(s).`, '');
+  o.push(`https://insights.witly.com.br/v/${dep.code}/`, '');
+  o.push(input.cliente_ve === false
+    ? 'O cliente **não** vê na área dele — só quem tiver o link.'
+    : 'O cliente dono vê na área dele **agora**.');
+  o.push('', `**Próximo (opcional):** link público com prazo ou senha → \`entregar_analise({documento:${doc.id}, link:{expira_em:"2026-12-31"}})\`.`);
+  o.push('', `Registre a entrega: \`registrar({evento:"geracao", …, cliente:"<slug>"})\` — e mande o endereço ao consultor.`);
+  return o.join('\n');
+}
 
-export async function insightsLink(env: ToolEnv & InsightsEnv, user: ToolUser, input: LinkInput): Promise<string> {
-  const autor = autorDe(user, input.autor);
-  const id = Number(input.documento);
-  if (!Number.isFinite(id)) throw new ToolError('`documento` é o id numérico do documento.');
+async function etapaLink(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, link: { expira_em?: string; senha?: string }): Promise<string> {
   const corpo: Record<string, string> = {};
-  if (input.expira_em) corpo.expires_at = String(input.expira_em);
-  if (input.senha) corpo.senha = String(input.senha);
-  const s = await api<{ code: string; url: string; expires_at?: string | null }>(env, `/trackings/${id}/shares`, { metodo: 'POST', autor, corpo });
-  await logUsage(env.DB, { email: user.email, tool: 'insights_link' });
-  return [`Link público criado: ${s.url}`, '',
-    s.expires_at ? `Expira em ${s.expires_at}.` : 'Sem prazo — vale até alguém revogar.',
-    input.senha ? 'Protegido por senha: mande a senha por outro canal, nunca no mesmo lugar do link.' : '',
-    '', `Assinado por \`${autor}\`.`].filter(Boolean).join('\n');
+  if (link.expira_em) corpo.expires_at = String(link.expira_em);
+  if (link.senha) corpo.senha = String(link.senha);
+  const s = await api<{ url: string; expires_at?: string | null }>(env, `/trackings/${doc.id}/shares`, { metodo: 'POST', autor, corpo });
+  const o = cabeca('link público', 5, autor);
+  o.push(s.url, '');
+  o.push(link.expira_em ? `Expira em ${s.expires_at ?? link.expira_em}.` : 'Sem prazo — vale até alguém revogar.');
+  if (link.senha) o.push('Protegido por senha: mande a senha por outro canal, nunca junto do link.');
+  return o.join('\n');
 }
