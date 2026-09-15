@@ -3,7 +3,7 @@
 Cada pergunta pontua a PRÓPRIA relevância (0–100) sobre o dataset.json já
 calculado pelo gerador (build_report). Fontes:
   • lc_overview      — escalares por lançamento (invest, leads, vendas, fat_liq,
-    conv_ger, qualificacao, taxa_qualidade, conv_mql, mql_pct, reembolso, roas,
+    conv_ger, qualificacao, mql_sobre_leads, conv_mql, mql_pct, reembolso, roas,
     roi, ret, recap) em ordem cronológica.
   • lc_brk_canal/plat/temp — conversão por dimensão e lançamento (métrica padrão
     da geração = conversão).
@@ -154,12 +154,12 @@ def q_conv_canal(ctx):
 
 
 def q_qual_conv(ctx):
-    qual = _ser(ctx, 'taxa_qualidade')
+    qual = _ser(ctx, 'qualificacao')
     conv = _ser(ctx, 'conv_ger')
     c = _corr(qual, conv)
     rel = _nz(abs(c) * 100, 80) if c is not None else 0.0
     return {'relevancia': round(rel, 1),
-            'justificativa': f'Taxa de qualidade e conversão {"se movem juntas" if (c or 0) > 0.4 else ("se opõem" if (c or 0) < -0.4 else "têm relação fraca")} (correlação {_corf(c)}).',
+            'justificativa': f'Qualificação e conversão {"se movem juntas" if (c or 0) > 0.4 else ("se opõem" if (c or 0) < -0.4 else "têm relação fraca")} (correlação {_corf(c)}).',
             'kpis': [{'label': 'Correlação qualidade×conv', 'value': _corf(c)},
                      {'label': 'Qualidade média', 'value': _pctf(_avg(qual))},
                      {'label': 'Conversão média', 'value': _pctf(_avg(conv))}]}

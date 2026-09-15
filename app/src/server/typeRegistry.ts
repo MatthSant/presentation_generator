@@ -179,7 +179,7 @@ export const TYPES: Record<string, AnalysisTypeDef> = {
     controlsKind: 'historico-lancamentos',
     validateConfig() { return []; },
     buildDeepenMeta() {
-      const M = ['conv_ger', 'qualificacao', 'taxa_qualidade', 'conv_mql', 'reembolso', 'roas', 'roi',
+      const M = ['conv_ger', 'qualificacao', 'mql_sobre_leads', 'conv_mql', 'reembolso', 'roas', 'roi',
                  'ret', 'leads', 'invest', 'fat_liq', 'vendas', 'recap', 'cpm', 'ctr', 'cpc', 'cpl', 'conv_paga', 'cpa'];
       const G = genericFuncoes('lançamento');
       return {

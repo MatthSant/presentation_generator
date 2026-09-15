@@ -22,12 +22,12 @@ import common.query_core as qc  # noqa: E402
 
 # Métricas por lançamento: overview (ov[fc]) vs mídia paga (media[fc]).
 _MEDIA = {'cpm', 'ctr', 'cpc', 'cpl', 'conv_paga', 'cpa'}
-_OV = {'conv_ger', 'qualificacao', 'taxa_qualidade', 'conv_mql', 'reembolso', 'roas',
+_OV = {'conv_ger', 'qualificacao', 'mql_sobre_leads', 'conv_mql', 'reembolso', 'roas',
        'roi', 'ret', 'leads', 'invest', 'fat_liq', 'vendas', 'recap'}
 # Métricas de custo (menor é melhor) — direção do ranking genérico.
 _COST = {'cpm', 'ctr', 'cpc', 'cpl', 'cpa', 'reembolso'}
 _LABEL = {
-    'conv_ger': 'Conversão', 'qualificacao': 'Qualificação', 'taxa_qualidade': 'Taxa qualidade',
+    'conv_ger': 'Conversão', 'qualificacao': 'Qualificação', 'mql_sobre_leads': 'MQL sobre leads',
     'conv_mql': 'Conv. MQL', 'reembolso': 'Reembolso', 'roas': 'ROAS', 'roi': 'ROI', 'ret': 'Retorno',
     'leads': 'Leads', 'invest': 'Investimento', 'fat_liq': 'Fat. líq.', 'vendas': 'Vendas',
     'recap': 'Recapturados', 'cpm': 'CPM', 'ctr': 'CTR', 'cpc': 'CPC', 'cpl': 'CPL',

@@ -35,10 +35,14 @@ Removidas dos kits: 51 regras (acompanhamento 10, livre 4, conversão 2, criativ
   recapturados, conv. paga/MQL, CPA = invest ÷ vendas pagas, média das quebras, outlier, rótulos iguais,
   reembolso recente, vendas_mql zerada, **ROAS bruto** e **qualidade ÷ leads** (ver abaixo).
 
-## Contradições encontradas — decisão do Matheus, não mudei o motor
-| # | Onde | O que diz | Regra geral | O que fazer |
+## Contradições encontradas — DECIDIDAS por Matheus em 15/09/2026, motor ajustado
+| # | Onde | O que dizia | Decisão | Estado |
 |---|---|---|---|---|
-| C1 | histórico `def-roas` | ROAS = fat. líquido ÷ investimento (**bruto**) | `roas-liquido`: ROAS é líquido (−1) | ou o motor do histórico passa a líquido (calc + guia), ou a regra do template diz explicitamente "bruto, difere do padrão"; hoje o agente vê as duas |
-| C2 | histórico `def-taxa-de-qualidade` | MQLs ÷ **leads** | `qualificacao-sobre-respostas`: MQLs ÷ respostas | o histórico não tem respostas na base? Se não tem, renomear para "qualidade sobre leads" e dizer que não é comparável ao CPMQL dos outros |
-| C3 | acompanhamento Hold 50% × criativos Hold 100% | dois cortes | `hold` geral registra a divergência | unificar o corte (25/50/75/100) ou manter e sempre citar o corte |
-| C4 | acompanhamento semáforo (ok ≤ 5%, atenção 5–15%, ruim > 15%) × debriefing (±10% "na meta") | duas réguas de desvio vs meta | nenhuma | decidir uma régua da casa (vira `benchmark`/`definicao` geral) ou justificar: diário tolera menos que o fechamento |
+| C1 | histórico `def-roas` | ROAS = fat. líquido ÷ investimento (**bruto**) | **líquido é o certo** — vale a regra geral `roas-liquido` | **feito**: `calc.py` passou a `(fat_liq − invest) ÷ invest` no overview e nas quebras; `def-roas.md` reescrita; teste do kit ajustado (batia a fórmula antiga, errava por exatamente 1,0). Relatório gerado antes desta data traz o bruto — subtraia 1 ao comparar |
+| C2 | histórico `def-taxa-de-qualidade` | "Taxa de qualidade" = MQLs ÷ **leads**, ao lado de "Qualificação" = MQLs ÷ respostas | **qualidade é sobre respostas**; o ÷ leads é outra coisa e não pode se chamar qualidade | **feito**: a base tem `respostas_pesquisa` e o motor já calculava as duas — era nome. `taxa_qualidade` virou `mql_sobre_leads` ("MQL sobre leads") em calc/build_report/query_api/registry/banco de perguntas; o card do Panorama já usava ÷ respostas e passou a se chamar "Qualificação (MQL)"; `def-taxa-de-qualidade.md` → `def-mql-sobre-leads.md` |
+| C3 | acompanhamento Hold 50% × criativos Hold 100% | dois cortes | — | **já não existe**: os dois motores usam `views_75 ÷ views_totais` (acompanhamento `calc.py:381`, criativos `calc.py:188`). `views_50` é carregado mas não alimenta retenção |
+| C4 | acompanhamento semáforo (ok ≤ 5%, atenção 5–15%, ruim > 15%) × debriefing (±10% "na meta") | duas réguas de desvio vs meta | **fica como está** — a régua varia por tipo de análise | aberto de propósito, não é para unificar |
+
+Achado no caminho: o contexto de deepen do acompanhamento (`typeRegistry.ts`) já dizia
+"Taxa de qualidade = MQLs ÷ RESPOSTAS" — e ali está certo, porque o `taxa_qual` daquele
+motor é mesmo sobre respostas. A divergência era só do histórico.

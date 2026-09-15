@@ -6,8 +6,11 @@ trocando pandas por `csv` e devolvendo estruturas Python (o build_report seriali
 Uma linha do CSV = lançamento × temperatura_lead. Cronologia por `date_start`,
 id do lançamento por `field_conversion`. Regras (skill): produto principal =
 vendas_sale se Σ>0 senão vendas; custo = invest_total+paidmedia_tax; fat_liquido =
-faturamento−refunded_value; ROAS=fat_liq/custo; ROI=(fat_liq−custo−sales_tax−broker)/custo;
-conversão=produto/leads; qualificação=leads_mqls/respostas_pesquisa; orgânico não tem
+faturamento−refunded_value; ROAS=(fat_liq−custo)/custo — LÍQUIDO, 0 empata, igual ao
+debriefing e à regra geral da casa; ROI=(fat_liq−custo−sales_tax−broker)/custo (o ROI
+desconta também imposto e taxa de plataforma, por isso não é o mesmo número);
+conversão=produto/leads; qualificação=leads_mqls/respostas_pesquisa (NUNCA /leads —
+MQL sobre leads é outra coisa, densidade da base, e sai com esse nome); orgânico não tem
 ROAS/ROI/CPx (None, nunca 0); percentuais em % real; nunca média de taxa — soma brutos.
 """
 import csv
@@ -17,7 +20,7 @@ TEMPS = ['Hot', 'Warm', 'Cold', 'Advantage', 'N/C']
 CANAIS = ['Geral', 'Pago', 'Orgânico']
 PLATS = ['Meta', 'Google', 'Outros']
 METRICS = ['conv', 'leads', 'investimento', 'vendas', 'faturamento',
-           'qual', 'taxa_qualidade', 'conv_mql', 'reembolso', 'roas']
+           'qual', 'mql_sobre_leads', 'conv_mql', 'reembolso', 'roas']
 _M = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 
@@ -135,10 +138,10 @@ def _trio(d, produto):
         'faturamento': round(fat - ref, 2) if has else None,
         'conv': pct(vendas, leads),
         'qual': pct(mqls, soma(d, 'respostas_pesquisa')),
-        'taxa_qualidade': pct(mqls, leads),
+        'mql_sobre_leads': pct(mqls, leads),
         'conv_mql': pct(soma(d, 'vendas_mql'), mqls),
         'reembolso': pct(ref, fat),
-        'roas': div(fat - ref, custo),
+        'roas': div(fat - ref - custo, custo),   # líquido: 0 empata (ver ROAS no topo do arquivo)
     }
 
 
@@ -172,10 +175,10 @@ def _overview(rows, fc, produto):
         'sales_tax': round(sales_tax, 2), 'broker': round(broker, 2),
         'leads': round(leads), 'mqls': round(mqls), 'resp': round(resp),
         'vendas': round(vendas), 'ret': round(ret, 2),
-        'roas': div(fat_liq, invest), 'roi': div(ret, invest),
+        'roas': div(fat_liq - invest, invest), 'roi': div(ret, invest),
         'conv_ger': pct(vendas, leads),
         'qualificacao': pct(mqls, resp),                       # MQL / respostas
-        'taxa_qualidade': pct(mqls, leads),                    # MQL / leads
+        'mql_sobre_leads': pct(mqls, leads),                   # MQL / leads — densidade, NÃO qualidade
         'conv_mql': pct(soma(d, 'vendas_mql'), mqls),          # vendas de MQL / MQL
         'reembolso': pct(refunded, faturamento),
         'by': by,

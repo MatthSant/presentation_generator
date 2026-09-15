@@ -39,7 +39,8 @@ class Fixture(unittest.TestCase):
         self.assertEqual(ov['vendas'], E['vendas_first'])
         self.assertEqual(ov['invest'], E['invest'])
         self.assertEqual(ov['fat_liq'], E['fat_liq_first'])
-        self.assertAlmostEqual(ov['roas'], E['fat_liq_first'] / E['invest'], places=3)
+        # ROAS é LÍQUIDO (regra geral da casa): 0 empata. O bruto seria exatamente 1,0 maior.
+        self.assertAlmostEqual(ov['roas'], E['fat_liq_first'] / E['invest'] - 1, places=3)
 
     def test_quebras(self):
         ov = self.S['ov'][self.S['events'][0]]

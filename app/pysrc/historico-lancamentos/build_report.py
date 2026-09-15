@@ -35,7 +35,7 @@ BRK_INFO = {
     'vendas':         {'label': 'Vendas',            'cost': False, 'fmt': 'int'},
     'faturamento':    {'label': 'Faturamento líq.',  'cost': False, 'fmt': 'money'},
     'qual':           {'label': 'Qualificação',      'cost': False, 'fmt': 'pct'},
-    'taxa_qualidade': {'label': 'Taxa de qualidade', 'cost': False, 'fmt': 'pct'},
+    'mql_sobre_leads': {'label': 'MQL sobre leads', 'cost': False, 'fmt': 'pct'},
     'conv_mql':       {'label': 'Conversão de MQL',  'cost': False, 'fmt': 'pct'},
     'reembolso':      {'label': 'Reembolso',         'cost': True,  'fmt': 'pct'},
     'roas':           {'label': 'ROAS',              'cost': False, 'fmt': 'x'},
@@ -140,7 +140,7 @@ def assemble(rows, config, content, opts=None):
         {'lcto': labels[fc], 'invest': ov[fc]['invest'], 'leads': ov[fc]['leads'], 'vendas': ov[fc]['vendas'],
          'faturamento': ov[fc]['faturamento'], 'fat_liq': ov[fc]['fat_liq'],
          'conv_ger': ov[fc]['conv_ger'], 'qualificacao': ov[fc]['qualificacao'],
-         'taxa_qualidade': ov[fc]['taxa_qualidade'], 'conv_mql': ov[fc]['conv_mql'],
+         'mql_sobre_leads': ov[fc]['mql_sobre_leads'], 'conv_mql': ov[fc]['conv_mql'],
          'mql_pct': calc.pct(ov[fc]['mqls'], ov[fc]['leads']), 'reembolso': ov[fc]['reembolso'],
          'roas': ov[fc]['roas'], 'roi': ov[fc]['roi'], 'ret': ov[fc]['ret'],
          'recap': ov[fc]['recap'], 'leads_antigos': ov[fc]['leads_antigos']}
@@ -235,7 +235,7 @@ def assemble(rows, config, content, opts=None):
          icon='refresh', iconColor='#854F0B',
          bar=([{'pct': rc_pago, 'color': '#854F0B'}, {'pct': 100 - rc_pago, 'color': '#EF9F27'}]
               if rc_pago is not None else [{'pct': 100, 'color': '#854F0B'}]))
-    card('pan-v-qual', 'volume', label='Taxa de qualidade (MQL)', value=pctf(qual_v),
+    card('pan-v-qual', 'volume', label='Qualificação (MQL)', value=pctf(qual_v),
          sub=f'{intf(mqls_t)} MQLs / {intf(resp_t)} pesquisas', icon='star', iconColor='#854F0B',
          bar=[{'pct': (qual_v or 0), 'color': '#EF9F27'}])
     card('pan-v-cmql', 'volume', label='Conversão MQL', value=pctf(cmql_v),
