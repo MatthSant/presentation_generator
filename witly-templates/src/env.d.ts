@@ -11,6 +11,11 @@ interface ExtraEnv {
   PUBLIC_URL?: string;
   /** '1' habilita /ui/dev-login em localhost (só .dev.vars). */
   DEV_LOGIN?: string;
+  /** Chave de acesso do Insights (`wit_…`). Secret: nunca desce para a máquina de ninguém.
+   *  Sem ela as tools `insights_*` recusam com instrução de como configurar. */
+  INSIGHTS_CHAVE?: string;
+  /** Base da API do Insights. Padrão: https://insights.witly.com.br/api */
+  INSIGHTS_BASE?: string;
 }
 
 declare global {

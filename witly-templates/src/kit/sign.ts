@@ -34,3 +34,30 @@ export async function verifyDownload(key: string, slug: string, n: number, token
 export function signingKey(env: Pick<Env, 'DOWNLOAD_SIGNING_KEY' | 'COOKIE_ENCRYPTION_KEY'>): string {
   return env.DOWNLOAD_SIGNING_KEY || env.COOKIE_ENCRYPTION_KEY;
 }
+
+// ── upload para o Insights ───────────────────────────────────────────────────
+// O arquivo da análise (~3 MB) não cabe num argumento de tool: seria texto gerado pelo
+// modelo. Então o agente recebe uma URL assinada e manda o arquivo por `curl` da máquina
+// dele; o Worker repassa ao Insights com a chave. A assinatura é a autorização, e ela
+// vale para UM documento e por poucos minutos.
+
+const upPayload = (tracking: number, autor: string, exp: number) => `up:${tracking}:${autor.toLowerCase()}:${exp}`;
+
+export async function signUpload(key: string, tracking: number, autor: string, ttlSeconds = 1800, now = Date.now()): Promise<string> {
+  const exp = Math.floor(now / 1000) + ttlSeconds;
+  return `${exp}.${await hmac(key, upPayload(tracking, autor, exp))}`;
+}
+
+export async function verifyUpload(key: string, tracking: number, autor: string, token: string | null | undefined, now = Date.now()): Promise<boolean> {
+  if (!token) return false;
+  const dot = token.indexOf('.');
+  if (dot <= 0) return false;
+  const exp = Number(token.slice(0, dot));
+  if (!Number.isFinite(exp) || exp * 1000 < now) return false;
+  const expected = await hmac(key, upPayload(tracking, autor, exp));
+  const given = token.slice(dot + 1);
+  if (expected.length !== given.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
+  return diff === 0;
+}

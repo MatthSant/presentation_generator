@@ -7,7 +7,7 @@ import { api } from './api.js';
 import { getDesignKit, getPublishedKit, platformKitFiles } from './db/index.js';
 import { sessionUser } from './auth/session.js';
 import { designReport, parseElemento, renderReportHtml } from './kit/design.js';
-import { signingKey, verifyDownload } from './kit/sign.js';
+import { signingKey, verifyDownload, verifyUpload } from './kit/sign.js';
 import { buildKitZip, loadViewer, renderExampleHtml } from './kit/zip.js';
 
 export const app = new Hono<{ Bindings: Env }>();
@@ -40,6 +40,36 @@ app.post('/design/preview', async (c) => {
   if (!kit) return c.text('design system sem versão', 404);
   const html = renderReportHtml(designReport(kit, elemento.id, elemento), await loadViewer(c.env.ASSETS), 'Design system');
   return html ? c.html(html) : c.text('viewer indisponível (rode npm run build)', 503);
+});
+
+/** Repasse de upload para o Insights. A autorização é a assinatura na URL (emitida por
+ *  `insights_preparar`), que vale para UM documento e meia hora.
+ *
+ *  Por que o arquivo passa por aqui em vez de ir direto: a chave do Insights é secret do
+ *  Worker e não pode descer para a máquina do consultor. E não pode ir pelo argumento da
+ *  tool porque argumento é texto que o modelo gera — um relatório de debriefing tem ~3 MB.
+ *  Então o `curl` local manda para cá e o Worker só encaminha, sem ler nem guardar nada:
+ *  o corpo é repassado como stream. */
+app.post('/up/:tracking', async (c) => {
+  const tracking = Number(c.req.param('tracking'));
+  const autor = (c.req.query('a') || '').toLowerCase();
+  if (!Number.isInteger(tracking) || !autor) return c.json({ error: 'pedido inválido' }, 400);
+  if (!(await verifyUpload(signingKey(c.env), tracking, autor, c.req.query('t')))) {
+    return c.json({ error: 'link de upload inválido ou expirado — peça outro com insights_preparar' }, 403);
+  }
+  const chave = c.env.INSIGHTS_CHAVE;
+  if (!chave) return c.json({ error: 'o Grimório não tem chave do Insights configurada' }, 503);
+  const tipo = c.req.header('content-type') || '';
+  if (!tipo.startsWith('multipart/form-data')) return c.json({ error: 'mande os arquivos como multipart (-F "files=@arquivo")' }, 400);
+
+  const base = (c.env.INSIGHTS_BASE || 'https://insights.witly.com.br/api').replace(/\/$/, '');
+  const r = await fetch(`${base}/trackings/${tracking}/files`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${chave}`, 'x-autor': autor, 'content-type': tipo },
+    body: c.req.raw.body,
+  });
+  const texto = await r.text();
+  return new Response(texto, { status: r.status, headers: { 'content-type': r.headers.get('content-type') || 'application/json' } });
 });
 
 /** Download do kit publicado. Autorização = assinatura na URL (emitida por obter_template). */

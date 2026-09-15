@@ -35,7 +35,10 @@
     "EDITOR_SEED": "projetos@witly.digital",
     "ORG_ID": "witly",
     // URL pública do Worker (base das URLs assinadas de download). Ajustar no deploy.
-    "PUBLIC_URL": "https://witly-templates.projetos-145.workers.dev"
+    "PUBLIC_URL": "https://witly-templates.projetos-145.workers.dev",
+    // API do Insights (hospedador de análises). A CHAVE é secret, nunca var:
+    // `wrangler secret put INSIGHTS_CHAVE`.
+    "INSIGHTS_BASE": "https://insights.witly.com.br/api"
   },
   "observability": { "enabled": true },
   "dev": { "port": 8788 }
