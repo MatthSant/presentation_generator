@@ -218,8 +218,9 @@ export async function urgentesPendentes(db: D1Database, org_id: string, escopos:
     const p = rowToProposta(r);
     const escopo = String(p.conteudo.escopo ?? (p.entrada_id ? (await obterConhecimento(db, p.entrada_id))?.escopo : 'geral') ?? 'geral');
     if (!escopos.includes(escopo)) continue;
-    const autorEditor = await db.prepare("SELECT role FROM users WHERE email = ?").bind(p.autor).first<{ role: string }>();
-    if (autorEditor?.role !== 'editor' && p.votos_editor < 1) continue;
+    // Urgente aparece venha de quem vier. Antes exigia autor editor ou um voto de editor,
+    // e isso invertia a prioridade: quem opera a conta é quem percebe que a métrica saiu
+    // errada, e era justamente esse aviso que ficava esperando aval para ser mostrado.
     out.push(p);
     if (out.length >= limit) break;
   }

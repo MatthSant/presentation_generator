@@ -3,7 +3,7 @@
 
 import { versionLabel } from '../db/semver.js';
 import { canSee, designSystemText, getPublishedKit, getTemplate, listTemplates, logUsage, type Kit } from '../db/index.js';
-import { obterConhecimento } from '../db/conhecimento.js';
+import { listarConhecimento, obterConhecimento, urgentesPendentes } from '../db/conhecimento.js';
 import { blocoDaTarefa, indiceBlock, lista, nivel0Block, porGatilhoDasTarefas } from './conhecimento-tools.js';
 import { textoCompleto } from './conhecimento.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
@@ -60,6 +60,74 @@ async function kitOrThrow(env: ToolEnv, user: ToolUser, slug: string): Promise<K
 
 
 // ── listar_templates ─────────────────────────────────────────────────────────
+
+/** `comece_por_aqui` — a porta de entrada. Explica o ciclo inteiro e diz o estado de AGORA
+ *  (quantos templates, quanto conhecimento, o que está pendente), porque um texto fixo
+ *  envelhece e um agente que não sabe o que existe não vai procurar. */
+export async function comecePorAqui(env: ToolEnv, user: ToolUser): Promise<string> {
+  const [tpls, sempre, resto, urgentes] = await Promise.all([
+    listTemplates(env.DB, env.ORG_ID, user.email),
+    listarConhecimento(env.DB, env.ORG_ID, { sempre: true, limit: 200 }),
+    listarConhecimento(env.DB, env.ORG_ID, { sempre: false, limit: 200 }),
+    urgentesPendentes(env.DB, env.ORG_ID, ['geral']),
+  ]);
+  await logUsage(env.DB, { email: user.email, tool: 'comece_por_aqui' });
+
+  const pub = tpls.filter((t) => t.published_version_id);
+  const analise = pub.filter((t) => t.kind !== 'conversa');
+  const roteiro = pub.filter((t) => t.kind === 'conversa');
+  const o: string[] = [];
+
+  o.push('# Comece por aqui — o Grimório da Witly', '');
+  o.push(`Olá, ${user.name}. Este MCP é a memória de análise da Witly: os **templates** (como fazer cada tipo de análise) e o **conhecimento** (o que a casa já sabe — métricas, regras, diagnósticos, casos, jeito de escrever). Ele existe para você não reinventar critério a cada análise, e para o que você aprender ficar registrado.`, '');
+  o.push(`Hoje: **${analise.length} templates de análise**, **${roteiro.length} roteiros de conversa**, **${sempre.length + resto.length} entradas de conhecimento** (${sempre.length} valem sempre e vêm junto do template; ${resto.length} você puxa quando a etapa pedir).`, '');
+
+  if (urgentes.length) {
+    o.push(`⚠ **${urgentes.length} correção(ões) urgente(s) pendente(s) de aprovação.** Vêm no topo de \`obter_template\`. Antes de gerar, mostre ao consultor e pergunte se está certo — pode ser um cálculo errado que ainda não foi corrigido.`, '');
+  }
+
+  o.push('## O ciclo, do começo ao fim', '');
+  o.push('1. **`listar_templates`** — veja o catálogo e escolha pelo "quando usar". Nenhum serve? `obter_template("analise-livre")` dá o design system e as regras para fazer do zero.');
+  o.push('2. **`obter_template(slug)`** — o kit completo. Vem com as tarefas de contexto, as queries, a estrutura do documento, o guia, o conhecimento que vale sempre e o índice do que puxar depois. Baixe o zip com `curl` (Python, viewer, exemplo) — **não leia o zip pelo contexto**.');
+  o.push('3. **Faça as tarefas COM o consultor.** As marcadas "PERGUNTE" não são para você decidir sozinho: são as que, erradas, produzem um relatório bonito e falso. Mostre o que você propõe e espere o ok.');
+  o.push('4. **`montar_query(slug, params)`** → rode no Delfos (`Witly_Query`) → salve os CSVs com os nomes que o manifesto pede.');
+  o.push('5. **`python python/gerar.py …`** → abra o `relatorio.html` e leia `numeros.json`.');
+  o.push('6. **`registrar(...)`** — sem isto nada do que você fez volta para a casa. Veja "Devolver o que aprendeu" abaixo.', '');
+
+  o.push('## O conhecimento: o que chega sozinho e o que você tem de buscar', '');
+  o.push(`Toda vez que você chama \`obter_template\` ou \`guia\`, as **${sempre.length} entradas "sempre"** vêm embutidas no topo. Você não precisa pedir: leia.`, '');
+  o.push(`As outras **${resto.length}** não vêm — seriam contexto demais. Elas estão listadas por **gatilho**, que é o momento do trabalho em que cada uma serve, e você as puxa com \`conhecimento(...)\`:`, '');
+  o.push('```');
+  o.push('conhecimento({gatilho:"ao_consultar_dados", detalhe:"completo"})   // antes de escrever SQL');
+  o.push('conhecimento({gatilho:"ao_diagnosticar",    detalhe:"completo"})   // um número saiu da faixa');
+  o.push('conhecimento({gatilho:"ao_recomendar",      detalhe:"completo"})   // antes de propor ação');
+  o.push('conhecimento({gatilho:"ao_escrever",        detalhe:"completo"})   // antes de redigir');
+  o.push('conhecimento({gatilho:"ao_fechar",          detalhe:"completo"})   // no fim');
+  o.push('```', '');
+  o.push('**Não sabe por onde procurar?** `q` é busca em texto livre no título e no corpo, sem acento e sem diferenciar maiúscula — descreva o problema com as palavras do consultor:', '');
+  o.push('```');
+  o.push('conhecimento({q:"cpl subiu mas o cpm não"})');
+  o.push('conhecimento({tipo:"caso", situacao:{sintoma:"conversão caiu", funil:"lançamento"}})   // o que já funcionou');
+  o.push('conhecimento({cliente:"<slug>"})      // SEMPRE que o consultor nomear um cliente');
+  o.push('conhecimento({campanha:"<id>"})       // idem para campanha: traz histórico e ações pendentes');
+  o.push('```', '');
+  o.push('`detalhe:"indice"` devolve só títulos (varredura barata); `detalhe:"completo"` devolve o corpo. Nada encontrado? Afrouxe os filtros. Continua vazio e você precisava daquilo? É uma lacuna real — proponha com `sugerir`.', '');
+
+  o.push('## Devolver o que aprendeu (é isto que mantém o Grimório vivo)', '');
+  o.push('- **`registrar({evento:"geracao"|"aprofundamento", …, usadas:[{id, ajudou}]})`** — `usadas` é o que diz quais entradas de conhecimento realmente entraram na análise. Sem isso ninguém sabe o que está servindo e o que é peso morto.');
+  o.push('- **`registrar({evento:"feedback", …})`** ao fechar com o consultor: o que segurou bem, cada ajuste que custou rodada, e a nota. É assim que o template melhora.');
+  o.push('- **`sugerir({tipo, titulo, corpo, motivo})`** — faltou conhecimento (métrica, diagnóstico, caso, benchmark, jeito de escrever). Cálculo ou métrica errada: `urgencia:"urgente"` **com evidência**, e isso aparece no topo para todo mundo até ser resolvido.');
+  o.push('- **`sugerir_regra({slug, …})`** — a falta é do template, não do conhecimento geral.');
+  o.push('- **`avaliar(slug, nota, comentario)`** — se o consultor deu uma nota ao template.', '');
+  o.push('Você não precisa ser editor para nada disso: qualquer pessoa com acesso propõe e vota. Editor decide.', '');
+
+  o.push('## Três erros que já aconteceram aqui', '');
+  o.push('- **Gerar sem fazer as tarefas.** O motor não reclama de classificação errada: ele divide por zero e devolve zero. Um relatório com ROAS 0,00× e CPL R$ 0,00 sai completo, bonito e errado.');
+  o.push('- **Inventar número.** Todo número vai para o documento por `bind` a uma tabela do dataset. Prosa é sua; número é do motor.');
+  o.push('- **Levar dado pessoal.** Nada de e-mail, telefone ou CPF em `registrar` nem em `sugerir` — o join por pessoa se faz dentro do banco, e só o agregado sai.', '');
+  o.push('Próximo passo: **`listar_templates`**.');
+  return o.join('\n');
+}
 
 export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<string> {
   const rows = await listTemplates(env.DB, env.ORG_ID, user.email);

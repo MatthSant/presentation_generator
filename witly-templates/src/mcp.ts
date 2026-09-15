@@ -10,7 +10,7 @@ import { listTemplates } from './db/index.js';
 import { listarConhecimento } from './db/conhecimento.js';
 import { confirmar, conhecimento, sugerir as sugerirConhecimento } from './kit/conhecimento-tools.js';
 import { DOMINIOS, FAMILIAS, GATILHOS, NIVEIS, TIPO_NOMES } from './kit/conhecimento.js';
-import { guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
+import { comecePorAqui, guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
 import { avaliar, registrar, sugerir } from './kit/activity.js';
 import { removerTemplate, salvarTemplate } from './kit/personal.js';
 
@@ -40,8 +40,13 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
   }
 
   async init(): Promise<void> {
+    this.server.registerTool('comece_por_aqui', {
+      description: 'LEIA PRIMEIRO, antes de qualquer análise da Witly. Como usar este MCP de ponta a ponta: o ciclo (escolher template → tarefas com o consultor → query no Delfos → gerar → registrar), como o conhecimento da casa chega e como buscar o que não veio junto, como devolver o que você aprendeu, e os erros que já produziram relatório errado aqui. Traz também o estado de agora: quantos templates, quanto conhecimento e o que está pendente.',
+      inputSchema: {},
+    }, async () => this.run((u) => comecePorAqui(this.env, u)));
+
     this.server.registerTool('listar_templates', {
-      description: 'Catálogo dos templates de análise da Witly publicados: slug, objetivo, quando usar, tarefas de contexto e parâmetros. Comece por aqui.',
+      description: 'Catálogo dos templates de análise da Witly publicados: slug, objetivo, quando usar, tarefas de contexto e parâmetros. Se ainda não leu `comece_por_aqui`, leia antes.',
       inputSchema: {},
     }, async () => this.run((u) => listarTemplates(this.env, u)));
 

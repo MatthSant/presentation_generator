@@ -714,7 +714,6 @@
   }
 
   async function renderUso() {
-    if (!isEditor()) { app.innerHTML = '<div class="empty">Só editores.</div>'; return; }
     const dias = Number(params().get('dias')) || 90;
     skeleton('doc');
     const u = await api('/api/uso?dias=' + dias);
@@ -732,7 +731,7 @@
     const K = u.conhecimento || { total: 0, usadas: 0, consultas: 0, top: [] };
     const nunca = Math.max(0, K.total - K.usadas);
 
-    app.innerHTML = `<div class="head"><div><h1>Uso</h1><p class="muted sm">Se o Grimório entrou na rotina do time: quem usa, com que frequência, o que é puxado — e o que ninguém encontra. A <a href="#/saude">Saúde</a> responde outra pergunta: se o que saiu presta.</p></div>
+    app.innerHTML = `<div class="head"><div><h1>Uso</h1><p class="muted sm">Se o Grimório entrou na rotina do time: quem usa, com que frequência, o que é puxado — e o que ninguém encontra. ${isEditor() ? 'A <a href="#/saude">Saúde</a> responde outra pergunta: se o que saiu presta.' : ''}</p></div>
         <div class="row" style="gap:6px">${jan(30)}${jan(90)}${jan(365)}</div></div>
 
       <div class="stats">
@@ -782,7 +781,7 @@
           ? `<div class="banner"><span>Nenhuma das ${K.total} entradas foi tocada ainda — nem entregue, nem buscada. Ou nenhuma análise rodou na janela, ou o conhecimento não está sendo montado no template.</span><a class="btn" href="#/conhecimento" style="margin-left:auto;white-space:nowrap">Ver o conhecimento →</a></div>`
           : tab(['Entrada', 'Contatos'], K.top.map((e) => `<tr><td><a href="#/conhecimento/${esc(e.id)}">${esc(e.titulo)}</a></td><td><code>${e.n}</code></td></tr>`).join(''), 'Nenhum contato registrado.'))}
 
-      <h2>Detalhe por versão</h2>
+      ${u.editor === false ? '' : `<h2>Detalhe por versão</h2>
       <p class="muted sm" style="max-width:66ch;margin:-6px 0 14px">Descarte e nota por versão publicada: onde a mudança de uma versão para a outra ajudou ou atrapalhou.</p>
       ${tab(['Template', 'Versão', 'Gerações', 'Aprofund.', 'Descartados', 'Nota média', 'Avaliações'],
         u.stats.map((s) => `<tr><td><a href="#/t/${esc(s.slug)}"><code>${esc(s.slug)}</code></a></td><td>v${s.version_number ?? '?'}</td><td>${s.geracoes}</td><td>${s.aprofundamentos}</td><td>${s.aprofundamentos ? Math.round(100 * s.descartados / s.aprofundamentos) + '%' : '—'}</td><td>${s.nota_media != null ? s.nota_media.toFixed(1) : '—'}</td><td>${s.avaliacoes}</td></tr>`).join(''),
@@ -790,7 +789,7 @@
 
       <h2>Perguntas de aprofundamento mais frequentes</h2>
       ${tab(['Template', 'Pergunta', 'Vezes'],
-        u.top_perguntas.map((p) => `<tr><td><code>${esc(p.slug)}</code></td><td>${esc(p.pergunta)}</td><td>${p.n}</td></tr>`).join(''), '—')}`;
+        u.top_perguntas.map((p) => `<tr><td><code>${esc(p.slug)}</code></td><td>${esc(p.pergunta)}</td><td>${p.n}</td></tr>`).join(''), '—')}`}`;
   }
 
   // ── Fase 2: versões (aba do editor) ────────────────────────────────────

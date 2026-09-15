@@ -87,13 +87,13 @@ describe('tool conhecimento em camadas', () => {
     await grava({ id: 'numero-com-janela', tipo: 'regra', titulo: 'Todo número vem com janela', corpo_md: 'Ontem, 3 dias, 7 dias.', sempre: true, dados: { forca: 'sempre' } });
     await grava({ id: 'so-deste', tipo: 'metodo', titulo: 'Método só deste template', escopo: `template:${slug}`, dados: { origem: 'witly', passos: ['a', 'b'] } });
     await grava({ id: 'de-outro', tipo: 'metodo', titulo: 'Método de outro template', escopo: 'template:outro', dados: { origem: 'witly', passos: ['a'] } });
-    // urgente proposta por editor no escopo geral → aparece; por leitor sem +1 de editor → não
+    // urgente aparece venha de editor ou de leitor: quem opera a conta é quem vê a métrica errada
     await sugerir(env, U(ED), { tipo: 'metrica', titulo: 'ROAS deve ser líquido, não bruto', dados: { formula: 'f ÷ i − 1' }, motivo: 'o kit calculou bruto na análise de ontem', urgencia: 'urgente', evidencia: [{ trecho: 'ROAS 1,78 onde era 0,78' }] });
-    await sugerir(env, U(A), { tipo: 'regra', titulo: 'Urgente de leitor ainda invisível', dados: { forca: 'sempre' }, motivo: 'motivo longo o bastante', urgencia: 'urgente', evidencia: [{ trecho: 'x' }] });
+    await sugerir(env, U(A), { tipo: 'regra', titulo: 'Urgente de leitor também aparece', dados: { forca: 'sempre' }, motivo: 'motivo longo o bastante', urgencia: 'urgente', evidencia: [{ trecho: 'x' }] });
     const out = await obterTemplate(env, U(A), slug);
     expect(out).toContain('## ⚠ Pendente de aprovação (urgente)');
     expect(out).toContain('**ROAS deve ser líquido, não bruto**');
-    expect(out).not.toContain('Urgente de leitor ainda invisível');
+    expect(out).toContain('**Urgente de leitor também aparece**');
     expect(out).toContain('[REGRA] Todo número vem com janela — Ontem, 3 dias, 7 dias.');
     expect(out).toContain('- `so-deste` · metodo');
     expect(out).not.toContain('de-outro');

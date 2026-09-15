@@ -60,7 +60,7 @@ describe('api — atividade, uso, curadoria (US1/US2/US3)', () => {
     const uso = await (await call(`/api/uso?slug=${s}`, { as: ED })).json() as { stats: Array<{ geracoes: number; aprofundamentos: number }>; top_perguntas: Array<{ n: number }> };
     expect(uso.stats[0]).toMatchObject({ geracoes: 1, aprofundamentos: 1 });
     expect(uso.top_perguntas[0].n).toBe(1);
-    expect((await call('/api/uso', { as: A })).status).toBe(403);
+    expect((await call('/api/uso', { as: A })).status).toBe(200);   // adoção é do time todo
   });
 
   it('virar exemplo edita o guia e virar regra cria a entrada de regra no rascunho; publicada intacta, idempotentes', async () => {

@@ -327,16 +327,21 @@ api.post('/api/atividade/:id/virar-regra', async (c) => {
   return r.ok ? c.json(r) : c.json({ error: r.motivo }, 409);
 });
 
+/** Adoção é do time todo, não só do editor: quem usa o Grimório precisa ver se ele está
+ *  sendo usado. O que NÃO abre é `top_perguntas` — é texto livre escrito por quem rodou o
+ *  aprofundamento, pode nomear cliente, e /api/atividade já esconde de leitor a atividade
+ *  alheia pelo mesmo motivo. Todo o resto do painel é contagem agregada. */
 api.get('/api/uso', async (c) => {
-  const u = await requireUser(c, 'editor'); if (isResp(u)) return u;
+  const u = await requireUser(c); if (isResp(u)) return u;
+  const editor = u.role === 'editor';
   const slug = c.req.query('slug') || undefined;
   const dias = Math.min(365, Math.max(7, Number(c.req.query('dias')) || 90));
   const [stats, top, dash] = await Promise.all([
     db.usageStats(c.env.DB, c.env.ORG_ID),
-    db.topQuestions(c.env.DB, c.env.ORG_ID, slug, 10),
+    editor ? db.topQuestions(c.env.DB, c.env.ORG_ID, slug, 10) : Promise.resolve([]),
     db.usoDash(c.env.DB, c.env.ORG_ID, dias),
   ]);
-  return c.json({ stats: slug ? stats.filter((s) => s.slug === slug) : stats, top_perguntas: top, dias, ...dash });
+  return c.json({ stats: slug ? stats.filter((s) => s.slug === slug) : stats, top_perguntas: top, editor, dias, ...dash });
 });
 
 /** Saúde dos templates: descarte, fila de triagem e as perguntas que o template não responde sozinho. */

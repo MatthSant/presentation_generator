@@ -70,8 +70,19 @@ describe('uso — painel de adoção', () => {
     expect(curto.conhecimento.top).toHaveLength(0);
   });
 
-  it('é só de editor', async () => {
-    await seedUser(A);
-    expect((await call('/api/uso', A)).status).toBe(403);
+  it('leitor vê a adoção, mas não o texto das perguntas de outras pessoas', async () => {
+    await seedUser(ED, 'editor'); await seedUser(A);
+    const s = fresh(); await seedPublished(s);
+    await db.logUsage(env.DB, { email: A, tool: 'guia', slug: s });
+    await db.insertActivity(env.DB, { org_id: ORG, email: ED, evento: 'aprofundamento', slug: s, dados: { pergunta: 'quanto o cliente X gastou?' } });
+
+    const leitor = await (await call('/api/uso', A)).json() as Dash & { editor: boolean; top_perguntas: unknown[] };
+    const editor = await (await call('/api/uso', ED)).json() as Dash & { editor: boolean; top_perguntas: unknown[] };
+
+    expect(leitor.editor).toBe(false);
+    expect(leitor.resumo.chamadas).toBe(editor.resumo.chamadas);   // a adoção é a mesma
+    // o texto é livre e pode nomear cliente: /api/atividade já esconde isso de leitor
+    expect(leitor.top_perguntas).toHaveLength(0);
+    expect(editor.top_perguntas.length).toBeGreaterThan(0);
   });
 });
