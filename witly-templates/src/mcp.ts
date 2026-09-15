@@ -10,6 +10,7 @@ import { listTemplates } from './db/index.js';
 import { listarConhecimento } from './db/conhecimento.js';
 import { confirmar, conhecimento, sugerir as sugerirConhecimento } from './kit/conhecimento-tools.js';
 import { DOMINIOS, FAMILIAS, GATILHOS, NIVEIS, TIPO_NOMES } from './kit/conhecimento.js';
+import { proporVersao } from './kit/versao-proposta.js';
 import { comecePorAqui, guia, listarTemplates, montarQueries, obterTemplate, perguntas, resourceText, ToolError, type ToolUser } from './kit/tools.js';
 import { avaliar, registrar, sugerir } from './kit/activity.js';
 import { removerTemplate, salvarTemplate } from './kit/personal.js';
@@ -177,6 +178,20 @@ export class TemplatesMcp extends McpAgent<Env, Record<string, never>, Props> {
         motivo: z.string().optional().describe('o que aconteceu na análise que mostrou a falta'),
       },
     }, async (input) => this.run((u) => sugerir(this.env, u, input)));
+
+    this.server.registerTool('propor_versao', {
+      description: 'Você JÁ CORRIGIU o template durante o trabalho (a tarefa que faltava uma checagem, a query sem uma coluna, o guia que explicava errado, o Python)? Suba o arquivo corrigido aqui em vez de descrever o conserto em prosa. Vira um RASCUNHO para o editor revisar o diff e publicar — a versão publicada NÃO muda, e você continua recebendo a antiga até um editor publicar. Use `sugerir_regra` quando for só uma regra a acrescentar, e este quando o conteúdo do kit está errado e você tem o certo em mãos.',
+      inputSchema: {
+        slug: z.string().describe('slug do template'),
+        motivo: z.string().describe('o que aconteceu NA ANÁLISE que mostrou o problema e o que a mudança corrige — é o que o editor lê para decidir'),
+        arquivos: z.record(z.string(), z.string()).optional().describe('conteúdo NOVO e COMPLETO de cada arquivo que você mexeu: {"guia.md":"…","queries/dump.sql":"…","python/calc.py":"…"}. Só os que mudaram.'),
+        tarefas: z.record(z.string(), z.object({ title: z.string().optional(), body_md: z.string().optional() })).optional().describe('tarefas de contexto por id'),
+        regras: z.record(z.string(), z.object({ tipo: z.string().optional(), title: z.string().optional(), body_md: z.string().optional() })).optional().describe('regras do template por id'),
+        manifest: z.record(z.string(), z.unknown()).optional().describe('manifesto inteiro, se mudou'),
+        cliente: z.string().optional().describe('slug do cliente em que o problema apareceu'),
+        forcar: z.boolean().optional().describe('sobrescrever rascunho não publicado de outra pessoa (só com certeza)'),
+      },
+    }, async (a) => this.run((u) => proporVersao(this.env, u, a as never)));
 
     this.server.registerTool('quem_sou', {
       description: 'Identidade do usuário logado neste MCP (diagnóstico).',

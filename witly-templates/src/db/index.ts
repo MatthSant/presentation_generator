@@ -29,7 +29,7 @@ export interface Version {
 }
 
 export interface Activity {
-  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao' | 'sugestao' | 'feedback';
+  id: string; org_id: string; email: string; evento: 'geracao' | 'aprofundamento' | 'edicao' | 'sugestao' | 'feedback' | 'versao';
   slug: string; version_number: number | null; cliente: string | null; pergunta_id: string | null;
   dados_json: string; avaliacao: number | null; descartado: number; motivo: string | null;
   editor_nota: number | null; editor_comentario: string | null; virou_exemplo: number; virou_regra: number;

@@ -264,7 +264,7 @@ api.get('/api/atividade/resumo', async (c) => {
   };
   const [doFiltro, daFila] = await Promise.all([
     db.countActivity(c.env.DB, c.env.ORG_ID, f),
-    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento,sugestao,feedback', veredito: 'sem' }),
+    db.countActivity(c.env.DB, c.env.ORG_ID, { email: f.email, evento: 'aprofundamento,sugestao,feedback,versao', veredito: 'sem' }),
   ]);
   return c.json({ total: doFiltro.total, sem_veredito: daFila.total, desde: daFila.mais_antiga_sem_veredito });
 });

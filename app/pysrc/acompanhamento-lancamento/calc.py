@@ -861,12 +861,29 @@ def build(rows, config=None, goal_canais=None):
         return round(sum(fnum(r.get(_SRC[k])) for r in sub))
     paid_rows = [r for r in rows_corte if is_paid(r)]
     org_rows = [r for r in rows_corte if not is_paid(r)]
+
+    def exclusivo(sub):
+        """Novo / antigo / cliente são EXCLUSIVOS e somam `leads`: cliente sobrescreve
+        antigo, antigo sobrescreve novo.
+
+        A view não entrega isso pronto. `leads_antigos` só responde "já era lead?" e
+        `cliente_inscrito` só responde "já era cliente?" — são flags independentes, e a
+        mesma pessoa acende as duas. Somar as colunas cruas dá mais que `leads` (77 de 438
+        linhas num lançamento conferido) e usá-las como se fossem categorias faz a barra de
+        cada uma disputar espaço com gente que está nas outras. A exclusividade é regra
+        nossa, aplicada aqui: o cliente fica inteiro, o antigo fica com o que sobra depois
+        dele, e o novo com o resto até fechar `leads`."""
+        leads = round(sum(fnum(r.get(_SRC['leads'])) for r in sub))
+        cli = min(ssum(sub, 'cli'), leads)
+        ant = min(ssum(sub, 'antigos'), leads - cli)
+        return {'leads': leads, 'cli': cli, 'antigos': ant, 'novos': leads - cli - ant}
+
+    _tot, _pago, _org = exclusivo(rows_corte), exclusivo(paid_rows), exclusivo(org_rows)
     tipo_lead = {
-        'novos': round(tot_sums['novos']), 'antigos': round(tot_sums['antigos']),
-        'novos_pago': ssum(paid_rows, 'novos'), 'novos_org': ssum(org_rows, 'novos'),
-        'antigos_pago': ssum(paid_rows, 'antigos'), 'antigos_org': ssum(org_rows, 'antigos'),
-        'cli_pago': ssum(paid_rows, 'cli'), 'cli_org': ssum(org_rows, 'cli'),
-        'cli_total': round(tot_sums['cli']),
+        'novos': _tot['novos'], 'antigos': _tot['antigos'], 'cli_total': _tot['cli'],
+        'novos_pago': _pago['novos'], 'novos_org': _org['novos'],
+        'antigos_pago': _pago['antigos'], 'antigos_org': _org['antigos'],
+        'cli_pago': _pago['cli'], 'cli_org': _org['cli'],
     }
 
     # canais orgânicos (por utm_source) — vazios/null/'-' viram "Não trackeado"

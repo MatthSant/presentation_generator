@@ -813,7 +813,12 @@ def assemble(rows, config, content, opts=None):
     eb(can, cg, 'can-eb-tipo', 'TIPO DE LEAD', 'novos, antigos e clientes por origem')
     # barras 100% por categoria, divididas Pago / Orgânico — mostra quem domina cada
     # categoria de lead (novos = pago, clientes = orgânico, etc.)
-    leads_base = tl['novos'] + tl['antigos']
+    #
+    # As três já vêm exclusivas do calc (cliente sobrescreve antigo, antigo sobrescreve
+    # novo — a view entrega flags independentes, não categorias; ver `exclusivo` no calc).
+    # Então a soma delas é `leads` e as barras fecham 100%. Antes a base era só
+    # novos + antigos, e a de Clientes dividia por uma base que não a continha: 115%.
+    leads_base = tl['novos'] + tl['antigos'] + tl['cli_total']
 
     def tl_seg(pago, org, tot):
         pp, po = calc.pct(pago, tot) or 0, calc.pct(org, tot) or 0

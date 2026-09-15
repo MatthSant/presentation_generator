@@ -76,7 +76,7 @@
   async function contarPendencias() {
     if (!me) return;
     try {
-      const [props, tri] = await Promise.all([api('/api/propostas?estado=aberta&limit=200'), api('/api/atividade/resumo?evento=aprofundamento,sugestao,feedback&veredito=sem')]);
+      const [props, tri] = await Promise.all([api('/api/propostas?estado=aberta&limit=200'), api('/api/atividade/resumo?evento=aprofundamento,sugestao,feedback,versao&veredito=sem')]);
       const n = props.length + (isEditor() ? (tri.sem_veredito || 0) : 0);
       const el = $('#nav-pend'); el.textContent = n; el.hidden = !n;
       el.classList.toggle('urg', props.some((p) => p.urgencia === 'urgente'));
@@ -498,11 +498,11 @@
   }
 
   // ── Fase 2: atividade ──────────────────────────────────────────────────
-  const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição', sugestao: 'Sugestão', feedback: 'Feedback de uso' };
+  const EVENTO_LABEL = { geracao: 'Geração', aprofundamento: 'Aprofundamento', edicao: 'Edição', sugestao: 'Sugestão', feedback: 'Feedback de uso', versao: 'Versão proposta' };
   const VEREDITO_LABEL = { exemplo: 'exemplo', regra: 'virou regra', descarte: 'descartado', ok: 'revisado' };
   const VEREDITO_PILL = { exemplo: 'pub', regra: 'editor', descarte: 'off', ok: 'leitor' };
   const TRIAGEM = [
-    ['sem', 'sem veredito', { evento: 'aprofundamento,sugestao,feedback', veredito: 'sem' }],
+    ['sem', 'sem veredito', { evento: 'aprofundamento,sugestao,feedback,versao', veredito: 'sem' }],
     ['tudo', 'tudo', {}],
     ['exemplos', 'exemplos', { veredito: 'exemplo' }],
     ['descartados', 'descartados', { descartado: '1' }],
@@ -562,7 +562,7 @@
     bs.onkeydown = (e) => { if (e.key === 'Enter') ir({ busca: bs.value.trim() }); };
     bs.onblur = () => { if ((bs.value.trim() || '') !== (p.get('busca') || '')) ir({ busca: bs.value.trim() }); };
     const fl = $('#fila'); if (fl) fl.onclick = async () => {
-      const fila = await api('/api/atividade?evento=aprofundamento,sugestao,feedback&veredito=sem&limit=100');
+      const fila = await api('/api/atividade?evento=aprofundamento,sugestao,feedback,versao&veredito=sem&limit=100');
       if (!fila.length) { toast('Nada para revisar'); return; }
       location.hash = `#/atividade/${fila[fila.length - 1].id}?fila=1`;
     };
@@ -571,11 +571,12 @@
 
   /** Um item da triagem: o que foi perguntado, o que o agente respondeu e o que fazer com isso. */
   function cardAtividade(r) {
-    const triavel = r.evento === 'aprofundamento' || r.evento === 'sugestao' || r.evento === 'feedback';
+    const triavel = r.evento === 'aprofundamento' || r.evento === 'sugestao' || r.evento === 'feedback' || r.evento === 'versao';
     const pend = triavel && !r.veredito;
     const med = r.resumo.medida || null;
     const titulo = r.resumo.pergunta || (r.evento === 'sugestao' ? `[${TIPO_REGRA[r.resumo.tipo] || r.resumo.tipo || 'regra'}] ${r.resumo.titulo || ''}` : '')
       || (r.evento === 'feedback' ? `Feedback de uso · nota ${r.resumo.nota ?? '—'}/5${r.resumo.custou_n ? ` · ${r.resumo.custou_n} ${r.resumo.custou_n === 1 ? 'pedido' : 'pedidos'}` : ''}` : '')
+      || (r.evento === 'versao' ? `Versão v${r.version_number ?? '?'} proposta pelo agente — ainda NÃO publicada` : '')
       || (r.resumo.resultado && r.resumo.resultado.titulo) || EVENTO_LABEL[r.evento] || r.evento;
     const corpoFb = r.evento === 'feedback' && med ? `${r.resumo.resumo_fb ? esc(r.resumo.resumo_fb) + ' — ' : ''}rodadas: ${med.apresentacao ?? 0} apresentação · ${med.filtro ?? 0} filtro · ${med.analise ?? 0} análise` : '';
     return `<div class="acard ${pend ? 'pend' : r.veredito ? 'done' : ''}">
@@ -588,7 +589,7 @@
       <p class="a">${corpoFb || esc(r.resumo.resposta || r.resumo.corpo || r.resumo.mudanca || (r.motivo ? `motivo: ${r.motivo}` : '') || '—')}</p>
       <div class="foot"><a href="#/atividade/${esc(r.id)}">${triavel ? 'Abrir revisão' : 'Ver detalhe'}</a>
         ${isEditor() && triavel ? `<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-          ${r.evento === 'feedback' ? (r.veredito ? '' : `<button class="btn btn-ok" data-acao="ok" data-id="${esc(r.id)}">Marcar revisado</button>`) : r.evento === 'sugestao' ? (r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="aceitar" data-id="${esc(r.id)}">Aceitar como entrada</button>`) : `
+          ${r.evento === 'versao' ? `<a class="btn btn-rule" href="#/t/${esc(r.slug)}/versoes">Ver diff e publicar</a>${r.veredito ? '' : `<button class="btn btn-ok" data-acao="ok" data-id="${esc(r.id)}">Marcar revisado</button>`}` : r.evento === 'feedback' ? (r.veredito ? '' : `<button class="btn btn-ok" data-acao="ok" data-id="${esc(r.id)}">Marcar revisado</button>`) : r.evento === 'sugestao' ? (r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="aceitar" data-id="${esc(r.id)}">Aceitar como entrada</button>`) : `
           ${r.virou_exemplo ? '' : `<button class="btn btn-ok" data-acao="exemplo" data-id="${esc(r.id)}">Virar exemplo</button>`}
           ${r.virou_regra ? '' : `<button class="btn btn-rule" data-acao="regra" data-id="${esc(r.id)}">Virar regra</button>`}`}
           ${r.descartado ? '' : `<button class="btn btn-drop" data-acao="descarte" data-id="${esc(r.id)}">Descartar</button>`}</span>` : ''}</div></div>`;
@@ -620,7 +621,7 @@
     const d = a.dados || {};
     const naFila = params().get('fila') === '1';
     let fila = [];
-    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento,sugestao,feedback&veredito=sem&limit=100'); } catch { fila = []; } }
+    if (naFila) { try { fila = await api('/api/atividade?evento=aprofundamento,sugestao,feedback,versao&veredito=sem&limit=100'); } catch { fila = []; } }
     const ordem = [...fila].reverse();                       // mais antigo primeiro: a fila anda para frente no tempo
     const i = ordem.findIndex((x) => x.id === a.id);
     const vizinho = (passo) => (i >= 0 && ordem[i + passo] ? ordem[i + passo].id : null);
@@ -630,7 +631,14 @@
       ? `<div class="card" style="padding:0;overflow:hidden"><div style="padding:11px 14px;border-bottom:1px solid var(--line);background:var(--zebra)" class="kicker">Consultas usadas</div>
          <pre style="padding:14px;margin:0;overflow:auto;color:var(--ink-soft)">${esc(JSON.stringify(d.consultas, null, 2))}</pre></div>` : '';
     const PRIO_PILL = { alta: 'off', media: 'draft', baixa: 'leitor' };
-    const corpo = a.evento === 'feedback'
+    const corpo = a.evento === 'versao'
+      ? `<div class="banner"><span>Isto é um <b>rascunho</b>. O agente já corrigiu e subiu o conteúdo; a versão publicada não mudou e os agentes seguem recebendo a antiga até alguém publicar.</span><a class="btn" href="#/t/${esc(a.slug)}/versoes" style="margin-left:auto;white-space:nowrap">Ver diff e publicar →</a></div>
+         <div class="card"><div class="kicker">Por que o agente mudou</div><p style="margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(d.motivo || '—')}</p></div>
+         <div class="card"><div class="kicker">O que mudou no rascunho v${a.version_number ?? '?'}</div>
+           <ul class="sm" style="margin:0;padding-left:18px">${(d.mudou || []).map((x) => `<li>${esc(x)}</li>`).join('') || '<li class="muted">—</li>'}</ul>
+           ${d.colisao && d.colisao.length ? `<p class="sm" style="color:var(--amber);margin:10px 0 0">⚠ sobrescreveu mudança não publicada de outra pessoa em: ${esc(d.colisao.join(', '))}</p>` : ''}</div>
+         ${(d.diffs || []).length ? `<div class="card"><div class="kicker">Amostra do diff contra a publicada</div><div style="font-size:12px">${d.diffs.map((x) => `<pre style="white-space:pre-wrap;overflow-x:auto;background:var(--wash);padding:10px;border-radius:var(--r-xs)">${esc(x)}</pre>`).join('')}</div><p class="muted sm" style="margin:8px 0 0">Diff completo e botão de publicar na aba Versões do template.</p></div>` : ''}`
+      : a.evento === 'feedback'
       ? `<div class="card"><div class="kicker">Medida do uso</div><div class="row" style="gap:18px"><span><b style="font-size:20px">${esc(d.nota ?? '—')}</b><span class="muted sm">/5 nota</span></span>
            ${d.medida ? `<code class="sm">${d.medida.apresentacao ?? 0} apresentação · ${d.medida.filtro ?? 0} filtro · ${d.medida.analise ?? 0} análise${d.medida.total ? ` · ${d.medida.total} rodadas` : ''}</code>` : ''}</div>
            ${d.resumo ? `<p class="sm muted" style="margin-top:8px">${esc(d.resumo)}</p>` : ''}</div>
@@ -647,11 +655,14 @@
 
     const sugestao = a.evento === 'sugestao';
     const feedback = a.evento === 'feedback';
-    const decisao = isEditor() && (a.evento === 'aprofundamento' || sugestao || feedback) ? `<div class="card"><div class="kicker">Seu veredito</div>
+    const versao = a.evento === 'versao';
+    const decisao = isEditor() && (a.evento === 'aprofundamento' || sugestao || feedback || versao) ? `<div class="card"><div class="kicker">Seu veredito</div>
       ${a.veredito ? `<p class="sm"><span class="pill ${VEREDITO_PILL[a.veredito]}">${esc(VEREDITO_LABEL[a.veredito])}</span> por ${esc(a.veredito_por || '—')} em ${esc(fmtAt(a.veredito_em))}</p>` : ''}
+      ${versao ? `<a class="choice rule" href="#/t/${esc(a.slug)}/versoes"><b>Ver diff e publicar</b><span>Enquanto não publicar, o agente continua recebendo a versão antiga</span></a>
+         <button class="choice ok" data-acao="ok"><b>Marcar revisado</b><span>Tira da fila sem publicar — o rascunho continua lá</span></button>` : ''}
       ${feedback ? '<button class="choice ok" data-acao="ok"><b>Marcar revisado</b><span>Os itens que valem viram sugestão (botão na tabela) e seguem para o rascunho</span></button>' : ''}
-      ${sugestao || feedback || a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
-      ${a.virou_regra || feedback ? '' : (sugestao ? '<button class="choice rule" data-acao="aceitar"><b>Aceitar como entrada</b><span>Vira entrada no rascunho com o tipo e o título sugeridos</span></button>' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>')}
+      ${sugestao || feedback || versao || a.virou_exemplo ? '' : '<button class="choice ok" data-acao="exemplo"><b>Virar exemplo aprovado</b><span>Entra no guia.md do kit</span></button>'}
+      ${a.virou_regra || feedback || versao ? '' : (sugestao ? '<button class="choice rule" data-acao="aceitar"><b>Aceitar como entrada</b><span>Vira entrada no rascunho com o tipo e o título sugeridos</span></button>' : '<button class="choice rule" data-acao="regra"><b>Virar regra</b><span>Vira uma entrada na aba Regras do rascunho</span></button>')}
       ${a.descartado ? '' : '<button class="choice drop" data-acao="descarte"><b>Descartar</b><span>Sai do kit e conta na taxa de descarte</span></button>'}
       <label>Sua nota e o motivo</label>
       <div class="scores">${[1, 2, 3, 4, 5].map((n) => `<button data-nota="${n}" class="${a.editor_nota === n ? 'on' : ''}">${n}</button>`).join('')}</div>

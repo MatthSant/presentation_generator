@@ -139,7 +139,7 @@ export async function listarTemplates(env: ToolEnv, user: ToolUser): Promise<str
     const kit = await getPublishedKit(env.DB, t.slug);
     const m = kit ? manifestOf(kit) : {};
     out.push(`## ${t.name}  \`${t.slug}\`  (${versionLabel({ semver: t.published_semver, number: t.published_number })})${t.owner_email ? '  — PESSOAL (só você vê)' : ''}`);
-    if (t.kind === 'conversa') out.push('**Tipo:** ROTEIRO de conversa em etapas (sem Python nem zip): o agente entrega uma etapa, espera a palavra do consultor, registra e avança.');
+    if (t.kind === 'conversa') out.push('**Tipo:** ROTEIRO de conversa em etapas (sem Python nem zip): o agente entrega uma etapa, espera a palavra do consultor, registra e avança. Roda na sessão principal — não delegue a subagente.');
     if (t.objective) out.push(`**Objetivo:** ${t.objective}`);
     if (t.when_to_use) out.push(`**Quando usar:** ${t.when_to_use}`);
     if (m.tarefas_contexto?.length) out.push(`**Tarefas de contexto:** ${m.tarefas_contexto.map((x) => `${x.id} (${x.objetivo})`).join(' · ')}`);
@@ -262,6 +262,11 @@ async function obterRoteiro(env: ToolEnv, user: ToolUser, kit: Kit, m: Manifest)
   out.push(`**Quando usar:** ${kit.template.when_to_use}`);
   out.push('');
   out.push('Este template é uma **conversa em etapas**, não um gerador de HTML. Regra do roteiro: entregue a etapa, faça a pergunta de `espera` ao consultor, registre o que a etapa manda e só então avance. Não faça tudo de uma vez.');
+  // Veio de feedback de uso (nota 2): duas rodadas perdidas tentando passar a etapa para
+  // um subagente antes mesmo de puxar o dado. Um roteiro é uma conversa com uma pessoa —
+  // delegar quebra o checkpoint, que é o ponto dele.
+  out.push('');
+  out.push('**Rode na sessão principal, tool a tool. NÃO delegue as etapas a um subagente.** O roteiro existe para o consultor responder entre uma etapa e outra: um subagente não tem com quem falar, e volta com tudo pronto e nada confirmado. Se precisar de um subagente para uma busca pesada e isolada, traga o resultado de volta e siga a etapa você mesmo.');
   out.push(await nivel0Block(env, user, slug, m as { funil?: unknown; tags?: unknown }));
   if (m.entrada) { out.push('', '## Entrada — o que pedir ao consultor antes de começar', '', String(m.entrada)); }
   const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
