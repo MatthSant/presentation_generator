@@ -149,6 +149,17 @@ export async function entregarAnalise(env: ToolEnv & InsightsEnv, user: ToolUser
   } else {
     const nome = nomeDocumento(input.nome);
     const projetoId = await achaProjeto(env, autor, input);
+    // Criar é o único passo daqui que deixa sujeira difícil de ver: um documento vazio no
+    // projeto do cliente, que ninguém procura porque não está no ar. Se já existe um com
+    // este nome, quase sempre a intenção era SUBSTITUIR a análise dele.
+    const jaTem = lista<Documento>(await api(env, `/projects/${projetoId}/trackings`, { autor }))
+      .find((t) => t.name.trim().toLowerCase() === nome.toLowerCase());
+    if (jaTem) {
+      throw new ToolError(
+        `o projeto já tem um documento chamado "${jaTem.name}" (\`${jaTem.id}\`). Criar outro com o mesmo nome deixa dois iguais na lista do cliente. `
+        + `Para trocar a análise dele — mantendo o link que o cliente já tem — use \`{documento:${jaTem.id}}\`. `
+        + 'Se for mesmo um documento novo e diferente, mande um `nome` que os distinga.');
+    }
     doc = await api<Documento>(env, `/projects/${projetoId}/trackings`, {
       metodo: 'POST', autor, corpo: { name: nome, type: input.tipo || 'analise' },
     });
@@ -206,17 +217,22 @@ async function etapaOnde(env: ToolEnv & InsightsEnv, autor: string, input: Entre
   return o.join('\n');
 }
 
-async function etapaSubir(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, novo: boolean): Promise<string> {
-  const eu = await api<Eu>(env, '/me', { autor });
+/** O comando de upload. Serve ao documento vazio (etapa 2) E a subir por cima de um que já
+ *  tem rascunho (etapa 3) — substituir a análise é o caso normal, não a exceção. Antes só a
+ *  etapa 2 devolvia isto, então quem já tinha subido uma vez não conseguia mandar a versão
+ *  corrigida: a etapa 3 dizia "suba por cima" sem dar o meio de fazê-lo. */
+async function comandoDeUpload(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, exemplo = 'relatorio.html'): Promise<string[]> {
   const token = await signUpload(signingKey(env), doc.id, autor);
   const url = `${(env.PUBLIC_URL || '').replace(/\/$/, '')}/up/${doc.id}?t=${encodeURIComponent(token)}&a=${encodeURIComponent(autor)}`;
+  return ['```bash', `curl -sS -X POST "${url}" \\`, `  -F "files=@${exemplo}"`, '```'];
+}
+
+async function etapaSubir(env: ToolEnv & InsightsEnv, autor: string, doc: Documento, novo: boolean): Promise<string> {
+  const eu = await api<Eu>(env, '/me', { autor });
   const o = cabeca('subir os arquivos', 2, autor);
   o.push(`Documento **${doc.name}** \`${doc.id}\`${novo ? ' (recém-criado)' : ''} está vazio no rascunho.`, '');
   o.push('**Rode este comando no terminal, na pasta da análise.** Não me mande o conteúdo do relatório: ele tem alguns MB, e argumento de tool é texto que você gera — o arquivo tem de sair da máquina direto para o servidor.', '');
-  o.push('```bash');
-  o.push(`curl -sS -X POST "${url}" \\`);
-  o.push('  -F "files=@relatorio.html"');
-  o.push('```', '');
+  o.push(...await comandoDeUpload(env, autor, doc), '');
   o.push(`O nome do arquivo **é** o caminho dentro do documento: \`-F "files=@assets/grafico.png"\` vive em \`assets/grafico.png\`, então os caminhos relativos do HTML continuam funcionando. Um \`-F\` por arquivo, até ${eu.envio?.maxArquivosPorVez ?? 60} por chamada. A URL vale 30 minutos e só serve para este documento.`, '');
   o.push(`**Próximo:** com o upload feito, chame \`entregar_analise({documento:${doc.id}})\` de novo — eu confiro o que entrou e preparo o que mostrar ao consultor. Nada disso o cliente vê ainda.`);
   return o.join('\n');
@@ -240,7 +256,12 @@ async function etapaConferir(env: ToolEnv & InsightsEnv, autor: string, doc: Doc
   o.push('', '### Pare aqui e pergunte', '');
   o.push('Publicar põe a análise na frente do cliente **na hora**, e não se desfaz sem ele ter visto. Essa decisão é do consultor, não sua. Mostre a ele o que a análise diz, e pergunte se pode publicar.', '');
   o.push(`**Com o sim dele:** \`entregar_analise({documento:${doc.id}, consultor_pediu:true})\`${principais.length > 1 && !doc.entry_path ? ', incluindo `principal`' : ''}.`);
-  o.push('**Se ele quiser mudar algo:** refaça o arquivo, suba por cima (o mesmo caminho sobrescreve) e volte aqui. O rascunho espera o tempo que precisar.');
+  o.push('', '### Trocar algum arquivo antes de publicar', '');
+  o.push('Refaça e **suba por cima** — o mesmo caminho sobrescreve, e o cliente não vê nada disso. Depois volte a esta etapa. O rascunho espera o tempo que precisar.', '');
+  // O exemplo usa um caminho que JÁ existe: sobrescrever é o que "subir por cima"
+  // significa, e mandar `relatorio.html` num documento cujo arquivo é
+  // `relatorio-2026-09-15.html` acrescentaria um quarto em vez de trocar o certo.
+  o.push(...await comandoDeUpload(env, autor, doc, doc.entry_path || principais[0]?.path || staging[0]?.path));
   return o.join('\n');
 }
 

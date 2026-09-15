@@ -155,3 +155,37 @@ describe('entregar_analise — a rota de upload', () => {
     expect((await põe(bom)).status).not.toBe(403);
   });
 });
+
+describe('entregar_analise — subir por cima e não duplicar', () => {
+  it('a etapa 3 devolve o curl: substituir a análise é o caso normal', async () => {
+    await seedUser(A);
+    servidor({ '/trackings/99/files': [{ path: 'relatorio.html' }], '/trackings/99': DOC });
+    const out = await entregarAnalise(E(), U(), { documento: 99 });
+    // o bug era este: mandava "suba por cima" sem dar o meio de fazê-lo
+    expect(out).toContain('suba por cima');
+    expect(out).toContain('curl -sS -X POST');
+    expect(out).toContain('/up/99?t=');
+    // o exemplo tem de ser um caminho QUE JÁ EXISTE: subir 'relatorio.html' num documento
+    // cujo arquivo é outro acrescentaria mais um em vez de trocar o certo
+    expect(out).toContain('files=@relatorio.html');
+  });
+
+  it('o exemplo de upload usa o arquivo que já está no rascunho, não um nome genérico', async () => {
+    await seedUser(A);
+    servidor({ '/trackings/99/files': [{ path: 'relatorio-2026-09-15.html' }], '/trackings/99': DOC });
+    const out = await entregarAnalise(E(), U(), { documento: 99 });
+    expect(out).toContain('files=@relatorio-2026-09-15.html');
+    expect(out).not.toContain('files=@relatorio.html"');
+  });
+
+  it('não cria um segundo documento com o mesmo nome — manda substituir o que existe', async () => {
+    await seedUser(A);
+    const vistas = servidor({
+      '/projects/34/trackings': [{ id: 222, name: 'Debriefing · Cria abr/26', code: 'c' }],
+      '/trackings/222': DOC,
+    });
+    await expect(entregarAnalise(E(), U(), { projeto: 34, nome: 'Debriefing · Cria abr/26' }))
+      .rejects.toThrow(/já tem um documento chamado/);
+    expect(vistas.some((v) => v.metodo === 'POST')).toBe(false);   // nada foi criado
+  });
+});
