@@ -4,7 +4,7 @@
 import { versionLabel } from '../db/semver.js';
 import { canSee, designSystemText, getPublishedKit, getTemplate, listTemplates, logUsage, type Kit } from '../db/index.js';
 import { obterConhecimento } from '../db/conhecimento.js';
-import { indiceBlock, nivel0Block } from './conhecimento-tools.js';
+import { blocoDaTarefa, indiceBlock, lista, nivel0Block, porGatilhoDasTarefas } from './conhecimento-tools.js';
 import { textoCompleto } from './conhecimento.js';
 import { montarQuery, MontarQueryError, type ParamDef } from './montar-query.js';
 import { signDownload, signingKey } from './sign.js';
@@ -19,7 +19,9 @@ export interface ManifestQuery { id: string; file: string; title?: string; when?
 export interface Manifest {
   params?: ParamDef[];
   queries?: ManifestQuery[];
-  tarefas_contexto?: Array<{ id: string; objetivo: string; saida?: string; confirmar?: boolean }>;
+  // `gatilho` liga a tarefa ao conhecimento que vale NELA: obter_template injeta as
+  // entradas daquele gatilho dentro da tarefa, no ponto em que a decisão é tomada.
+  tarefas_contexto?: Array<{ id: string; objetivo: string; saida?: string; confirmar?: boolean; gatilho?: string | string[] }>;
   como_gerar?: string[];
   config?: unknown;
   arquivos?: Record<string, string>;
@@ -89,7 +91,7 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   const m = manifestOf(kit);
   const n = kit.version.number;
   await logUsage(env.DB, { email: user.email, tool: 'obter_template', slug, version_number: n });
-  if (kit.template.kind === 'conversa') return obterRoteiro(env, kit, m);
+  if (kit.template.kind === 'conversa') return obterRoteiro(env, user, kit, m);
 
   const token = await signDownload(signingKey(env), slug, n, DOWNLOAD_TTL);
   const base = (env.PUBLIC_URL || '').replace(/\/$/, '');
@@ -104,7 +106,13 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('');
   out.push(`**Objetivo:** ${kit.template.objective}`);
   out.push(`**Quando usar:** ${kit.template.when_to_use}`);
-  out.push(await nivel0Block(env, slug, m as { funil?: unknown; tags?: unknown }));
+  out.push(await nivel0Block(env, user, slug, m as { funil?: unknown; tags?: unknown }));
+  // O índice fica JUNTO do nível 0, no topo. No fim do documento ele caía no caractere
+  // 60.566 de 61.148 — uma instrução para agir mais tarde, depois de 15 mil tokens de
+  // tarefas, SQL e guia. Aqui o agente vê o que existe antes de começar a trabalhar.
+  const gatDe = new Map((m.tarefas_contexto || []).map((t) => [t.id, lista(t.gatilho)]));
+  const mapaGat = await porGatilhoDasTarefas(env, [...gatDe.values()].flat());
+  out.push(await indiceBlock(env, kit, [...gatDe.values()].flat()));
   out.push('');
   out.push('## Download do kit completo (Python, viewer, exemplo — NÃO passe pelo contexto, baixe)');
   out.push('');
@@ -118,11 +126,16 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('');
   const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
   out.push('## Tarefas (execute ANTES de gerar; as marcadas PERGUNTE ao consultor, não decida sozinho)');
+  const jaListados = new Map<string, string>();
   for (const t of kit.tasks) {
     out.push('');
     out.push(`### ${t.title}  \`${t.task_id}\`  — ${confirmar.get(t.task_id) === false ? 'resolva pela regra (pergunte só se ambíguo)' : '**PERGUNTE AO CONSULTOR e confirme antes de gerar**'}`);
     out.push('');
     out.push(t.body_md.trim());
+    const gs = gatDe.get(t.task_id) || [];
+    const bloco = blocoDaTarefa(gs, mapaGat, jaListados);
+    if (bloco) out.push(bloco);
+    for (const g of gs) if (!jaListados.has(g)) jaListados.set(g, t.task_id);
   }
   out.push('');
   out.push('## Checklist antes de gerar (não pule)');
@@ -167,12 +180,11 @@ export async function obterTemplate(env: ToolEnv, user: ToolUser, slug: string):
   out.push('- Faltou regra, definição ou pergunta NO TEMPLATE? `sugerir_regra({slug, tipo, titulo, corpo, motivo})` — triagem do editor. Faltou CONHECIMENTO (métrica, diagnóstico, caso, benchmark, formato…)? `sugerir({tipo, titulo, corpo, dados, escopo, motivo, urgencia?, evidencia?})` — vira proposta; cálculo/métrica errada = `urgencia:"urgente"` com evidência.');
   out.push('- Em todo `registrar`, mande `usadas:[{id, ajudou}]` com as entradas de conhecimento que entraram na análise (é a evidência que mantém o conhecimento vivo).');
   out.push('- **Ao fechar o trabalho com o consultor** (obrigatório): `registrar({evento:"feedback", slug, versao, cliente, resumo, segurou:[…], custou:[{item, prioridade, pedido, rodadas}], medida:{apresentacao, filtro, analise}, nota})` — o que segurou bem, cada ajuste que custou rodada (o `pedido` é o que mudar no kit, escrito como regra), quantas rodadas foram sobre apresentação × filtro × análise, e a nota de 1 a 5. É assim que o kit aprende; o editor triagem cada item.');
-  out.push(await indiceBlock(env, kit));
   return out.join('\n');
 }
 
 /** kind = conversa: o roteiro em etapas com checkpoint (spec 008 §5). Sem zip, sem Python. */
-async function obterRoteiro(env: ToolEnv, kit: Kit, m: Manifest): Promise<string> {
+async function obterRoteiro(env: ToolEnv, user: ToolUser, kit: Kit, m: Manifest): Promise<string> {
   const slug = kit.template.slug;
   const files = new Map(kit.files.map((f) => [f.path, f.content]));
   const out: string[] = [];
@@ -182,7 +194,7 @@ async function obterRoteiro(env: ToolEnv, kit: Kit, m: Manifest): Promise<string
   out.push(`**Quando usar:** ${kit.template.when_to_use}`);
   out.push('');
   out.push('Este template é uma **conversa em etapas**, não um gerador de HTML. Regra do roteiro: entregue a etapa, faça a pergunta de `espera` ao consultor, registre o que a etapa manda e só então avance. Não faça tudo de uma vez.');
-  out.push(await nivel0Block(env, slug, m as { funil?: unknown; tags?: unknown }));
+  out.push(await nivel0Block(env, user, slug, m as { funil?: unknown; tags?: unknown }));
   if (m.entrada) { out.push('', '## Entrada — o que pedir ao consultor antes de começar', '', String(m.entrada)); }
   const confirmar = new Map((m.tarefas_contexto || []).map((t) => [t.id, t.confirmar !== false]));
   if (kit.tasks.length) {
@@ -255,7 +267,7 @@ export async function guia(env: ToolEnv, user: ToolUser, slug: string): Promise<
   const kit = await kitOrThrow(env, user, slug);
   await logUsage(env.DB, { email: user.email, tool: 'guia', slug, version_number: kit.version.number });
   const g = kit.files.find((f) => f.path === 'guia.md')?.content ?? '(sem guia)';
-  return g.trim() + rulesBlock(kit.rules) + await nivel0Block(env, slug, manifestOf(kit) as { funil?: unknown; tags?: unknown });
+  return g.trim() + rulesBlock(kit.rules) + await nivel0Block(env, user, slug, manifestOf(kit) as { funil?: unknown; tags?: unknown });
 }
 
 // ── resources ────────────────────────────────────────────────────────────────

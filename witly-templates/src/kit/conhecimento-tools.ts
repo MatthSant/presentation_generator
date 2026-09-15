@@ -5,7 +5,7 @@
 import { criarProposta, getProposta, listarConhecimento, obterConhecimento, parecidas, registrarUso, urgentesPendentes, usoDe, votar, type Filtro } from '../db/conhecimento.js';
 import { getUser, logUsage, type Kit } from '../db/index.js';
 import { resumoCampanha } from './campanha.js';
-import { bytes, DOMINIOS, FAMILIAS, GATILHOS, LIMITES, linhaIndice, linhaSempre, NIVEIS, parseEscopo, textoCompleto, TIPO_NOMES, URGENCIAS, validarEntrada, type Gatilho, type Urgencia } from './conhecimento.js';
+import { bytes, DOMINIOS, FAMILIAS, GATILHOS, LIMITES, linhaIndice, linhaSempre, NIVEIS, parseEscopo, textoCompleto, TIPO_NOMES, URGENCIAS, validarEntrada, type Entrada, type Gatilho, type Urgencia } from './conhecimento.js';
 import { checkPii, piiMessage } from './pii.js';
 import { ToolError, type ToolEnv, type ToolUser } from './tools.js';
 
@@ -15,7 +15,7 @@ export interface ConhecimentoInput {
   situacao?: Record<string, string>; detalhe?: 'indice' | 'completo'; limite?: number;
 }
 
-const lista = (v: unknown): string[] => (Array.isArray(v) ? v : v == null || v === '' ? [] : [v]).map((x) => String(x).trim().toLowerCase()).filter(Boolean);
+export const lista = (v: unknown): string[] => (Array.isArray(v) ? v : v == null || v === '' ? [] : [v]).map((x) => String(x).trim().toLowerCase()).filter(Boolean);
 
 export async function conhecimento(env: ToolEnv, user: ToolUser, input: ConhecimentoInput): Promise<string> {
   const detalhe = input.detalhe === 'completo' ? 'completo' : 'indice';
@@ -141,7 +141,7 @@ const ESCOPOS_DE = (slug: string | null, m: { funil?: unknown; tags?: unknown } 
 };
 
 /** Nível 0: urgentes pendentes do escopo + entradas `sempre` (título + 1 linha). */
-export async function nivel0Block(env: ToolEnv, slug: string | null, manifest: { funil?: unknown; tags?: unknown } = {}): Promise<string> {
+export async function nivel0Block(env: ToolEnv, user: ToolUser, slug: string | null, manifest: { funil?: unknown; tags?: unknown } = {}): Promise<string> {
   const escopos = ESCOPOS_DE(slug, manifest);
   const [urg, sempre] = await Promise.all([urgentesPendentes(env.DB, env.ORG_ID, escopos), listarConhecimento(env.DB, env.ORG_ID, { sempre: true, limit: LIMITES.sempre })]);
   const out: string[] = [];
@@ -154,6 +154,10 @@ export async function nivel0Block(env: ToolEnv, slug: string | null, manifest: {
     }
   }
   if (sempre.length) {
+    // Entregar TAMBÉM é uso: sem esta linha as 32 `sempre` chegavam ao agente em todo
+    // obter_template e o painel continuava marcando zero, sem jeito de saber se o
+    // conhecimento não estava chegando ou só não estava sendo contado.
+    await registrarUso(env.DB, sempre.map((e) => ({ id: e.id })), user.email, null, 'entregue');
     out.push('', '## Contextos que valem para TODA análise', '',
       'Leia pelos títulos: REGRA = não descumpra · GERALMENTE = siga, salvo motivo dito · DEFINIÇÃO/MÉTRICA = é assim que o termo é entendido. Corpo completo: `conhecimento({ids:[…], detalhe:"completo"})` ou `conhecimento://<id>`.');
     for (const e of sempre) out.push(linhaSempre(e));
@@ -163,21 +167,128 @@ export async function nivel0Block(env: ToolEnv, slug: string | null, manifest: {
   return out.join('\n');
 }
 
-/** Nível 1: índice (só títulos) do conhecimento escopado ao template/funil/tags do manifesto. */
-export async function indiceBlock(env: ToolEnv, kit: Kit): Promise<string> {
+/** Nível 1: índice (só títulos) do conhecimento que NÃO vai embutido — agrupado pelo
+ *  gatilho que manda puxá-lo.
+ *
+ *  Antes este bloco só listava o que estivesse escopado ao template/funil/tags, e
+ *  descartava `geral` de propósito para não repetir o nível 0. Só que o nível 0 leva
+ *  apenas as entradas `sempre`: as `geral` sem `sempre` não iam embutidas, não apareciam
+ *  aqui, e o bloco saía literalmente vazio em TODO template ("nenhuma entrada escopada").
+ *  Eram 40 de 72 entradas sem nenhum caminho até o agente. Agora elas entram por gatilho,
+ *  que é justamente o campo que diz em que momento cada uma serve. */
+const ORDEM_GATILHO: Array<{ g: Gatilho; quando: string }> = [
+  { g: 'ao_abrir', quando: 'ao começar' },
+  { g: 'ao_identificar', quando: 'ao identificar cliente/campanha' },
+  { g: 'ao_consultar_dados', quando: 'antes de escrever SQL' },
+  { g: 'ao_diagnosticar', quando: 'quando um número sai da faixa' },
+  { g: 'ao_recomendar', quando: 'antes de propor ação' },
+  { g: 'ao_escrever', quando: 'antes de redigir' },
+  { g: 'ao_fechar', quando: 'no fim' },
+];
+
+export async function indiceBlock(env: ToolEnv, kit: Kit, jaNasTarefas: string[] = []): Promise<string> {
+  const cobertos = new Set(jaNasTarefas.filter(Boolean));
   let m: { funil?: unknown; tags?: unknown } = {};
   try { m = JSON.parse(kit.version.manifest_json) as typeof m; } catch { /* sem manifesto */ }
   const escopos = ESCOPOS_DE(kit.template.slug, m).filter((e) => e !== 'geral');
   const tags = lista(m.tags);
   const vistos = new Set<string>();
-  const rows = [];
-  if (escopos.length) for (const e of await listarConhecimento(env.DB, env.ORG_ID, { escopo: escopos, sempre: false, limit: LIMITES.indice })) if (!vistos.has(e.id)) { vistos.add(e.id); rows.push(e); }
-  if (tags.length) for (const e of await listarConhecimento(env.DB, env.ORG_ID, { tags, sempre: false, limit: LIMITES.indice })) if (!vistos.has(e.id)) { vistos.add(e.id); rows.push(e); }
-  const out = ['', '## Conhecimento relevante (índice — puxe o corpo quando a etapa pedir)', '',
-    'Gatilhos: `conhecimento({gatilho:"ao_consultar_dados"})` antes de escrever SQL · `ao_diagnosticar` quando um número saiu da faixa · `ao_recomendar` antes de propor ação (inclui `tipo:"caso"` com `situacao` = o que já funcionou) · `ao_escrever` antes de redigir · `ao_fechar` no fim. Cliente ou campanha nomeados? `conhecimento({cliente:"<slug>"})` / `conhecimento({campanha:"<id>"})` antes de gerar.'];
-  if (rows.length) { out.push(''); for (const e of rows.slice(0, LIMITES.indice)) out.push(linhaIndice(e)); }
-  else out.push('', '_(nenhuma entrada escopada a este template ainda — o geral acima vale; busque por `q` ou `tipo` se precisar)_');
+  const rows: Entrada[] = [];
+  const junta = (lista_: Entrada[]): void => {
+    for (const e of lista_) if (!vistos.has(e.id)) { vistos.add(e.id); rows.push(e); }
+  };
+  // Escopado ao template primeiro (é o mais específico), depois tags do manifesto,
+  // depois o geral não-`sempre` — que hoje é o grosso e antes não tinha porta nenhuma.
+  if (escopos.length) junta(await listarConhecimento(env.DB, env.ORG_ID, { escopo: escopos, sempre: false, limit: LIMITES.indice }));
+  if (tags.length) junta(await listarConhecimento(env.DB, env.ORG_ID, { tags, sempre: false, limit: LIMITES.indice }));
+  junta(await listarConhecimento(env.DB, env.ORG_ID, { escopo: ['geral'], sempre: false, limit: LIMITES.indice }));
+
+  const out = ['', '## Conhecimento que NÃO veio junto — puxe no momento certo', '',
+    'O bloco acima é o que vale sempre. Abaixo está o que só faz sentido em certos pontos do trabalho. Puxe **quando chegar no momento**, não tudo de uma vez.',
+    '', '### Como chamar a tool `conhecimento`', '',
+    `\`detalhe:"indice"\` devolve só títulos (varredura barata); \`detalhe:"completo"\` devolve o corpo — e é o completo que conta como uso. Teto: ${LIMITES.tool_completo} entradas no completo, ${LIMITES.tool_indice} no índice.`,
+    '', 'Filtros, combináveis — pelo menos um é obrigatório:', '',
+    '- `gatilho:"ao_diagnosticar"` — o MOMENTO do trabalho. É o corte mais útil, e é por ele que a lista abaixo está agrupada.',
+    '- `q:"cpl subiu"` — **busca em texto livre** no título e no corpo, sem acento e sem diferenciar maiúscula. Use quando você não sabe o tipo nem a tag: descreva o problema com as palavras do consultor.',
+    '- `tipo:"metrica"` ou `familia:"pensar"` — que espécie de conhecimento: `metrica`, `definicao`, `regra`, `diagnostico`, `caso`, `benchmark`, `estilo`, `metodo`, entre outros.',
+    '- `tags:["trafego-pago","cpl"]` — assunto.',
+    '- `cliente:"<slug>"` · `funil:"<id>"` · `campanha:"<id>"` — contexto nomeado. Se o consultor citou um cliente ou uma campanha, chame ANTES de gerar.',
+    '- `ids:["…"]` — quando você já viu o título numa lista (as de baixo, por exemplo) e quer o corpo.',
+    '- `situacao:{…}` — com `tipo:"caso"`: descreva a situação e ele devolve o que já funcionou em situação parecida.',
+    '', 'Nada encontrado? Afrouxe: tire filtros, ou use só `q` com outra palavra. Se continuar vazio e você precisava daquilo, `sugerir({tipo, titulo, corpo, motivo})` cria a entrada que faltou — é assim que o Grimório aprende.'];
+
+  const porGatilho = new Map<string, Entrada[]>();
+  const semGatilho: Entrada[] = [];
+  for (const e of rows) {
+    const gs = (e.gatilho || []).filter((g: string) => g !== 'sempre');
+    if (!gs.length) { semGatilho.push(e); continue; }
+    for (const g of gs) { const arr = porGatilho.get(g) || []; arr.push(e); porGatilho.set(g, arr); }
+  }
+
+  // Uma entrada aparece uma vez só, no primeiro gatilho da ordem em que ela cai: listá-la
+  // em cada gatilho que declara inflava o índice para 4× o orçamento sem dizer nada novo.
+  let n = 0;
+  const listados = new Set<string>();
+  const naTarefa: string[] = [];
+  for (const { g, quando } of ORDEM_GATILHO) {
+    const arr = (porGatilho.get(g) || []).filter((e) => !listados.has(e.id));
+    if (!arr.length) continue;
+    if (cobertos.has(g)) {   // já vai dentro da tarefa que declarou este gatilho
+      for (const e of arr) listados.add(e.id);
+      naTarefa.push(`\`${g}\` (${arr.length})`);
+      continue;
+    }
+    out.push('', `### \`${g}\` — ${quando} · ${arr.length} entrada(s)`, '', `\`conhecimento({gatilho:"${g}", detalhe:"completo"})\``, '');
+    for (const e of arr.slice(0, LIMITES.indice)) { out.push(linhaIndice(e)); listados.add(e.id); n++; }
+  }
+  if (naTarefa.length) out.push('', `_(${naTarefa.join(' · ')} não vêm aqui: estão listadas dentro da tarefa que as usa, mais abaixo.)_`);
+  if (semGatilho.length) {
+    out.push('', `### Sem gatilho declarado — ${semGatilho.length} entrada(s)`, '', '`conhecimento({ids:[…], detalhe:"completo"})`', '');
+    for (const e of semGatilho.filter((e) => !listados.has(e.id)).slice(0, LIMITES.indice)) { out.push(linhaIndice(e)); n++; }
+  }
+  if (!n) out.push('', '_(todo o conhecimento ativo já veio embutido acima — nada a puxar)_');
+
+  const txt = out.join('\n');
+  if (bytes(txt) > LIMITES.indice_bytes) {
+    out.push('', `_(índice com ${Math.round(bytes(txt) / 1024)} KB, acima do orçamento de ${LIMITES.indice_bytes / 1024} KB — a Saúde acusa; escope entradas a template em vez de deixá-las gerais)_`);
+  }
   return out.join('\n');
 }
 
 export type { Gatilho };
+
+/** Nível 1 dentro da TAREFA: as entradas do gatilho que a tarefa declarou, listadas logo
+ *  abaixo dela. É o mesmo conhecimento do índice, entregue no ponto onde a decisão é
+ *  tomada em vez de num apêndice — a regra de classificação chega junto da tarefa
+ *  `classificacao`, não 40 KB depois. Devolve mapa gatilho → entradas, buscado uma vez só. */
+export async function porGatilhoDasTarefas(env: ToolEnv, gatilhos: string[]): Promise<Map<string, Entrada[]>> {
+  const mapa = new Map<string, Entrada[]>();
+  for (const g of [...new Set(gatilhos)].filter(Boolean)) {
+    const rows = await listarConhecimento(env.DB, env.ORG_ID, { gatilho: g, sempre: false, limit: LIMITES.indice });
+    if (rows.length) mapa.set(g, rows);
+  }
+  return mapa;
+}
+
+/** O bloco que vai DENTRO da tarefa. Títulos + a chamada exata; o corpo só se o agente
+ *  pedir, para não estourar o documento com 72 corpos. */
+export function blocoDaTarefa(gatilhos: string[], mapa: Map<string, Entrada[]>, jaListados: Map<string, string> = new Map()): string {
+  const out: string[] = [];
+  for (const g of [...new Set(gatilhos)].filter(Boolean)) {
+    const rows = mapa.get(g);
+    if (!rows?.length) continue;
+    // Três tarefas do debriefing declaram o mesmo gatilho. Listar tudo em cada uma
+    // triplicava o documento sem acrescentar nada: a partir da segunda, só o ponteiro.
+    const antes = jaListados.get(g);
+    if (antes) {
+      out.push('', `**Conhecimento desta tarefa**: o mesmo gatilho \`${g}\` da tarefa \`${antes}\` — a lista está lá. Corpo: \`conhecimento({gatilho:"${g}", detalhe:"completo"})\`.`);
+      continue;
+    }
+    out.push('', `**Conhecimento que vale nesta tarefa** (gatilho \`${g}\`)`, '',
+      `Corpo das ${rows.length}: \`conhecimento({gatilho:"${g}", detalhe:"completo"})\``
+      + ' · só uma: `conhecimento({ids:["<id>"], detalhe:"completo"})`'
+      + ' · não é isto que você procura? `conhecimento({q:"<o problema nas palavras do consultor>"})`', '');
+    for (const e of rows) out.push(linhaIndice(e));
+  }
+  return out.join('\n');
+}

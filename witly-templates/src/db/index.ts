@@ -601,7 +601,7 @@ export interface UsoDash {
   ferramentas: Array<{ tool: string; n: number; pessoas: number; ultimo: string }>;
   templates: Array<{ slug: string; chamadas: number; geracoes: number; aprofundamentos: number; ultimo: string | null }>;
   clientes: Array<{ cliente: string; geracoes: number; aprofundamentos: number; ultimo: string }>;
-  conhecimento: { total: number; usadas: number; consultas: number; top: Array<{ id: string; titulo: string; n: number }> };
+  conhecimento: { total: number; usadas: number; consultas: number; entregues: number; buscadas: number; confirmadas: number; top: Array<{ id: string; titulo: string; n: number }> };
 }
 
 /** O painel de USO: adoção (quem, quando, com que frequência), o que é puxado e o que
@@ -650,9 +650,15 @@ export async function usoDash(db: D1Database, org_id: string, dias = 90): Promis
         GROUP BY cliente ORDER BY geracoes DESC, ultimo DESC`,
     ).bind(desde, org_id),
     db.prepare(
+      // As três origens são perguntas diferentes: entregue = chegou ao agente sem ele pedir;
+      // consulta = ele foi buscar; registro = ele declarou que entrou na análise. Somar as
+      // três num número só foi o que escondeu o problema por semanas.
       `SELECT (SELECT COUNT(*) FROM conhecimento WHERE org_id = ?1 AND status = 'ativo') AS total,
               (SELECT COUNT(DISTINCT entrada_id) FROM conhecimento_uso) AS usadas,
-              (SELECT COUNT(*) FROM conhecimento_uso) AS consultas`,
+              (SELECT COUNT(*) FROM conhecimento_uso) AS consultas,
+              (SELECT COUNT(DISTINCT entrada_id) FROM conhecimento_uso WHERE origem = 'entregue') AS entregues,
+              (SELECT COUNT(DISTINCT entrada_id) FROM conhecimento_uso WHERE origem = 'consulta') AS buscadas,
+              (SELECT COUNT(DISTINCT entrada_id) FROM conhecimento_uso WHERE origem = 'registro') AS confirmadas`,
     ).bind(org_id),
     db.prepare(
       `SELECT c.id, c.titulo, COUNT(*) AS n FROM conhecimento_uso uso
@@ -661,7 +667,7 @@ export async function usoDash(db: D1Database, org_id: string, dias = 90): Promis
     ).bind(org_id),
   ]);
   const r = (resumo.results[0] || {}) as UsoDash['resumo'];
-  const k = (kb.results[0] || {}) as { total: number; usadas: number; consultas: number };
+  const k = (kb.results[0] || {}) as UsoDash['conhecimento'];
   return {
     resumo: r,
     semanas: semanas.results as UsoDash['semanas'],

@@ -40,7 +40,11 @@ describe('tools (T011)', () => {
     expect(out).toContain('Leia com cuidado.');
     expect(out).toContain('## Contextos que valem para TODA análise');
     expect(out).toContain('[REGRA] Números pequenos — Taxa em cima de pouca base');
-    expect(out).toContain('## Conhecimento relevante (índice');
+    expect(out).toContain('## Conhecimento que NÃO veio junto');
+    expect(out).toContain('### Como chamar a tool `conhecimento`');
+    // O índice tem de vir ANTES das tarefas: no fim do documento ele caía a 99% do texto,
+    // depois de 15 mil tokens, que é onde uma instrução para agir depois não é lida.
+    expect(out.indexOf('## Conhecimento que NÃO veio junto')).toBeLessThan(out.indexOf('## Tarefas'));
     const m = out.match(new RegExp(String.raw`curl -L -o ${slug}\.zip "http://x/dl/${slug}/1\?t=([^"]+)"`));
     expect(m).not.toBeNull();
     expect(await verifyDownload(env.COOKIE_ENCRYPTION_KEY, slug, 1, m![1])).toBe(true);

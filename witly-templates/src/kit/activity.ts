@@ -109,9 +109,29 @@ export async function registrar(env: ToolEnv, user: ToolUser, input: RegistrarIn
     dados, avaliacao, descartado: !!input.descartado, motivo, origem: 'mcp',
   });
   const usadas = (Array.isArray(input.usadas) ? input.usadas : []).map((u) => ({ id: String(u?.id ?? '').trim(), ajudou: u?.ajudou ?? null })).filter((u) => u.id).slice(0, 60);
-  const nUsadas = usadas.length ? await registrarUso(env.DB, usadas, user.email, id) : 0;
+  const nUsadas = usadas.length ? await registrarUso(env.DB, usadas, user.email, id, 'registro') : 0;
   const camp = await anexaNaCampanha(env, user, input, id, evento);
-  return `registrado (${evento}, ${input.slug} v${input.versao ?? version ?? '?'}) id=${id}${nUsadas ? ` · ${nUsadas} entrada(s) de conhecimento marcadas como usadas` : ''}${camp}`;
+  // Silêncio no `usadas` é o caso comum e não dá erro em lugar nenhum — então a resposta
+  // diz o que foi entregue e pede a confirmação. Não bloqueia: só torna o vazio visível.
+  const cobra = (!nUsadas && (evento === 'geracao' || evento === 'aprofundamento'))
+    ? await lembreteUsadas(env, user) : '';
+  return `registrado (${evento}, ${input.slug} v${input.versao ?? version ?? '?'}) id=${id}${nUsadas ? ` · ${nUsadas} entrada(s) de conhecimento marcadas como usadas` : ''}${camp}${cobra}`;
+}
+
+/** Sem `usadas`, lembra ao agente o que ele recebeu embutido e pede a confirmação. Só
+ *  nomeia o que ELE mesmo puxou nesta sessão — pedir confirmação de coisa que ele nunca
+ *  viu produziria ruído, não evidência. */
+async function lembreteUsadas(env: ToolEnv, user: ToolUser): Promise<string> {
+  const r = await env.DB.prepare(
+    `SELECT c.id, c.titulo FROM conhecimento_uso u JOIN conhecimento c ON c.id = u.entrada_id
+      WHERE u.email = ? AND u.origem = 'entregue' AND u.at >= datetime('now', '-1 day')
+      GROUP BY c.id ORDER BY MAX(u.at) DESC LIMIT 6`,
+  ).bind(user.email.toLowerCase()).all<{ id: string; titulo: string }>();
+  if (!r.results.length) return '';
+  const lista = r.results.map((e) => `\`${e.id}\` ${e.titulo}`).join(' · ');
+  return `\n\n⚠ Você registrou sem \`usadas\`. O conhecimento que entrou junto neste trabalho: ${lista}`
+    + '. Quais desses entraram de fato na análise? Responda com `registrar({evento:"feedback", …, usadas:[{id, ajudou}]})`'
+    + ' ou cite os ids no próximo registro — sem isso não dá para saber o que do conhecimento está servindo e o que é peso morto.';
 }
 
 /** Linha do tempo da campanha: a análise entra sozinha; achado e ação do agente entram propostos. */

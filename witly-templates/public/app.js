@@ -770,13 +770,17 @@
       <h2>Conhecimento</h2>
       <div class="stats">
         <div class="stat"><div class="stat-k">Entradas ativas</div><div class="stat-v">${K.total}</div></div>
-        <div class="stat"><div class="stat-k">Já consultadas</div><div class="stat-v">${K.usadas}</div></div>
-        <div class="stat ${nunca && K.total ? 'warn-k' : ''}"><div class="stat-k">Nunca consultadas</div><div class="stat-v">${nunca}</div></div>
-        <div class="stat"><div class="stat-k">Consultas</div><div class="stat-v">${K.consultas}</div></div>
+        <div class="stat"><div class="stat-k">Entregues ao agente</div><div class="stat-v">${K.entregues || 0}<small> sem ele pedir</small></div></div>
+        <div class="stat"><div class="stat-k">Buscadas por ele</div><div class="stat-v">${K.buscadas || 0}</div></div>
+        <div class="stat"><div class="stat-k">Confirmadas na análise</div><div class="stat-v">${K.confirmadas || 0}</div></div>
+        <div class="stat ${nunca && K.total ? 'warn-k' : ''}"><div class="stat-k">Nunca tocadas</div><div class="stat-v">${nunca}</div></div>
       </div>
-      ${K.total && !K.usadas
-        ? `<div class="banner"><span>Nenhuma das ${K.total} entradas foi consultada ainda. O uso só é gravado quando o agente puxa <code>conhecimento(...)</code> em modo completo — se as análises estão saindo sem passar por ele, o que está escrito não está chegando na hora da decisão.</span><a class="btn" href="#/conhecimento" style="margin-left:auto;white-space:nowrap">Ver o conhecimento →</a></div>`
-        : tab(['Entrada', 'Consultas'], K.top.map((e) => `<tr><td><a href="#/conhecimento/${esc(e.id)}">${esc(e.titulo)}</a></td><td><code>${e.n}</code></td></tr>`).join(''), 'Nenhuma consulta registrada.')}
+      <p class="muted sm" style="max-width:74ch;margin:-14px 0 20px"><b>Entregue</b> é o que vai embutido no topo de todo template (as marcadas "sempre") — chega ao agente sem ele pedir. <b>Buscada</b> é quando ele chamou <code>conhecimento(…)</code> de propósito. <b>Confirmada</b> é quando ele declarou, no <code>registrar</code>, que a entrada entrou mesmo na análise. Buscadas em zero com entregues alto significa que só o que é empurrado chega.</p>
+      ${!K.buscadas && K.entregues
+        ? `<div class="banner"><span>O agente recebeu ${K.entregues} entrada(s) embutidas, mas não foi buscar <b>nenhuma</b> por conta própria. As que não são "sempre" só chegam por chamada — se ninguém chama, elas não existem na prática.</span><a class="btn" href="#/conhecimento?sempre=0" style="margin-left:auto;white-space:nowrap">Ver as não-sempre →</a></div>`
+        : (K.total && !K.usadas
+          ? `<div class="banner"><span>Nenhuma das ${K.total} entradas foi tocada ainda — nem entregue, nem buscada. Ou nenhuma análise rodou na janela, ou o conhecimento não está sendo montado no template.</span><a class="btn" href="#/conhecimento" style="margin-left:auto;white-space:nowrap">Ver o conhecimento →</a></div>`
+          : tab(['Entrada', 'Contatos'], K.top.map((e) => `<tr><td><a href="#/conhecimento/${esc(e.id)}">${esc(e.titulo)}</a></td><td><code>${e.n}</code></td></tr>`).join(''), 'Nenhum contato registrado.'))}
 
       <h2>Detalhe por versão</h2>
       <p class="muted sm" style="max-width:66ch;margin:-6px 0 14px">Descarte e nota por versão publicada: onde a mudança de uma versão para a outra ajudou ou atrapalhou.</p>

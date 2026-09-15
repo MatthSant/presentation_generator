@@ -67,43 +67,43 @@
   ],
   "tarefas_contexto": [
     {
-      "id": "lancamento",
+      "id": "lancamento", "gatilho": "ao_identificar",
       "objetivo": "Identificar o lançamento encerrado (field_conversion) e o cliente",
       "saida": "config.field_conversion, config.client, config.client_name, config.nome_campanha, config.campaign_label",
       "confirmar": true
     },
     {
-      "id": "classificacao",
+      "id": "classificacao", "gatilho": "ao_consultar_dados",
       "objetivo": "Confirmar como distinguir fonte paga, campanha de captação e campanha de vendas (o erro mais comum)",
       "saida": "config.paid_sources, config.cpt_pattern, config.vnd_pattern",
       "confirmar": true
     },
     {
-      "id": "temperatura",
+      "id": "temperatura", "gatilho": "ao_consultar_dados",
       "objetivo": "Classificar as campanhas em quente / frio / remarketing / advantage pelo nome",
       "saida": "config.temp_rules",
       "confirmar": true
     },
     {
-      "id": "metas",
+      "id": "metas", "gatilho": "ao_consultar_dados",
       "objetivo": "Obter a tabela de metas (goals.csv) — obrigatória",
       "saida": "goals.csv (--goals)",
       "confirmar": false
     },
     {
-      "id": "historico",
+      "id": "historico", "gatilho": "ao_diagnosticar",
       "objetivo": "Decidir se há lançamento anterior para comparar e obter o consolidado dele",
       "saida": "hist.csv (--hist) ou nada",
       "confirmar": true
     },
     {
-      "id": "recorte",
+      "id": "recorte", "gatilho": "ao_diagnosticar",
       "objetivo": "Perguntar ao consultor se o relatório é do lançamento inteiro ou de um recorte (tipo, canal, temperatura, campanha, público, criativo)",
       "saida": "--opts {\"filters\": {...}} ou nenhum",
       "confirmar": true
     },
     {
-      "id": "conferencia",
+      "id": "conferencia", "gatilho": "ao_diagnosticar",
       "objetivo": "Conferir os números (investimento de captação, mídia bruta, metas, leads de tráfego) e confirmar com o consultor ANTES de gerar",
       "saida": "o \"ok\" do consultor à tabela de conferência",
       "confirmar": true

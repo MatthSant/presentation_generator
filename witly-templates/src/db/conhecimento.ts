@@ -116,12 +116,17 @@ export async function orcamentoSempre(db: D1Database, org_id: string): Promise<{
 
 // ── uso ─────────────────────────────────────────────────────────────────────
 
-export async function registrarUso(db: D1Database, usos: Array<{ id: string; ajudou?: boolean | null }>, email: string, atividade_id: string | null): Promise<number> {
+export type OrigemUso = 'entregue' | 'consulta' | 'registro';
+
+/** `origem` separa o que o agente RECEBEU (entregue, embutido no documento) do que ele
+ *  foi BUSCAR (consulta) e do que ele declarou ter usado (registro) — sem isso o painel
+ *  lê o mesmo zero para "não chegou" e para "não foi medido". */
+export async function registrarUso(db: D1Database, usos: Array<{ id: string; ajudou?: boolean | null }>, email: string, atividade_id: string | null, origem: OrigemUso = 'consulta'): Promise<number> {
   const ids = usos.map((u) => u.id);
   if (!ids.length) return 0;
   const existentes = new Set((await db.prepare(`SELECT id FROM conhecimento WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all<{ id: string }>()).results.map((r) => r.id));
   const validos = usos.filter((u) => existentes.has(u.id));
-  if (validos.length) await db.batch(validos.map((u) => db.prepare('INSERT INTO conhecimento_uso (entrada_id, atividade_id, email, ajudou) VALUES (?, ?, ?, ?)').bind(u.id, atividade_id, email.toLowerCase(), u.ajudou == null ? null : (u.ajudou ? 1 : 0))));
+  if (validos.length) await db.batch(validos.map((u) => db.prepare('INSERT INTO conhecimento_uso (entrada_id, atividade_id, email, ajudou, origem) VALUES (?, ?, ?, ?, ?)').bind(u.id, atividade_id, email.toLowerCase(), u.ajudou == null ? null : (u.ajudou ? 1 : 0), origem)));
   return validos.length;
 }
 
